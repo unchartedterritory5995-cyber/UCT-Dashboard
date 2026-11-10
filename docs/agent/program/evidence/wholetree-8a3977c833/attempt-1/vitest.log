@@ -1,0 +1,249 @@
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+(node:9940) MaxListenersExceededWarning: Possible EventTarget memory leak detected. 11 message listeners added to BroadcastChannel. MaxListeners is 10. Use events.setMaxListeners() to increase limit
+(Use `node.EXE --trace-warnings ...` to show where the warning was created)
+(node:6052) TimeoutNaNWarning: NaN is not a number.
+Timeout duration was set to 1.
+(Use `node.EXE --trace-warnings ...` to show where the warning was created)
+(node:25776) TimeoutNaNWarning: NaN is not a number.
+Timeout duration was set to 1.
+(Use `node.EXE --trace-warnings ...` to show where the warning was created)
+Not implemented: navigation to another Document
+(node:19416) TimeoutNaNWarning: NaN is not a number.
+Timeout duration was set to 1.
+(Use `node.EXE --trace-warnings ...` to show where the warning was created)
+Traceback (most recent call last):
+  File "C:\Users\blake\AppData\Local\Programs\Python\Python312\Lib\zoneinfo\_common.py", line 12, in load_tzdata
+    return resources.files(package_name).joinpath(resource_name).open("rb")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\blake\AppData\Local\Programs\Python\Python312\Lib\importlib\resources\_common.py", line 46, in wrapper
+    return func(anchor)
+           ^^^^^^^^^^^^
+  File "C:\Users\blake\AppData\Local\Programs\Python\Python312\Lib\importlib\resources\_common.py", line 56, in files
+    return from_package(resolve(anchor))
+                        ^^^^^^^^^^^^^^^
+  File "C:\Users\blake\AppData\Local\Programs\Python\Python312\Lib\functools.py", line 912, in wrapper
+    return dispatch(args[0].__class__)(*args, **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\blake\AppData\Local\Programs\Python\Python312\Lib\importlib\resources\_common.py", line 82, in _
+    return importlib.import_module(cand)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\blake\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1310, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1310, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1324, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'tzdata'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+  File "C:\w\pl-auto\api\services\ast_bind.py", line 61, in <module>
+    from api.services.ast_interpret import TABLE, _is_number, _refuse
+  File "C:\w\pl-auto\api\services\ast_interpret.py", line 51, in <module>
+    from api.services.nyse_calendar import (
+  File "C:\w\pl-auto\api\services\nyse_calendar.py", line 68, in <module>
+    from api.services.session_calendar import calendar as _calendar
+  File "C:\w\pl-auto\api\services\session_calendar.py", line 64, in <module>
+    ET = ZoneInfo("America/New_York")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\blake\AppData\Local\Programs\Python\Python312\Lib\zoneinfo\_common.py", line 24, in load_tzdata
+    raise ZoneInfoNotFoundError(f"No time zone found with key {key}")
+zoneinfo._common.ZoneInfoNotFoundError: 'No time zone found with key America/New_York'
+Traceback (most recent call last):
+  File "C:\Users\blake\AppData\Local\Programs\Python\Python312\Lib\zoneinfo\_common.py", line 12, in load_tzdata
+    return resources.files(package_name).joinpath(resource_name).open("rb")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\blake\AppData\Local\Programs\Python\Python312\Lib\importlib\resources\_common.py", line 46, in wrapper
+    return func(anchor)
+           ^^^^^^^^^^^^
+  File "C:\Users\blake\AppData\Local\Programs\Python\Python312\Lib\importlib\resources\_common.py", line 56, in files
+    return from_package(resolve(anchor))
+                        ^^^^^^^^^^^^^^^
+  File "C:\Users\blake\AppData\Local\Programs\Python\Python312\Lib\functools.py", line 912, in wrapper
+    return dispatch(args[0].__class__)(*args, **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\blake\AppData\Local\Programs\Python\Python312\Lib\importlib\resources\_common.py", line 82, in _
+    return importlib.import_module(cand)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\blake\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1310, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1310, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1324, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'tzdata'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+  File "C:\w\pl-auto\api\services\ast_bind.py", line 61, in <module>
+    from api.services.ast_interpret import TABLE, _is_number, _refuse
+  File "C:\w\pl-auto\api\services\ast_interpret.py", line 51, in <module>
+    from api.services.nyse_calendar import (
+  File "C:\w\pl-auto\api\services\nyse_calendar.py", line 68, in <module>
+    from api.services.session_calendar import calendar as _calendar
+  File "C:\w\pl-auto\api\services\session_calendar.py", line 64, in <module>
+    ET = ZoneInfo("America/New_York")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\blake\AppData\Local\Programs\Python\Python312\Lib\zoneinfo\_common.py", line 24, in load_tzdata
+    raise ZoneInfoNotFoundError(f"No time zone found with key {key}")
+zoneinfo._common.ZoneInfoNotFoundError: 'No time zone found with key America/New_York'
+Traceback (most recent call last):
+  File "C:\Users\blake\AppData\Local\Programs\Python\Python312\Lib\zoneinfo\_common.py", line 12, in load_tzdata
+    return resources.files(package_name).joinpath(resource_name).open("rb")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\blake\AppData\Local\Programs\Python\Python312\Lib\importlib\resources\_common.py", line 46, in wrapper
+    return func(anchor)
+           ^^^^^^^^^^^^
+  File "C:\Users\blake\AppData\Local\Programs\Python\Python312\Lib\importlib\resources\_common.py", line 56, in files
+    return from_package(resolve(anchor))
+                        ^^^^^^^^^^^^^^^
+  File "C:\Users\blake\AppData\Local\Programs\Python\Python312\Lib\functools.py", line 912, in wrapper
+    return dispatch(args[0].__class__)(*args, **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\blake\AppData\Local\Programs\Python\Python312\Lib\importlib\resources\_common.py", line 82, in _
+    return importlib.import_module(cand)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\blake\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1310, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1310, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1324, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'tzdata'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+  File "C:\w\pl-auto\api\services\ast_bind.py", line 61, in <module>
+    from api.services.ast_interpret import TABLE, _is_number, _refuse
+  File "C:\w\pl-auto\api\services\ast_interpret.py", line 51, in <module>
+    from api.services.nyse_calendar import (
+  File "C:\w\pl-auto\api\services\nyse_calendar.py", line 68, in <module>
+    from api.services.session_calendar import calendar as _calendar
+  File "C:\w\pl-auto\api\services\session_calendar.py", line 64, in <module>
+    ET = ZoneInfo("America/New_York")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\blake\AppData\Local\Programs\Python\Python312\Lib\zoneinfo\_common.py", line 24, in load_tzdata
+    raise ZoneInfoNotFoundError(f"No time zone found with key {key}")
+zoneinfo._common.ZoneInfoNotFoundError: 'No time zone found with key America/New_York'
+(node:20072) TimeoutNaNWarning: NaN is not a number.
+Timeout duration was set to 1.
+(Use `node.EXE --trace-warnings ...` to show where the warning was created)
+(node:23716) TimeoutNaNWarning: NaN is not a number.
+Timeout duration was set to 1.
+(Use `node.EXE --trace-warnings ...` to show where the warning was created)
+(node:6560) TimeoutNaNWarning: NaN is not a number.
+Timeout duration was set to 1.
+(Use `node.EXE --trace-warnings ...` to show where the warning was created)
+(node:8384) TimeoutNaNWarning: NaN is not a number.
+Timeout duration was set to 1.
+(Use `node.EXE --trace-warnings ...` to show where the warning was created)
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+(node:18420) TimeoutNaNWarning: NaN is not a number.
+Timeout duration was set to 1.
+(Use `node.EXE --trace-warnings ...` to show where the warning was created)
+(node:24764) TimeoutNaNWarning: NaN is not a number.
+Timeout duration was set to 1.
+(Use `node.EXE --trace-warnings ...` to show where the warning was created)
+Not implemented: navigation to another Document
+(node:16340) TimeoutNaNWarning: NaN is not a number.
+Timeout duration was set to 1.
+(Use `node.EXE --trace-warnings ...` to show where the warning was created)
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: HTMLMediaElement's load() method
+Not implemented: HTMLMediaElement's load() method
+Not implemented: HTMLMediaElement's load() method
+Not implemented: HTMLMediaElement's load() method
+Not implemented: HTMLMediaElement's load() method
+Not implemented: HTMLMediaElement's load() method
+Not implemented: HTMLMediaElement's load() method
+Not implemented: HTMLMediaElement's load() method
+Not implemented: HTMLMediaElement's load() method
+Not implemented: HTMLMediaElement's load() method
+Not implemented: HTMLMediaElement's load() method
+Not implemented: HTMLMediaElement's load() method
+Not implemented: HTMLMediaElement's load() method
+Not implemented: navigation to another Document
+[ML/ rescue] rescued 2 isolated ML/ trades (0 with derived direction from 70%+ ASK flow shape)
+(node:15544) TimeoutNaNWarning: NaN is not a number.
+Timeout duration was set to 1.
+(Use `node.EXE --trace-warnings ...` to show where the warning was created)
+Not implemented: HTMLMediaElement's load() method
+(node:25816) TimeoutNaNWarning: NaN is not a number.
+Timeout duration was set to 1.
+(Use `node.EXE --trace-warnings ...` to show where the warning was created)
+(node:24520) TimeoutNaNWarning: NaN is not a number.
+Timeout duration was set to 1.
+(Use `node.EXE --trace-warnings ...` to show where the warning was created)
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+(node:7204) TimeoutNaNWarning: NaN is not a number.
+Timeout duration was set to 1.
+(Use `node.EXE --trace-warnings ...` to show where the warning was created)
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+(node:15024) TimeoutNaNWarning: NaN is not a number.
+Timeout duration was set to 1.
+(Use `node.EXE --trace-warnings ...` to show where the warning was created)
+Not implemented: navigation to another Document
+(node:22596) TimeoutNaNWarning: NaN is not a number.
+Timeout duration was set to 1.
+(Use `node.EXE --trace-warnings ...` to show where the warning was created)
+[2m4:34:09 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mThe following expression is not returned because of an automatically-inserted semicolon[33m
+93 |      expect(cap.ok).toBe(true)
+94 |      expect(cap.family).toBe(OHLC_FAMILY.BREADTH)
+95 |      return
+   |            ^
+96 |      // the refusal names the FAMILY, not a missing field — the bars have all four
+97 |      expect(cap.reason).toBe(OHLC_REFUSAL.FAMILY_NOT_OHLC)
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/w/pl-auto/app/src/components/chart/breadthPublication.test.jsx[39m
+(node:24748) TimeoutNaNWarning: NaN is not a number.
+Timeout duration was set to 1.
+(Use `node.EXE --trace-warnings ...` to show where the warning was created)
+(node:6780) TimeoutNaNWarning: NaN is not a number.
+Timeout duration was set to 1.
+(Use `node.EXE --trace-warnings ...` to show where the warning was created)
+(node:22968) TimeoutNaNWarning: NaN is not a number.
+Timeout duration was set to 1.
+(Use `node.EXE --trace-warnings ...` to show where the warning was created)
+JSON report written to C:/Users/blake/AppData/Local/Temp/claude/2ef397b80db79bf7/56266831-c770-46eb-8e87-f65def6d19f9/scratchpad/pl-auto/runs/wt-8a3977c833/attempt-1/vitest.json
+exit 1

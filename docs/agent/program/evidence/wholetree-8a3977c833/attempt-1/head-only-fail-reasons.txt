@@ -1,0 +1,18 @@
+src/context/AuthContext.test.jsx failed 1 / 10 
+   - 503 on a REFETCH with a logged-in user → user and plan state PRESERVED | Error: [2mexpect([22m[31melement[39m[2m).toHaveTextContent()[22m
+src/agent/agentNl1SelectionCoverage.test.js failed 1 / 1 
+   - holds the selection invariants on every dev / exposed request, and reports first-call cove | AssertionError: corpus.json: first-call coverage: expected # to be greater than or equal to #
+src/agent/agentNoLookbehindEquivalence.test.js failed 1 / 6 
+   - routing: every output identical to the master baseline | AssertionError: expected [ [ 69, …(2) ], [ 146, …(2) ] ] to deeply equal []
+src/agent/agentRouting.test.jsx failed 1 / 23 
+   - each group can be sent (by its words or a reroute) within the per-request limit, and the g | AssertionError: expected 160 to be 158 // Object.is equality
+src/agent/agentScanSat1Requests.test.jsx failed 0 / 62 FILE: 
+src/agent/agentScreener.test.jsx failed 1 / 13 
+   - READ-ONLY: every Screener action is a query (nothing to undo); the manifest stays closed-s | AssertionError: expected 154 to be 152 // Object.is equality
+src/components/StockChart.smoke.test.jsx failed 1 / 9 
+   - reports the drawn bar count to onDrawnBarCount | TypeError: timeScale.subscribeVisibleTimeRangeChange is not a function
+src/pages/OptionsFlow.deferredInteraction.test.jsx failed 4 / 5 
+   - renders the page, and the SAME first-paint numbers, with both keys absent | Error: Failed to resolve import "html2canvas" from "src/pages/OptionsFlow.jsx". Does the file exist?
+   - ⛔ does not throw — an unguarded `.find` on a missing array is the whole risk | Error: Failed to resolve import "html2canvas" from "src/pages/OptionsFlow.jsx". Does the file exist?
+   - stays stable when the deferred fetch FAILS | Error: Failed to resolve import "html2canvas" from "src/pages/OptionsFlow.jsx". Does the file exist?
+src/pages/OptionsFlow.test.jsx failed 0 / 0 FILE: Failed to resolve import "html2canvas" from "src/pages/OptionsFlow.jsx". Does the file exist?

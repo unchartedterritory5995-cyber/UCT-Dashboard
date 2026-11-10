@@ -1,0 +1,14 @@
+src/lib/swallowedFetch.census.test.js :: TERM-033: `.catch(() => null)` is a shrink-only census > no file gains -> master 6, head 6, head-only 0, master-only 0
+src/__tests__/sourcesAreText.test.js :: every JS/JSX source under app/src is TEXT > contains no NUL or other C -> master 3, head 3, head-only 0, master-only 0
+src/components/screener/reachable.test.js :: every module under app/src is REACHABLE from an entry point > and noth -> master 3, head 3, head-only 0, master-only 0
+src/components/ui/formControls.census.test.js :: HAND-ROLLED SWITCHES MAY NOT GROW > no file gained a hand-rolled switc -> master 2, head 2, head-only 0, master-only 0
+src/components/ui/formControls.census.test.js :: UNNAMED CONTROL SITES MAY ONLY SHRINK > no new unnamed control site ap -> master 0, head 0, head-only 0, master-only 0
+src/components/ui/formControls.census.test.js :: UNNAMED CONTROL SITES MAY ONLY SHRINK > the baseline is tight a migrat -> master 0, head 0, head-only 0, master-only 0
+src/lib/persistence/persistenceManifest.test.js :: the persistence census sees the tree before anything is compared > fin -> master 0, head 0, head-only 0, master-only 0
+src/lib/persistence/persistenceManifest.test.js :: the persistence census sees the tree before anything is compared > cla -> master 9, head 10, head-only 2, master-only 1
+     + "why": "key is a parameter nobody resolvably passes (via app/src/pages/breadth/drill/scan/ScanGrid.jsx:63)"
+     + "why": "key is a parameter nobody resolvably passes (via app/src/pages/study/challenges/ChallengeChart.jsx:60)"
+src/lib/presentation/handRolledFormatters.census.test.js :: HAND-ROLLED FORMATTERS MAY NOT GROW > no file gained a site, and no ne -> master 6, head 6, head-only 0, master-only 0
+src/pages/command/keyListenerCensus.test.js :: TERM-063 the raw key-listener ratchet > no file holds MORE raw key lis -> master 23, head 23, head-only 0, master-only 0
+src/pages/command/keyListenerCensus.test.js :: TERM-063 the raw key-listener ratchet > the baseline sits at or under  -> master 0, head 0, head-only 0, master-only 0
+head-only offenders total 2 | head FAIL blocks 11

@@ -1,0 +1,16 @@
+HEAD files 54 failed | 4554 passed (4608); tests 59 failed | 71498 passed | 265 skipped (71822)
+head-only fails:
+  + src/agent/agentNl1SelectionCoverage.test.js
+  + src/agent/agentNoLookbehindEquivalence.test.js
+  + src/agent/agentRouting.test.jsx
+  + src/agent/agentScanSat1Requests.test.jsx
+  + src/agent/agentScreener.test.jsx
+  + src/components/StockChart.smoke.test.jsx
+  + src/context/AuthContext.test.jsx
+  + src/pages/OptionsFlow.deferredInteraction.test.jsx
+  + src/pages/OptionsFlow.test.jsx
+master-only fails (fixed or not run on head):
+  - src/lib/presentation/presentationSingleFormatter.test.js
+  - src/pages/charts/widgets/TradeExchangeNewsWidget.saved.test.jsx
+  - src/pages/journal-2-0/components/notebook/ImportRepairNotice.test.jsx
+both: 45

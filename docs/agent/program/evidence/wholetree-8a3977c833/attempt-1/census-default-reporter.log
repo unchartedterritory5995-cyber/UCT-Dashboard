@@ -1,0 +1,1161 @@
+[suite-lock] all 2 slots busy (pl-widget, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-widget, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-widget, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-teach, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+
+ RUN  v4.0.18 C:/w/pl-auto/app
+
+ ❯ src/pages/command/keyListenerCensus.test.js (7 tests | 2 failed) 4265ms
+     ✓ CONTROL: a comment or prose mention is not a listener; a real call is 5ms
+     ✓ CONTROL: a dynamic registration and a wrapper hook are caught as orphans 2ms
+     ✓ CONTROL: dispatching a key event is not listening for one 1ms
+     ✓ NON-VACUITY: it walks the whole tree, parses every file, and finds the registry  4249ms
+     × no file holds MORE raw key listeners than its baseline (new ones go through the registry) 5ms
+     ✓ no baseline row is STALE (a migrated listener must leave the baseline in the same commit) 0ms
+     × the baseline sits at or under the stated CEILING, and the CEILING is tight 1ms
+stdout | src/components/ui/formControls.census.test.js > the census, printed > reports kinds, implementations, clusters, wrappers and label association
+[term-067 form-control census]
+    population 3193 files · with controls 448 · sites 1487 · listbox popups (not counted) 29
+    derived primitives (app/src/components/ui/): app/src/components/ui/Checkbox {Checkbox} · app/src/components/ui/Input {Input} · app/src/components/ui/Radio {Radio} · app/src/components/ui/Select {Select} · app/src/components/ui/Slider {Slider} · app/src/components/ui/Switch {Switch} · app/src/components/ui/Textarea {Textarea}
+    partner-owned (counted, not dropped): app/src/pages/OptionsFlow.jsx = 17 sites
+    by kind:
+      toggle-button                  251
+      text                           247
+      select                         211
+      primitive:Input                181
+      checkbox                       110
+      number                          85
+      primitive:Select                74
+      textarea                        64
+      primitive:Checkbox              52
+      radio                           49
+      date                            47
+      primitive:Textarea              31
+      switch                          23
+      file                            18
+      primitive:Switch                16
+      range                           11
+      dynamic                          7
+      color                            4
+      primitive:Radio                  4
+      primitive:Slider                 2
+    by implementation:
+      native                         831
+      primitive                      360
+      pressed                        251
+      aria                            45
+    by kind / implementation:
+      toggle-button / pressed        251
+      text / native                  247
+      select / native                209
+      primitive:Input / primitive    181
+      checkbox / native              107
+      number / native                 85
+      primitive:Select / primitive    74
+      textarea / native               64
+      primitive:Checkbox / primitive    52
+      date / native                   47
+      radio / native                  32
+      primitive:Textarea / primitive    31
+      switch / aria                   22
+      file / native                   18
+      radio / aria                    17
+      primitive:Switch / primitive    16
+      range / native                  10
+      dynamic / native                 7
+      color / native                   4
+      primitive:Radio / primitive      4
+      checkbox / aria                  3
+      primitive:Slider / primitive     2
+      select / aria                    2
+      range / aria                     1
+      switch / native                  1
+    hand-rolled switches (the ONE ratcheted family):
+        12  app/src/components/chart/ChartSettingsModal.jsx
+         3  app/src/components/chart/ChartDrawingOverlay.jsx
+         3  app/src/pages/charts/mobile/MobileIndicatorSheet.jsx
+         2  app/src/components/chart/ChartSettingsIndicators.jsx
+         2  app/src/components/chart/IndicatorSettingsDialog.jsx
+         1  app/src/pages/journal-2-0/components/notebook/NoteSharePanel.jsx
+    label association:
+      labelled                      1471
+      indeterminate                    7
+      placeholder-only                 4
+      unlabelled                       3
+      hidden                           2
+    label association, by kind:
+      toggle-button    labelled=251
+      text             labelled=241 indeterminate=3 placeholder-only=2 hidden=1
+      select           labelled=210 indeterminate=1
+      primitive:Input  labelled=180 hidden=1
+      checkbox         labelled=110
+      number           labelled=82 placeholder-only=2 indeterminate=1
+      primitive:Select labelled=74
+      textarea         labelled=64
+      primitive:Checkbox labelled=52
+      radio            labelled=47 unlabelled=2
+      date             labelled=46 indeterminate=1
+      primitive:Textarea labelled=31
+      switch           labelled=22 indeterminate=1
+      file             labelled=18
+      primitive:Switch labelled=16
+      range            labelled=10 unlabelled=1
+      dynamic          labelled=7
+      color            labelled=4
+      primitive:Radio  labelled=4
+      primitive:Slider labelled=2
+    most unlabelled sites:
+         1  app/src/lab/pieces/Piece9TeachV2.jsx
+         1  app/src/pages/study/drills/ChoiceList.jsx
+         1  app/src/pages/study/ui/ReplayPause.jsx
+    duplication clusters (hand-rolled shape, >=3 sites in >=2 files):
+       144 sites /  89 files  pressed:toggle-button <button type=button> [aria-pressed,className] > ()
+        75 sites /  43 files  primitive:primitive:Input <Input> [className] > ()
+        45 sites /  17 files  primitive:primitive:Checkbox <Checkbox> [] > ()
+        35 sites /  26 files  primitive:primitive:Select <Select> [className] > ()
+        27 sites /  16 files  primitive:primitive:Input <Input type=text> [className] > ()
+        26 sites /  18 files  primitive:primitive:Textarea <Textarea> [className] > ()
+        24 sites /  23 files  pressed:toggle-button <button type=button> [aria-pressed,className] > (UIcon)
+        20 sites /  10 files  primitive:primitive:Input <Input type=number> [className] > ()
+        19 sites /   4 files  aria:switch <button type=button> [aria-checked,className] > (span)
+        17 sites /  10 files  pressed:toggle-button <button type=button> [aria-pressed,className] > (span)
+        16 sites /  11 files  primitive:primitive:Switch <Switch> [className] > ()
+        13 sites /   9 files  pressed:toggle-button <button type=button> [aria-pressed] > ()
+    local wrapper components (one control, <=6 elements):
+      NumberField            x2  app/src/components/chart/builder/CriteriaPicker.jsx · app/src/pages/study/drills/SizeDrill.jsx
+      Row                    x2  app/src/pages/charts/widgets/TimeframeMenu.jsx · app/src/pages/journal-2-0/components/notebook/blocks/MoodCheckInBlock.jsx
+      SearchBox              x2  app/src/floor2/SearchBox.jsx · app/src/pages/traderArchive/TraderArchive.jsx
+      AccountSelect          x1
+      AddStockRow            x1
+      AddTickerBar           x1
+      AdjustmentLabel        x1
+      AgentDockButton        x1
+      ArchiveSearch          x1
+      AttachVideoSearch      x1
+      BarsField              x1
+      BoardFromList          x1
+      BreadthViewSwitcher    x1
+      CB                     x1
+      CaptureMenu            x1
+      ChartIqToolbarButton   x1
+      ChartSelect            x1
+      CheckList              x1
+      ChipRow                x1
+      ChoiceList             x1
+      ContractPicker         x1
+      DeferredTextInput      x1
+      FilingWatchAction      x1
+      FormPicker             x1
+      GroupSwitch            x1
+      HubScrubRange          x1
+      InspectorTextBox       x1
+      LandingChoice          x1
+      LevelPriceField        x1
+      LongEnumControl        x1
+      MapRow                 x1
+      MineChip               x1
+      ModeSwitch             x1
+      MyTake                 x1
+      NegateToggle           x1
+      NoteCard               x1
+      NoteEditor             x1
+      NumField               x1
+      NumberInput            x1
+      NumberSetting          x1
+      NumberSwitches         x1
+      OfferButton            x1
+      OptChips               x1
+      PatternToolbarButton   x1
+      PriceStampsBlock       x1
+      QuickPresetSwitcher    x1
+      ResizableImageView     x1
+      RoleRadios             x1
+      RovingTiles            x1
+      SaveScanButton         x1
+      Scrubber               x1
+      Seg                    x1
+      SideToggles            x1
+      StepRow                x1
+      SwatchRow              x1
+      SwitchRow              x1
+      SymbolInput            x1
+      TagChipPicker          x1
+      TagSuggestInput        x1
+      TextBody               x1
+      TextInputOverlay       x1
+      TextRow                x1
+      ThemeSearchBox         x1
+      TickerList             x1
+      Tile                   x1
+      Toggle                 x1
+      TopInput               x1
+      TypedValue             x1
+      ViewHoldingsControl    x1
+
+ ❯ src/components/ui/formControls.census.test.js (117 tests | 3 failed) 3619ms
+     ✓ classifies every native input type, select and textarea 4ms
+     ✓ classifies every hand-rolled ARIA widget and the aria-pressed toggle button 1ms
+     ✓ a native input carrying a control role takes the role as its kind 0ms
+     ✓ a listbox is counted apart, never as a second control beside its combobox 0ms
+     ✓ a JSX use of an imported primitive is a primitive site; the same name un-imported is not 0ms
+     ✓ ignores comments and string contents — and the control proves code IS seen 1ms
+     ✓ a non-literal role is not guessed, and an unrelated role is not a control 0ms
+     ✓ aria-label / aria-labelledby / title / wrapping label / htmlFor all label 1ms
+     ✓ the negatives: bare, mismatched htmlFor, placeholder-only, spread, hidden, submit 1ms
+     ✓ a button widget is named by its text, and a knob-only switch is not 0ms
+     ✓ two copies of one hand-rolled shape share a signature; a different shape does not 0ms
+     ✓ a small component wrapping exactly one control is a local wrapper; a page is not 1ms
+     ✓ git returned a real tree, and parse failures are zero  3587ms
+     ✓ names a known offender — the census is not silently empty 0ms
+     ✓ every kind the rails plant is also found somewhere in the real tree (no dead vocabulary) 1ms
+     ✓ the primitive directory is excluded from the page population, and the exclusion is load-bearing 2ms
+     ✓ a planted new file with a switch is ADDED, by name 0ms
+     ✓ growth is caught by name, and a shrink is slack to bank 0ms
+     ✓ only the switch family counts — a native checkbox, a toggle button, a Switch use do not 0ms
+     ✓ components/ui/Switch is found by derivation, not by a typed roster 0ms
+     ✓ the migrated panels render the primitive and hold no hand-rolled switch 0ms
+     ✓ components/ui/Radio is found by derivation, not by a typed roster 0ms
+     ✓ the migrated radio groups render the primitive and hold no raw radio 0ms
+     × no file gained a hand-rolled switch, and no new file appeared 6ms
+     ✓ the baseline is tight — progress is banked in the commit that makes it 1ms
+     ✓ the committed baseline is byte-exactly what its writer produces 0ms
+     ✓ a primitive is judged like a native control — an unnamed one is NOT waved through 0ms
+     ✓ the verdict can FAIL — a planted unnamed control on a named surface is reported 0ms
+     ✓ app/src/components/AppThemePicker.jsx — every control has an accessible name 0ms
+     ✓ app/src/components/FeedbackWidget.jsx — every control has an accessible name 0ms
+     ✓ app/src/components/IntradayDayPopover.jsx — every control has an accessible name 0ms
+     ✓ app/src/components/StockChart.jsx — every control has an accessible name 0ms
+     ✓ app/src/components/TickerActions.jsx — every control has an accessible name 0ms
+     ✓ app/src/components/admin/CatalystRulesPanel.jsx — every control has an accessible name 0ms
+     ✓ app/src/components/admin/TwitterAccountsPanel.jsx — every control has an accessible name 0ms
+     ✓ app/src/components/chart/ChartDrawingOverlay.jsx — every control has an accessible name 0ms
+     ✓ app/src/components/chart/ChartSettingsModal.jsx — every control has an accessible name 0ms
+     ✓ app/src/components/chart/ChartToolbar.jsx — every control has an accessible name 0ms
+     ✓ app/src/components/chart/ColorPanel.jsx — every control has an accessible name 0ms
+     ✓ app/src/components/chart/ColorPicker.jsx — every control has an accessible name 0ms
+     ✓ app/src/components/chart/ComparisonPicker.jsx — every control has an accessible name 0ms
+     ✓ app/src/components/chart/PatternSidePanel.jsx — every control has an accessible name 0ms
+     ✓ app/src/components/chart/SymbolSearch.jsx — every control has an accessible name 0ms
+     ✓ app/src/components/chart/TracingsPanel.jsx — every control has an accessible name 0ms
+     ✓ app/src/components/chart/builder/ParamControls.jsx — every control has an accessible name 0ms
+     ✓ app/src/components/community/ShareToFloor.jsx — every control has an accessible name 0ms
+     ✓ app/src/components/mobile/TickerHubSheet.jsx — every control has an accessible name 0ms
+     ✓ app/src/components/screener/RunNowButton.jsx — every control has an accessible name 0ms
+     ✓ app/src/components/tiles/CatalystTable.jsx — every control has an accessible name 0ms
+     ✓ app/src/components/video/VideoDockSlot.jsx — every control has an accessible name 0ms
+     ✓ app/src/components/voice/VisionAttachButton.jsx — every control has an accessible name 0ms
+     ✓ app/src/components/voice/VoiceDocumentsPanel.jsx — every control has an accessible name 0ms
+     ✓ app/src/components/voice/VoiceMemoryPanel.jsx — every control has an accessible name 0ms
+     ✓ app/src/floor2/ChartAttach.jsx — every control has an accessible name 0ms
+     ✓ app/src/floor2/Composer.jsx — every control has an accessible name 0ms
+     ✓ app/src/floor2/ReplyBox.jsx — every control has an accessible name 0ms
+     ✓ app/src/floor2/SearchBox.jsx — every control has an accessible name 0ms
+     ✓ app/src/hub/HubReportButton.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/Admin.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/AiSearchPage.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/AlertTester.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/Confluence.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/CotData.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/DarkPool.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/LiveFlow.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/LiveFlowMassive.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/LiveFlow_admin.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/ModelBook.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/OpenFlow.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/OptionsFlow.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/OptionsFlow_admin.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/Settings.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/SetupLibrary.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/Support.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/ThemeTrackerPage.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/Watchlists.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/admin/ChartHealth.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/admin/DetectionReviewCard.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/admin/PatternReview.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/breadth/BreadthViewsCustomizePanel.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/breadth/CustomizePanel.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/calendar/CalendarHeader.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/charts/ChartsWorkspace.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/charts/CompareSymbolsPanel.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/charts/PeriodSortConfig.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/charts/ReplayPanel.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/charts/WidgetHeader.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/charts/grid/MultiChartMenu.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/charts/widgets/AlertsWidget.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/charts/widgets/ChartTabStrip.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/charts/widgets/CompanySearch.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/charts/widgets/NhnlUniverseMenu.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/charts/widgets/NotebookWidget.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/charts/widgets/PickerHeader.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/charts/widgets/ScatterWidget.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/charts/widgets/VolumeScanLists.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/community/ChatView.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/community/CommunityPage.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/community/components/FloorSearch.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/desk/ArticlesSection.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/desk/TeamSection.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/modelbook/SetupsView.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/modelbook/shared/ChartExampleKit.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/research/components/ComparisonAskAi.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/research/tabs/AskAiTab.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/screener/ScreensManager.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/screener/shell/FlaggedActions.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/screener/shell/SaveScanButton.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/settings/JoystickSettingsCard.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/watchlist/SaveListDialog.jsx — every control has an accessible name 0ms
+     ✓ app/src/pages/watchlist/WatchlistSettingsPanel.jsx — every control has an accessible name 0ms
+     ✓ app/src/testing/breadth/breadthLibraryHarness.jsx — every control has an accessible name 0ms
+     ✓ app/src/testing/marketIndicators/marketIndicatorsHarness.jsx — every control has an accessible name 0ms
+     ✓ the counter can tell a name from a hint 0ms
+     × no new unnamed control site appeared anywhere in app/src 1ms
+     × the baseline is tight — a migration lowers UNNAMED_BASELINE in the same commit 1ms
+     ✓ reports kinds, implementations, clusters, wrappers and label association 2ms
+stderr | src/lib/persistence/persistenceManifest.test.js > the manifest is current > declares every key the code persists (fix: node tools/persistence_census.mjs --write)
+[persistence-census] 36 undeclared (fix: node tools/persistence_census.mjs --write):
+  undeclared persisted key 'breadth_scan_reviewed_v1' (localStorage) at app/src/pages/breadth/drill/scan/scanDeckModel.js:208 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'breadthpack.seed' (localStorage) at app/src/lib/barsPackClient.js:200 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'breadthpack.version' (localStorage) at app/src/lib/barsPackClient.js:200 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'study.blitz.best' (localStorage) at app/src/pages/study/StudyLanding.jsx:34 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'study.blitz.tutorialSeen' (localStorage) at app/src/lab/pieces/Piece47BlitzV2.jsx:23 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'study.howto.*' (localStorage) at app/src/pages/study/ui/HowItPlays.jsx:8 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'study.outbox' (localStorage) at app/src/pages/study/studyOutbox.js:31 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'study.set.cache' (localStorage) at app/src/pages/study/useStudySession.js:85 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'study.sfx.muted' (localStorage) at app/src/lab/sfx.js:6 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'study.sound' (localStorage) at app/src/pages/study/studyFeedback.js:25 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'uct.agent.news..*' (localStorage) at app/src/agent/agentFlag.js:65 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'uct.agent.news.*.*' (localStorage) at app/src/agent/agentFlag.js:65 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'uct.agent.nl1' (localStorage) at app/src/agent/nl1/interpreter.js:31 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'uct.agent.nlm1.inplan' (localStorage) at app/src/agent/nlm1/inplan.js:19 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'uct.agent.routingV2' (localStorage) at app/src/agent/nlm1/flag.js:17 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'uct.agent.stream' (localStorage) at app/src/agent/agentClient.js:86 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'uct.agent.welcomed.*' (localStorage) at app/src/agent/agentFlag.js:65 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'uct.agent.welcomed.anon' (localStorage) at app/src/agent/agentFlag.js:65 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'uct.agent.width' (localStorage) at app/src/agent/agentFlag.js:65 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'uct.auth.ping' (localStorage) at app/src/context/AuthContext.jsx:26 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'uct.breadthDrill.sparkRange' (localStorage) at app/src/pages/breadth/drill/scan/ScanDeckParts.jsx:71 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'uct.nb.tickerSuggest.no.*' (localStorage) at app/src/pages/journal-2-0/components/notebook/TickerSuggestion.jsx:36 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'uct.nb.widgetDraft.*' (localStorage) at app/src/pages/journal-2-0/components/notebook/widgetBuilder/builderDraft.js:53 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'uct.nb.widgetDraft.me' (localStorage) at app/src/pages/journal-2-0/components/notebook/widgetBuilder/builderDraft.js:53 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'uct.nb.widgetUses.*' (localStorage) at app/src/pages/journal-2-0/lib/builtInWidgets.js:48 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'uct.notebook.noteDetails.open' (localStorage) at app/src/pages/journal-2-0/components/notebook/NoteDetailsLine.jsx:43 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'uct.study.sound' (localStorage) at app/src/components/settings/StudySettingsCard.jsx:33 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'uct.watchlist.cols.breadthDrill.focus7' (localStorage) at app/src/pages/Watchlists.jsx:1232 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'uct.watchlist.cols.breadthDrill.table' (localStorage) at app/src/pages/Watchlists.jsx:1232 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'indicator_tours_seen' (server-preference) at app/src/components/chart/useIndicatorTours.js:103 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'notebook_landing' (server-preference) at app/src/pages/journal-2-0/components/notebook/TodayHome.jsx:491 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'uct.agent.activeDraft' (sessionStorage) at app/src/agent/capabilities/indicatorAuthoring.js:61 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'uct.agent.lastSaved' (sessionStorage) at app/src/agent/capabilities/indicatorAuthoring.js:71 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'uct.nb.kindOfferApplied.*' (sessionStorage) at app/src/pages/journal-2-0/components/notebook/styles/offerApplied.js:11 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'uct.nb.kindOfferApplied.anon' (sessionStorage) at app/src/pages/journal-2-0/components/notebook/styles/offerApplied.js:11 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'uct.nb.pendingNotice' (sessionStorage) at app/src/pages/journal-2-0/lib/dailyNote.js:41 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+
+stderr | src/lib/persistence/persistenceManifest.test.js > the manifest is current > lists nothing the code no longer persists
+[persistence-census] 1 stale (fix: node tools/persistence_census.mjs --write):
+  stale manifest entry 'uct.watchlist.cols.breadthDrill' (localStorage) — nothing in app/src persists it any more: node tools/persistence_census.mjs --write
+
+stderr | src/lib/persistence/persistenceManifest.test.js > the manifest is current > records the files and scope the code actually uses
+[persistence-census] 11 drifted (fix: node tools/persistence_census.mjs --write):
+  'uct_flagged' (localStorage) moved: manifest says ["app/src/hooks/useFlagged.js"], code says ["app/src/hooks/flaggedStore.js"] — node tools/persistence_census.mjs --write
+  'uct.feature.createIndicator' (localStorage) moved: manifest says ["app/src/components/chart/builder/studio/createIndicatorFlag.js"], code says ["app/src/agent/qa/capabilityRegression/testing/harness.jsx","app/src/components/chart/builder/studio/createIndicatorFlag.js"] — node tools/persistence_census.mjs --write
+  'chart_saved_colors' (server-preference) moved: manifest says ["app/src/components/chart/pane/ChartPane.jsx","app/src/hooks/useSavedColors.js","app/src/pages/charts/grid/MultiChartGrid.jsx"], code says ["app/src/components/chart/pane/ChartPane.jsx","app/src/hooks/useSavedColors.js","app/src/pages/breadth/drill/scan/ScanGrid.jsx","app/src/pages/charts/grid/MultiChartGrid.jsx"] — node tools/persistence_census.mjs --write
+  'chart_settings' (server-preference) moved: manifest says ["app/src/components/StockChart.jsx","app/src/components/chart/pane/useChartSurfaceSettings.js","app/src/hooks/useChartIndicatorBus.js","app/src/pages/Settings.jsx","app/src/pages/charts/ChartsWorkspace.jsx","app/src/pages/charts/grid/GridChartCell.jsx","app/src/pages/charts/grid/MultiChartGrid.jsx"], code says ["app/src/components/StockChart.jsx","app/src/components/chart/pane/useChartSurfaceSettings.js","app/src/hooks/useChartIndicatorBus.js","app/src/pages/Settings.jsx","app/src/pages/charts/ChartsWorkspace.jsx","app/src/pages/charts/grid/MultiChartGrid.jsx"] — node tools/persistence_census.mjs --write
+  'indicator_templates' (server-preference) moved: manifest says ["app/src/components/chart/IndicatorTemplatesBar.jsx"], code says ["app/src/components/chart/IndicatorTemplatesBar.jsx","app/src/pages/charts/ChartsWorkspace.jsx"] — node tools/persistence_census.mjs --write
+  'journal_page_layout' (server-preference) moved: manifest says ["app/src/pages/journal-2-0/components/layout/PageLayoutEditor.jsx"], code says ["app/src/pages/journal-2-0/components/layout/PageLayoutEditor.jsx","app/src/pages/journal-2-0/components/notebook/AdoptLayoutSheet.jsx"] — node tools/persistence_census.mjs --write
+  'notebook_getting_started' (server-preference) moved: manifest says ["app/src/pages/journal-2-0/components/notebook/GettingStartedList.jsx"], code says ["app/src/pages/journal-2-0/components/notebook/GettingStartedList.jsx","app/src/pages/journal-2-0/tabs/NotebookTab.jsx"] — node tools/persistence_census.mjs --write
+  'notebook_kind_mapping' (server-preference) moved: manifest says [], code says ["app/src/pages/journal-2-0/components/notebook/styles/StylesManager.jsx"] — node tools/persistence_census.mjs --write
+  'notebook_starter_pack' (server-preference) moved: manifest says [], code says ["app/src/pages/journal-2-0/components/notebook/FirstRunSheet.jsx","app/src/pages/journal-2-0/components/notebook/styles/StarterPackOffer.jsx","app/src/pages/journal-2-0/lib/starterPacks.js"] — node tools/persistence_census.mjs --write
+  'notebook_tips' (server-preference) moved: manifest says ["app/src/pages/journal-2-0/components/notebook/NotebookTipSlot.jsx"], code says ["app/src/pages/journal-2-0/components/notebook/FirstRunGate.jsx","app/src/pages/journal-2-0/components/notebook/NotebookTipSlot.jsx","app/src/pages/journal-2-0/lib/firstLiveWidget.js"] — node tools/persistence_census.mjs --write
+  'uct.authoring.drafts.v1' (sessionStorage) moved: manifest says ["app/src/components/chart/builder/authoring/conversationSessions.js"], code says ["app/src/agent/testing/panelHarness.jsx","app/src/components/chart/builder/authoring/conversationSessions.js"] — node tools/persistence_census.mjs --write
+
+ ❯ src/lib/persistence/persistenceManifest.test.js (13 tests | 2 failed) 3664ms
+     ✓ scans the whole of app/src and parses every file 1ms
+     × finds known keys in every store, including ones only reachable through imports and wrappers 4ms
+     × classifies every storage-shaped call and resolves every key 3ms
+     ✓ declares every key the code persists (fix: node tools/persistence_census.mjs --write) 1ms
+     ✓ lists nothing the code no longer persists 0ms
+     ✓ records the files and scope the code actually uses 0ms
+     ✓ names every entry for members (surface, label, kind) 0ms
+     ✓ derives scope from store for every entry — never typed 2ms
+     ✓ CONTROL: a new localStorage key in a shipped file is reported by name, with the fix  3478ms
+     ✓ does not count a key planted by a TEST file 173ms
+     ✓ does not count a storage call that exists only in a comment or a string 0ms
+     ✓ reports a declared key that nothing persists any more as stale, by name 1ms
+     ✓ a key moved from localStorage to the account preference flips from device-local to cross-device 0ms
+stdout | src/lib/presentation/handRolledFormatters.census.test.js > the census, printed > reports totals, by kind, the largest files and the partner line
+[term-066 census]
+    population 3194 files · with sites 522 · sites 2063
+    by kind {"Intl.DateTimeFormat":93,"toLocaleString":393,"toLocaleDateString":138,"toFixed":1309,"toLocaleTimeString":40,"toPrecision":7,"Intl.NumberFormat":3,"magnitudeSuffix":80}
+    partner-owned (baselined, not dropped): app/src/pages/OptionsFlow.jsx = 194
+    largest:
+     250  app/src/pages/OptionsFlow_admin.jsx
+     194  app/src/pages/OptionsFlow.jsx
+      58  app/src/pages/DarkPool.jsx
+      53  app/src/components/StockChart.jsx
+      33  app/src/pages/LiveFlowMassive.jsx
+      20  app/src/agent/capabilities/screener.js
+      16  app/src/components/chart/PatternOverlay.jsx
+      16  app/src/pages/journal-2-0/components/notebook/widgets/builtViews/builtModel.js
+      16  app/src/pages/journal-2-0/tabs/AnalyticsTab.jsx
+      15  app/src/pages/breadth/heatmapMetrics.js
+      14  app/src/lab/pieces/Piece50DrawItV2.jsx
+      14  app/src/pages/breadth/views/RadarView.jsx
+      13  app/src/agent/capabilities/stock.js
+      13  app/src/pages/breadth/views/RegimeClockView.jsx
+      12  app/src/econHarness/econHarness.js
+
+ ❯ src/lib/presentation/handRolledFormatters.census.test.js (15 tests | 1 failed) 1650ms
+     ✓ counts each kind once in code 3ms
+     ✓ sees a magnitude suffix in a template literal AND in a string concatenation 1ms
+     ✓ a kind named like an Object.prototype method still counts as a NUMBER 0ms
+     ✓ does NOT count a division that is not followed by a unit, or a unit with no division 0ms
+     ✓ ignores comments and string contents — and the control proves code IS seen 0ms
+     ✓ a computed access or a look-alike name is not a site 0ms
+     ✓ git returned a real tree, and parse failures are zero  1634ms
+     ✓ names a known offender — the census is not silently empty 0ms
+     ✓ the owner module is excluded, and the exclusion is load-bearing 1ms
+     ✓ a planted new file with sites is ADDED, by name 0ms
+     ✓ growth is caught by name, and a shrink is slack to bank 0ms
+     × no file gained a site, and no new file appeared 6ms
+     ✓ the baseline is tight — progress is banked in the commit that makes it 1ms
+     ✓ the committed baseline is byte-exactly what its writer produces 0ms
+     ✓ reports totals, by kind, the largest files and the partner line 1ms
+ ❯ src/__tests__/sourcesAreText.test.js (2 tests | 1 failed) 452ms
+     ✓ found sources to scan (an empty scan would pass vacuously) 3ms
+     × contains no NUL or other C0 control byte 448ms
+ ❯ src/lib/swallowedFetch.census.test.js (5 tests | 1 failed) 10ms
+     ✓ the scan sees the population (a broken walk would pass everything) 1ms
+     × no file gains a site, and no new file adopts the idiom 5ms
+     ✓ a migrated site is taken off the baseline in the same change (it cannot be re-added silently) 0ms
+     ✓ the stated total is the sum of the per-file counts 0ms
+     ✓ counts code only: the idiom inside a comment is not a site, and spacing variants are 3ms
+ ❯ src/components/screener/reachable.test.js (19 tests | 1 failed) 27542ms
+     ✓ ⛔ CONTROL — the register is really being read, blocks and all 2ms
+     ✓ ⛔⛔ every parked block declares an expiry, and every expiry names a block 1ms
+     ✓ ⛔⛔ NO BLOCK IS PAST ITS EXPIRY — the check `objectPool` needed and did not have 1ms
+     ✓ ⛔ CONTROL — and the expiry check can actually FAIL 0ms
+     ✓ ⛔ CONTROL — "today" is the ET date at a FIXED instant, never the UTC one 0ms
+     ✓ the walk itself is not vacuous 2ms
+     ✓ the Study workbench directory is a dev-only entry, and a lab/ anywhere else is not 0ms
+     ✓ the Notebook a11y rail directory is test infrastructure, and nothing else is 0ms
+     × and nothing committed is connected to nothing 14ms
+     ✓ the allow-list cannot outlive its files 2ms
+     ✓ and it cannot excuse something that is actually wired 0ms
+     ✓ ScanResults specifically — the surface this rail was built for — is reachable 0ms
+     ✓ UIcon is reachable — the control on the census that got this wrong 0ms
+     ✓ PLANTED CUT: remove the mount's import and ScanResults goes unreachable  8415ms
+     ✓ THE DYNAMIC EDGE IS LOAD-BEARING: static-only imports never reach the page  4047ms
+     ✓ THE WORKER EDGE IS LOAD-BEARING: `new Worker(new URL(…))` is followed  7470ms
+     ✓ THE SWEEP REPORTS A TRACKED ORPHAN, and exempts an UNTRACKED one  3935ms
+     ✓ THE ALLOW-LIST GUARDS BITE: a wired entry and a vanished one are each caught  3649ms
+     ✓ a specifier that is prose, not an import, is not an edge 1ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 11 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/swallowedFetch.census.test.js > TERM-033: `.catch(() => null)` is a shrink-only census > no file gains a site, and no new file adopts the idiom
+AssertionError: use sectionFetcher (throws on failure) instead of swallowing it: expected [ …(6) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "agent/capabilities/calendar.js: 0 -> 1",
++   "agent/capabilities/scanRefine.js: 0 -> 2",
++   "agent/capabilities/stock.js: 0 -> 1",
++   "pages/breadth/drill/longHistory.js: 0 -> 1",
++   "pages/journal-2-0/tabs/NotebookTab.jsx: 0 -> 1",
++   "testing/agent/acceptance/lib.mjs: 0 -> 2",
++ ]
+
+ ❯ src/lib/swallowedFetch.census.test.js:64:85
+     62|       .filter(([f, n]) => n > (baseline.files[f] || 0))
+     63|       .map(([f, n]) => `${f}: ${baseline.files[f] || 0} -> ${n}`)
+     64|     expect(grew, 'use sectionFetcher (throws on failure) instead of sw…
+       |                                                                                     ^
+     65|   })
+     66| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/11]⎯
+
+ FAIL  src/__tests__/sourcesAreText.test.js > every JS/JSX source under app/src is TEXT > contains no NUL or other C0 control byte
+AssertionError: A control byte makes the file BINARY to git and to ripgrep: its diff reads "Binary files … differ" and a grep for any symbol in it finds nothing. Write the character as an escape (\u0000) instead — the runtime string is identical.
+  app/src/components/chart/engine/ast/pineRuntimeFrontend.js:10657 — 0x02 at byte 615898
+  app/src/components/chart/engine/ast/pineRuntimeFrontend.js:10657 — 0x00 at byte 615904
+  app/src/components/chart/engine/ast/pineRuntimeFrontend.js:10668 — 0x03 at byte 616302: expected [ …(3) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "app/src/components/chart/engine/ast/pineRuntimeFrontend.js:10657 — 0x02 at byte 615898",
++   "app/src/components/chart/engine/ast/pineRuntimeFrontend.js:10657 — 0x00 at byte 615904",
++   "app/src/components/chart/engine/ast/pineRuntimeFrontend.js:10668 — 0x03 at byte 616302",
++ ]
+
+ ❯ src/__tests__/sourcesAreText.test.js:124:7
+    122|           offenders.join('\n  ')
+    123|         : '',
+    124|     ).toEqual([])
+       |       ^
+    125|   })
+    126| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/11]⎯
+
+ FAIL  src/components/screener/reachable.test.js > 🔴 every module under app/src is REACHABLE from an entry point > and nothing committed is connected to nothing
+AssertionError: these modules are BUILT and possibly GREEN, and no route a member can navigate to reaches them. Their own test files will stay green forever — component tests are structurally blind to a severed wire. Mount them, delete them, or record the decision in AWAITING_A_DECISION above with a reason; do not leave them looking shipped.: expected [ …(3) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "app/src/agent/agentExecTune.js",
++   "app/src/components/instruments/WhatElseOpenPrompt.jsx",
++   "app/src/pages/breadth/drill/scan/useDayFacts.js",
++ ]
+
+ ❯ src/components/screener/reachable.test.js:1022:55
+    1020|       + 'component tests are structurally blind to a severed wire. Mou…
+    1021|       + 'delete them, or record the decision in AWAITING_A_DECISION ab…
+    1022|       + 'reason; do not leave them looking shipped.').toEqual([])
+       |                                                       ^
+    1023|   })
+    1024| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/11]⎯
+
+ FAIL  src/components/ui/formControls.census.test.js > ⭐ HAND-ROLLED SWITCHES MAY NOT GROW > no file gained a hand-rolled switch, and no new file appeared
+AssertionError: NEW hand-rolled role="switch" file(s) — render components/ui/Switch instead:
+  app/src/pages/journal-2-0/components/notebook/NoteSharePanel.jsx (1 site(s)): expected [ { …(2) } ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "file": "app/src/pages/journal-2-0/components/notebook/NoteSharePanel.jsx",
++     "now": 1,
++   },
++ ]
+
+ ❯ src/components/ui/formControls.census.test.js:754:66
+    752|     const v = ratchetVerdict(switchCounts(census()), base)
+    753|     expect(v.added, 'NEW hand-rolled role="switch" file(s) — render co…
+    754|       + fmtList(v.added, (r) => `${r.file} (${r.now} site(s))`)).toEqu…
+       |                                                                  ^
+    755|     expect(v.grew, 'these files gained hand-rolled switches — render c…
+    756|       + fmtList(v.grew, (r) => `${r.file}: ${r.was} -> ${r.now}`)).toE…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/11]⎯
+
+ FAIL  src/components/ui/formControls.census.test.js > ⭐ UNNAMED CONTROL SITES MAY ONLY SHRINK > no new unnamed control site appeared anywhere in app/src
+AssertionError: unnamed control sites grew 0 -> 7. Give the new control an aria-label or a <label htmlFor>. Most unnamed:
+  2  app/src/lab/SandboxSignIn.jsx
+  1  app/src/lab/pieces/Piece50DrawItV2.jsx
+  1  app/src/lab/pieces/Piece56DrawItV3.jsx
+  1  app/src/lab/pieces/Piece9TeachV2.jsx
+  1  app/src/pages/study/drills/ChoiceList.jsx
+  1  app/src/pages/study/ui/ReplayPause.jsx: expected 7 to be less than or equal to 0
+ ❯ src/components/ui/formControls.census.test.js:938:83
+    936|       .sort((a, b) => b[1] - a[1]).slice(0, 8).map(([f, n]) => `${n}  …
+    937|     expect(now, `unnamed control sites grew ${UNNAMED_BASELINE} -> ${n…
+    938|       + ` aria-label or a <label htmlFor>. Most unnamed:\n  ${top.join…
+       |                                                                                   ^
+    939|   }, 120_000)
+    940| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/11]⎯
+
+ FAIL  src/components/ui/formControls.census.test.js > ⭐ UNNAMED CONTROL SITES MAY ONLY SHRINK > the baseline is tight — a migration lowers UNNAMED_BASELINE in the same commit
+AssertionError: unnamed control sites shrank 0 -> 7: set UNNAMED_BASELINE = 7: expected 7 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 7
+
+ ❯ src/components/ui/formControls.census.test.js:944:8
+    942|     const now = unnamedTotal(census())
+    943|     expect(now, `unnamed control sites shrank ${UNNAMED_BASELINE} -> $…
+    944|       .toBe(UNNAMED_BASELINE)
+       |        ^
+    945|   }, 120_000)
+    946| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/11]⎯
+
+ FAIL  src/lib/persistence/persistenceManifest.test.js > the persistence census sees the tree before anything is compared > finds known keys in every store, including ones only reachable through imports and wrappers
+AssertionError: expected undefined to be truthy
+
+- Expected: 
+true
+
++ Received: 
+undefined
+
+ ❯ src/lib/persistence/persistenceManifest.test.js:57:74
+     55|     expect(findEntry('localStorage', 'uct.watchlist.cols')?.files).toC…
+     56|     expect(findEntry('localStorage', 'uct-chart-drawings')).toBeTruthy…
+     57|     expect(findEntry('localStorage', 'uct.watchlist.cols.breadthDrill'…
+       |                                                                          ^
+     58|     expect(findEntry('sessionStorage', 'uct.review.session')).toBeTrut…
+     59|     expect(findEntry('indexedDB', 'uct_notebook_*/outbox')).toBeTruthy…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/11]⎯
+
+ FAIL  src/lib/persistence/persistenceManifest.test.js > the persistence census sees the tree before anything is compared > classifies every storage-shaped call and resolves every key
+AssertionError: expected [ …(9) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "file": "app/src/components/StockChart.jsx",
++     "fn": "persistViewLock",
++     "line": 5011,
++     "store": "localStorage",
++     "why": "key is a parameter nobody resolvably passes (via app/src/pages/breadth/drill/scan/ScanGrid.jsx:63)",
++   },
++   {
++     "file": "app/src/components/StockChart.jsx",
++     "fn": "persistViewLock",
++     "line": 5011,
++     "store": "localStorage",
++     "why": "key is a parameter nobody resolvably passes (via app/src/pages/study/DrillPlayer.jsx:450)",
++   },
++   {
++     "file": "app/src/components/StockChart.jsx",
++     "fn": "persistViewLock",
++     "line": 5011,
++     "store": "localStorage",
++     "why": "key is a parameter nobody resolvably passes (via app/src/pages/study/challenges/ChallengeChart.jsx:60)",
++   },
++   {
++     "file": "app/src/components/StockChart.jsx",
++     "fn": "persistViewLock",
++     "line": 5012,
++     "store": "localStorage",
++     "why": "key is a parameter nobody resolvably passes (via app/src/pages/breadth/drill/scan/ScanGrid.jsx:63)",
++   },
++   {
++     "file": "app/src/components/StockChart.jsx",
++     "fn": "persistViewLock",
++     "line": 5012,
++     "store": "localStorage",
++     "why": "key is a parameter nobody resolvably passes (via app/src/pages/study/DrillPlayer.jsx:450)",
++   },
++   {
++     "file": "app/src/components/StockChart.jsx",
++     "fn": "persistViewLock",
++     "line": 5012,
++     "store": "localStorage",
++     "why": "key is a parameter nobody resolvably passes (via app/src/pages/study/challenges/ChallengeChart.jsx:60)",
++   },
++   {
++     "file": "app/src/components/StockChart.jsx",
++     "fn": "readViewLock",
++     "line": 5018,
++     "store": "localStorage",
++     "why": "key is a parameter nobody resolvably passes (via app/src/pages/breadth/drill/scan/ScanGrid.jsx:63)",
++   },
++   {
++     "file": "app/src/components/StockChart.jsx",
++     "fn": "readViewLock",
++     "line": 5018,
++     "store": "localStorage",
++     "why": "key is a parameter nobody resolvably passes (via app/src/pages/study/DrillPlayer.jsx:450)",
++   },
++   {
++     "file": "app/src/components/StockChart.jsx",
++     "fn": "readViewLock",
++     "line": 5018,
++     "store": "localStorage",
++     "why": "key is a parameter nobody resolvably passes (via app/src/pages/study/challenges/ChallengeChart.jsx:60)",
++   },
++ ]
+
+ ❯ src/lib/persistence/persistenceManifest.test.js:65:29
+     63| 
+     64|   it('classifies every storage-shaped call and resolves every key', ()…
+     65|     expect(REAL.unresolved).toEqual([])
+       |                             ^
+     66|     const notWeb = new Set(MANIFEST.notWebStorage)
+     67|     expect(REAL.unclassified.filter((u) => !notWeb.has(`${u.file}#${u.…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/11]⎯
+
+ FAIL  src/lib/presentation/handRolledFormatters.census.test.js > ⭐ HAND-ROLLED FORMATTERS MAY NOT GROW > no file gained a site, and no new file appeared
+AssertionError: NEW hand-rolled formatter file(s) — format through lib/presentation/presentationPrimitives instead:
+  app/src/pages/breadth/drill/scan/scanDeckModel.js (4 site(s))
+  app/src/pages/screener/focus/ScreenerHeatMap.jsx (3 site(s))
+  app/src/testing/scanDeck/scanDeckHarness.jsx (2 site(s)): expected [ { …(2) }, { …(2) }, { …(2) } ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "file": "app/src/pages/breadth/drill/scan/scanDeckModel.js",
++     "now": 4,
++   },
++   {
++     "file": "app/src/pages/screener/focus/ScreenerHeatMap.jsx",
++     "now": 3,
++   },
++   {
++     "file": "app/src/testing/scanDeck/scanDeckHarness.jsx",
++     "now": 2,
++   },
++ ]
+
+ ❯ src/lib/presentation/handRolledFormatters.census.test.js:376:66
+    374|     expect(v.added, 'NEW hand-rolled formatter file(s) — format throug…
+    375|       + 'lib/presentation/presentationPrimitives instead:\n  '
+    376|       + fmtList(v.added, (r) => `${r.file} (${r.now} site(s))`)).toEqu…
+       |                                                                  ^
+    377|     expect(v.grew, 'these files gained hand-rolled formatter sites:\n …
+    378|       + fmtList(v.grew, (r) => `${r.file}: ${r.was} -> ${r.now}`)).toE…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/11]⎯
+
+ FAIL  src/pages/command/keyListenerCensus.test.js > TERM-063 — the raw key-listener ratchet > no file holds MORE raw key listeners than its baseline (new ones go through the registry)
+AssertionError: RAW KEY LISTENER ADDED OUTSIDE THE REGISTRY. Declare the binding in app/src/pages/command/shortcutRegistry.js and bind it with registerShortcuts(). Current census, for reference:
+{
+ "app/src/components/chart/BoardsToolButton.jsx": {
+  "literal": 1
+ },
+ "app/src/components/chart/builder/editor/CodeEditor.jsx": {
+  "literal": 1
+ },
+ "app/src/components/chart/ChartContextMenu.jsx": {
+  "literal": 1
+ },
+ "app/src/components/chart/ChartDrawingOverlay.jsx": {
+  "literal": 2
+ },
+ "app/src/components/chart/ChartSettingsModal.jsx": {
+  "literal": 1
+ },
+ "app/src/components/chart/ChartThemesModal.jsx": {
+  "literal": 1
+ },
+ "app/src/components/chart/EarningsMarkerPopover.jsx": {
+  "literal": 1
+ },
+ "app/src/components/chart/KeyboardHelpOverlay.jsx": {
+  "literal": 1
+ },
+ "app/src/components/chart/keyboardShortcuts.js": {
+  "literal": 1
+ },
+ "app/src/components/chart/PatternSidePanel.jsx": {
+  "literal": 1
+ },
+ "app/src/components/chart/SymbolSearch.jsx": {
+  "literal": 1
+ },
+ "app/src/components/FeedbackWidget.jsx": {
+  "literal": 1
+ },
+ "app/src/components/IntradayDayPopover.jsx": {
+  "literal": 1
+ },
+ "app/src/components/intro/IntroAnimation.jsx": {
+  "literal": 1
+ },
+ "app/src/components/mobile/ContextPopover.jsx": {
+  "literal": 1
+ },
+ "app/src/components/mobile/Sheet.jsx": {
+  "literal": 1
+ },
+ "app/src/components/mobile/useFocusTrap.js": {
+  "literal": 1
+ },
+ "app/src/components/research/EarningsResearchModal.jsx": {
+  "literal": 1
+ },
+ "app/src/components/research-kit/InfoTip.jsx": {
+  "literal": 1
+ },
+ "app/src/components/StockChart.jsx": {
+  "literal": 3
+ },
+ "app/src/components/TickerPopup.jsx": {
+  "literal": 1
+ },
+ "app/src/components/voice/AgentPicker.jsx": {
+  "literal": 1
+ },
+ "app/src/components/voice/AudioPlayerBar.jsx": {
+  "literal": 1
+ },
+ "app/src/components/voice/VisionAttachButton.jsx": {
+  "literal": 1
+ },
+ "app/src/lab/pieces/Piece14ReplayV3.jsx": {
+  "literal": 1
+ },
+ "app/src/lab/pieces/Piece18ReplayV4.jsx": {
+  "literal": 1
+ },
+ "app/src/lab/pieces/Piece21LoopDuo.jsx": {
+  "literal": 1
+ },
+ "app/src/lab/pieces/Piece26LoopV4.jsx": {
+  "literal": 1
+ },
+ "app/src/lab/pieces/Piece31LoopV5.jsx": {
+  "literal": 1
+ },
+ "app/src/lab/pieces/Piece37HitBuy.jsx": {
+  "literal": 1
+ },
+ "app/src/lab/pieces/Piece41Blitz.jsx": {
+  "literal": 1
+ },
+ "app/src/lab/pieces/Piece47BlitzV2.jsx": {
+  "literal": 2
+ },
+ "app/src/lab/pieces/Piece48BossV2.jsx": {
+  "literal": 1
+ },
+ "app/src/lab/pieces/Piece49HardV2.jsx": {
+  "literal": 1
+ },
+ "app/src/lab/pieces/Piece53BlitzV3.jsx": {
+  "literal": 2
+ },
+ "app/src/lab/pieces/Piece54BossV3.jsx": {
+  "literal": 1
+ },
+ "app/src/lab/pieces/Piece55HardV3.jsx": {
+  "literal": 1
+ },
+ "app/src/lib/todayPackClient.js": {
+  "orphan": 1
+ },
+ "app/src/pages/Admin.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/breadth/BreadthDateNav.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/breadth/BreadthViews.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/breadth/BreadthViewsCustomizePanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/breadth/CustomizePanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/breadth/drill/BreadthDrillModal.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/breadth/drill/scan/ScanFilters.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/breadth/drill/scan/ScanGrid.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/breadth/PresetRow.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/calendar/CalendarHeader.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/calendar/DayDetailDrawer.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/Calendar.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/ChartsWorkspace.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/CompareSymbolsPanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/grid/MultiChartGrid.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/charts/LayoutDock.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/placement/GhostPreview.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/popout/PopoutWindow.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/charts/WidgetHeader.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/charts/widgets/BreadthSettingsPanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/BreadthWidget.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/ChartDateNav.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/ChartWidget.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/FundamentalsSettingsPanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/LeverageInverseControl.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/NewsSettingsPanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/NhnlSettingsPanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/NhnlUniverseMenu.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/ScatterWidget.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/charts/widgets/TimeframeMenu.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/community/components/ProfileCard.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/DarkPool.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/desk/ArticleReader.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/desk/VideosSection.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/accounts/AccountSelector.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/accounts/DeleteAccountModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/accounts/NewAccountModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/AddPositionModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/AddTradeModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/calendar/MiniMonthNav.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/ClosePositionModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/ColumnsPicker.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/ConfirmModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/DeleteAllModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/EditPositionModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/GenerateReportModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/ImportCsvModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/notebook/CaptureHost.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/notebook/onboarding/NotebookTour.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/notebook/TableToolbar.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/notebook/UnsentTrashDialog.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/notebook/WidgetPalette.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/options/AddOptionStrategyModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/options/CloseOptionStrategyModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/PortfolioSettingsModal.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/scope/ScopeBar.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/journal-2-0/components/ShortcutCheatSheet.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/trade/TradeDetailPage.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/trade/TradeScreenshots.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/components/TradeDrawer.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/lib/blockHandle.js": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/lib/calloutNode.js": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/lib/codeBlockNode.js": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/lib/mathNodes.js": {
+  "literal": 1
+ },
+ "app/src/pages/journal-2-0/tabs/NotebookTab.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/Landing.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/LiveFlowMassive.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/modelbook/SetupsView.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/ModelBook.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/OptionsFlow_admin.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/screener/shell/ColumnDesc.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/screener/shell/FilterRail.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/screener/shell/ScreenerReviewOverlay.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/Settings.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/study/challenges/BlitzChallenge.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/study/challenges/BossChallenge.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/study/challenges/HardChallenge.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/study/ui/StartLooks.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/study/ui/StudyButton.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/theme-tracker/ThemeTrackerSettingsPanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/ThemeTrackerPage.jsx": {
+  "literal": 2
+ },
+ "app/src/pages/watchlist/WatchlistSettingsPanel.jsx": {
+  "literal": 1
+ },
+ "app/src/pages/Watchlists.jsx": {
+  "literal": 2
+ }
+}: expected [ …(23) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "app/src/components/FeedbackWidget.jsx: literal 1 > baseline 0",
++   "app/src/components/StockChart.jsx: literal 3 > baseline 2",
++   "app/src/lab/pieces/Piece14ReplayV3.jsx: literal 1 > baseline 0",
++   "app/src/lab/pieces/Piece18ReplayV4.jsx: literal 1 > baseline 0",
++   "app/src/lab/pieces/Piece21LoopDuo.jsx: literal 1 > baseline 0",
++   "app/src/lab/pieces/Piece26LoopV4.jsx: literal 1 > baseline 0",
++   "app/src/lab/pieces/Piece31LoopV5.jsx: literal 1 > baseline 0",
++   "app/src/lab/pieces/Piece37HitBuy.jsx: literal 1 > baseline 0",
++   "app/src/lab/pieces/Piece41Blitz.jsx: literal 1 > baseline 0",
++   "app/src/lab/pieces/Piece47BlitzV2.jsx: literal 2 > baseline 0",
++   "app/src/lab/pieces/Piece48BossV2.jsx: literal 1 > baseline 0",
++   "app/src/lab/pieces/Piece49HardV2.jsx: literal 1 > baseline 0",
++   "app/src/lab/pieces/Piece53BlitzV3.jsx: literal 2 > baseline 0",
++   "app/src/lab/pieces/Piece54BossV3.jsx: literal 1 > baseline 0",
++   "app/src/lab/pieces/Piece55HardV3.jsx: literal 1 > baseline 0",
++   "app/src/pages/breadth/drill/BreadthDrillModal.jsx: literal 2 > baseline 1",
++   "app/src/pages/breadth/drill/scan/ScanFilters.jsx: literal 1 > baseline 0",
++   "app/src/pages/breadth/drill/scan/ScanGrid.jsx: literal 1 > baseline 0",
++   "app/src/pages/study/challenges/BlitzChallenge.jsx: literal 1 > baseline 0",
++   "app/src/pages/study/challenges/BossChallenge.jsx: literal 1 > baseline 0",
++   "app/src/pages/study/challenges/HardChallenge.jsx: literal 1 > baseline 0",
++   "app/src/pages/study/ui/StartLooks.jsx: literal 1 > baseline 0",
++   "app/src/pages/study/ui/StudyButton.jsx: literal 1 > baseline 0",
++ ]
+
+ ❯ src/pages/command/keyListenerCensus.test.js:329:13
+    327|         + 'app/src/pages/command/shortcutRegistry.js and bind it with …
+    328|         + `Current census, for reference:\n${JSON.stringify(Object.fro…
+    329|       : '').toEqual([])
+       |             ^
+    330|   })
+    331| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/11]⎯
+
+ FAIL  src/pages/command/keyListenerCensus.test.js > TERM-063 — the raw key-listener ratchet > the baseline sits at or under the stated CEILING, and the CEILING is tight
+AssertionError: expected 136 to be 111 // Object.is equality
+
+- Expected
++ Received
+
+- 111
++ 136
+
+ ❯ src/pages/command/keyListenerCensus.test.js:348:34
+    346|       s + (r.literal || 0) + (r.onprop || 0) + (r.orphan || 0), 0)
+    347|     expect(sum).toBeLessThanOrEqual(CEILING)
+    348|     expect(total(census().rows)).toBe(CEILING)
+       |                                  ^
+    349|   })
+    350| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/11]⎯
+
+
+ Test Files  7 failed (7)
+      Tests  11 failed | 167 passed (178)
+   Start at  16:38:52
+   Duration  33.18s (transform 448ms, setup 1.11s, import 9.57s, tests 41.20s, environment 3.28s)
+

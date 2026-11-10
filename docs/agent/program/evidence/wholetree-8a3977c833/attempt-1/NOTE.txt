@@ -1,0 +1,8 @@
+Whole tree, product head 8a3977c833 (#1027) with NO harness files, C:\w\pl-auto, suite lock who=pl-auto, --maxWorkers=4, json reporter. LOCAL.
+Totals (json reporter; skipped files count as passed): files 54 failed | 4554 passed (4608); tests 59 failed | 71498 passed | 265 skipped (71822).
+Master b2300e547d baseline (default reporter): 48 failed | 4515 passed | 34 skipped (4597).
+Head-only failing files: 9 (5 src/agent + 4 others). The 4 others look environmental, not product:
+  OptionsFlow.test.jsx, OptionsFlow.deferredInteraction.test.jsx: html2canvas missing from C:\w\pl-auto\app\node_modules (dated 11-06; master added the dep 11-09 in 24d15bb679). #1027 does not touch package.json.
+  StockChart.smoke (subscribeVisibleTimeRangeChange is not a function) and AuthContext (1/10): #1027 does not touch those files; likely the same stale node_modules or load; NOT proven.
+Census rails: re-ran the 7 census files with the default reporter (census-default-reporter.log). 0 head-only offenders on all 11 master census tests.
+censcmp.mjs shows 2 head-only on persistenceManifest 'classifies'; that is a false positive: the master text wraps long lines. Counting per via-path gives 9 entries on both sides (ScanGrid:63, DrillPlayer:450, ChallengeChart:60, 3 each).
