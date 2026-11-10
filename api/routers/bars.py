@@ -846,10 +846,14 @@ def serve_bars(
     if is_econ_symbol(ticker):          # the tier + in-process callers enter here, not via get_bars
         return _econ_refusal(ticker)
     _bars_fetch.set_request_interactive(not warm)
+    # One wait budget for the whole serve (bars_fetch._bounded_wait) so the sum of
+    # every request-path wait stays under the edge's 8 s abort.
+    _bars_fetch.start_request_budget()
     try:
         return _serve_bars_impl(ticker, tf, bars, since, to, warm)
     finally:
         _bars_fetch.set_request_interactive(False)
+        _bars_fetch.end_request_budget()
 
 
 def _serve_bars_impl(
