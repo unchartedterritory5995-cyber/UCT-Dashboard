@@ -64,3 +64,17 @@ describe('nothing else moves', () => {
     else expect(w.last).not.toBe(needle)
   })
 })
+
+// The row's OWN words, without the families before it: indicatorManage takes a plain add first, which hid a greedy
+// /add.*indicator/ here (a surviving mutant, 2026-11-10). This rail reads the row alone, so that mutant fails.
+describe('the row alone: a menu word is required', () => {
+  it('matches only with a right-click or menu word', async () => {
+    const { CHART_MENU } = await import('./guide/actions')
+    const row = CHART_MENU.find(r => r.id === 'addIndicator')
+    expect(row, 'no addIndicator row').toBeTruthy()
+    for (const q of ['how do i add an indicator', 'how do i add rsi to my chart', 'how do i add a study', 'how do i add an indicator with a keyboard shortcut'])
+      expect(row.re.test(q), q).toBe(false)
+    for (const q of ['how do i add indicator from menu', 'how do i add a study by right clicking the chart', 'right-click to add an indicator'])
+      expect(row.re.test(q), q).toBe(true)
+  })
+})
