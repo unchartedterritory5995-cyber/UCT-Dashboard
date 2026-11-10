@@ -68,8 +68,6 @@ describe('every walkthrough points at a real control', () => {
         if (typeof t === 'object' && t.within) {
           // '@chart' is the chart being talked about (targets.js), not an anchor in the source
           expect(t.within === '@chart' || source.includes(`data-guide="${t.within}"`) || source.includes(`guide="${t.within}"`), t.within).toBe(true)
-          // a templated test id (BuilderSheet's intent radios: data-testid={`intent-${it}`}) is checked by its template
-          if (t.attr === 'data-testid' && /^intent-/.test(String(t.value))) { expect(source).toContain('data-testid={`intent-${it}`}'); continue }
           if (t.guide) { expect(source, t.guide).toContain(`data-guide="${t.guide}"`); continue }
           if (t.label) continue   // an on-screen label: proved row by row in the browser (teach-status.md), not by grep
           if (t.cursor) continue  // the chart library's own pane divider: proved in the browser, it is not in our source

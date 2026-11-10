@@ -8,6 +8,8 @@ import { matchFeature } from './guide/registry'
 import { guideSteps } from './capabilities/guide'
 import { findTarget } from './guide/targets'
 import { ALERT_LINE_ASK } from './guide/actions'
+// the Signal step names the product's own label for the choice (a copy change there must move the walkthrough too)
+import { INTENT_LABELS } from '../components/chart/builder/authoringIntent'
 
 beforeAll(() => { registerBuiltins() })
 afterEach(() => { document.body.innerHTML = '' })
@@ -50,7 +52,7 @@ describe('2 · a signal’s options come after its formula and Signal', () => {
     expect(id).toBe('builderAction')
     const t = steps.map(s => JSON.stringify(s.target))
     const formula = t.indexOf('"builder.formula"')
-    const signal = t.findIndex(x => x.includes('intent-signal'))
+    const signal = t.findIndex(x => x.includes(INTENT_LABELS.signal))
     expect(formula).toBeGreaterThan(-1)
     expect(signal).toBe(formula + 1)
     expect(steps[formula].text).toMatch(/such as close > open/)

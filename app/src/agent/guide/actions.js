@@ -381,7 +381,8 @@ const BUILDER_OPEN = [LIBRARY, { target: 'indicators.newFormula', name: 'New for
 // row whose last control is a signal's (markers, candle and background colours)
 const SIGNAL_IN_SHEET = [
   { target: 'builder.formula', name: 'the formula box', text: 'Type a yes-or-no formula, such as close > open.' },
-  { target: { within: '@chart', attr: 'data-testid', value: 'intent-signal' }, name: 'Signal', text: 'Choose Signal — mark when it is true.', waitFor: 'builder.signalLook' },
+  // the choice's own label, as a member clicks it (authoringIntent.js INTENT_LABELS.signal; agentGuideGapFamilies rails the copy)
+  { target: { within: '@chart', label: 'Signal — mark when it is true' }, name: 'Signal', text: 'Choose Signal — mark when it is true.', waitFor: 'builder.signalLook' },
 ]
 const modeTab = (text, more = {}) => ({ within: 'builder.modes', attr: 'role', value: 'tab', text, ...more })
 const inMode = (text, target, name, say) => [...BUILDER_OPEN, { target: modeTab(text), name: text, text: `Click ${text}.`, waitFor: modeTab(text, { on: true }) }, { target, name, text: say }]

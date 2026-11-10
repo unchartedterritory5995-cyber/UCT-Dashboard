@@ -77,9 +77,15 @@ const STATE = `(async () => {
   const box = (b) => b && [Math.round(b.left), Math.round(b.top), Math.round(b.width), Math.round(b.height)]
   // the ringed control's own parts: a row's handlers sit on one of its cells (a list row's menu is on its symbol cell)
   const kids = el ? [...el.children].slice(0, 8).map(k => k.getBoundingClientRect()).filter(b => b.width > 4 && b.height > 4).map(b => ({ x: Math.round(b.left + b.width / 2), y: Math.round(b.top + b.height / 2) })) : []
-  // the field a typing step means: the ringed control, or the one field inside it (a formula box's wrapper)
-  const fieldEl = el?.matches?.('input,textarea,select') ? el : (el?.querySelectorAll?.('textarea, input:not([type=hidden]):not([type=radio]):not([type=checkbox])') || []).length === 1 ? el.querySelector('textarea, input:not([type=hidden]):not([type=radio]):not([type=checkbox])') : null
-  return { kids, pr: box(pel && pel.getBoundingClientRect()), rr: box(r), index: st.index, last: st.index === st.steps.length - 1, onPrimary: inRing(pel), text: text.slice(0, 140), ring: r && { x: r.left + r.width / 2, y: r.top + r.height / 2 }, next: next ? next.textContent.trim() : null, right: /right-click/i.test(step.text), onChart: step.target === 'chart.plot', stepText: step.text, met, field: !!el?.matches?.('input,textarea,select'), fieldAt: fieldEl ? (() => { const b = fieldEl.getBoundingClientRect(); return { x: Math.round(b.left + Math.min(b.width / 2, 60)), y: Math.round(b.top + Math.min(b.height / 2, 14)) } })() : null, picker: /one of your (own )?lists|Click (a|the) list/i.test(step.text), chartRef: st.chartRef || null }
+  // the field a typing step means: the ringed control, or the ONE field inside it a person can type in, as shown on screen
+  // (a formula box's wrapper holds a hidden model textarea and the visible code editor, a contenteditable)
+  const editable = (x) => { const b = x.getBoundingClientRect(); return b.width > 4 && b.height > 4 && x.getAttribute('aria-hidden') !== 'true' && x.tabIndex !== -1 }
+  const typeIn = el && !el.matches?.('input,textarea,select') ? [...el.querySelectorAll('textarea, input:not([type=hidden]):not([type=radio]):not([type=checkbox]), [contenteditable="true"]')].filter(editable) : []
+  const fieldEl = el?.matches?.('input,textarea,select') ? el : typeIn.length === 1 ? typeIn[0] : null
+  // the ringed control is under something else at the ring's centre (a sheet's sticky footer): a person scrolls before clicking
+  const hitAt = r && el ? document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) : null
+  const covered = !!(hitAt && el && !el.contains(hitAt) && !hitAt.contains(el) && !(el.labels && [...el.labels].some(l => l.contains(hitAt))))
+  return { covered, kids, pr: box(pel && pel.getBoundingClientRect()), rr: box(r), index: st.index, last: st.index === st.steps.length - 1, onPrimary: inRing(pel), text: text.slice(0, 140), ring: r && { x: r.left + r.width / 2, y: r.top + r.height / 2 }, next: next ? next.textContent.trim() : null, right: /right-click/i.test(step.text), onChart: step.target === 'chart.plot', stepText: step.text, met, field: !!el?.matches?.('input,textarea,select'), fieldAt: fieldEl ? (() => { const b = fieldEl.getBoundingClientRect(); return { x: Math.round(b.left + Math.min(b.width / 2, 60)), y: Math.round(b.top + Math.min(b.height / 2, 14)) } })() : null, picker: /one of your (own )?lists|Click (a|the) list/i.test(step.text), chartRef: st.chartRef || null }
 })()`
 
 // ⭐ REGION-AWARE INPUT. A right-click the card asks for lands on the REGION it names. Candidate points come from the chart
@@ -191,12 +197,27 @@ try {
     // example when it gives one ("Type a yes-or-no formula, such as close > open.")
     if ((s.field || s.fieldAt) && /\btype\b/i.test(s.stepText || '')) {
       const example = /\bsuch as ([^.;]+?)(?:[.;]\s|[.;]?$)/i.exec(s.stepText || '')?.[1] || 'Teach list'
-      const at = s.fieldAt || s.ring; await p.b.click(at.x, at.y); await sleep(200); await p.b.type(example); await sleep(900)
+      // real keys on the focused field, one character at a time (a code editor such as CodeMirror reads key input, not a value)
+      const at = s.fieldAt || s.ring; await p.b.click(at.x, at.y); await sleep(200)
+      for (const ch of example) {
+        await p.b.send('Input.dispatchKeyEvent', { type: 'keyDown', key: ch, text: ch, unmodifiedText: ch })
+        await p.b.send('Input.dispatchKeyEvent', { type: 'keyUp', key: ch })
+      }
+      await sleep(900)
       const after = await p.b.evaluate(STATE)
       if (after && after.index === s.index && after.next) { await p.button(after.next, '[data-testid="guide-card"]'); await sleep(900) }
       continue
     }
     if (s.right) { if (!(await rightClickRegion(s))) { rec.why = `step ${s.index + 1}: no point of the region it names opened the menu row it needs`; break } await sleep(600); continue }
+    // covered at the ring's centre: the mouse wheel over it, as a person scrolls a sheet until the control is clear (at most 6)
+    let at = s
+    for (let k = 0; at && at.covered && at.index === s.index && k < 6; k++) {
+      await p.b.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: at.ring.x, y: at.ring.y, deltaX: 0, deltaY: 160 })
+      await sleep(500)
+      at = await p.b.evaluate(STATE)
+      rec.scrolled = (rec.scrolled || 0) + 1
+    }
+    if (at && at.index === s.index && at.ring) s.ring = at.ring
     if (!s.field) await p.b.click(s.ring.x, s.ring.y)
     await sleep(1300)
     const after = await p.b.evaluate(STATE)
