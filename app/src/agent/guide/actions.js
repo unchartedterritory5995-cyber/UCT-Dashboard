@@ -34,6 +34,8 @@ const WHERE = {
   average: 'Right-click on a moving average line.',
   plot: 'Right-click inside the chart, among the candles.',
   candle: 'Right-click on a candle.',
+  // the location row prefers the watermark wherever its rect is (ChartWidget ctxLocItem): a candle behind it gives Watermark settings
+  candleClear: 'Right-click on a candle away from the big symbol behind the chart. On the symbol, the row is Watermark settings instead.',
   canvas: 'Right-click on an empty part of the chart, away from the candles.',
   watermark: 'Right-click on the watermark, the big symbol behind the candles.',
 }
@@ -62,7 +64,7 @@ export const CHART_MENU = [
   // C1-178: offered on a right-click over a bar; it opens AI Research on the symbol, in place of /charts (the member's own click)
   { id: 'askAi', label: 'Asking AI about a chart’s symbol', re: /(?=.*\b(charts?|bars?|candles?|right[- ]?click\w*|menu)\b)(?=.*(\bask\w*\b.*\bai\b|\bai\b.*\b(take|opinion|view|about)\b))/, steps: rightClick('ask-ai', 'candle', 'Ask AI', 'Click Ask AI about this symbol. It opens AI Research on it, in place of the charts page.') },
   // the location-aware row: ONE settings row keyed to where the right-click landed (ChartWidget ctxLocItem)
-  { id: 'candleSettings', label: 'Candle settings by right-click', re: /\bcandles?\b.*\bsettings?\b.*(\bright[- ]?click\w*\b|\bmenu\b)|(\bright[- ]?click\w*\b|\bmenu\b).*\bcandles?\b.*\bsettings?\b|\bcandle settings\b.*\b(right[- ]?click\w*|menu)\b/, steps: rightClick('settings-candles', 'candle', 'Candle settings', 'Click Candle settings to open the candle colours and style.') },
+  { id: 'candleSettings', label: 'Candle settings by right-click', re: /\bcandles?\b.*\bsettings?\b.*(\bright[- ]?click\w*\b|\bmenu\b)|(\bright[- ]?click\w*\b|\bmenu\b).*\bcandles?\b.*\bsettings?\b|\bcandle settings\b.*\b(right[- ]?click\w*|menu)\b/, steps: rightClick('settings-candles', 'candleClear', 'Candle settings', 'Click Candle settings to open the candle colours and style.') },
   { id: 'canvasSettings', label: 'Canvas settings by right-click', re: /\bcanvas\b.*(\bright[- ]?click\w*\b|\bmenu\b)|(\bright[- ]?click\w*\b|\bmenu\b).*\bcanvas\b/, steps: rightClick('settings-canvas', 'canvas', 'Canvas settings', 'Click Canvas settings to open the background, grid and crosshair.') },
   { id: 'watermarkSettings', label: 'Watermark settings by right-click', re: /\bwatermark\b.*(\bright[- ]?click\w*\b|\bmenu\b)|(\bright[- ]?click\w*\b|\bmenu\b).*\bwatermark\b/, steps: rightClick('settings-watermark', 'watermark', 'Watermark settings', 'Click Watermark settings to open the watermark’s text, size and place.') },
   { id: 'addWidget', label: 'Adding a widget by right-click', re: /\bwidgets?\b.*\bright[- ]?click\w*\b|\bright[- ]?click\w*\b.*\bwidgets?\b/, steps: rightClick('add-widget', 'chart', 'Add widget', 'Click Add widget and pick one: it floats on top of the board.') },

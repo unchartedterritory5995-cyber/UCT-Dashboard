@@ -115,7 +115,7 @@ const REGIONS = `((ref, text) => {
     if (cv && cv.width) {
       try {
         const ctx = cv.getContext('2d'); const lb = cv.getBoundingClientRect(); const k = cv.width / lb.width
-        for (const fx of [0.5, 0.7, 0.3, 0.85, 0.15]) {
+        for (const fx of [0.92, 0.08, 0.85, 0.15, 0.78, 0.22, 0.7, 0.3, 0.5]) {
           const x = Math.round(lb.width * fx * k); const d = ctx.getImageData(x, 0, 1, cv.height).data
           for (let y = 0; y < cv.height; y++) { const r = d[y * 4], g = d[y * 4 + 1], bl = d[y * 4 + 2]; if (Math.max(r, g, bl) - Math.min(r, g, bl) > 70) { let e = y; while (e + 1 < cv.height && Math.max(d[(e + 1) * 4], d[(e + 1) * 4 + 1], d[(e + 1) * 4 + 2]) - Math.min(d[(e + 1) * 4], d[(e + 1) * 4 + 1], d[(e + 1) * 4 + 2]) > 70) e++; out.push({ x: Math.round(lb.left + x / k), y: Math.round(lb.top + (y + e) / 2 / k) }); break } }
         }
@@ -147,6 +147,9 @@ async function rightClickRegion(s) {
     // the member leaving the guide (GuideOverlay's own rule)
     if (await p.b.evaluate(`!!document.querySelector('[role="menu"],[data-guide$="Menu"]')`)) await p.b.key('Escape')
     await sleep(200)
+    // a menu Escape does not close (the desktop chart menu has no Escape handler: ChartWidget closes on its backdrop): a
+    // person clicks away, so the next right-click opens a menu instead of landing on the backdrop and closing this one
+    if (await p.b.evaluate(`!!document.querySelector('[data-guide="chart.contextMenu"]')`)) { await p.b.click(2, 2); await sleep(200) }
   }
   return false
 }
