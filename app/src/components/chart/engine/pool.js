@@ -1169,6 +1169,13 @@ export function planBindings(instances, registry, prevBindings, opts) {
     let first = true
 
     for (const rawPlot of dataPlots(def)) {
+      // ⭐ UCT RS split, U7 (2026-11-09): a DATA plot may carry `activeWhen` too —
+      // the schema admits it on a server definition for a presentation key the
+      // server never hears of (`defSchema.validatePlotActiveWhen`), so nothing
+      // blanks the column and the plan is where the member's switch takes effect.
+      // Read exactly as the guides are, one line above; a plot with no condition
+      // is planned as it always was.
+      if (!plotActiveFor(rawPlot, def, inst.inputs, declared)) continue
       // ⭐ INPUTS FIRST, THEN PRESENTATION. `resolvePlotForInstance` answers "what
       // did the member set for colour and width"; `presentedPlot` answers "what
       // SHAPE did they ask this output to be". The second reads the first's

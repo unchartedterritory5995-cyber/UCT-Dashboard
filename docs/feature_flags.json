@@ -3401,6 +3401,17 @@
       "last_changed": "never set",
       "note": "Unset and the read defaults ON (`!== '0'`), so multi-chart grid warming is live. Setting it to '0' is the kill switch."
     },
+    "VITE_RS_SPLIT_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "owner": "owner - UCT RS split (engineering map 2026-11-09, flag 2)",
+      "railway_value": "UNSET",
+      "baked_value": "'' (empty - the ENV mirror in Dockerfile.web)",
+      "baked_measured_on": "never built with it set",
+      "last_changed": "never set",
+      "note": "Registers the slim UCT RS Line in place of today's UCT Relative Strength (nativeRegistry.js, RS_LINE_SLIM_RAW vs RS_LINE_V5_RAW): the RS line on the price pane by default, the RS Rating tag at the line's end, no presets, no Reading, about a dozen settings; every retired input stays declared legacy so no saved chart is dropped. Only '1' is on; unset, empty, '0' and 'true' are off. Arm AFTER RS_SPLIT_ENABLED (web) so the three new RS definitions have rows to answer; unset + rebuild restores the v5 definition (safe because U7a shipped the legacy declaration of showAverage). Build-time: set the var, redeploy web.",
+      "arm_order": "after RS_SPLIT_ENABLED; the Study overlay (U8) must ship in the same deploy"
+    },
     "VITE_RS_TELEMETRY_ENABLED": {
       "status": "dark",
       "where": [],

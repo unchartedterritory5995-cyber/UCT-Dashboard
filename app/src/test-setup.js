@@ -65,6 +65,13 @@ beforeEach(() => { __setWarmRetryDelaysForTests([]) })
 // `pages/journal-2-0/lib/notebookTelemetry.test.js` and `components/notebook/EmptyNamesAsk.test.jsx`.
 beforeEach(() => { __setFirstLiveWidgetForTests(false) })
 
+// ── UCT RS split, U7 (2026-11-09): `VITE_RS_SPLIT_ENABLED` picks which `rsLine` definition `nativeRegistry.js`
+// REGISTERS at module load (the slim UCT RS Line under '1', today's UCT Relative Strength otherwise). The suite's
+// default is OFF, as the build's is: the 60-odd RS files pin today's shape, and a developer's shell env must not flip
+// them. The slim definition is railed through its exported raw (`rsSplitSlim.test.js`, `rsSplitMigration.test.js`),
+// and the registration under '1' through a stubbed env + `vi.resetModules()` (`rsSplitFlagOn.test.jsx`).
+try { delete import.meta.env.VITE_RS_SPLIT_ENABLED } catch { /* a read-only env object: the default is already off */ }
+
 // ── UCT RS (2026-11-07): the six RS counts are ON by default in a build since the server lists them. The chart
 // suites written while they were dark mount RS copies under fetch mocks that count calls, so the counts are off here
 // by default; the real gate (on by default, `VITE_RS_TELEMETRY_ENABLED=0` the kill switch) is railed in

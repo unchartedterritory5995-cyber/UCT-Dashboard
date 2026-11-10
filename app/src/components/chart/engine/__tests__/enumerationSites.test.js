@@ -3234,9 +3234,11 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
 
     const REG = stripComments(read('app/src/components/chart/engine/nativeRegistry.js'))
 
-    /** Every place the registry SOURCE declares the field. Two today — the
-     *  helper's, and `rsLine`'s, which does not pass through the helper at all
-     *  and therefore retypes the same sentence rather than judging independently.
+    /** Every place the registry SOURCE declares the field. Three today — the
+     *  helper's, and one in each of the two `rsLine` definitions (v5 and the slim
+     *  UCT RS Line, UCT RS split U7, 2026-11-09; the build flag registers one),
+     *  which do not pass through the helper at all and therefore retype the same
+     *  sentence rather than judging independently.
      *  Counted from source rather than from the shipped objects because after the
      *  `...meta` spread EVERY definition carries the key, so the built catalogue
      *  cannot tell a declaration from an inheritance. */
@@ -3298,7 +3300,8 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
       statusLines: 1,
       status: 'OPEN',
       sharedDefaultLives: true,
-      declarationsInSource: 2,
+      // 2 → 3 with the second rsLine definition (U7); the VALUE column is unchanged
+      declarationsInSource: 3,
       badgeValues: ['non-repainting'],
       definitionsBadgedRepaints: [],
       plotsWithOwnBadge: [],

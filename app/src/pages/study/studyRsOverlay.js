@@ -51,7 +51,7 @@
  *
  * Pure apart from the cache write in `primeRsColumns`. No React, no fetch.
  */
-import { getDefinition, resolveInputs } from '../../components/chart/engine/nativeRegistry'
+import { getDefinition, resolveInputs, RS_CLASSIC_INPUTS } from '../../components/chart/engine/nativeRegistry'
 import { pickServerInputs, primeServerColumns, serverColumnsKey } from '../../components/chart/engine/serverCompute'
 import { toChartTime } from '../../components/chart/patternTime'
 
@@ -81,12 +81,18 @@ export function rsRev() {
   return Number.isFinite(rev) ? rev : null
 }
 
-/** The Classic preset's inputs, as the definition declares them (colours, toggles, average, lookback). */
+/**
+ * The Classic look as input values (colours, toggles, average, lookback).
+ * ⭐ UCT RS split, U7 (2026-11-09): read from the registry's `RS_CLASSIC_INPUTS`
+ * export, never from `meta.presets` — the slim UCT RS Line declares no presets,
+ * and the v5 definition's Classic preset IS this object. `showAverage: true` on
+ * top: a drill wire carries the 21 EMA column (`RS_WIRE_COLUMNS`), and the slim
+ * definition draws `rsMa` only while that switch holds; on the v5 definition the
+ * key is a declared legacy input (U7a), stored and read by nothing. Full Study
+ * copy work is U8.
+ */
 export function classicInputs() {
-  const def = rsDefinition()
-  const presets = def && def.meta && Array.isArray(def.meta.presets) ? def.meta.presets : []
-  const classic = presets.find((p) => p && p.id === 'classic')
-  return classic && classic.inputs ? { ...classic.inputs } : {}
+  return { ...RS_CLASSIC_INPUTS, showAverage: true }
 }
 
 function chartOf(item) {
