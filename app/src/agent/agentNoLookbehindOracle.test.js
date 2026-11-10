@@ -99,19 +99,21 @@ describe('no-lookbehind ORACLE: old pattern vs new over the test literals + synt
     }
     expect(keyed).toBeGreaterThan(10)
   })
-  // scanHidden: whether the pattern matches — the KEY hiddenPhraseIn returns — is identical. The matched TEXT is not
-  // always: a consumed prefix has no lookbehind-free equivalent, so on the threshold branch m[0] can start up to 7
-  // characters early. No product code reads it (scanRefine.js:54 and screener.js use `.key`; refine.py:87 uses hit[0]).
-  same('scanHidden.js uct_composite pattern: matches or not (the key)', corpora.composite, (s) => oldComposite.test(s), (s) => newComposite.test(s))
-  it('scanHidden.js uct_composite pattern: where the matched text differs, the new one only starts earlier', () => {
-    let differ = 0
-    for (const s of corpora.composite) {
-      const a = oldComposite.exec(s); const b = newComposite.exec(s)
-      if (!a || !b || (a.index === b.index && a[0] === b[0])) continue
-      differ += 1
-      expect(b.index, s).toBeLessThan(a.index)
-      expect(b.index + 7, s).toBeGreaterThanOrEqual(a.index)
+  // scanHidden: the new uct_composite pattern captures its words in a lookahead group, and hiddenPhraseIn returns the first
+  // group that matched (else m[0]); so the comparison is old m[0] against the new pattern's phrase, by that same rule.
+  const phraseOf = (m) => (m ? (m.slice(1).find((g) => g !== undefined) ?? m[0]) : null)
+  same('scanHidden.js uct_composite pattern: the same words matched (or none)', corpora.composite, (s) => (oldComposite.exec(s) || [null])[0], (s) => phraseOf(newComposite.exec(s)))
+  it('scanHidden.js: hiddenPhraseIn over every pattern equals master’s (old list, m[0]) on every composite input', async () => {
+    const { hiddenPhraseIn } = await import('./capabilities/scanHidden')
+    const OLD_RES = HIDDEN_PHRASES.map(([p, key]) => [new RegExp(/nasdaq/.test(p) ? OLD.composite : p), key])
+    const oldHidden = (text) => {
+      const low = String(text || '').toLowerCase().replace(/’/g, "'")
+      for (const [rx, key] of OLD_RES) { const m = rx.exec(low); if (m) return { key, phrase: m[0] } }
+      return null
     }
-    expect(differ).toBeGreaterThan(0) // the documented difference is real, not hidden by a vacuous corpus
+    const diffs = corpora.composite.filter((s) => JSON.stringify(oldHidden(s)) !== JSON.stringify(hiddenPhraseIn(s)))
+    expect(diffs.slice(0, 20)).toEqual([])
+    // every OTHER pattern captures nothing, so the "first group" rule leaves its phrase m[0]
+    for (const [p] of HIDDEN_PHRASES.filter(([q]) => !/nasdaq/.test(q))) expect(new RegExp(`${p}|`).exec('').length, p).toBe(1)
   })
 })
