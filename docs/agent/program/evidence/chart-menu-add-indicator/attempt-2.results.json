@@ -1,0 +1,234 @@
+{
+ "mode": "REAL BROWSER (headless Chrome, CDP mouse input) on the LOCAL agent harness, synthetic bars: not production",
+ "at": "2026-11-10T14:16:36.160Z",
+ "base": "http://127.0.0.1:5303",
+ "tries": [
+  {
+   "where": "price area (upper plot, off the candles)",
+   "at": {
+    "x": 267,
+    "y": 243
+   },
+   "menu": {
+    "open": true,
+    "ids": [
+     "set-alert",
+     "journal",
+     "journal-choose",
+     "reset",
+     "settings-canvas",
+     "ind-add",
+     "settings",
+     "template",
+     "add-widget",
+     "ask-ai"
+    ],
+    "addIndicator": {
+     "rect": [
+      273,
+      441,
+      243,
+      33
+     ],
+     "centre": {
+      "x": 395,
+      "y": 458
+     },
+     "elementFromPoint": {
+      "tag": "BUTTON",
+      "menuId": "ind-add",
+      "text": "Add indicator…"
+     },
+     "isTheRow": true,
+     "text": "Add indicator…"
+    }
+   },
+   "closedAfter": true
+  },
+  {
+   "where": "price area (mid plot)",
+   "at": {
+    "x": 267,
+    "y": 450
+   },
+   "menu": {
+    "open": true,
+    "ids": [
+     "set-alert",
+     "journal",
+     "journal-choose",
+     "reset",
+     "settings-watermark",
+     "ind-add",
+     "settings",
+     "template",
+     "add-widget",
+     "ask-ai"
+    ],
+    "addIndicator": {
+     "rect": [
+      273,
+      648,
+      243,
+      33
+     ],
+     "centre": {
+      "x": 395,
+      "y": 665
+     },
+     "elementFromPoint": {
+      "tag": "BUTTON",
+      "menuId": "ind-add",
+      "text": "Add indicator…"
+     },
+     "isTheRow": true,
+     "text": "Add indicator…"
+    }
+   },
+   "closedAfter": true
+  },
+  {
+   "where": "price axis",
+   "at": {
+    "x": 559,
+    "y": 418
+   },
+   "menu": {
+    "open": true,
+    "ids": [
+     "set-alert",
+     "journal",
+     "journal-choose",
+     "reset",
+     "settings-axis",
+     "settings",
+     "template",
+     "add-widget",
+     "ask-ai"
+    ],
+    "addIndicator": null
+   },
+   "closedAfter": true
+  },
+  {
+   "where": "volume (bottom of plot)",
+   "at": {
+    "x": 318,
+    "y": 763
+   },
+   "menu": {
+    "open": true,
+    "ids": [
+     "set-alert",
+     "journal",
+     "journal-choose",
+     "reset",
+     "settings-canvas",
+     "ind-add",
+     "settings",
+     "template",
+     "add-widget",
+     "ask-ai"
+    ],
+    "addIndicator": {
+     "rect": [
+      324,
+      763,
+      243,
+      33
+     ],
+     "centre": {
+      "x": 446,
+      "y": 780
+     },
+     "elementFromPoint": {
+      "tag": "BUTTON",
+      "menuId": "ind-add",
+      "text": "Add indicator…"
+     },
+     "isTheRow": true,
+     "text": "Add indicator…"
+    }
+   },
+   "closedAfter": true
+  }
+ ],
+ "geometry": {
+  "widgetId": "w-chart-a",
+  "plot": {
+   "left": 13,
+   "top": 168,
+   "width": 508,
+   "height": 626
+  },
+  "axis": {
+   "left": 521,
+   "top": 168,
+   "width": 76,
+   "height": 626
+  }
+ },
+ "click": {
+  "where": "price area (upper plot, off the candles)",
+  "reopen": [
+   {
+    "open": true,
+    "ids": [
+     "set-alert",
+     "journal",
+     "journal-choose",
+     "reset",
+     "settings-canvas",
+     "ind-add",
+     "settings",
+     "template",
+     "add-widget",
+     "ask-ai"
+    ],
+    "addIndicator": {
+     "rect": [
+      273,
+      441,
+      243,
+      33
+     ],
+     "centre": {
+      "x": 395,
+      "y": 458
+     },
+     "elementFromPoint": {
+      "tag": "BUTTON",
+      "menuId": "ind-add",
+      "text": "Add indicator…"
+     },
+     "isTheRow": true,
+     "text": "Add indicator…"
+    }
+   }
+  ],
+  "before": {
+   "rect": [
+    273,
+    441,
+    243,
+    33
+   ],
+   "centre": {
+    "x": 395,
+    "y": 458
+   },
+   "elementFromPoint": {
+    "tag": "BUTTON",
+    "menuId": "ind-add",
+    "text": "Add indicator…"
+   },
+   "isTheRow": true,
+   "text": "Add indicator…"
+  },
+  "after": {
+   "menuOpen": false,
+   "libraryOpen": true
+  }
+ },
+ "consoleErrors": []
+}

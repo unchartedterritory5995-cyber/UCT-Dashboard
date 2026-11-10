@@ -40,7 +40,14 @@ const rclick = async (x, y) => {
   for (const type of ['mousePressed', 'mouseReleased']) await p.b.send('Input.dispatchMouseEvent', { type, x, y, button: 'right', clickCount: 1 })
   await sleep(600)
 }
-const esc = async () => { if (await p.b.evaluate(`!!document.querySelector('[data-guide="chart.contextMenu"]')`)) { await p.b.key('Escape'); await sleep(300) } }
+const menuUp = () => p.b.evaluate(`!!document.querySelector('[data-guide="chart.contextMenu"]')`)
+// close an open menu, as a person would (Escape, then a click on the backdrop if it stayed); returns whether it closed
+const esc = async () => {
+  if (!(await menuUp())) return true
+  await p.b.key('Escape'); await sleep(300)
+  if (await menuUp()) { const bd = await p.b.evaluate(`(() => { const e = document.querySelector('[class*="chartCtxBackdrop"]'); if (!e) return null; return { x: 3, y: 3 } })()`); if (bd) { await p.b.click(bd.x, bd.y); await sleep(300) } }
+  return !(await menuUp())
+}
 try {
   p = await open(R, { width: 1600, height: 950 })
   await sleep(2500)
@@ -56,15 +63,23 @@ try {
   for (const [where, pt] of plan) {
     if (!pt) { rec.tries.push({ where, skipped: 'no such region' }); continue }
     await rclick(pt.x, pt.y)
-    rec.tries.push({ where, at: pt, menu: await p.b.evaluate(MENU) })
-    await esc()
+    const menu = await p.b.evaluate(MENU)
+    rec.tries.push({ where, at: pt, menu, closedAfter: await esc() })
   }
   // the real click: reopen at the first point that offered the row, left-click the row's centre
   const first = rec.tries.find(t => t.menu?.addIndicator?.isTheRow)
   if (first) {
-    await rclick(first.at.x, first.at.y)
-    const m = await p.b.evaluate(MENU)
-    rec.click = { where: first.where, before: m.addIndicator }
+    let m = null
+    rec.click = { where: first.where, reopen: [] }
+    for (let k = 0; k < 3; k++) {
+      await esc()
+      await rclick(first.at.x, first.at.y)
+      m = await p.b.evaluate(MENU)
+      rec.click.reopen.push(m)
+      if (m.addIndicator?.isTheRow) break
+    }
+    if (!m.addIndicator?.isTheRow) throw new Error('reopen: the row was not offered (see click.reopen)')
+    rec.click.before = m.addIndicator
     await p.b.click(m.addIndicator.centre.x, m.addIndicator.centre.y)
     await sleep(1500)
     rec.click.after = await p.b.evaluate(`({ menuOpen: !!document.querySelector('[data-guide="chart.contextMenu"]'), libraryOpen: !!document.querySelector('[aria-label="Search indicators"]') })`)
