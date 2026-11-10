@@ -76,3 +76,22 @@ describe('the overlay working copy (toRawUnixView / stampTimeBase / pointChartTi
     expect(pointChartTime('2026-10-29')).toBe('2026-10-29')
   })
 })
+
+describe('drawingsStore writes are stamped', () => {
+  it('addDrawing converts a legacy chart-time point and stamps; updateDrawing stamps numeric points', async () => {
+    const store = await import('./drawingsStore')
+    const u = Date.UTC(2026, 9, 29, 13, 30) / 1000
+    const id = store.addDrawing('TBTEST', { type: 'vertical', points: [{ time: toChartTime(u) }], color: '#fff' })
+    const all = JSON.parse(localStorage.getItem('uct-chart-drawings') || '{}').TBTEST || []
+    const d = all.find(x => x.id === id)
+    expect(d.tb).toBe('unix')
+    expect(d.points[0].time).toBe(u)
+    const id2 = store.addDrawing('TBTEST', { type: 'horizontal', points: [{ price: 5 }] })
+    store.updateDrawing('TBTEST', id2, { color: '#000' })
+    const d2 = (JSON.parse(localStorage.getItem('uct-chart-drawings')).TBTEST || []).find(x => x.id === id2)
+    expect(d2.tb).toBeUndefined()
+    store.updateDrawing('TBTEST', id2, { points: [{ time: u, price: 5 }] })
+    const d3 = (JSON.parse(localStorage.getItem('uct-chart-drawings')).TBTEST || []).find(x => x.id === id2)
+    expect(d3.tb).toBe('unix')
+  })
+})
