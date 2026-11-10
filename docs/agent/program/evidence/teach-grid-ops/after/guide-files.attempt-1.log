@@ -1,0 +1,939 @@
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-auto); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-auto); waiting 15s
+
+ RUN  v4.0.18 C:/w/pl-teach-gops/app
+
+ ✓ src/testing/agent/guide/givens.test.js (7 tests) 6ms
+stderr | src/agent/agentGuideSystem.test.jsx > the overlay > 🔴 Skip on a step the next depends on stays put and says why: never the lost notice
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuideSystem.test.jsx > a pressed control finishes its step, even when it stays on screen > a middle step moves on, and the last step ends the walkthrough: no ring is left behind
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuideSystem.test.jsx > a pressed control finishes its step, even when it stays on screen > a right-click on the control does not count as the click the step asked for
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuideSystem.test.jsx > a walkthrough stays on ITS chart and ends when it should > P2 another chart opening its settings window does not advance this chart’s step; its own gear does
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuideSystem.test.jsx > pressing another chart ends the walkthrough > a press on its own chart does not end it
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuideSystem.test.jsx > pressing another chart ends the walkthrough > a press on a watchlist row (it changes what a linked chart shows, not which chart the walkthrough is on) does not end it
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuideSystem.test.jsx > pressing another chart ends the walkthrough > a press on a menu outside any board cell does not end it
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuideSystem.test.jsx > pressing another chart ends the walkthrough > a board-level walkthrough (no chart) is not ended by pressing a chart
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuideSystem.test.jsx > pressing another chart ends the walkthrough > a board-level walkthrough (no chart) is not ended by pressing a chart
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ❯ src/agent/agentGuideHeldOutGridOps.test.js (12 tests | 1 failed) 27ms
+     ✓ "how do I fill my grid with a stock’s group automatically" → Groups Mode 5ms
+     ✓ "how do I stop using groups in multi chart" → Exit Groups 1ms
+     ✓ "show me how to load the semiconductor group into the grid" → Search groups 1ms
+     ✓ "how do I go to the previous group in my grid" → Previous group 0ms
+     ✓ "how do I move on to the next group in multi chart" → Next group 0ms
+     ✓ "how do I switch the grid to another group this stock is also in" → Switch to  0ms
+     ✓ "how do I re-rank the group in my grid right now" → ↻ Refresh group 0ms
+     ✓ "how do I save this grid so I can use it later" → Grid name 1ms
+     ✓ "show me how to open one of my saved grids" → My grids 0ms
+     ✓ "how do I get rid of a grid I saved" → Delete 0ms
+     ✓ "where are the settings every chart in my grid shares" → chart.cellSettings 0ms
+     × "how do I get all the grid charts back on screen after maximizing one" → chart.cellMaximize 6ms
+stderr | src/agent/agentGuideSystem.test.jsx > the walkthrough chart loads another symbol from outside > a walkthrough whose own steps change the symbol (the symbol search) carries on
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuideSystem.test.jsx > pressing another chart on a six-chart board ends the walkthrough > a press on its own chart (top-left) does not end it
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/agent/agentGuideSystem.test.jsx (50 tests) 8187ms
+     ✓ 🔴 Skip on a step the next depends on stays put and says why: never the lost notice  1082ms
+     ✓ a middle step moves on, and the last step ends the walkthrough: no ring is left behind  1103ms
+     ✓ a right-click on the control does not count as the click the step asked for  532ms
+     ✓ P2 another chart opening its settings window does not advance this chart’s step; its own gear does  693ms
+     ✓ a press on its own chart does not end it  390ms
+     ✓ a press on a watchlist row (it changes what a linked chart shows, not which chart the walkthrough is on) does not end it  541ms
+     ✓ a press on a menu outside any board cell does not end it  404ms
+     ✓ a board-level walkthrough (no chart) is not ended by pressing a chart  433ms
+     ✓ a walkthrough whose own steps change the symbol (the symbol search) carries on  540ms
+     ✓ a press on its own chart (top-left) does not end it  418ms
+stderr | src/agent/agentGuideLifecycleRails.test.jsx > 1 · agent.guideEscapeBoard: window capture, never prevents or stops > a selected drawing (it deselects): the walkthrough stays and the owner still acts, with the key never prevented or stopped
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuideAbsentRow.test.jsx > a menu row that is not offered here > a step without `absent` keeps waiting when its menu opens without the row
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuideAbsentRow.test.jsx > a menu row that is not offered here > a step without `absent` keeps waiting when its menu opens without the row
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuideLifecycleRails.test.jsx > 1 · agent.guideEscapeBoard: window capture, never prevents or stops > an armed drawing tool (it disarms): the walkthrough stays and the owner still acts, with the key never prevented or stopped
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuideLifecycleRails.test.jsx > 1 · agent.guideEscapeBoard: window capture, never prevents or stops > an open menu (it closes): the walkthrough stays and the owner still acts, with the key never prevented or stopped
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/agent/agentGuideAbsentRow.test.jsx (4 tests) 3931ms
+     ✓ menu open, row absent: said and ended (no ring, no waiting)  1781ms
+     ✓ a step without `absent` keeps waiting when its menu opens without the row  1993ms
+ ✓ src/agent/agentGuideDesktopSelection.test.jsx (3 tests) 2330ms
+     ✓ selected: Escape leaves the walkthrough on screen, and the chart still deselects  1274ms
+     ✓ nothing selected (the bin disabled): Escape ends the walkthrough  1048ms
+ ✓ src/agent/agentGuideControls.test.js (112 tests) 6857ms
+stderr | src/agent/agentGuideLifecycleRails.test.jsx > 1 · agent.guideEscapeBoard: window capture, never prevents or stops > focus in an input: the walkthrough stays and the field still acts (it clears)
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuideLifecycleRails.test.jsx > 1 · agent.guideEscapeBoard: window capture, never prevents or stops > focus in a textarea: the walkthrough stays and the field still acts (it clears)
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/agent/agentGuideP3.test.jsx (14 tests) 8132ms
+     ✓ "how do I link my charts?"  1212ms
+     ✓ "how do i hide my drawings"  1186ms
+     ✓ "where do I change the chart background?"  1005ms
+     ✓ the Canvas walkthrough starts at the Canvas tab when Chart Settings is already open  1157ms
+     ✓ "how do I link my charts?" → "do it for me" → which colour? → Blue: the chart's link colour is set; Undo puts it back  1487ms
+     ✓ hiding drawings says what to ask for — nothing runs on a guess  1077ms
+     ✓ through the panel: "What does the bar-close countdown do?" — instant, and nothing changes  984ms
+ ✓ src/agent/agentGuidePages.test.jsx (18 tests) 2226ms
+     ✓ SHOW "where do I change the filters?" — highlights the page's Filters; the page is untouched  322ms
+     ✓ DO IT FOR ME after "show me how to open a saved screen" → which screen? (the page's own list) → Pullback: opened through the page's door, receipted, and Undo puts Breakout back  307ms
+     ✓ EXPLAIN + SHOW "where do I add a new note?" — + New note; DO IT FOR ME asks for the words, then the Notebook's own creation path makes it  447ms
+ ✓ src/agent/agentGuideTarget.test.jsx (4 tests) 521ms
+     ✓ on a board of several charts the step points at the chart being talked about  328ms
+stdout | src/agent/agentGuideInventory.test.js > teach coverage probe (inventory phrasings, routing only) > asks every inventory row and reports what it reaches
+teach probe: 432/499 rows reach a walkthrough {"VERIFIED":{"rows":295,"reached":295},"ASSIGNED / NOT REACHED":{"rows":60,"reached":39},"NO WALKTHROUGH":{"rows":46,"reached":0},"NO ASSIGNED WALKTHROUGH":{"rows":75,"reached":75},"ROUTED / BROWSER FAILED":{"rows":23,"reached":23}}
+
+ ✓ src/agent/agentGuideInventory.test.js (1 test) 668ms
+     ✓ asks every inventory row and reports what it reaches  656ms
+ ❯ src/agent/agentGuideNamed.test.jsx (292 tests | 1 failed) 1860ms
+     ✓ how would I add bollinger bands to the NVDA chart? 5ms
+     ✓ how do I add RSI to NVDA 1ms
+     ✓ how do I add RSI to my nvda chart 4ms
+     ✓ how do I change the timeframe on the left chart? 1ms
+     ✓ how do I change the timeframe on the second chart 0ms
+     ✓ how do I add RSI to the 5 minute chart 1ms
+     ✓ how do I change the timeframe on the left one 0ms
+     ✓ a position in a grid 0ms
+     ✓ a position that fits two charts is asked, never guessed 0ms
+     ✓ a chart the board does not hold is said, never swapped for another 2ms
+     ✓ the tsla chart is said, not walked on the clicked chart 0ms
+     ✓ the Nvidia chart is said, not walked on the clicked chart 0ms
+     ✓ the weekly chart is said, not walked on the clicked chart 0ms
+     ✓ the BRK.B chart is said, not walked on the clicked chart 0ms
+     ✓ a dotted ticker on the board is that chart 0ms
+     ✓ two charts named, or one symbol on two charts, is asked 0ms
+     ✓ words that name no chart leave the clicked one standing 0ms
+     ✓ how do I open the right-click menu names no chart 13ms
+     ✓ how do I move the price scale to the left names no chart 25ms
+     ✓ how do I move the legend to the top names no chart 6ms
+     ✓ how do I make the bottom pane taller names no chart 1ms
+     ✓ how can I chart two symbols side by side names no chart 0ms
+     ✓ how do I chart a symbol names no chart 9ms
+     ✓ how do I hide all indicators names no chart 1ms
+     ✓ how do I show the high low labels names no chart 3ms
+     ✓ how do I use the line chart names no chart 4ms
+     ✓ how do I change the price chart names no chart 2ms
+     ✓ a position right-click on a named chart keeps the named chart 1ms
+     ✓ the words always reach the walkthrough, which reads the chart from them 8ms
+     ✓ one chart never refuses: how do I switch to the log chart 0ms
+     ✓ one chart never refuses: how do I make my candles chart hollow 0ms
+     ✓ one chart never refuses: how do I reset to the default chart 0ms
+     ✓ one chart never refuses: how do I change my intraday chart 0ms
+     ✓ one chart never refuses: how do I get the OHLC chart 0ms
+     ✓ one chart never refuses: how do I get the HA chart 0ms
+     ✓ one chart never refuses: how do I get the 1D chart 0ms
+     ✓ one chart never refuses: how do I open the heikin ashi chart 0ms
+     ✓ one chart never refuses: how do I turn on the percent chart 0ms
+     ✓ one chart never refuses: how do I see the premarket chart 0ms
+     ✓ one chart never refuses: how do I get back to the original chart 0ms
+     ✓ one chart never refuses: how do I use the renko chart 0ms
+     ✓ one chart never refuses: how do I change the extended hours chart 0ms
+     ✓ one chart never refuses: how do I reset my main chart 0ms
+     ✓ one chart never refuses: how do I fix the inverted chart 0ms
+     ✓ one chart never refuses: how do I change the left chart 0ms
+     ✓ one chart never refuses: how do I change the weekly chart 0ms
+     ✓ many charts, the clicked one stands: how do I switch to the log chart 0ms
+     ✓ many charts, the clicked one stands: how do I make my candles chart hollow 0ms
+     ✓ many charts, the clicked one stands: how do I reset to the default chart 0ms
+     ✓ many charts, the clicked one stands: how do I change my intraday chart 1ms
+     ✓ many charts, the clicked one stands: how do I get the OHLC chart 2ms
+     ✓ many charts, the clicked one stands: how do I get the HA chart 1ms
+     ✓ many charts, the clicked one stands: how do I use the hollow candles chart 0ms
+     ✓ many charts, the clicked one stands: how do I open the heikin ashi chart 0ms
+     ✓ many charts, the clicked one stands: how do I turn on the percent chart 0ms
+     ✓ many charts, the clicked one stands: how do I see the premarket chart 0ms
+     ✓ many charts, the clicked one stands: how do I get back to the original chart 0ms
+     ✓ many charts, the clicked one stands: how do I use the renko chart 0ms
+     ✓ many charts, the clicked one stands: how do I change the extended hours chart 0ms
+     ✓ many charts, the clicked one stands: how do I reset my main chart 0ms
+     ✓ many charts, the clicked one stands: how do I change my logarithmic chart 0ms
+     ✓ many charts, the clicked one stands: how do I change this area chart 0ms
+     ✓ many charts, the clicked one stands: how do I use the baseline chart 0ms
+     ✓ many charts, the clicked one stands: how do I change my RTH chart 0ms
+     ✓ many charts, the clicked one stands: how do I change the whole chart 0ms
+     ✓ a timeframe label: how do I add RSI to the 1D chart 0ms
+     ✓ a timeframe label: how do I add RSI to the 1d chart 0ms
+     ✓ a timeframe label: how do I add RSI to the 1W chart 0ms
+     ✓ a timeframe label: how do I add RSI to the weekly chart 0ms
+     ✓ a timeframe label: how do I add RSI to my D chart 0ms
+     ✓ a timeframe label: how do I add RSI to the W chart 0ms
+     ✓ a ticker the board shows stays a ticker: how do I add RSI to the HA chart 0ms
+     ✓ a ticker the board shows stays a ticker: how do I add RSI to the LINE chart 0ms
+     ✓ a ticker the board shows stays a ticker: how do I add RSI to the D chart 0ms
+     ✓ a ticker the board shows stays a ticker: how do I add RSI to the M chart 0ms
+     ✓ a lowercase letter is not a timeframe 0ms
+     ✓ the board may spell it 1D as well 0ms
+     ✓ 1M is a month and 1m a minute, as on the buttons 0ms
+     ✓ many charts, a name that matches nothing is said, on any clicked chart: how do I add RSI to the 1W chart 0ms
+     ✓ many charts, a name that matches nothing is said, on any clicked chart: how do I add RSI to the TSLA chart 0ms
+     ✓ many charts, a name that matches nothing is said, on any clicked chart: how do I add RSI to the tesla chart 0ms
+     ✓ many charts, a name that matches nothing is said, on any clicked chart: how do I add RSI to my tsla chart 0ms
+     ✓ many charts, a name that matches nothing is said, on any clicked chart: how do I add RSI to the BRK.B chart 0ms
+     ✓ it still reaches the range buttons: how do I see the 3 month chart 0ms
+     ✓ it still reaches the range buttons: how do I see the 6 month chart 0ms
+     ✓ it still reaches the range buttons: show me how to get my 3-month chart 0ms
+     ✓ it still reaches the range buttons: show me how to get my 6-month chart 0ms
+     ✓ how do I see the 3 month chart 0ms
+     ✓ how do I see the 6 month chart 0ms
+     ✓ how do I see the 3M chart 0ms
+     ✓ how do I see the 6M chart 0ms
+     ✓ how do I see the 12M chart 1ms
+     ✓ show me how to get my 3-month chart 0ms
+     ✓ where do I find that 6 months chart 0ms
+     ✓ how do I look at the 12 month chart 0ms
+     ✓ how do I open the 2 day chart 0ms
+     ✓ how would I see the 5-day chart 0ms
+     ✓ how do I get this 2 week chart 0ms
+     ✓ a timeframe the buttons read as one is still said when it is not here 0ms
+     ✓ 3M reads 3 on a board in minutes 0ms
+     × how do I go back to the previous group in multi chart 9ms
+     ✓ how do I step to the next group in the grid 0ms
+     ✓ how do I switch back a group in the grid 0ms
+     ✓ how do I exit multi chart 0ms
+     ✓ how do I close multi chart 0ms
+     ✓ how do I close the grid 0ms
+     ✓ how do I get out of the grid 0ms
+     ✓ how do I leave multi-chart 0ms
+     ✓ how do I go back to my board from the grid 0ms
+     ✓ how do I get back to the workspace from multi chart 0ms
+     ✓ how do I make one cell a line chart in the grid 0ms
+     ✓ how do I set hollow candles in a grid cell 0ms
+     ✓ neither leaves the grid nor sets a style: how do I close a chart in the grid 1ms
+     ✓ neither leaves the grid nor sets a style: how do I add a line to a chart in the grid 0ms
+     ✓ neither leaves the grid nor sets a style: how do I go back a step in the grid 0ms
+     ✓ the style card says which option follows the main chart 0ms
+     ✓ a member who is not an admin is told, and the card lands on a control they have 0ms
+     ✓ how do I add another rsi 0ms
+     ✓ how do I add a second EMA 0ms
+     ✓ how do I put another moving average on 0ms
+     ✓ teach me how to get an extra macd 0ms
+     ✓ how do I add another copy of RSI 1ms
+     ✓ how do I add another one 0ms
+     ✓ reaches the row on the fast path: how do I add another rsi 0ms
+     ✓ reaches the row on the fast path: how do I add a second EMA 1ms
+     ✓ reaches the row on the fast path: how do I put another moving average on 0ms
+     ✓ not a copy: how do I add RSI to the second chart 0ms
+     ✓ not a copy: how do I add another chart 0ms
+     ✓ not a copy: how do I add another pane 0ms
+     ✓ not a copy: how do I change the second RSI 0ms
+     ✓ a toolbar row we know makes room, and is put back 207ms
+     ✓ anything else squeezed to nothing hides nothing beside it 25ms
+     ✓ scrolls to a control once, however many ticks it stays out of reach 36ms
+     ✓ the headline Explain button carries its data-guide once 1ms
+     ✓ a title-case word: how do I switch to Renko 0ms
+     ✓ a title-case word: how do I change to Line 0ms
+     ✓ a title-case word: how do I show earnings on Monday 0ms
+     ✓ a title-case word: how do I set it to Extended 0ms
+     ✓ a title-case word: how do I open Replay in Settings 0ms
+     ✓ a title-case word: how do I get to Multi Chart 0ms
+     ✓ a title-case word: how do I move it to Tuesday 0ms
+     ✓ a title-case word: how do I go to Heikin Ashi 0ms
+     ✓ a title-case word: how do I switch to Logarithmic 0ms
+     ✓ a title-case word: how do I get to Breadth 0ms
+     ✓ a title-case word: how do I add it to Favourites 0ms
+     ✓ a title-case word: how do I save it in Layouts 0ms
+     ✓ a title-case word: how do I set alerts for Friday 0ms
+     ✓ a title-case word: how do I go to Watchlists 0ms
+     ✓ a title-case word: how do I turn on Volume 0ms
+     ✓ a title-case word: how do I jump to Today 0ms
+     ✓ capitals that are no ticker: how do I add it on RTH 0ms
+     ✓ capitals that are no ticker: how do I price it in USD 0ms
+     ✓ capitals that are no ticker: how do I show earnings on MONDAY 0ms
+     ✓ capitals that are no ticker: how do I switch to NASDAQ 0ms
+     ✓ capitals that are no ticker: how do I switch to NYSE 0ms
+     ✓ capitals that are no ticker: how do I set the time to UTC 0ms
+     ✓ capitals that are no ticker: how do I see it in GMT 0ms
+     ✓ capitals that are no ticker: how do I mark it on FOMC 0ms
+     ✓ capitals that are no ticker: how do I open it in SETTINGS 0ms
+     ✓ capitals that are no ticker: how do I change it to EXTENDED 1ms
+     ✓ capitals that are no ticker: how do I move it to PRE-MKT 0ms
+     ✓ capitals that are no ticker: how do I switch to AMEX 0ms
+     ✓ capitals that are no ticker: how do I go to WATCHLISTS 0ms
+     ✓ capitals that are no ticker: how do I look for EARNINGS 0ms
+     ✓ a ticker’s shape is still said, and still draws the note: how do I change the timeframe on MSFT 1ms
+     ✓ a ticker’s shape is still said, and still draws the note: how do I change the timeframe for BRK.B 0ms
+     ✓ a ticker’s shape is still said, and still draws the note: how do I change the timeframe in GOOGL 0ms
+     ✓ a ticker’s shape is still said, and still draws the note: how do I add RSI to BF.B 0ms
+     ✓ one letter alone is left alone 0ms
+     ✓ a symbol the board shows is that chart, whatever its shape 0ms
+     ✓ the X chart form is unchanged 0ms
+     ✓ lowercase asks: how do I add rsi to nvda 1ms
+     ✓ lowercase asks: how do I change the timeframe on aapl 0ms
+     ✓ lowercase asks: how do I add an ema for nvda 0ms
+     ✓ lowercase asks: walk me through putting macd on nvda 0ms
+     ✓ lowercase asks: where do I change the timeframe in aapl 0ms
+     ✓ absent in capitals is said: how do I add RSI on TSLA 0ms
+     ✓ absent in capitals is said: how do I change the timeframe for TSLA 0ms
+     ✓ absent in capitals is said: how do I change the timeframe in BRK.B 0ms
+     ✓ absent in capitals is said: walk me through adding macd to GOOGL 0ms
+     ✓ absent in capitals is said: where do I set the timeframe on TSLA 0ms
+     ✓ names nothing here, the clicked chart stands: how do I add rsi to it 0ms
+     ✓ names nothing here, the clicked chart stands: how do I turn on all my indicators 0ms
+     ✓ names nothing here, the clicked chart stands: how do I add rsi to my chart 0ms
+     ✓ names nothing here, the clicked chart stands: how do I change the timeframe on charts 0ms
+     ✓ names nothing here, the clicked chart stands: how do I set it to low 0ms
+     ✓ names nothing here, the clicked chart stands: how do I export it to CSV 0ms
+     ✓ names nothing here, the clicked chart stands: how do I set alerts for EOD 0ms
+     ✓ names nothing here, the clicked chart stands: how do I add RSI to VWAP 0ms
+     ✓ names nothing here, the clicked chart stands: how do I press on ENTER keys 0ms
+     ✓ names nothing here, the clicked chart stands: how do I change the timeframe on the keys chart 0ms
+     ✓ names nothing here, the clicked chart stands: how do I change the timeframe on the files chart 0ms
+     ✓ names nothing here, the clicked chart stands: how do I change the timeframe to tsla 0ms
+     ✓ a chart named some other way wins over a bare word 0ms
+     ✓ named another: how do I change the timeframe on the TSLA chart 41ms
+     ✓ named another: how do I change the timeframe on the tsla chart 15ms
+     ✓ named another: how do I change the timeframe on TSLA 31ms
+     ✓ named another: how do I change the timeframe on the BRK.B chart 17ms
+     ✓ named another: how do I change the timeframe on my Nvidia chart 29ms
+     ✓ named another: how do I change the timeframe on this MSFT chart 22ms
+     ✓ named another: how do I change the timeframe on the second chart 8ms
+     ✓ named another: how do I change the timeframe for NVDA 9ms
+     ✓ named another: walk me through changing the interval on that AMD chart 7ms
+     ✓ named another: how would I change the timeframe in GOOGL 9ms
+     ✓ named another: where do I set the timeframe on the tesla chart 11ms
+     ✓ named another: how do I switch timeframes on chart 3 17ms
+     ✓ the note reads the symbol from the board 16ms
+     ✓ a chart with no symbol yet claims none 19ms
+     ✓ no note: how do I change the timeframe on the AAPL chart 78ms
+     ✓ no note: how do I change the timeframe on the aapl chart 181ms
+     ✓ no note: how do I change the timeframe on AAPL 34ms
+     ✓ no note: how do I change the timeframe on my AAPL chart 34ms
+     ✓ no note: where do I set the timeframe on this AAPL chart 11ms
+     ✓ no note: how do I change the timeframe 30ms
+     ✓ no note: how do I change the timeframe on my chart 20ms
+     ✓ no note: how do I change the timeframe on this chart 17ms
+     ✓ no note: how do I change the timeframe on the chart 25ms
+     ✓ no note: how do I change the timeframe on the log chart 12ms
+     ✓ no note: how do I change the timeframe on the 1D chart 40ms
+     ✓ no note: how do I change the timeframe on the 1W chart 32ms
+     ✓ no note: how do I change the timeframe on the candles chart 18ms
+     ✓ no note: how do I change the timeframe on the OHLC chart 21ms
+     ✓ no note: how do I change the timeframe on the HA chart 27ms
+     ✓ no note: how do I change the timeframe on the default chart 23ms
+     ✓ no note: how do I change the timeframe on my intraday chart 14ms
+     ✓ no note: how do I change the timeframe on the left chart 34ms
+     ✓ no note: how do I change the timeframe on the first chart 12ms
+     ✓ no note: how do I change the timeframe on the 5m chart 11ms
+     ✓ no note: how do I change the timeframe on the RSI chart 12ms
+     ✓ no note: how do I change the timeframe on the 2-day chart 16ms
+     ✓ no note: how do I change the timeframe on the 3 month chart 25ms
+     ✓ no note: how do I change the timeframe on the renko chart 40ms
+     ✓ no note: how do I change the timeframe on this premarket chart 35ms
+     ✓ no note: how do I change the timeframe on the inverted chart 20ms
+     ✓ no note: how do I set it to RTH 24ms
+     ✓ no note: how do I export it to CSV 43ms
+     ✓ no note: how do I change the timeframe on the hourly chart 55ms
+     ✓ no note: how do I change the timeframe in OHLC 51ms
+     ✓ a board of several still refuses, on any clicked chart, and no note stands in for it 26ms
+     ✓ the note is drawn only by words that name another chart 5ms
+     ✓ RSI is the line above RSI, not the one above Stoch RSI 38ms
+     ✓ ATR is the line above ATR: it has a pane, whatever the price pane holds 17ms
+     ✓ Stoch RSI keeps its own line 16ms
+     ✓ an indicator drawn on the price pane has no line above it 12ms
+     ✓ a name that is only inside another name finds no pane 12ms
+     ✓ EMA 20 9ms
+     ✓ SMA 50 8ms
+     ✓ WMA 21 7ms
+     ✓ RSI 5ms
+     ✓ ATR 10ms
+     ✓ none of that name is none, not a neighbour 1ms
+     ✓ a clicked chart stands, and the walkthrough opens on it 10ms
+     ✓ change the colour of the EMA 20 line → EMA 20 0ms
+     ✓ the 20 EMA → EMA 20 0ms
+     ✓ the 20-day EMA → EMA 20 0ms
+     ✓ ema(20) → EMA 20 0ms
+     ✓ the 200 SMA → SMA 200 0ms
+     ✓ the EMA → EMA 0ms
+     ✓ how do I add a 20 SMA never claims what was not applied 0ms
+     ✓ how do I add an EMA never claims what was not applied 0ms
+     ✓ how do I add a 20 EMA never claims what was not applied 0ms
+     ✓ how do I put a 50-day WMA on my chart never claims what was not applied 0ms
+     ✓ show me how to add an hma never claims what was not applied 0ms
+     ✓ how would I get a DEMA(9) on here never claims what was not applied 0ms
+     ✓ how do I add a TEMA never claims what was not applied 0ms
+     ✓ how do I add a VWMA 21 never claims what was not applied 0ms
+     ✓ how do I add an SMMA never claims what was not applied 1ms
+     ✓ how do I add an LSMA never claims what was not applied 0ms
+     ✓ how do I add a 50 day moving average never claims what was not applied 0ms
+     ✓ the whole family reaches the walkthrough without the model: how do I add a DEMA 9 1ms
+     ✓ the whole family reaches the walkthrough without the model: how would I get an HMA on here 0ms
+     ✓ the whole family reaches the walkthrough without the model: show me how to put a 50-day WMA on my chart 0ms
+     ✓ the whole family reaches the walkthrough without the model: how do I put a 200 day moving average on my chart 0ms
+     ✓ the whole family reaches the walkthrough without the model: how do I add a VWMA 0ms
+     ✓ the whole family reaches the walkthrough without the model: teach me how to add an LSMA 0ms
+     ✓ the whole family reaches the walkthrough without the model: where do I add a TEMA 0ms
+     ✓ the whole family reaches the walkthrough without the model: how do I add an SMMA to this chart 0ms
+     ✓ a timeframe in days stays a timeframe 0ms
+     ✓ asking for exactly the default has nothing left to set 1ms
+     ✓ the row it rings is the row a new one really shows 0ms
+     ✓ an indicator with no such defaults is still named as asked 1ms
+     ✓ adding one with a length waits for the add itself 0ms
+     ✓ the title and the row name that instance 0ms
+     ✓ a named pane looks for the line above that pane 1ms
+     ✓ no pane named: any divider 1ms
+     ✓ how do I change the timeframe on the top right chart → tr 2ms
+     ✓ how do I change the timeframe on the QQQ chart → tr 1ms
+     ✓ how do I add RSI to the TSLA chart → br 1ms
+     ✓ how do I change the timeframe on this chart → bl 1ms
+     ✓ how do I change the timeframe → bl 0ms
+     ✓ a position no chart holds is said, never walked on the click 0ms
+     ✓ a ticker the board shows twice is asked about 0ms
+ ✓ src/agent/agentGuideLifecycleRails.test.jsx (11 tests) 11502ms
+     ✓ plain Escape on the board ends the walkthrough, and no handler prevented or stopped the key  1294ms
+     ✓ a selected drawing (it deselects): the walkthrough stays and the owner still acts, with the key never prevented or stopped  1188ms
+     ✓ an armed drawing tool (it disarms): the walkthrough stays and the owner still acts, with the key never prevented or stopped  1092ms
+     ✓ an open menu (it closes): the walkthrough stays and the owner still acts, with the key never prevented or stopped  1098ms
+     ✓ an open dialog (it closes): the walkthrough stays and the owner still acts, with the key never prevented or stopped  1082ms
+     ✓ focus in an input: the walkthrough stays and the field still acts (it clears)  1108ms
+     ✓ focus in a textarea: the walkthrough stays and the field still acts (it clears)  1120ms
+     ✓ a command ends the walkthrough exactly once: no step, ring or card left  1204ms
+     ✓ a new how-to ends the old walkthrough once and keeps the one it starts  1243ms
+     ✓ with no walkthrough on screen it is called once and ends nothing  1064ms
+ ✓ src/agent/agentGuideHeldOut.test.js (40 tests) 73ms
+ ✓ src/agent/agentGuideHeldOutCov3.test.js (21 tests) 97ms
+ ✓ src/agent/agentGuideRelational.test.jsx (69 tests) 183ms
+ ✓ src/agent/agentGuideGapFamilies.test.js (17 tests) 77ms
+ ✓ src/agent/agentGuideHeldOutControls.test.js (59 tests) 136ms
+ ✓ src/agent/agentGuideSequence.test.js (6 tests) 80ms
+stderr | src/agent/agentGuideWatchlistCreate.test.jsx > WL · the whole path, every step on the real control > a failed create is not called a success: the form says so and the card stays on Create
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/agent/agentGuideHeldOutCov2.test.js (26 tests) 82ms
+ ✓ src/agent/agentGuideFamilies.test.js (54 tests) 82ms
+ ✓ src/agent/agentGuideHeldOutCov5.test.js (18 tests) 69ms
+ ✓ src/agent/agentGuideHeldOutCov4.test.js (12 tests) 68ms
+stderr | src/agent/agentGuideWatchlistCreate.test.jsx > WL · the whole path, every step on the real control > a picker already on the board: it starts at ＋ New and says so; "do it for me" asks for the name and creates nothing
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ❯ src/agent/agentGuideTargets.test.js (71 tests | 1 failed) 18836ms
+     ✓ builderAction: each target is rendered by the product 261ms
+     × gridAction: each target is rendered by the product 142ms
+     ✓ drawingEdit: each target is rendered by the product 110ms
+     ✓ indicatorManage: each target is rendered by the product 172ms
+     ✓ layoutAction: each target is rendered by the product  313ms
+     ✓ tabAction: each target is rendered by the product 106ms
+     ✓ watchlistAction: each target is rendered by the product  2041ms
+     ✓ alertAction: each target is rendered by the product 162ms
+     ✓ widgetAction: each target is rendered by the product  4095ms
+     ✓ dockAction: each target is rendered by the product 90ms
+     ✓ panelAction: each target is rendered by the product  418ms
+     ✓ compareAction: each target is rendered by the product  375ms
+     ✓ chartMenu: each target is rendered by the product  790ms
+     ✓ chartView: each target is rendered by the product 102ms
+     ✓ legendChip: each target is rendered by the product  2778ms
+     ✓ indicatorColor: each target is rendered by the product 33ms
+     ✓ indicatorEdit: each target is rendered by the product  357ms
+     ✓ alertIndicator: each target is rendered by the product 80ms
+     ✓ alertPrice: each target is rendered by the product 95ms
+     ✓ multiChart: each target is rendered by the product  425ms
+     ✓ widgetResize: each target is rendered by the product 33ms
+     ✓ widgetMove: each target is rendered by the product 9ms
+     ✓ widgetHeader: each target is rendered by the product 30ms
+     ✓ widgetSettings: each target is rendered by the product  2698ms
+     ✓ widgetAdd: each target is rendered by the product  820ms
+     ✓ widgetMerge: each target is rendered by the product 30ms
+     ✓ compare: each target is rendered by the product 44ms
+     ✓ replay: each target is rendered by the product 78ms
+     ✓ periodSort: each target is rendered by the product 26ms
+     ✓ goToDate: each target is rendered by the product 10ms
+     ✓ chartTab: each target is rendered by the product 13ms
+     ✓ chartThemes: each target is rendered by the product 6ms
+     ✓ chartTemplate: each target is rendered by the product 11ms
+     ✓ chartType: each target is rendered by the product 11ms
+     ✓ timeframeCustom: each target is rendered by the product 28ms
+     ✓ watchlistAddSymbol: each target is rendered by the product 66ms
+     ✓ chartSetting: each target is rendered by the product  851ms
+     ✓ layoutSave: each target is rendered by the product 67ms
+     ✓ watchlistCreate: each target is rendered by the product 167ms
+     ✓ canvas: each target is rendered by the product 5ms
+     ✓ link: each target is rendered by the product 5ms
+     ✓ symbol: each target is rendered by the product 4ms
+     ✓ timeframe: each target is rendered by the product 12ms
+     ✓ indicators: each target is rendered by the product 100ms
+     ✓ charts: each target is rendered by the product 31ms
+     ✓ watchlists: each target is rendered by the product 49ms
+     ✓ layouts: each target is rendered by the product 28ms
+     ✓ hideDrawings: each target is rendered by the product 1ms
+     ✓ drawing: each target is rendered by the product  493ms
+     ✓ settings: each target is rendered by the product 9ms
+     ✓ screenerScreens: each target is rendered by the product 13ms
+     ✓ screenerColumns: each target is rendered by the product 15ms
+     ✓ screenerFilters: each target is rendered by the product 18ms
+     ✓ breadthViews: each target is rendered by the product 19ms
+     ✓ breadthTable: each target is rendered by the product 7ms
+     ✓ calendarNextReport: each target is rendered by the product 7ms
+     ✓ journalNewNote: each target is rendered by the product 7ms
+     ✓ every drawing tool on the toolbar has a slot row, and every row a tool 1ms
+     ✓ every Multi Chart preset has a slot row 2ms
+     ✓ every feature names registered capabilities and an existing discovery topic 3ms
+     ✓ the guide capabilities are queries — they can never change the workspace — and are covered by discovery 1ms
+     ✓ a member who cannot manage indicators is not shown the indicator walkthrough 2ms
+     ✓ Where do I change the timeframe? → timeframe 36ms
+     ✓ show me where to add an indicator → indicators 14ms
+     ✓ how do i change the symbol → symbol 2ms
+     ✓ how do I add another chart → charts 1ms
+     ✓ how do i use watchlists → watchlists 1ms
+     ✓ show me how to create a watchlist → watchlistCreate 0ms
+     ✓ how do I save my layout → layoutSave 0ms
+     ✓ how do I draw a trendline → drawing 1ms
+     ✓ where are the chart settings → settings 2ms
+ ✓ src/agent/agentGuideHeldOutGridFamily.test.js (16 tests) 58ms
+ ✓ src/agent/agentGuideHeldOutCov4b.test.js (9 tests) 70ms
+ ✓ src/agent/agentGuideHeldOutCov1.test.js (27 tests) 62ms
+ ✓ src/agent/agentGuideRelease.test.jsx (20 tests) 111ms
+ ✓ src/agent/agentGuideHeldOutControls2.test.js (15 tests) 34ms
+ ✓ src/agent/agentGuideAnswerWords.test.js (20 tests) 97ms
+ ✓ src/agent/agentGuideGroupHeader.test.jsx (1 test) 49ms
+stderr | src/agent/agentGuideWatchlistCreate.test.jsx > WL · the whole path, every step on the real control > 🔴 another widget already showing a list is not mistaken for the new one: only the pinned widget ends the steps
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/agent/agentGuideHeldOutFlow.test.js (8 tests) 19ms
+ ✓ src/agent/agentGuideHeldOutPriceScale.test.js (5 tests) 39ms
+ ✓ src/agent/agentGuideHeldOutRowColumn.test.js (9 tests | 8 skipped) 3ms
+stderr | src/agent/agentGuideWatchlistCreate.test.jsx > WL · Back and Next > Next and Back move between steps; 🔴 Back onto a step whose waitFor is already met stays there
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuide.test.jsx > S · Show me highlights the real control and changes nothing > S6b Escape is one press, one action > a sheet owns the press, whether or not it stays open
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuide.test.jsx > S · Show me highlights the real control and changes nothing > S6b Escape is one press, one action > the palette or a dialog owns the press, whether or not it stays open
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuide.test.jsx > S · Show me highlights the real control and changes nothing > S6b Escape is one press, one action > a popup that closes on Escape owns the press, whether or not it stays open
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/agent/agentGuide.test.jsx (42 tests) 50957ms
+     ✓ What's the difference between a chart indicator and a condition?  1069ms
+     ✓ what is a layout?  1188ms
+     ✓ what are link colours  1004ms
+     ✓ explain the drawing tools  1032ms
+     ✓ What is RSI?  1074ms
+     ✓ Explain RSI  1140ms
+     ✓ What does ADR mean?  1082ms
+     ✓ What is MACD?  1078ms
+     ✓ What is an EMA?  1059ms
+     ✓ rsi vs macd  1001ms
+     ✓ more than the catalog says goes to the model, which answers — nothing is invented locally and nothing changes: what is the difference between an ema and an sma  1143ms
+     ✓ more than the catalog says goes to the model, which answers — nothing is invented locally and nothing changes: what does a dead cat bounce mean?  1033ms
+     ✓ more than the catalog says goes to the model, which answers — nothing is invented locally and nothing changes: what is rsi telling me about nvda right now  1017ms
+     ✓ more than the catalog says goes to the model, which answers — nothing is invented locally and nothing changes: what's a good setting for rsi on the 5 minute  1109ms
+     ✓ the model can ask for UCT's own catalog wording (guide.explain) — a query: an answer, no receipt, no change  1080ms
+     ✓ S1 "Where do I change the timeframe?" — the real timeframe bar, two steps, Next / Done; the board is untouched  1485ms
+     ✓ S2 several charts: the walkthrough is on the chart the member clicked, and says which  1014ms
+     ✓ S3 a control that is NOT on screen is never claimed — it says so and explains instead  1122ms
+     ✓ S4 a step that needs the member: "open the gear" waits for THEIR click (the settings opening), then moves on by itself  1389ms
+     ✓ S4b context-aware: with Chart settings ALREADY open on the Indicators tab, the walkthrough starts at its search box — never "open the gear"  1219ms
+     ✓ S5 the control disappears mid-walkthrough → it pauses and says why, carries on if it returns, and only then gives up (never points at nothing)  5493ms
+     ✓ a new command typed to the Agent mid-walkthrough ends the walkthrough  1191ms
+       ✓ with nothing else open, it ends the guide  992ms
+       ✓ with focus still in the Agent's message box after asking, it ends the guide  1006ms
+       ✓ Ctrl, Alt, Meta or Shift + Escape is not the guide's  1044ms
+       ✓ a text field's Escape is the field's  1030ms
+       ✓ a field that closes itself on Escape still owned the press, though focus has left it by the bubble phase  1136ms
+       ✓ a sheet owns the press, whether or not it stays open  1079ms
+       ✓ the palette or a dialog owns the press, whether or not it stays open  1128ms
+       ✓ a popup that closes on Escape owns the press, whether or not it stays open  1081ms
+       ✓ a press a board handler stopped or prevented, with nothing of its own to close, still ends the guide  1000ms
+       ✓ an armed drawing tool owns the press: the guide stays  1031ms
+       ✓ a menu the press closed had it: the Widgets menu goes, the guide stays  1041ms
+       ✓ a menu that ignores Escape does not keep the guide from ending  990ms
+       ✓ after the layer has gone, the next Escape ends the guide  1068ms
+     ✓ S6 Escape and Exit end it; a new walkthrough replaces the old one  1395ms
+     ✓ S7 the card never takes a click away from the board: the ring is pointer-events none, the card is not modal  1003ms
+     ✓ D1 "Where do I change the timeframe?" → "Now do it for me" → which timeframe? → Weekly: changed, receipted, undoable  1484ms
+     ✓ D2 a feature whose action needs the member's words says what to say — nothing runs on a guess  1084ms
+     ✓ D3 "do it for me" with no walkthrough shown is NOT a guide action — nothing changes  988ms
+     ✓ D4 a direct command is just done — "Change my chart to the weekly timeframe" (no walkthrough)  1042ms
+     ✓ D5 the indicator walkthrough → do it for me → RSI: added through indicator.add (receipt, Undo)  1309ms
+ ✓ src/agent/agentGuideWatchlistCreate.test.jsx (45 tests) 66357ms
+     ✓ Show me how to create a watchlist  1180ms
+     ✓ show me how to make a watchlist  1060ms
+     ✓ how do I create a watchlist?  994ms
+     ✓ how can i make a new watchlist  1003ms
+     ✓ how do I add a new watchlist  996ms
+     ✓ walk me through creating a watchlist  1018ms
+     ✓ teach me how to make my own watchlist  1124ms
+     ✓ guide me through building a watch list  1085ms
+     ✓ how do I start a new list  1183ms
+     ✓ where do I create a watchlist  1206ms
+     ✓ from a board with no Watchlist widget: Widgets ▾ → Watchlist → ＋ New → name → Create → the list; only the member creates it  2216ms
+     ✓ pressing Enter in the name box creates it too: the walkthrough follows, it does not report a lost control  1914ms
+     ✓ a failed create is not called a success: the form says so and the card stays on Create  2043ms
+     ✓ a picker already on the board: it starts at ＋ New and says so; "do it for me" asks for the name and creates nothing  1253ms
+     ✓ a Watchlist widget already showing a list: ‹ Lists opens the picker and the walkthrough carries on from ＋ New  1251ms
+     ✓ …or Next takes the Widgets route instead  1331ms
+     ✓ 🔴 another widget already showing a list is not mistaken for the new one: only the pinned widget ends the steps  2254ms
+     ✓ Next and Back move between steps; 🔴 Back onto a step whose waitFor is already met stays there  1987ms
+     ✓ after Back, the step still moves by itself once its waitFor goes away and comes back  2411ms
+     ✓ 🔴 Back passes over a step whose control has gone (the closed menu) to the nearest one on screen  1431ms
+     ✓ 🔴 the Widgets menu closing on mouse-leave returns to "Open Widgets ▾" and reopening it carries on  3478ms
+     ✓ 🔴 Cancel on the form returns to ＋ New rather than reporting a lost control  3809ms
+     ✓ Exit on Open Widgets  1007ms
+     ✓ Exit on Click Watchlist  1120ms
+     ✓ Exit on ＋ New  1259ms
+     ✓ Exit on the name  1403ms
+     ✓ Exit on Create  1536ms
+     ✓ Exit on the finished list  1762ms
+     ✓ 🔴 Escape on Open Widgets, with focus anywhere  1086ms
+     ✓ 🔴 Escape on Click Watchlist, with focus anywhere  1184ms
+     ✓ 🔴 Escape on ＋ New, with focus anywhere  1336ms
+     ✓ 🔴 Escape on the name, with focus anywhere  1388ms
+     ✓ 🔴 Escape on Create, with focus anywhere  1485ms
+     ✓ 🔴 Escape on the finished list, with focus anywhere  1602ms
+     ✓ a finished or cancelled walkthrough leaves nothing bound: the next one starts and Escape ends it  1118ms
+     ✓ 🔴 Escape in the name box is the field's: the form closes and the walkthrough steps back to ＋ New  3658ms
+     ✓ Escape does nothing of the guide's once no walkthrough is on screen  1005ms
+     ✓ the widget is closed while ＋ New is highlighted → it returns to Widgets ▾ rather than stopping  3498ms
+     ✓ the widget is closed on the name step: no earlier control left to return to but Widgets ▾, so it returns there  3677ms
+     ✓ the Widgets menu is not on screen at all (grid mode) → it says so and explains, and starts nothing  995ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/agent/agentGuideHeldOutGridOps.test.js > a grid op ask walks to its control > "how do I get all the grid charts back on screen after maximizing one" → chart.cellMaximize
+AssertionError: expected 'Back to the list of scans | [{"widget…' to contain 'chart.cellMaximize'
+
+Expected: "chart.cellMaximize"
+Received: "Back to the list of scans | [{"widgetType":"scanner","guide":"watchlist.lists"},{"widgetType":"scanner"}]"
+
+ ❯ src/agent/agentGuideHeldOutGridOps.test.js:45:21
+     43| describe('a grid op ask walks to its control', () => {
+     44|   it.each(GRID_OPS_HELD_OUT)('"%s" → %s', (q, needle) => {
+     45|     expect(seen(q)).toContain(needle)
+       |                     ^
+     46|   })
+     47| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/agent/agentGuideNamed.test.jsx > Multi Chart rows (#860 follow-ups) > how do I go back to the previous group in multi chart
+AssertionError: expected 'groupPrev' to be 'groupStep' // Object.is equality
+
+Expected: "groupStep"
+Received: "groupPrev"
+
+ ❯ src/agent/agentGuideNamed.test.jsx:186:40
+    184|     ['how do I go back to my board from the grid', 'exit'], ['how do I…
+    185|     ['how do I make one cell a line chart in the grid', 'cellStyle'], …
+    186|   ])('%s', (q, id) => { expect(row(q)).toBe(id) })
+       |                                        ^
+    187|   it.each(['how do I close a chart in the grid', 'how do I add a line …
+    188|     expect(['exit', 'cellStyle']).not.toContain(row(q))
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/agent/agentGuideTargets.test.js > every walkthrough points at a real control > gridAction: each target is rendered by the product
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/agent/agentGuideTargets.test.js:78:253
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  3 failed | 32 passed (35)
+      Tests  3 failed | 1127 passed | 8 skipped (1138)
+   Start at  14:08:33
+   Duration  76.66s (transform 45.12s, setup 8.07s, import 100.78s, tests 183.89s, environment 32.33s)
+

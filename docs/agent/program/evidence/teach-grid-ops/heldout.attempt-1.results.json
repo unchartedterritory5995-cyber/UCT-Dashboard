@@ -1,0 +1,659 @@
+{
+ "mode": "BROWSER-MOCK-MODEL",
+ "evidence": "LOCAL agent harness, scripted model, synthetic bars and fixtures: not production, not gate evidence",
+ "at": "2026-11-10T19:10:48.802Z",
+ "base": "http://127.0.0.1:5302",
+ "results": [
+  {
+   "id": "GO-01",
+   "say": "how do I fill my grid with a stock’s group automatically",
+   "feature": "gridAction",
+   "title": "Groups mode",
+   "given": [
+    "prefs"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open Layouts ▾.",
+     "onPrimary": true,
+     "pr": [
+      121,
+      17,
+      95,
+      26
+     ],
+     "rr": [
+      117,
+      13,
+      103,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Multi Chart.",
+     "onPrimary": true,
+     "pr": [
+      122,
+      77,
+      228,
+      31
+     ],
+     "rr": [
+      118,
+      73,
+      236,
+      39
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Tick this, then type a ticker on any chart: the grid fills with its group.",
+     "onPrimary": true,
+     "pr": [
+      123,
+      259,
+      244,
+      18
+     ],
+     "rr": [
+      119,
+      255,
+      252,
+      26
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "GO-02",
+   "say": "how do I stop using groups in multi chart",
+   "feature": "gridAction",
+   "title": "Leaving Groups mode",
+   "given": [
+    "prefs"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open Layouts ▾.",
+     "onPrimary": true,
+     "pr": [
+      121,
+      17,
+      95,
+      26
+     ],
+     "rr": [
+      117,
+      13,
+      103,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Multi Chart.",
+     "onPrimary": true,
+     "pr": [
+      122,
+      77,
+      228,
+      31
+     ],
+     "rr": [
+      118,
+      73,
+      236,
+      39
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Click Exit Groups to go back to choosing each chart yourself.",
+     "onPrimary": true,
+     "pr": [
+      123,
+      635,
+      244,
+      28
+     ],
+     "rr": [
+      119,
+      631,
+      252,
+      36
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "GO-03",
+   "say": "show me how to load the semiconductor group into the grid",
+   "feature": "gridAction",
+   "title": "Picking a group",
+   "given": [
+    "prefs"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open Layouts ▾.",
+     "onPrimary": true,
+     "pr": [
+      121,
+      17,
+      95,
+      26
+     ],
+     "rr": [
+      117,
+      13,
+      103,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Multi Chart.",
+     "onPrimary": true,
+     "pr": [
+      122,
+      77,
+      228,
+      31
+     ],
+     "rr": [
+      118,
+      73,
+      236,
+      39
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Search for a group and click it to fill the grid with its names.",
+     "onPrimary": true,
+     "pr": [
+      123,
+      499,
+      244,
+      26
+     ],
+     "rr": [
+      119,
+      495,
+      252,
+      34
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "GO-04",
+   "say": "how do I go to the previous group in my grid",
+   "feature": "gridAction",
+   "title": "Stepping back a group",
+   "given": [
+    "prefs"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open Layouts ▾.",
+     "onPrimary": true,
+     "pr": [
+      121,
+      17,
+      95,
+      26
+     ],
+     "rr": [
+      117,
+      13,
+      103,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Multi Chart.",
+     "onPrimary": true,
+     "pr": [
+      122,
+      77,
+      228,
+      31
+     ],
+     "rr": [
+      118,
+      73,
+      236,
+      39
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Prev steps back to the group before this one. Next steps forward.",
+     "onPrimary": true,
+     "pr": [
+      133,
+      575,
+      67,
+      25
+     ],
+     "rr": [
+      129,
+      571,
+      75,
+      33
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "GO-05",
+   "say": "how do I move on to the next group in multi chart",
+   "feature": "gridAction",
+   "title": "Stepping through groups",
+   "given": [
+    "prefs"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open Layouts ▾.",
+     "onPrimary": true,
+     "pr": [
+      121,
+      17,
+      95,
+      26
+     ],
+     "rr": [
+      117,
+      13,
+      103,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Multi Chart.",
+     "onPrimary": true,
+     "pr": [
+      122,
+      77,
+      228,
+      31
+     ],
+     "rr": [
+      118,
+      73,
+      236,
+      39
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Next and Prev step to the neighbouring group.",
+     "onPrimary": true,
+     "pr": [
+      290,
+      575,
+      67,
+      25
+     ],
+     "rr": [
+      286,
+      571,
+      75,
+      33
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "GO-06",
+   "say": "how do I switch the grid to another group this stock is also in",
+   "feature": "gridAction",
+   "title": "Switching to another group it’s in",
+   "given": [
+    "prefs"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "These are the other groups this stock is in. Click one to fill the grid with it.",
+     "onPrimary": true,
+     "pr": [
+      165,
+      72,
+      58,
+      16
+     ],
+     "rr": [
+      161,
+      68,
+      66,
+      24
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "GO-07",
+   "say": "how do I re-rank the group in my grid right now",
+   "feature": "gridAction",
+   "title": "Refreshing a group",
+   "given": [
+    "prefs"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open Layouts ▾.",
+     "onPrimary": true,
+     "pr": [
+      121,
+      17,
+      95,
+      26
+     ],
+     "rr": [
+      117,
+      13,
+      103,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Multi Chart.",
+     "onPrimary": true,
+     "pr": [
+      122,
+      77,
+      228,
+      31
+     ],
+     "rr": [
+      118,
+      73,
+      236,
+      39
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Click this to refill the grid with the group’s names now.",
+     "onPrimary": true,
+     "pr": [
+      123,
+      606,
+      244,
+      29
+     ],
+     "rr": [
+      119,
+      602,
+      252,
+      37
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "GO-08",
+   "say": "how do I save this grid so I can use it later",
+   "feature": "gridAction",
+   "title": "Saving a grid",
+   "given": [
+    "prefs"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open Layouts ▾.",
+     "onPrimary": true,
+     "pr": [
+      121,
+      17,
+      95,
+      26
+     ],
+     "rr": [
+      117,
+      13,
+      103,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Multi Chart.",
+     "onPrimary": true,
+     "pr": [
+      122,
+      77,
+      228,
+      31
+     ],
+     "rr": [
+      118,
+      73,
+      236,
+      39
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Type a name here, then click Save grid.",
+     "onPrimary": true,
+     "pr": [
+      135,
+      340,
+      220,
+      26
+     ],
+     "rr": [
+      131,
+      336,
+      228,
+      34
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "GO-09",
+   "say": "show me how to open one of my saved grids",
+   "feature": "gridAction",
+   "title": "Opening a saved grid",
+   "given": [
+    "savedGrids",
+    "prefs"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open Layouts ▾.",
+     "onPrimary": true,
+     "pr": [
+      121,
+      17,
+      95,
+      26
+     ],
+     "rr": [
+      117,
+      13,
+      103,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Multi Chart.",
+     "onPrimary": true,
+     "pr": [
+      122,
+      77,
+      228,
+      31
+     ],
+     "rr": [
+      118,
+      73,
+      236,
+      39
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Your saved grids are listed here: click one to open it.",
+     "onPrimary": true,
+     "pr": [
+      123,
+      313,
+      244,
+      22
+     ],
+     "rr": [
+      119,
+      309,
+      252,
+      30
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "GO-10",
+   "say": "how do I get rid of a grid I saved",
+   "feature": "gridAction",
+   "title": "Deleting a saved grid",
+   "given": [
+    "savedGrids",
+    "prefs"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open Layouts ▾.",
+     "onPrimary": true,
+     "pr": [
+      121,
+      17,
+      95,
+      26
+     ],
+     "rr": [
+      117,
+      13,
+      103,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Multi Chart.",
+     "onPrimary": true,
+     "pr": [
+      122,
+      77,
+      228,
+      31
+     ],
+     "rr": [
+      118,
+      73,
+      236,
+      39
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Click this ✕ to delete that saved grid.",
+     "onPrimary": true,
+     "pr": [
+      338,
+      336,
+      29,
+      27
+     ],
+     "rr": [
+      334,
+      332,
+      37,
+      35
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "GO-11",
+   "say": "where are the settings every chart in my grid shares",
+   "feature": "gridAction",
+   "title": "The grid’s shared settings",
+   "given": [
+    "prefs"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "This gear opens the settings all the charts share.",
+     "onPrimary": true,
+     "pr": [
+      540,
+      71,
+      26,
+      26
+     ],
+     "rr": [
+      536,
+      67,
+      34,
+      34
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "GO-12",
+   "say": "how do I get all the grid charts back on screen after maximizing one",
+   "feature": "gridAction",
+   "title": "Maximizing a chart in the grid",
+   "given": [
+    "prefs"
+   ],
+   "pass": false,
+   "steps": [],
+   "why": "no walkthrough: Harness\n2:10 PM\nhow do I get all the grid charts back on screen after maximizing one // UCT Agent\n2:10 PM\n\nThat control isn’t on a Multi Chart cell, so I can’t ",
+   "consoleErrors": []
+  }
+ ]
+}
