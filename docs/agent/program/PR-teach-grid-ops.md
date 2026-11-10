@@ -33,7 +33,8 @@
 | Held-out `agentGuideHeldOutGridOps.test.js`, written first (`20befc964c`) | LOCAL, jsdom | BEFORE: 7 failed / 5 passed (12) (`fc112c05ae`). Attempt-1 guide files: 3 failed, kept raw (`54f591687c`). AFTER-2: see below |
 | Held-out in the browser, attempt-1 at a400c2f06b | LOCAL, BROWSER-MOCK-MODEL | 11/12. GO-12 (restore) landed on the Scanner's back. Kept raw. |
 | Held-out in the browser, attempt-2 at 0f11836754 (fresh Vite) | LOCAL, BROWSER-MOCK-MODEL | **12/12**. GO-06 rings an also-in chip in the real grid header. |
-| Guide files `src/agent/agentGuide*` + `src/agent/guide` + `src/testing/agent/guide`, AFTER-2 | LOCAL | PENDING (queued on the suite lock) |
+| Guide files `src/agent/agentGuide*` + `src/agent/guide` + `src/testing/agent/guide`, AFTER-2 | LOCAL, jsdom | **35/35 files, 1133 passed, 8 skipped (1141)** at 587236b17b, raw (`38b20965e5`) |
+| Scoped suite `src/agent` + `src/testing/agent` | LOCAL, jsdom | PENDING (after merging #1024 9e7641eecb) |
 
 ## Known limits
 - "switch back a group in the grid" still rings Next. The `groupPrev` words leave out "back", which `groupExit` and
