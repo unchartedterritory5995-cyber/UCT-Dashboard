@@ -162,3 +162,14 @@ describe('control: an imperative to make the click STAY on a setting sets it', (
     expect(logged(m.board), transcript()).toEqual(['c3'])
   }, 40000)
 })
+// …and a negated position that fits SEVERAL charts is no over-ask when the target is clear: the click (outside it) is applied
+describe('control: "this one, not the left one" (click in the right column) applies on the click', () => {
+  it.each([['put this one on log scale, not the left one', 'c1'], ['log scale on this one, not the left ones', 'c3'],
+    ['put this one on log scale, not the bottom ones', 'c1'], ['log scale on the one I selected, not the left one', 'c3']])('"%s" (%s clicked) — applied there, no ask', async (t, sel) => {
+    const m = at(sel)
+    p.st.envelopes.push(scaleOnAll(sel))
+    await m.say(t)
+    expect(logged(m.board), transcript()).toEqual([sel])
+    expect(offered(), transcript()).toEqual([])
+  }, 40000)
+})
