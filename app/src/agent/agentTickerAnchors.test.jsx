@@ -155,3 +155,60 @@ describe('(G5) negatives: a ticker relation in a clause that says it is fine —
     expect(asked(), transcript()).toBe(false)
   }, 40000)
 })
+
+// pl-auto unseen14 baseline (fb6170315e), written as families: a diagonal step IN from a named corner; "its" with no comma
+// ("X weekly and the one to its right too", "on the X chart and on the one to its right"); exclusions over "all of these" /
+// "this row except the X one" are ASKED when the plan includes the excluded chart (never a proposal card)
+describe('pl-auto unseen14 shapes, as families', () => {
+  const CORNERS = (g) => { const rows = Math.max(...BOARDS[g].map(c => c.r)), cols = Math.max(...BOARDS[g].map(c => c.c)); return [[0, 0, 'top-left'], [0, cols, 'top-right'], [rows, 0, 'bottom-left'], [rows, cols, 'bottom-right']].map(([r, c, w]) => ({ id: at(g, r, c), r, c, w })) }
+  const DIAG = []
+  for (const g of Object.keys(BOARDS)) for (const k of CORNERS(g)) {
+    const rows = Math.max(...BOARDS[g].map(c => c.r)), cols = Math.max(...BOARDS[g].map(c => c.c))
+    const to = at(g, k.r + (k.r === 0 ? 1 : -1), k.c + (k.c === 0 ? 1 : -1))
+    if (to && rows >= 1 && cols >= 1) DIAG.push({ g, text: `could you make the chart one step in diagonally from the ${k.w} corner weekly`, anchor: k.id, meant: [to], sel: k.id })
+  }
+  it.each(DIAG.map(f => [f.text, f.g, f]))('"%s" (%s, clicked = the corner): the diagonal neighbour runs; the corner never runs or is offered', async (t, g, f) => {
+    let m = mount(g, f.sel)
+    p.st.envelopes.push(planOn(...f.meant))
+    await m.say(t)
+    expect(changed(m.board), transcript()).toEqual(f.meant)
+    expect(asked(), transcript()).toBe(false)
+    cleanup(); p = setupPanel()
+    m = mount(g, f.sel)
+    p.st.envelopes.push(planOn(f.anchor))
+    await m.say(t)
+    expect(changed(m.board), transcript()).not.toContain(f.anchor)
+    expect(offered(), transcript()).not.toContain(f.anchor)
+  }, 40000)
+  const ITS = G4.map(f => ({ ...f, text: f.text.includes('to its right')
+    ? (f.meant.length % 2 ? `weekly on the ${symOf(f.g, f.meant[0])} chart and on the one to its right` : `make the ${symOf(f.g, f.meant[0])} chart weekly and the one to its right too`)
+    : f.text.replace(', and', ' and') }))
+  it.each(pick(ITS, 3).map(f => [f.text, f.g, f.sel, f]))('"%s" (%s, clicked %s): both charts run; nothing asked', async (t, g, sel, f) => {
+    const anchor = BOARDS[g].find(c => f.text.includes(symOf(g, c.id)))?.id
+    const m = mount(g, f.sel)
+    const want = [...f.meant].sort()
+    p.st.envelopes.push(planOn(...want))
+    await m.say(t)
+    expect(changed(m.board), `${transcript()} (anchor ${anchor})`).toEqual(want)
+    expect(asked(), transcript()).toBe(false)
+  }, 40000)
+  const EX = []
+  for (const g of Object.keys(BOARDS)) {
+    const all = BOARDS[g].map(c => c.id)
+    EX.push({ g, sel: all[0], ex: all[1], text: `could you put all of these except ${symOf(g, all[1])} on weekly`, meant: all.filter(id => id !== all[1]) })
+    const row = rowOf(g, all[all.length - 1])
+    EX.push({ g, sel: row[0], ex: row[1], text: `this row except the ${symOf(g, row[1])} one to weekly please`, meant: row.filter(id => id !== row[1]) })
+  }
+  it.each(EX.map(f => [f.text, f.g, f.sel, f]))('"%s" (%s, clicked %s): a plan or a proposal with the excluded chart is ASKED, never carded', async (t, g, sel, f) => {
+    for (const plan of [planOn, proposeOn]) {
+      cleanup(); p = setupPanel()
+      const m = mount(g, f.sel)
+      p.st.envelopes.push(plan(...f.meant, f.ex))
+      await m.say(t)
+      expect(changed(m.board), transcript()).not.toContain(f.ex)
+      expect(document.querySelectorAll('[data-testid="agent-proposal"]').length, transcript()).toBe(0)
+      expect(asked(), transcript()).toBe(true)
+      expect(offered(), transcript()).not.toContain(f.ex)
+    }
+  }, 40000)
+})
