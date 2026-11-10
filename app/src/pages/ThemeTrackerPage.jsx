@@ -969,11 +969,11 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
       const theme = data?.themes?.find(t => t.ticker === ticker)
       if (theme?.holdings?.length) {
         const syms = theme.holdings.map(h => h.sym)
-        // Warm the WHOLE just-opened group so arrowing/scrolling it is instant.
+        // Warm the just-opened group, up to the cap, so arrowing/scrolling it is instant.
         // Daily-only + idle-deferred via the shared helper — NOT all timeframes,
         // which 503-floods the origin at market open and starves the visible chart
         // (see prewarmVisibleList). Intraday warms on-demand per clicked symbol.
-        prewarmVisibleList(syms, { chartTf: warmTfRef.current })
+        prewarmVisibleList(syms, { chartTf: warmTfRef.current, cap: THEME_PREWARM_ROW_CAP })
       }
       return ticker                      // opening a new one closes the previous
     })

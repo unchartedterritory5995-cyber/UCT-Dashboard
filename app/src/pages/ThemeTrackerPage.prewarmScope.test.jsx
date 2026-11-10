@@ -84,13 +84,15 @@ test('opening one theme warms that group and no other', async () => {
   expect(allWarmed().sort()).toEqual(['AAA', 'BBB', 'CCC'])
 })
 
-// prewarmVisibleList applies `cap` itself (prewarmVisibleList.test.js), so here the page has to pass
-// it and hand over the group in visual order, which is what makes the cap keep the top rows.
-test('the re-warm passes a cap of 50 and the group in visual order', async () => {
+// prewarmVisibleList applies `cap` itself (prewarmVisibleList.test.js), so here every call has to
+// pass it and hand over the group in visual order, which is what makes the cap keep the top rows.
+test('every prewarm on opening a group passes the cap of 50, the group in best-first order', async () => {
   const user = userEvent.setup()
   render(<ThemeTrackerPage embedded />)
   await user.click(await screen.findByText('Huge Theme'))
-  const rewarm = warmed.filter((w) => w.opts?.cap === 50)
-  expect(rewarm.length, 'the effect must pass the cap').toBeGreaterThan(0)
-  for (const w of rewarm) expect(w.syms.slice(0, 3), 'best row first').toEqual(['BIG0', 'BIG1', 'BIG2'])
+  expect(warmed.length, 'opening a group must warm it').toBeGreaterThan(0)
+  for (const w of warmed) {
+    expect(w.opts?.cap, 'every call site must pass the cap').toBe(50)
+    expect(w.syms.slice(0, 3), 'best row first').toEqual(['BIG0', 'BIG1', 'BIG2'])
+  }
 })
