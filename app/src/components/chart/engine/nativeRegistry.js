@@ -4355,7 +4355,13 @@ const RS_LINE_RAW = {
       // (visual review D1: the tag rounded to 0.25 while the legend read 0.2477).
       // It takes `pool`'s matching `minMove: 0.0001` (decision B1) to do so: LWC
       // rounds to `minMove`, so precision alone printed 0.2500.
-      precision: 4, role: 'primary', legend: { decimals: 4 } },
+      precision: 4, role: 'primary', legend: { decimals: 4 },
+      // ⭐ UCT RS split, U2 — THE LINE-END TAG (`engine/endLabel.js`): MarketSurge
+      // prints the RS Rating at the right end of its RS line, so ours reads `RS 96`
+      // at the last point, on the price pane and in the RS pane alike. The same
+      // nightly rating the pane label and the ranks strip print, gated on the
+      // member's RS Rating switch; no row on the server, no tag.
+      endLabel: { source: 'scalar:rating.ibd', prefix: 'RS ', when: ['input:showRating'] } },
     // ⭐ The condition column, HIDDEN: computed by the server (`rsAbove[t] =
     // rs[t] ≥ rsMA[t]`, 0/1/null — `relative_strength.py`), drawn by nobody, read
     // by the line's colour rule. The Awesome Oscillator's `rising` is the

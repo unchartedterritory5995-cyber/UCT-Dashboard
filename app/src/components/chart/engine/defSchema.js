@@ -151,6 +151,9 @@ import { isValidTf } from '../timeframes'
 // validator live beside its reader, `paneTable.js`, which imports nothing of
 // this module — so there is no cycle.
 import { validatePaneTable } from './paneTable'
+// ⭐ The line-end label (`plots[].endLabel`, UCT RS split U2): grammar beside its
+// reader, `endLabel.js`, which imports nothing of this module.
+import { validateEndLabel } from './endLabel'
 // ⭐ The client-derived column (`plots[].derive`, same round): grammar beside its
 // one reader, `derivedColumns.js`, which imports nothing of this module.
 import { DERIVE_FIELDS } from './derivedColumns'
@@ -3172,6 +3175,10 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
       `got ${fmt(plot.restyle)}`,
     )
   }
+  // ⭐ UCT RS split, U2 — `plots[].endLabel`: a small tag at the plot's last finite
+  // point (`RS 96`, MarketSurge's line-end rating). Declared per plot, drawn by
+  // the surface from the host series' own coordinates; fail-closed in `endLabel.js`.
+  if (plot.endLabel !== undefined) validateEndLabel(plot.endLabel, `${path}.endLabel`, inputsByKey.keys(), errors)
   validatePlotActiveWhen(plot, path, inputsByKey, errors)
 }
 

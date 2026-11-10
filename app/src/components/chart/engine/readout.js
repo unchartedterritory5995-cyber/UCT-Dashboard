@@ -105,6 +105,7 @@ import { safeCssColour } from './objectColour'
 // (see `stampReadout`), so this module still imports no server lane.
 import { readoutRows, readoutChipRows } from './readoutSchema'
 import { paneTableFor } from './paneTable'
+import { endLabelChipModel } from './endLabel'
 import { inputsAsRead } from './legacyInputs'
 import { identityTextFor } from './defSchema'
 
@@ -385,9 +386,15 @@ function stampReadout(chip, def, inputs, opts) {
   // can never print two different numbers for one rank.
   let table = null
   const wantsTable = !!(def.meta && def.meta.paneTable)
+  // ⭐ UCT RS split, U2 — the plot's line-end tag (`plots[].endLabel`), resolved from
+  // the SAME scalars for the same reason as the table: the tag at the line's end
+  // and the Rating card can never print two different ratings.
+  const plot = (Array.isArray(def.plots) ? def.plots : []).find((p) => p && p.key === chip.plotKey) || null
+  const endSpec = plot && plot.endLabel && typeof plot.endLabel === 'object' ? plot.endLabel : null
+  let endLabel = null
   if (reader) {
     rows = []
-    if ((Array.isArray(def.readout) && def.readout.length) || wantsTable) {
+    if ((Array.isArray(def.readout) && def.readout.length) || wantsTable || endSpec) {
       let scalars = null
       try { scalars = reader(def, resolvedInputsOf(def, inputs)) } catch { scalars = null }
       // A plain object or nothing: an array, a string or a number is not a
@@ -395,6 +402,7 @@ function stampReadout(chip, def, inputs, opts) {
       if (scalars && typeof scalars === 'object' && !Array.isArray(scalars)) {
         if (Array.isArray(def.readout) && def.readout.length) rows = readoutRows(def, scalars, { inputs })
         if (wantsTable) table = paneTableFor(def, scalars, { inputs })
+        if (endSpec) endLabel = endLabelChipModel(endSpec, scalars, def, inputs)
       }
     }
   }
@@ -415,6 +423,7 @@ function stampReadout(chip, def, inputs, opts) {
   // Present only when the definition declares a table AND it resolves, so every
   // other chip keeps exactly the fields it had.
   if (table) chip.paneTable = table
+  if (endLabel) chip.endLabel = endLabel
   return chip
 }
 
