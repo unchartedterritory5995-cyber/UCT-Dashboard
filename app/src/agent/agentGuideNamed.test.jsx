@@ -179,7 +179,7 @@ describe('a length of time is a chart name only when a chart here is on it', () 
 describe('Multi Chart rows (#860 follow-ups)', () => {
   const row = (q) => ACTION_SLOTS.gridAct.read(q)?.id ?? null
   it.each([
-    ['how do I go back to the previous group in multi chart', 'groupStep'], ['how do I step to the next group in the grid', 'groupStep'], ['how do I switch back a group in the grid', 'groupStep'],
+    ['how do I go back to the previous group in multi chart', 'groupPrev'] /* teach-grid-ops: "previous" rings ‹ Prev, its own button */, ['how do I step to the next group in the grid', 'groupStep'], ['how do I switch back a group in the grid', 'groupStep'],
     ['how do I exit multi chart', 'exit'], ['how do I close multi chart', 'exit'], ['how do I close the grid', 'exit'], ['how do I get out of the grid', 'exit'], ['how do I leave multi-chart', 'exit'],
     ['how do I go back to my board from the grid', 'exit'], ['how do I get back to the workspace from multi chart', 'exit'],
     ['how do I make one cell a line chart in the grid', 'cellStyle'], ['how do I set hollow candles in a grid cell', 'cellStyle'],

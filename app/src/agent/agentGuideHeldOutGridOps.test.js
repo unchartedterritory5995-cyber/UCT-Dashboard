@@ -45,3 +45,12 @@ describe('a grid op ask walks to its control', () => {
     expect(seen(q)).toContain(needle)
   })
 })
+
+// CONTROLS (added with the fix): the Scanner's own ‹ back, the screener words, and Next keep their walkthroughs
+describe('nothing else moves', () => {
+  it.each([
+    ['how do I go back to the list of scans', 'Back to the list of scans'],
+    ['how do I step to the next group in the grid', 'Next group'],
+    ['how do I maximize a chart in the grid', 'chart.cellMaximize'],
+  ])('"%s" → %s', (q, needle) => { expect(seen(q)).toContain(needle) })
+})

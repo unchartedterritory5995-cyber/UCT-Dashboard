@@ -69,7 +69,8 @@ const C = {
   // response", "the response I got from AI search"). "response time", "API response", "responsive layout" and "the chart
   // isn't responding" stay out: no AI in the words (pattern pieces: no literal spaces)
   answer: ['answer', 'reply', 'respons\\w*(?=.*\\bai\\b)', '(?<=\\bai\\b.*)respons', 'what\\s+(?:the\\s+)?(?:ai(?:\\s+search)?|it|search)\\s+(?:said|wrote|told\\s+me|gave\\s+me|came\\s+back\\s+with)'],
-  scan: ['scan', 'screen'],
+  // "on screen", "off screen" and "full screen" name the screen, not a screener (pl-grid's "back on screen after maximizing")
+  scan: ['scan', 'screen(?<!\\b(?:on|off|full)\\s+screen)'],
   index: ['index', 'indexes', 'indices', '=dow', 'nasdaq', 's&p'],
   journal: ['journal'],
   theme: ['theme'],

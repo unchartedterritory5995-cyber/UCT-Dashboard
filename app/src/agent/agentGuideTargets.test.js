@@ -71,6 +71,12 @@ describe('every walkthrough points at a real control', () => {
           if (t.guide) { expect(source, t.guide).toContain(`data-guide="${t.guide}"`); continue }
           if (t.label) continue   // an on-screen label: proved row by row in the browser (teach-status.md), not by grep
           if (t.cursor) continue  // the chart library's own pane divider: proved in the browser, it is not in our source
+          // a name the product builds per instance ("Switch to <group>"): its fixed lead, in a title or aria-label of the source
+          if (t.nameRe) {
+            const lead = String(t.nameRe).replace(/^\^/, '')
+            expect([`title="${lead}`, 'title={`' + lead, `aria-label="${lead}`, 'aria-label={`' + lead].some(x => source.includes(x)), t.nameRe).toBe(true)
+            continue
+          }
           // a menu row: a literal id, or chipMenu.js's own key, or the location row's template
           if (t.attr === 'data-menu-id') { expect(source.includes(`data-menu-id="${t.value}"`) || source.includes(`key: '${t.value}'`) || String(t.value).startsWith('settings-'), t.value).toBe(true); continue }
           if (t.attr) { expect(source, t.attr).toMatch(new RegExp(`${t.attr}[={ ]|${t.attr}$|${t.attr}\\s`, 'm')); continue }
