@@ -9422,9 +9422,9 @@ export default function StockChart({
     ? (typeof bars[bars.length - 1]?.t === 'number' ? bars[bars.length - 1].t : null)
     : null
   const _barsTailSecs = (typeof _barsTailT === 'number') ? (Date.now() / 1000 - _barsTailT) : 0
-  provisionalStaleRef.current = (isIntraday && _barsTailT != null && _barsTailSecs > 8 * 3600)
+  provisionalStaleRef.current = isIntraday && ((_barsTailT != null && _barsTailSecs > 8 * 3600)
     // …and while stale-but-sound CONTEXT is what is on screen (see `_staleContext`).
-    || (isIntraday && !!bars && bars === _staleContext)
+    || (!!bars && bars === _staleContext))
   // Mirror the exact array the drawing overlay indexes (its `bars` prop) so the
   // Ctrl+drag trendline below maps x → bar time the SAME way toChart does — its
   // point.time is then guaranteed to resolve in the overlay's timeToIndex.
