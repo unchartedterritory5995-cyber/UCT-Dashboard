@@ -549,7 +549,7 @@ describe('Multi Chart execution family — the grid itself (pl-grid: multiChart.
   }, 30000)
 
   it('C3-050 "refresh the group": ↻ Refresh — the loaded group re-ranked now; a cell whose ticker stays keeps its id; Undo is exact', async () => {
-    H.prefs = { multichart_state: JSON.stringify(GRID({ cells: [cell('c0', 'SMH'), cell('c1', 'NVDA'), cell('c2', 'AMD'), cell('c3', 'AVGO')], ...groupState({ id: 'semis', name: 'Semiconductors', by: 'today', n: 4 }) })) }
+    H.prefs = { multichart_state: JSON.stringify(GRID({ cells: [cell('c0', 'SMH'), cell('c1', 'NVDA'), cell('c2', 'AMD'), cell('c3', 'AVGO')], ...groupState({ id: 'semis', name: 'Semiconductors', by: 'today', n: 4, seed: 'NVDA', alsoIn: [{ id: 'memory', name: 'Memory & HBM' }] }) })) }
     H.groupTop = { ...TOP(), semis: { syms: ['AVGO', 'MU', 'NVDA', 'AMD'], etf: 'SMH' } }
     const { say, undo } = mount()
     const raw0 = raw()
@@ -557,6 +557,8 @@ describe('Multi Chart execution family — the grid itself (pl-grid: multiChart.
     await waitFor(() => expect(syms()).toEqual(['SMH', 'AVGO', 'MU', 'NVDA']))
     expect(at('c0').sym).toBe('SMH')
     expect(cells().find(c => c.sym === 'AVGO').id).toBe('c3')
+    // a refresh keeps the group it refreshed — its also-in chips — exactly as ↻ Refresh does ({ ...g, n })
+    expect(H.mc.state.group).toMatchObject({ id: 'semis', alsoIn: [{ id: 'memory', name: 'Memory & HBM' }] })
     await undoesExactly(undo, raw0)
   }, 30000)
 
