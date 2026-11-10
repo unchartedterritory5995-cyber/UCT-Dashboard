@@ -1,0 +1,8 @@
+PASS  C1-023  how do I toggle log (Shift+L)
+PASS  C1-033  how do I open date box (Alt+G)
+PASS  C1-114  how do I price alert at the cursor (Alt+N)
+PASS  C1-171  how do I add ticker to watchlist (Alt+Q)
+PASS  C1-172  how do I add indicator dialog (Alt+Shift+A)
+PASS  C1-174  how do I keyboard help (?)
+
+6/6 pass → C:/w/pl-teach/docs/agent/program/evidence/teach-keys/run1-inventory.json

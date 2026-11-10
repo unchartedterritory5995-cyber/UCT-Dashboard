@@ -1,0 +1,176 @@
+{
+ "mode": "BROWSER-MOCK-MODEL",
+ "evidence": "LOCAL agent harness, scripted model, synthetic bars and fixtures: not production, not gate evidence",
+ "at": "2026-11-10T04:19:20.916Z",
+ "base": "http://127.0.0.1:5302",
+ "results": [
+  {
+   "id": "C1-023",
+   "say": "how do I toggle log (Shift+L)",
+   "feature": "chartKey",
+   "title": "Toggle log scale (Shift+L)",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the chart, then press Shift+L: toggle log scale.",
+     "onPrimary": true,
+     "pr": [
+      13,
+      168,
+      785,
+      741
+     ],
+     "rr": [
+      9,
+      164,
+      793,
+      749
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C1-033",
+   "say": "how do I open date box (Alt+G)",
+   "feature": "chartKey",
+   "title": "Go to date (Alt+G)",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the chart, then press Alt+G: go to date.",
+     "onPrimary": true,
+     "pr": [
+      13,
+      168,
+      785,
+      741
+     ],
+     "rr": [
+      9,
+      164,
+      793,
+      749
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C1-114",
+   "say": "how do I price alert at the cursor (Alt+N)",
+   "feature": "chartKey",
+   "title": "Price alert at cursor (Alt+N)",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the chart, then press Alt+N: price alert at cursor.",
+     "onPrimary": true,
+     "pr": [
+      13,
+      168,
+      785,
+      741
+     ],
+     "rr": [
+      9,
+      164,
+      793,
+      749
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C1-171",
+   "say": "how do I add ticker to watchlist (Alt+Q)",
+   "feature": "chartKey",
+   "title": "Add ticker to watchlist (Alt+Q)",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the chart, then press Alt+Q: add ticker to watchlist.",
+     "onPrimary": true,
+     "pr": [
+      13,
+      168,
+      785,
+      741
+     ],
+     "rr": [
+      9,
+      164,
+      793,
+      749
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C1-172",
+   "say": "how do I add indicator dialog (Alt+Shift+A)",
+   "feature": "chartKey",
+   "title": "Add indicator (settings) (Alt+Shift+A)",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the chart, then press Alt+Shift+A: add indicator (settings).",
+     "onPrimary": true,
+     "pr": [
+      13,
+      168,
+      785,
+      741
+     ],
+     "rr": [
+      9,
+      164,
+      793,
+      749
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C1-174",
+   "say": "how do I keyboard help (?)",
+   "feature": "chartKey",
+   "title": "Show this help overlay (?)",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the chart, then press ?: show this help overlay.",
+     "onPrimary": true,
+     "pr": [
+      13,
+      168,
+      785,
+      741
+     ],
+     "rr": [
+      9,
+      164,
+      793,
+      749
+     ]
+    }
+   ],
+   "consoleErrors": []
+  }
+ ]
+}

@@ -1,0 +1,56 @@
+[
+ {
+  "id": "HK-1",
+  "say": "what is the keyboard shortcut for log scale",
+  "feature": "chartKey",
+  "title": "Toggle log scale (Shift+L)"
+ },
+ {
+  "id": "HK-2",
+  "say": "how do I use Shift+L",
+  "feature": "chartKey",
+  "title": "Toggle log scale (Shift+L)"
+ },
+ {
+  "id": "HK-3",
+  "say": "is there a hotkey to jump to a date",
+  "feature": "chartKey",
+  "title": "Go to date (Alt+G)"
+ },
+ {
+  "id": "HK-4",
+  "say": "what does Alt+G do on a chart",
+  "feature": "chartKey",
+  "title": "Go to date (Alt+G)"
+ },
+ {
+  "id": "HK-5",
+  "say": "which key adds the ticker I am looking at to a watchlist",
+  "feature": "chartKey",
+  "title": "Add ticker to watchlist (Alt+Q)"
+ },
+ {
+  "id": "HK-6",
+  "say": "is there a shortcut for a price alert where my mouse is",
+  "feature": "chartKey",
+  "title": "Price alert at cursor (Alt+N)"
+ },
+ {
+  "id": "HK-7",
+  "say": "how do I press Alt+Shift+A",
+  "feature": "chartKey",
+  "title": "Add indicator (settings) (Alt+Shift+A)"
+ },
+ {
+  "id": "HK-8",
+  "say": "how do I see all the keyboard shortcuts",
+  "feature": "chartKey",
+  "title": "Show this help overlay (?)"
+ },
+ {
+  "id": "HK-9",
+  "say": "what key cancels the drawing tool I picked",
+  "feature": "chartKey",
+  "title": "Cursor / cancel (Esc)"
+ }
+]
