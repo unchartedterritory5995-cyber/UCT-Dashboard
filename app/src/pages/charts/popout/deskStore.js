@@ -26,6 +26,14 @@ const LOCK_PREFIX = 'uct.desk.owner:'
 // One id per page load. Not crypto.randomUUID: that is secure-context-only.
 const PAGE_TAB_ID = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
 
+const WINDOW_ID = /^[A-Za-z0-9_-]{1,64}$/
+
+/** The desktop shell's name for a board's window: uct-board-<id>, or '' for an id it would reject. */
+export const boardWindowName = (id) => (WINDOW_ID.test(String(id)) ? `uct-board-${id}` : '')
+
+/** The desktop shell's name for one widget's window: uct-widget-<id>, or '' for an id it would reject. */
+export const widgetWindowName = (id) => (WINDOW_ID.test(String(id)) ? `uct-widget-${id}` : '')
+
 const lockName = (uid, tabId) => `${LOCK_PREFIX}${uid}:${tabId}`
 
 // uids whose owner lock this page currently holds.

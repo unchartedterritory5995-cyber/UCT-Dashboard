@@ -59,7 +59,7 @@ import { useJournalToast, JournalToast } from '../journal-2-0/lib/useJournalToas
 import { readChartsLink, stripChartsLink } from '../../lib/chartDeepLink'
 import useDoorParam from '../../hooks/useDoorParam'
 import PoppedLayout from './popout/PoppedLayout'
-import { saveRecord, listOrphans, confirmRestored, holdOwnerLock } from './popout/deskStore'
+import { saveRecord, listOrphans, confirmRestored, holdOwnerLock, boardWindowName, widgetWindowName } from './popout/deskStore'
 import PeriodSortPanel from './PeriodSortPanel'
 import FloatingWidgetPanel from './FloatingWidgetPanel'
 import CompareSymbolsPanel from './CompareSymbolsPanel'
@@ -2633,7 +2633,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   const flushDeskRecordsRef = useRef(null)
   const notCrashSafeRef = useRef(new Set())   // boards the member has already been told about
   const saveBoardRecord = useCallback((id, widgets) => {
-    const ok = saveRecord(deskUidRef.current, { kind: 'board', id, widgets, windowName: `uct-board-${id}` }, deskOwnerRef.current)
+    const ok = saveRecord(deskUidRef.current, { kind: 'board', id, widgets, windowName: boardWindowName(id) }, deskOwnerRef.current)
     if (ok) notCrashSafeRef.current.delete(id)
     else if (!notCrashSafeRef.current.has(id)) {
       notCrashSafeRef.current.add(id)
@@ -4042,6 +4042,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
           <PopoutWindow
             key={w.id}
             title={`UCT — ${WIDGET_LABELS[w.type] || w.type}`}
+            windowName={widgetWindowName(w.id)}
             width={900}
             height={700}
             onClose={() => handleDockWidget(w.id)}
@@ -4064,6 +4065,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
           <PoppedLayout
             key={pl.id}
             title="UCT — Layout"
+            windowName={boardWindowName(pl.id)}
             theme={chartsTheme}
             initialWidgets={pl.widgets}
             renderGrid={renderGrid}

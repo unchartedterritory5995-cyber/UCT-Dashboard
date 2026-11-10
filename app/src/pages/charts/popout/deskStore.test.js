@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { saveRecord, listOrphans, confirmRestored, holdOwnerLock, KEY_PREFIX } from './deskStore'
+import { saveRecord, listOrphans, confirmRestored, holdOwnerLock, KEY_PREFIX, boardWindowName, widgetWindowName } from './deskStore'
 
 function makeStorage(initial = {}, { failSet = false } = {}) {
   const m = new Map(Object.entries(initial))
@@ -28,6 +28,18 @@ function makeLocks(held = []) {
 const save = (uid, rec, o = {}) => saveRecord(uid, rec, { locks: null, ...o })
 
 const board = (id, extra = {}) => ({ kind: 'board', id, widgets: [{ id: 'w1', type: 'chart' }], windowName: 'win-' + id, ...extra })
+
+describe('window names for the desktop shell', () => {
+  it('builds the names the shell parses', () => {
+    expect(boardWindowName('pl-1731')).toBe('uct-board-pl-1731')
+    expect(widgetWindowName('w-periodsort-17')).toBe('uct-widget-w-periodsort-17')
+  })
+
+  it.each([['a:colon'], ['spa ce'], ['x'.repeat(65)], ['']])('an id the shell would reject gives no name: %s', (id) => {
+    expect(boardWindowName(id)).toBe('')
+    expect(widgetWindowName(id)).toBe('')
+  })
+})
 
 describe('deskStore', () => {
   it('stores a record under uct.desk.v1:<uid>:<id>', () => {
