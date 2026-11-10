@@ -44,6 +44,7 @@ const TARGETS = {
   plot: { kind: 'a chart boundary (chart.plot, after arming the trendline tool)', feature: 'drawing', detail: 'trendline', say: 'how do I draw a trendline on this chart', sel: '[data-guide="chart.plot"]', steps: [['clickRinged', '[data-guide="chart.tool.trendline"]'], ['waitRingOn', '[data-guide="chart.plot"]']] },
   settings: { kind: 'a settings row inside the scrollable Chart Settings panel', feature: 'indicatorEdit', say: 'how do I change the settings of the 50 sma on this chart', sel: '[data-guide="chartSettings"] [data-guide], [data-guide="chartSettings"] label, [data-guide="chartSettings"] [role="row"], [data-guide="chartSettings"] input, [data-guide="chartSettings"] select, [data-guide="chartSettings"] button', steps: [['clickRing'], ['wait', 900], ['clickRing'], ['wait', 900], ['clickRing'], ['wait', 1200]], scrollOnly: true },
   settingslist: { kind: 'an indicator row in the Chart Settings indicator list (the ringed row itself scrolls with its list)', feature: 'indicatorEdit', say: 'how do I change the settings of the 50 sma on this chart', sel: '[data-guide="chartSettings"] [data-guide], [data-guide="chartSettings"] li, [data-guide="chartSettings"] [role="row"], [data-guide="chartSettings"] button, [data-guide="chartSettings"] div', steps: [['clickRing'], ['wait', 900], ['clickRing'], ['wait', 1200]], scrollOnly: true },
+  settingsrow: { kind: 'an indicator row in Chart Settings, by its own hook data-guide="indicators.row" (the ringed row scrolls with its list)', feature: 'indicatorEdit', say: 'how do I change the settings of the 50 sma on this chart', sel: '[data-guide="indicators.row"]', steps: [['clickRing'], ['wait', 900], ['clickRing'], ['wait', 1200]], scrollOnly: true },
   edge: { kind: 'a chart boundary (resize edge)', feature: 'widgetResize', say: 'how do I resize this chart', sel: '[data-guide="widget.resize.e"],[data-guide="workspace.seam"]', steps: [] },
   corner: { kind: 'a chart-resize corner', feature: 'widgetResize', say: 'how do I resize this chart', sel: '[data-guide="widget.resize.se"]', steps: [['next']], drag: true },
   toolbar: { kind: 'a toolbar button (timeframe)', feature: 'timeframe', say: 'how do I change the timeframe on this chart', sel: '[data-guide="chart.timeframe"]', steps: [] },
@@ -57,6 +58,7 @@ for (const [t, T] of Object.entries(TARGETS)) if (!T.scrollOnly) for (const v of
   cases.push({ id: `${t}-${b}-${v}-z${z}`, target: t, board: b, role, vp: v, zoom: z, scroll: false })
 for (const t of Object.keys(TARGETS)) cases.push({ id: `${t}-FOUR-XS-z100-scrolled`, target: t, board: 'FOUR', role: 'TL', vp: 'XS', zoom: 100, scroll: true })
 for (const v of ['L', 'S']) cases.push({ id: `settings-TWO-${v}-z100-scrolled`, target: 'settings', board: 'TWO', role: 'A', vp: v, zoom: 100, scroll: true })
+for (const v of ['S', 'XS']) for (const b of ['TWO', 'FOUR']) cases.push({ id: `settingsrow-${b}-${v}-z100-scrolled`, target: 'settingsrow', board: b, role: b === 'TWO' ? 'A' : 'TL', vp: v, zoom: 100, scroll: true })
 for (const v of ['S', 'XS']) cases.push({ id: `settingslist-TWO-${v}-z100-scrolled`, target: 'settingslist', board: 'TWO', role: 'A', vp: v, zoom: 100, scroll: true })
 // tracking must STOP: drag the corner, release, end it at once (Done, Exit, Escape) or take its target away (close the chart), then
 // count the guide's own callbacks over the next 2 s and what is still registered
@@ -88,7 +90,9 @@ const SAMPLER = (sel) => `(() => {
   const pick = () => { const ring = ringEl()?.getBoundingClientRect(); const c = [...document.querySelectorAll(${q(sel)})].filter(e => e.getBoundingClientRect().width > 0); if (!ring) return c[0]; let b = c[0], bd = 1e9; for (const e of c) { const r = e.getBoundingClientRect(); const d = Math.hypot(r.left - ring.left, r.top - ring.top); if (d < bd) { b = e; bd = d } } return b }
   const target = document.querySelector('[data-geo-target]') || pick()
   window.__geo = { s: [], on: true }
-  const loop = () => { if (!window.__geo.on) return; window.__geo.s.push([performance.now(), R(ringEl()), R(target)]); requestAnimationFrame(loop) }
+  const cell = target?.closest?.('[data-widget-id]'), board = cell?.parentElement
+  const anim = () => { try { const a = (el) => el ? el.getAnimations().filter(x => x.playState === 'running').length : 0; return a(cell) + a(board) > 0 ? 1 : 0 } catch { return 0 } }
+  const loop = () => { if (!window.__geo.on) return; window.__geo.s.push([performance.now(), R(ringEl()), R(target), anim()]); requestAnimationFrame(loop) }
   requestAnimationFrame(loop)
   return !!target
 })()`
@@ -149,6 +153,7 @@ function analyse(samples, tRelease) {
   // per frame: the distance between the ring's centre and the target's centre (independent of the ring's shape: a padded box on
   // master, a circle on a handle after the fix), and how long ago the target's centre was where the ring's centre is now
   const fr = samples.filter(s => s[1] && s[2])
+  const animIdx = new Set(fr.map((x, i) => x[3] ? i : -1).filter(i => i >= 0))
   const c = (b) => [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2]
   const d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1])
   const off0 = fr.length ? [c(fr[0][1])[0] - c(fr[0][2])[0], c(fr[0][1])[1] - c(fr[0][2])[1]] : [0, 0]
@@ -156,7 +161,7 @@ function analyse(samples, tRelease) {
     const rc = c(r), o = d(rc, c(t)), drift = Math.hypot(rc[0] - c(t)[0] - off0[0], rc[1] - c(t)[1] - off0[1])
     let lag = 0
     if (o > 2) { lag = null; for (let j = i; j >= 0; j--) if (d(rc, c(fr[j][2])) <= 1) { lag = ts - fr[j][0]; break } }
-    return { ts, o, drift, lag, during: tRelease == null || ts <= tRelease }
+    return { ts, o, drift, lag, anim: animIdx.has(i), during: tRelease == null || ts <= tRelease }
   })
   const pct = (a, p) => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); return +s[Math.min(s.length - 1, Math.floor(p * (s.length - 1) + 0.5))].toFixed(1) }
   const dur = rows.filter(r => r.during)
@@ -164,8 +169,10 @@ function analyse(samples, tRelease) {
   let settle = null
   if (tRelease != null) { const after = rows.filter(r => r.ts > tRelease); const k = after.findIndex((r, i) => after.slice(i).every(x => x.o <= 1)); settle = k >= 0 ? +(after[k].ts - tRelease).toFixed(0) : 'never (within the window)' }
   const mean = (a) => a.length ? +(a.reduce((x, y) => x + y, 0) / a.length).toFixed(1) : null
-  const raw = samples.map(([ts, a, b]) => [Math.round(ts), a && a.map(v => Math.round(v * 10) / 10), b && b.map(v => Math.round(v * 10) / 10)])
-  return { raw, frames: samples.length, framesBoth: fr.length, ringMissingFrames: samples.filter(s => !s[1]).length, centreDistPx: { max: offs.length ? +Math.max(...offs).toFixed(1) : null, p95: pct(offs, 0.95), mean: mean(offs), p50: pct(offs, 0.5) },
+  const raw = samples.map(([ts, a, b, an]) => [Math.round(ts), a && a.map(v => Math.round(v * 10) / 10), b && b.map(v => Math.round(v * 10) / 10), an || 0])
+  const split = (flag) => { const xs = rows.filter(r => r.anim === flag).map(r => r.o); return { frames: xs.length, max: xs.length ? +Math.max(...xs).toFixed(1) : null, p95: pct(xs, 0.95) } }
+  const inTransition = { during: split(true), outside: split(false), worstFrames: rows.map((r, i) => ({ i, o: +r.o.toFixed(1), anim: r.anim, ms: Math.round(r.ts - (rows[0]?.ts || 0)) })).sort((a, b) => b.o - a.o).slice(0, 5) }
+  return { raw, inTransition, frames: samples.length, framesBoth: fr.length, ringMissingFrames: samples.filter(s => !s[1]).length, centreDistPx: { max: offs.length ? +Math.max(...offs).toFixed(1) : null, p95: pct(offs, 0.95), mean: mean(offs), p50: pct(offs, 0.5) },
     driftPx: { max: drifts.length ? +Math.max(...drifts).toFixed(1) : null, p95: pct(drifts, 0.95), mean: mean(drifts) }, lagMs: { note: 'frames more than 2 px off only', max: lags.length ? +Math.max(...lags).toFixed(0) : null, p95: pct(lags, 0.95), mean: mean(lags), p50: pct(lags, 0.5), unmatchedFrames: dur.filter(r => r.lag == null).length }, settleAfterReleaseMs: settle }
 }
 
