@@ -1128,6 +1128,7 @@ _RS_HISTORY_COLUMNS = {
     "rs_rating_1m": "m1",         # component percentiles of the plain
     "rs_rating_3m": "m3",         #   21/63/126/252-bar returns (item 19)
     "rs_rating_6m": "m6",
+    "rs_rating_9m": "m9",         # S1 (2026-11-10): the 189-bar window the chart ranks strip prints
     "rs_rating_12m": "m12",
 }
 

@@ -201,7 +201,8 @@ _KNOWN_EMPTY_IN_PROD = {
              " behind `RS_HISTORY_ENABLED`; `_read_rs_history_fields` maps nothing"
              " until it runs. Delete after the first clean fill.")
        for col in ("rs_rating_ibd", "rs_rating_chg_5", "rs_rating_chg_20",
-                   "rs_rating_1m", "rs_rating_3m", "rs_rating_6m", "rs_rating_12m")},
+                   "rs_rating_1m", "rs_rating_3m", "rs_rating_6m", "rs_rating_9m",
+                   "rs_rating_12m")},
 }
 
 

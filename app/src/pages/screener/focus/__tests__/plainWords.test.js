@@ -77,7 +77,7 @@ test('the RS columns have plain names and their facts read as one sentence each'
   const { plainColumnLabel, plainFact, rsRatingFact, rsLineFact, focusChipLabel } = await import('../plainWords')
   const cols = ['rs_new_high', 'rs_nh_before_price', 'rs_nh_red_day', 'rs_nh_bars_ago', 'green_on_red_20',
     'rs_line_above_ma', 'rs_cross_up_bars_ago', 'mansfield', 'mansfield_cross_bars_ago', 'rs_benchmark_agree',
-    'rs_rating_ibd', 'rs_rating_chg_5', 'rs_rating_chg_20', 'rs_rating_1m', 'rs_rating_3m', 'rs_rating_6m', 'rs_rating_12m']
+    'rs_rating_ibd', 'rs_rating_chg_5', 'rs_rating_chg_20', 'rs_rating_1m', 'rs_rating_3m', 'rs_rating_6m', 'rs_rating_9m', 'rs_rating_12m']
   for (const c of cols) expect(plainColumnLabel(c), c).toBeTruthy()
   for (const c of cols) expect(plainColumnLabel(c), c).not.toMatch(/weekly/i)
   expect(plainFact('rs_nh_before_price', 1)).toBe('RS line at a 52-week high while price is not')

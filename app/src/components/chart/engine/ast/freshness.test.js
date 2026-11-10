@@ -168,7 +168,8 @@ describe('the closed table declares scalars, and both lanes read the same one', 
     //                               the two TEXT names stay excluded for
     //                               `rs_line_trend`'s reason. The Python pin
     //                               moved with it: (149, 107) -> (149, 110).
-    expect(Object.keys(excluded).length).toBe(110)
+    // 110 -> 111 on 2026-11-10 (RS split S1): rs_rating_9m, excluded like the other rating-history columns.
+    expect(Object.keys(excluded).length).toBe(111)
     for (const [column, why] of Object.entries(excluded)) {
       expect(names, `${column} is in BOTH halves of the partition`).not.toContain(column)
       expect(String(why).length).toBeGreaterThan(20)

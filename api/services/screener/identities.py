@@ -665,6 +665,7 @@ def build_identities(*, percent_cols: Sequence[str] | None = None
                       ("rs_rating_1m", "the one-month return percentile"),
                       ("rs_rating_3m", "the three-month return percentile"),
                       ("rs_rating_6m", "the six-month return percentile"),
+                      ("rs_rating_9m", "the nine-month return percentile"),
                       ("rs_rating_12m", "the twelve-month return percentile")):
         out.append(band(
             f"{col}_in_range", "indicators", col, 1.0, top,

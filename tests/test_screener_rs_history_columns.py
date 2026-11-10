@@ -122,11 +122,12 @@ def test_the_mapping_names_exactly_the_seven_and_only_reader_fields():
     names: its keys are the seven columns, its values are fields `read_fields`
     actually emits, and the UCT fast rating is deliberately not among them
     (`rs_rank` already is that number)."""
-    assert set(b._RS_HISTORY_COLUMNS) == set(SEVEN)
+    # S1 (2026-11-10): the eighth, rs_rating_9m <- m9, is pinned by its own tests below.
+    assert set(b._RS_HISTORY_COLUMNS) == set(SEVEN) | {"rs_rating_9m"}
     reader_fields = set(rh.ROW_COLUMNS) | {"d5", "d20"}
     assert set(b._RS_HISTORY_COLUMNS.values()) <= reader_fields
     assert "fast" not in b._RS_HISTORY_COLUMNS.values()
-    assert len(set(b._RS_HISTORY_COLUMNS.values())) == 7, "no two columns read one field"
+    assert len(set(b._RS_HISTORY_COLUMNS.values())) == 8, "no two columns read one field"
 
 
 def test_the_seven_are_alter_added_to_a_legacy_table(tmp_db):
@@ -168,6 +169,20 @@ def test_the_shim_maps_stored_fields_and_leaves_out_what_the_row_cannot_supply(t
     # the reader's provenance fields never leak as columns
     leaked = {"fast", "score", "bars", "asof"} & set().union(*out.values())
     assert not leaked, leaked
+
+
+def test_the_shim_maps_the_nine_month_rank_and_leaves_it_out_when_unfilled(tmp_db, monkeypatch):
+    """S1: `rs_rating_9m` <- the stored `m9`. A row stored before the m9 backfill
+    carries no m9, so the key is ABSENT (the column stays NULL), never 0."""
+    monkeypatch.setattr(rh, "settled_session", lambda now=None: date(2026, 1, 22))
+    _seed()
+    assert "rs_rating_9m" not in b._read_rs_history_fields(["AAA"])["AAA"]
+    rh.store_rows("2026-01-22", {"AAA": {"ibd": 90, "m1": 1, "m3": 2, "m6": 3, "m9": 77,
+                                         "m12": 4, "score": 1.1, "bars": 253}}, None)
+    monkeypatch.setattr(rh, "settled_session", lambda now=None: date(2026, 1, 23))
+    assert b._read_rs_history_fields(["AAA"])["AAA"]["rs_rating_9m"] == 77
+    assert snapshot_db.COLUMNS.count("rs_rating_9m") == 1
+    assert "rs_rating_9m" in snapshot_db._INT
 
 
 def test_the_shim_is_a_market_source_reader_by_contract():

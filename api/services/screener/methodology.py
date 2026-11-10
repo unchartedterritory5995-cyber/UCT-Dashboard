@@ -534,7 +534,9 @@ def _rs_column_methods() -> list:
                     "starter does. It answers the denominator question (did the share "
                     "strengthen, or did a few megacaps weaken the index), nothing more.")},
         {"column": "rs_rating_ibd", "label": "RS Rating (IBD-style)",
-         "one_line": "An IBD-style 1-99 price-performance rating, our own calculation.",
+         "one_line": "An IBD-style 1-99 price-performance rating, our own calculation. "
+                     "Once RS Rank is unified with it, RS Rating is the RS column: the "
+                     "same number, so this column leaves the picker (saved screens keep it).",
          "scale": rating_scale,
          "how": (f"Over the stock's daily closes: {_ibd_formula_prose(p)}. The score is "
                  f"ranked across the cap universe excluding ETFs, as a percentile with ties "
@@ -587,6 +589,25 @@ def _rs_column_methods() -> list:
                        "weighted rating; a high short-window rank beside a low long-window one "
                        "is a young move, not a leader yet."),
         })
+    # S1 (2026-11-10): the ninth-month window. NOT one of the four the rating
+    # weights (`IBD_COMPONENTS`), so it gets its own entry and its own sentence.
+    from api.services import rs_weighted_return as _rsw9        # noqa: PLC0415
+    _label9, bars9 = _rsw9.IBD_M9_COMPONENT
+    out.append({
+        "column": "rs_rating_9m", "label": "9M Return Rank",
+        "one_line": f"Percentile rank of the plain nine-month return, 1-{top}.",
+        "scale": rating_scale,
+        "how": (f"The close over the close {bars9} sessions earlier, ranked across the "
+                f"same cap universe minus ETFs as the IBD-style rating and scored the same "
+                f"way, max(1, ceil(percentile x {top})). Unlike the other four windows it is "
+                f"NOT one of the terms the rating weights; it sits between the six- and "
+                f"twelve-month ranks so a long move can be read in five steps. "
+                + _RS_RATING_NOTE),
+        "caveat": ("A single-window rank reacts faster and flips more often than the "
+                   "weighted rating. Blank until the rating history carries the nine-month "
+                   "figure for the session, which older stored sessions fill by a one-off "
+                   "backfill."),
+    })
     out.extend(_rs_phase3_methods())
     for m in out:
         m["family"] = RS_FAMILY

@@ -603,6 +603,8 @@ export const COLUMN_DEFS = {
     desc: 'Percentile rank, 1-99, of the plain 63-session return across the cap universe minus ETFs on daily bars, the window the IBD-style rating weights heaviest; blank where the rating job has not rated the name.' },
   rs_rating_6m: { label: 'Rank 6M', fmt: num(0), heat: heatRs,
     desc: 'Percentile rank, 1-99, of the plain 126-session return across the cap universe minus ETFs on daily bars, one of the four windows the IBD-style rating weights; blank where the rating job has not rated the name.' },
+  rs_rating_9m: { label: 'Rank 9M', fmt: num(0), heat: heatRs,
+    desc: 'Percentile rank, 1-99, of the plain 189-session return across the cap universe minus ETFs on daily bars, a companion percentile the IBD-style rating does not weight; blank where the rating job has not rated the name.' },
   rs_rating_12m: { label: 'Rank 12M', fmt: num(0), heat: heatRs,
     desc: 'Percentile rank, 1-99, of the plain 252-session return across the cap universe minus ETFs on daily bars, one of the four windows the IBD-style rating weights; blank where the rating job has not rated the name.' },
   // ── UCT Relative Strength, Phase 3 (unit 3-11; engineering map D1 / D7) ──
