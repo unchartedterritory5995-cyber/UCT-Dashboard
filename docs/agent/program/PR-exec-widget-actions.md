@@ -112,3 +112,49 @@ Notes:
 - **Totals:** `Test Files 1 failed | 25 passed (26)` / `Tests 1 failed | 1100 passed (1101)`. The one failure was `agentNl1Selection` "matches the committed parity fixture": the committed `tests/fixtures/nl1_assemble_parity.json` still had the watchlist routing title from before group D. I regenerated it with its own switch (`UPDATE_NL1_PARITY=1`), then re-ran `agentNl1Selection.test.js` without the switch: `Tests 13 passed (13)`.
 - **Not run (forbidden here):** pytest. `tests/test_agent_eval_run.py` reads the regenerated parity fixture, and `tests/test_uct_agent_capreg_baseline.py` reads the lock, which was rewritten by its own `--update` script entry (not pytest). Both are for the Lead's CI.
 - **Notebook first-open bytes:** `tools/notebook_perf_budgets.py --dist` on `vite build` output. This head: 2,256,278 B. Master `b2300e547d`: 2,256,278 B. Both builds were made with the same tool on the same machine. **Delta 0 B.** Budget 2,260,793 B, PASS.
+
+## AUDIT review points (#1027)
+
+The evidence for every point below is LOCAL (vitest, jsdom / node). The base for every comparison is master `b2300e547d`, run in a scratch worktree with the same tool on the same machine.
+
+1. **Pressable keys** (`act(key)`). This is the full list; it is pinned in `app/src/agent/widgetActionKeys.test.js`.
+
+   | widget | key | tag | what it does |
+   |---|---|---|---|
+   | scanner | refresh | read | The footer's Refresh: the scan's SWR `mutate()` re-reads it. Nothing is kept, and there is nothing to undo. |
+   | periodsort | refresh | read | The footer's Refresh: the stock scan re-reads, plus the group ranking in group mode. |
+
+   - Only a `read` button is pressed. A `write`, `destructive` or untagged action row is refused before any door is reached. The rail runs the real `widget.setOption` check for each of the three cases.
+   - The rail scans every widget source under `pages/charts/widgets/` plus `Watchlists.jsx` and `ThemeTrackerPage.jsx`. It fails when:
+     - a door has an `act:` and is not scanned;
+     - an `act` key has no tagged row;
+     - a row is untagged;
+     - the pinned list changes.
+   - Write keys on the Watchlist door: `showLogos`, `tint`, `canvasColor`, `textColor`, `gainColor`, `lossColor`, `look` and `flaggedName` are tagged write. Their Undo is byte-identical; `watchlistLook.outcome.test.jsx` asserts the widget's opts, or the Flagged name, back exactly.
+   - `looks create` / `looks delete`: create can replace a same-name look and delete cannot be undone, so both are shown first (`confirmIf`) and have no Undo, as AUDIT S1-C already requires for item lists.
+2. **The column-drag extraction.**
+   - `movedColumnCfg` / `resizedColumnCfg` / `columnMinWidth` now live in `pages/watchlist/watchlistColumns.js`, as pure functions taking `COL_META`. `Watchlists.jsx` keeps thin wrappers; the member's drag and `watchlist.arrangeColumns` call the same functions.
+   - Equivalence: `pages/Watchlists.columnDrag.parity.test.js` holds master's inline `moveColumn` and `startColResize` mouse-up logic, copied verbatim. `COL_META` is read from `Watchlists.jsx` itself. The test compares old against extracted over 6 configs × 13 × 13 drag pairs (including no-op, unknown and hidden columns), and over every column × 7 drag/scale cases (under the minimum, fractional, wide, scale 0). It also checks that the input config is never mutated.
+   - Member path: `pages/Watchlists.columnDrag.test.jsx` drives the real Watchlists — a header drag/drop, a drop onto itself, a gridline mousedown/move/up and the minimum clamp — and reads `uct.watchlist.cols`. The same file runs unchanged on base and on head.
+   - Totals for `npx vitest run src/pages/Watchlists.columnDrag.test.jsx`: on base `b2300e547d` the result was `Tests 3 passed (3)`, and on head it was `Tests 3 passed (3)` (the same file, unchanged).
+   - Totals for the AUDIT batch on head `377d46f754`: 26 files, 271 tests. The batch covered:
+     - the 17 Watchlists page files plus columnDrag, the parity rail, widgetActionKeys, settingsLiveness, widgetActions and listControl;
+     - the three census rails.
+
+     The only failures were the 2 master-red census rails, which failed identically on base, plus the first draft of the columnDrag test. The draft picked headers by full label; the fix picks them by `COL_LABELS`, and the fixed file is the one that gave 3/3 on both trees.
+   - Master had no Watchlists drag/resize test before this. All 17 existing `Watchlists.*.test.jsx` files, minus `entitykeys` (a known master red, not re-baselined), were run on head and base.
+3. **No new endpoint, and no new offender.**
+   - My diff adds no fetch, no endpoint and no swallowed catch:
+     - Flagged rename goes through the existing `useFlagged.renameFlagged` (PUT `/api/watchlists/flagged/rename`, as the title menu already did).
+     - Appearance writes the widget's own opts through `patchSettings`.
+     - Looks use the existing `watchlist_templates` preference.
+   - By file, every changed product file has the same counts on base and head: `.catch(() => null)`, write methods (`POST/PUT/DELETE/PATCH`) and `fetch(` calls. Two files have non-zero counts, both unchanged: `host.js` (4 write methods / 7 fetches) and `Watchlists.jsx` (11 / 12). All others are 0.
+   - `hub/writePathsTransitive.test.js` fails IDENTICALLY on base and head. It is a master red: "`toggle` calls imported function(s) that this same-file analysis cannot follow …: ["read", "write"]".
+   - `lib/swallowedFetch.census.test.js` fails IDENTICALLY on base and head (a master red). The offender list is the same on both: `agent/capabilities/calendar.js: 0 -> 1`, `agent/capabilities/scanRefine.js: 0 -> 2`, `agent/capabilities/stock.js: 0 -> 1`, `pages/breadth/drill/longHistory.js: 0 -> 1`, `pages/journal-2-0/tabs/NotebookTab.jsx: 0 -> 1`, `testing/agent/acceptance/lib.mjs: 0 -> 2`. None of these files is touched by this PR.
+   - `hub/writePaths.test.js` passes on both.
+4. **Lint** (`npx eslint` over the 20 changed source and test files): `✖ 26 problems (17 errors, 9 warnings)`. Every error is already on master, so there are 0 new:
+   - `Watchlists.jsx` has 15 errors; master's file has 15.
+   - `ScannerResults.jsx`: 1 existing fast-refresh error.
+   - `agentWidgetOptions.test.jsx`: 1 existing unused import.
+
+The "narrow the price column to 50" fast-path gap belongs to pl-exec (the useAgent quote fast path), as a follow-up after #988. It stays pinned both ways.

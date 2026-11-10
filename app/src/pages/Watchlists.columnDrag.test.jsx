@@ -113,9 +113,11 @@ beforeEach(() => {
 })
 afterEach(() => { vi.unstubAllGlobals() })
 
+const { COL_LABELS } = await import('./watchlist/watchlistColumns')
 const COLS = 'uct.watchlist.cols'
 const cols = () => JSON.parse(localStorage.getItem(COLS) || 'null')
-const head = (label) => screen.getByRole('button', { name: `Sort by ${label}` })
+// a header by its column: its full label, or the abbreviation it shows when narrow (COL_LABELS), never a retyped string
+const head = (key) => screen.getByRole('button', { name: new RegExp(`^Sort by (?:${COL_LABELS[key].join('|')})$`) })   // sym / price / vol / chg: no regex characters
 const renderList = () => render(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" listView={{ type: 'watchlist', color: 'N', key: 'user:wl1' }} />)
 afterEach(() => { cleanup() })
 const dt = () => ({ effectAllowed: '', setData: () => {}, getData: () => '' })
@@ -123,25 +125,25 @@ const dt = () => ({ effectAllowed: '', setData: () => {}, getData: () => '' })
 describe('the member\'s column drag (unchanged by the extraction)', () => {
   test('a header dropped on another takes its place', async () => {
     renderList()
-    await waitFor(() => expect(head('% Change')).toBeTruthy())
-    fireEvent.dragStart(head('% Change'), { dataTransfer: dt() })
-    fireEvent.dragOver(head('Price'), { dataTransfer: dt() })
-    fireEvent.drop(head('Price'), { dataTransfer: dt() })
+    await waitFor(() => expect(head('chg')).toBeTruthy())
+    fireEvent.dragStart(head('chg'), { dataTransfer: dt() })
+    fireEvent.dragOver(head('price'), { dataTransfer: dt() })
+    fireEvent.drop(head('price'), { dataTransfer: dt() })
     expect(cols().order).toEqual(['flag', 'sym', 'chg', 'price', 'vol'])
-    fireEvent.dragStart(head('Symbol'), { dataTransfer: dt() })
-    fireEvent.drop(head('Volume'), { dataTransfer: dt() })
+    fireEvent.dragStart(head('sym'), { dataTransfer: dt() })
+    fireEvent.drop(head('vol'), { dataTransfer: dt() })
     expect(cols().order).toEqual(['flag', 'chg', 'price', 'vol', 'sym'])
   })
   test('a header dropped on itself writes nothing', async () => {
     renderList()
-    await waitFor(() => expect(head('Price')).toBeTruthy())
-    fireEvent.dragStart(head('Price'), { dataTransfer: dt() })
-    fireEvent.drop(head('Price'), { dataTransfer: dt() })
+    await waitFor(() => expect(head('price')).toBeTruthy())
+    fireEvent.dragStart(head('price'), { dataTransfer: dt() })
+    fireEvent.drop(head('price'), { dataTransfer: dt() })
     expect(cols()).toBe(null)
   })
   test('a gridline dragged right widens the column to its left; dragged far left it stops at the minimum', async () => {
     renderList()
-    await waitFor(() => expect(head('Price')).toBeTruthy())
+    await waitFor(() => expect(head('price')).toBeTruthy())
     const divider = () => [...document.querySelectorAll('[title="Drag to resize column"]')]
     expect(divider().length).toBeGreaterThan(2)
     const sym = divider()[1]                                   // flag, sym, price…: the second divider is Symbol's right edge
