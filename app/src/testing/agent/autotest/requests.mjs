@@ -20,6 +20,7 @@ import { unseen11 } from './families/unseen11.mjs'
 import { unseen12 } from './families/unseen12.mjs'
 import { unseen13 } from './families/unseen13.mjs'
 import { unseen14 } from './families/unseen14.mjs'
+import { unseen15 } from './families/unseen15.mjs'
 
 export function publicRequests() {
   const L = []
@@ -136,6 +137,13 @@ export function unseen14Requests() {
   const L = []
   unseen14(L)
   return L.map(r => ({ ...r, set: 'unseen14' }))
+}
+
+/** Batch 15, COUNTED AND LINE RELATIONS (2026-11-09): AUDIT probe-19's families H1-H5 in pl-auto's own words, written before any run. */
+export function unseen15Requests() {
+  const L = []
+  unseen15(L)
+  return L.map(r => ({ ...r, set: 'unseen15' }))
 }
 
 /** The set's identity: the owner's authorization names it, so editing the set after approval voids the approval. */
