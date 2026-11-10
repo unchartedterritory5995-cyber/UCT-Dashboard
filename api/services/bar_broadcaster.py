@@ -37,6 +37,14 @@ arrived, or the AM for its last minute did); a later correction re-emits the sam
 `t` with `final: true` again. `trade_ts` is the unix-ms timestamp of the last
 trade included (omitted when only AM/seed data is known).
 
+Ordering contract. Per (sym, tf) a flush sends its bars in ascending `t`. An
+OLDER-`t` frame (the late-AM correction of a closed bucket, which typically
+lands ~1-2 s after the next bucket opened) is sent ONLY to subscribers that
+opted in (`subscribe(..., v2=True)`, `/api/stream/bars?v=2`). Legacy
+subscribers never receive a frame whose `t` is older than one they already got,
+so a consumer that blindly takes `bar.c` as "the live price" can never snap
+back to the previous minute's close.
+
 Buckets come from `bar_rollup.tv_bucket_bounds` (the single TradingView bucket
 helper): 60m is session-aligned, `session="rth"` (9:30, 10:30 ... 15:30) or
 `"eth"` (clock hours 04:00 ... 19:00).
@@ -141,7 +149,10 @@ class BarBroadcaster:
         # (sym, key) -> bucket starts whose bar changed since the last emit
         self._dirty: dict[tuple[str, str], set[int]] = {}
         # C1: store (queue, loop) tuples so _emit can use call_soon_threadsafe
-        self._subscribers: dict[tuple[str, str], set[tuple[asyncio.Queue, asyncio.AbstractEventLoop]]] = {}
+        # (queue, loop, v2): v2 subscribers also receive older-t `final` corrections.
+        self._subscribers: dict[tuple[str, str], set[tuple[asyncio.Queue, asyncio.AbstractEventLoop, bool]]] = {}
+        # (sym, key) -> newest bucket start sent to that key's LEGACY subscribers
+        self._legacy_hi: dict[tuple[str, str], int] = {}
         self._sym_keys: dict[str, set[str]] = {}
         # Quote-feed INTEREST refcount (per symbol). The live-price SSE
         # (/api/stream/prices) needs Massive ticks for watchlist/theme/header
@@ -168,7 +179,9 @@ class BarBroadcaster:
         self._clock_ms = clock_ms or (lambda: int(_time.time() * 1000))
         self._scheduler = scheduler or self._default_schedule
         self._seed_fetcher = seed_fetcher or _default_seed_fetcher
-        self._seeded: set[str] = set()
+        # sym -> ET session day (YYYYMMDD) it was seeded for: a symbol that stays
+        # subscribed overnight is re-seeded for the next session (F5).
+        self._seeded: dict[str, int] = {}
         self._seed_failed_at: dict[str, int] = {}   # sym -> clock ms of the last empty/failed seed
         self._seed_retry_ms: int = 60_000
         # D3 CP3 (G3): monotonic-ms of the last AM/A/T event received for this symbol,
@@ -179,7 +192,7 @@ class BarBroadcaster:
 
     # ── Subscription management (called from SSE endpoint coroutines) ──
 
-    def subscribe(self, sym: str, tf: str, session: str = "rth") -> asyncio.Queue:
+    def subscribe(self, sym: str, tf: str, session: str = "rth", v2: bool = False) -> asyncio.Queue:
         sym = sym.upper()
         k = _key_for(tf, session)
         key = (sym, k)
@@ -188,14 +201,16 @@ class BarBroadcaster:
         loop = asyncio.get_running_loop()
         with self._lock:
             had_any = self._symbol_wanted(sym)
-            self._subscribers.setdefault(key, set()).add((q, loop))
+            self._subscribers.setdefault(key, set()).add((q, loop, bool(v2)))
             self._sym_keys.setdefault(sym, set()).add(k)
             # Hand the new subscriber the current bucket right away (it may have
             # joined mid-bucket of a symbol other charts already stream).
             hwm = self._hwm.get(sym)
             snap = self._derive(sym, k, tv_bucket_bounds(hwm, *_KEY_SPEC[k])[0]) if hwm else None
-        if snap is not None:
-            self._safe_put(q, self._msg(sym, k, snap))
+            if snap is not None:
+                # Put under the lock (we are on the queue's own loop): anything the
+                # WS thread derives later is queued behind it, never ahead of it.
+                self._safe_put(q, self._msg(sym, k, snap))
         if not had_any:
             try:
                 self._on_first_subscribe(sym)
@@ -235,13 +250,14 @@ class BarBroadcaster:
         self._minutes.pop(sym, None)
         self._hwm.pop(sym, None)
         self._pruned_at.pop(sym, None)
-        self._seeded.discard(sym)
+        self._seeded.pop(sym, None)
         self._day_volume.pop(sym, None)
         for k in _ALL_KEYS:
             self._dirty.pop((sym, k), None)
             self._last_emit_ms.pop((sym, k), None)
             self._flush_pending.discard((sym, k))
             self._last_sent.pop((sym, k), None)
+            self._legacy_hi.pop((sym, k), None)
 
     def _symbol_has_any_subscriber(self, sym: str) -> bool:
         return bool(self._sym_keys.get(sym))
@@ -389,12 +405,13 @@ class BarBroadcaster:
         global _seed_total, _seed_fail_total
         su = sym.upper()
         with self._lock:
-            if su in self._seeded or not self._symbol_wanted(su):
+            day = self._session_day()
+            if self._seeded.get(su) == day or not self._symbol_wanted(su):
                 return False
             failed = self._seed_failed_at.get(su)
             if failed is not None and self._clock_ms() - failed < self._seed_retry_ms:
                 return False   # a thin/pre-market name: don't re-fetch on every chart switch
-            self._seeded.add(su)
+            self._seeded[su] = day
         try:
             bars = self._seed_fetcher(su) or []
         except Exception as e:
@@ -403,7 +420,7 @@ class BarBroadcaster:
         if not bars:
             _seed_fail_total += 1
             with self._lock:
-                self._seeded.discard(su)   # allow a retry (after _seed_retry_ms)
+                self._seeded.pop(su, None)   # allow a retry (after _seed_retry_ms)
                 self._seed_failed_at[su] = self._clock_ms()
             return False
         fetched_at = self._clock_ms()
@@ -423,10 +440,19 @@ class BarBroadcaster:
                     touched.append(got)
             if not touched:
                 return False
-            work = self._mark_dirty(su, touched, prev_hwm, force=True)
+            # F2: emit only each key's CURRENT bucket. The seeded history is
+            # already on the client (REST); replaying ~3h of buckets into a
+            # 64-slot queue only overflowed it.
+            work = self._mark_dirty(su, [self._hwm[su]], prev_hwm, force=True)
         _seed_total += 1
         self._run_flushes(su, work)
         return True
+
+    def _session_day(self) -> int:
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        d = datetime.fromtimestamp(self._clock_ms() / 1000, tz=ZoneInfo("America/New_York"))
+        return d.year * 10000 + d.month * 100 + d.day
 
     # ── State transitions (caller holds _lock) ──
 
@@ -593,6 +619,11 @@ class BarBroadcaster:
                     for old in sorted(sent)[:-4]:
                         del sent[old]
                 pairs = list(self._subscribers.get(key, ()))
+                # Dispatch UNDER the lock: call_soon_threadsafe is non-blocking and
+                # FIFO per loop, so serialising it here guarantees each key's frames
+                # reach the queue in the order they were derived (two flushes on
+                # different threads can no longer swap a newer and an older bar).
+                self._dispatch(sym, k, bars, pairs)
         if schedule_in is not None:
             try:
                 self._scheduler(schedule_in, lambda: self._trailing_flush(sym, k))
@@ -600,8 +631,6 @@ class BarBroadcaster:
                 with self._lock:
                     self._flush_pending.discard(key)
                 _logger.debug("[bar_broadcaster] trailing flush schedule failed: %s", e)
-            return
-        self._dispatch(sym, k, bars, pairs)
 
     def _trailing_flush(self, sym: str, k: str) -> None:
         global _trailing_flush_total
@@ -635,7 +664,12 @@ class BarBroadcaster:
             return
         for bar in bars:
             msg = self._msg(sym, k, dict(bar))
-            for (q, loop) in pairs:
+            legacy_ok = bar["t"] >= self._legacy_hi.get((sym, k), bar["t"])
+            if legacy_ok:
+                self._legacy_hi[(sym, k)] = bar["t"]
+            for (q, loop, v2) in pairs:
+                if not (v2 or legacy_ok):
+                    continue   # F1: older-t correction — opt-in (v2) subscribers only
                 # C1: dispatch via call_soon_threadsafe — safe from any thread
                 try:
                     loop.call_soon_threadsafe(self._safe_put, q, msg)

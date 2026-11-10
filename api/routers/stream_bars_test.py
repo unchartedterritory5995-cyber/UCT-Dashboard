@@ -328,3 +328,23 @@ def test_stream_bars_eth_session_subscribes_the_eth_60m_view_and_kicks_a_seed(mo
             assert seeded == ["AAPL"]          # one seed per symbol, not per pair
         finally:
             resp.close()
+
+
+def test_stream_bars_v2_opts_in_to_corrections(monkeypatch):
+    monkeypatch.setenv("STREAM_BARS_ENABLED", "1")
+    bb = bar_broadcaster.init_broadcaster()
+    with _serve(_make_app()) as base:
+        r1 = requests.get(f"{base}/api/stream/bars?bars=AAPL:5", stream=True, timeout=5)
+        r2 = requests.get(f"{base}/api/stream/bars?bars=AAPL:5&v=2", stream=True, timeout=5)
+        try:
+            deadline = time.time() + 3.0
+            while time.time() < deadline:
+                with bb._lock:
+                    flags = sorted(t[2] for t in bb._subscribers.get(("AAPL", "5"), ()))
+                if len(flags) == 2:
+                    break
+                time.sleep(0.05)
+            assert flags == [False, True]
+        finally:
+            r1.close()
+            r2.close()

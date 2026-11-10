@@ -53,9 +53,9 @@ class Harness:
         )
         self.queues = {}
 
-    def sub(self, sym, tf, session="rth"):
-        q = self.bb.subscribe(sym, tf, session)
-        self.queues[(sym, tf, session)] = q
+    def sub(self, sym, tf, session="rth", v2=True):
+        q = self.bb.subscribe(sym, tf, session, v2=v2)
+        self.queues[(sym, tf, session) + (() if v2 else ("legacy",))] = q
         return q
 
     def advance(self, ms):
@@ -202,7 +202,9 @@ async def test_replay_emitted_bars_equal_offline_bars(seed, am_mode):
     h = Harness()
     for tf, sess in KEYS:
         h.sub("SYN", tf, sess)
+        h.sub("SYN", tf, sess, v2=False)
     emitted = {k: [] for k in KEYS}
+    legacy = {k: [] for k in KEYS}
     prev = arrival_ms[0]
     for (kind, payload), at in zip(events, arrival_ms):
         h.advance(max(0, at - prev))
@@ -210,9 +212,11 @@ async def test_replay_emitted_bars_equal_offline_bars(seed, am_mode):
         h.bb.push_aggregate("SYN", dict(payload), kind)
         for k in KEYS:
             emitted[k].extend(await drain(h.queues[("SYN",) + k]))
+            legacy[k].extend(await drain(h.queues[("SYN",) + k + ("legacy",)]))
     h.settle()
     for k in KEYS:
         emitted[k].extend(await drain(h.queues[("SYN",) + k]))
+        legacy[k].extend(await drain(h.queues[("SYN",) + k + ("legacy",)]))
 
     for tf, sess in KEYS:
         got = last_per_bucket(emitted[(tf, sess)])
@@ -223,6 +227,16 @@ async def test_replay_emitted_bars_equal_offline_bars(seed, am_mode):
         # every bucket but the newest is final; the newest is not (no later data)
         newest = max(got)
         assert all(got[t]["final"] for t in got if t != newest), (tf, sess)
+        # F1: a legacy (v1) subscriber never sees t go backwards, and still ends
+        # on the true newest bar (its close is never a previous bucket's close)
+        lt = [m["bar"]["t"] for m in legacy[(tf, sess)]]
+        assert lt == sorted(lt), (tf, sess)
+        assert _ohlcv(legacy[(tf, sess)][-1]["bar"]) == want[newest], (tf, sess)
+        # v2 frames are in t order within every flush, and corrections only ever
+        # go to OLDER buckets that are already final
+        for a, b in zip(emitted[(tf, sess)], emitted[(tf, sess)][1:]):
+            if b["bar"]["t"] < a["bar"]["t"]:
+                assert b["bar"]["final"] is True
         # A events never leaked their sentinel prices
         assert all(m["bar"]["h"] != 999.0 and m["bar"]["c"] != 777.0 for m in emitted[(tf, sess)])
     # the quote feed still gets A's cumulative day volume
@@ -443,4 +457,82 @@ async def test_failed_seed_is_not_refetched_on_every_subscribe():
     assert calls == ["X"]
     h.advance(61_000)
     h.bb.ensure_seeded("X")
+    assert calls == ["X", "X"]
+
+
+# ── Review fixes F1-F5 ────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_F1_late_AM_correction_reaches_v2_only_never_legacy():
+    h = Harness()
+    legacy = h.sub("X", "1", v2=False)
+    v2 = h.sub("X", "1")
+    m = et_ms(*DAY, 10, 0)
+    T = lambda t, p: h.bb.push_aggregate("X", {"t": t, "p": p, "s": 100, "c": [0]}, "T")
+    T(m + 1000, 10.0)
+    h.advance(200)
+    T(m + 50_000, 10.5)
+    h.advance(200)
+    T(m + MIN + 500, 11.0)               # the next minute opens
+    h.advance(1500)
+    h.bb.push_aggregate("X", {"t": m, "o": 10.0, "h": 10.6, "l": 10.0, "c": 10.4, "v": 250}, "AM")
+    lg = await drain(legacy)
+    vv = await drain(v2)
+    assert [x["bar"]["t"] for x in lg] == sorted(x["bar"]["t"] for x in lg)
+    assert lg[-1]["bar"]["t"] == m + MIN and lg[-1]["bar"]["c"] == 11.0   # never snaps back
+    assert vv[-1]["bar"]["t"] == m and vv[-1]["bar"]["final"] is True
+    assert vv[-1]["bar"]["c"] == 10.4
+
+
+@pytest.mark.asyncio
+async def test_F2_seed_emits_only_the_current_bucket_per_key():
+    b0 = et_ms(*DAY, 12, 0)
+    seed = [{"t": b0 - i * MIN, "o": 1.0, "h": 1.1, "l": 0.9, "c": 1.0, "v": 10} for i in range(170)]
+    h = Harness(seed_fetcher=lambda sym: list(seed))
+    q1, q5 = h.sub("X", "1"), h.sub("X", "5")
+    h.now = b0 + 30_000
+    assert h.bb.ensure_seeded("X") is True
+    o1, o5 = await drain(q1), await drain(q5)
+    assert [m["bar"]["t"] for m in o1] == [b0]
+    assert [m["bar"]["t"] for m in o5] == [b0]
+
+
+def test_F3_seed_kicks_are_bounded_and_use_a_dedicated_pool(monkeypatch):
+    import threading
+    from api.routers import stream
+    gate = threading.Event()
+    started = []
+    monkeypatch.setattr(stream, "_SEED_MAX_INFLIGHT", 3)
+    monkeypatch.setattr(stream, "_seed_inflight", 0)
+    fn = lambda sym: (started.append(threading.current_thread().name), gate.wait(5))
+    results = [stream._kick_seed(fn, f"S{i}") for i in range(6)]
+    assert results == [True, True, True, False, False, False]
+    gate.set()
+    deadline = __import__("time").time() + 5
+    while stream._seed_inflight and __import__("time").time() < deadline:
+        __import__("time").sleep(0.01)
+    assert stream._seed_inflight == 0
+    assert all(n.startswith("bars-seed") for n in started)
+
+
+def test_F4_half_day_rth_buckets_end_at_1300():
+    y, mo, d = 2026, 11, 27              # day after Thanksgiving: NYSE 13:00 close
+    assert tv_bucket_bounds(et_ms(y, mo, d, 12, 45), "60", "rth") == (et_ms(y, mo, d, 12, 30), et_ms(y, mo, d, 13, 0))
+    assert tv_bucket_bounds(et_ms(y, mo, d, 11, 0), "60", "rth") == (et_ms(y, mo, d, 10, 30), et_ms(y, mo, d, 11, 30))
+    # a post-close print never lands in an RTH bucket
+    assert tv_bucket_bounds(et_ms(y, mo, d, 13, 10), "60", "rth") == (et_ms(y, mo, d, 13, 0), et_ms(y, mo, d, 14, 0))
+    # a normal day is unchanged
+    assert tv_bucket_bounds(et_ms(*DAY, 15, 45), "60", "rth")[1] == et_ms(*DAY, 16, 0)
+
+
+def test_F5_a_symbol_is_reseeded_for_the_next_session():
+    calls = []
+    h = Harness(seed_fetcher=lambda sym: calls.append(sym) or
+                [{"t": h.now // MIN * MIN - MIN, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1}])
+    h.bb.add_interest(["X"])
+    h.now = et_ms(*DAY, 10, 5)
+    assert h.bb.ensure_seeded("X") is True
+    assert h.bb.ensure_seeded("X") is False
+    h.now = et_ms(2026, 11, 11, 9, 35)
+    assert h.bb.ensure_seeded("X") is True
     assert calls == ["X", "X"]

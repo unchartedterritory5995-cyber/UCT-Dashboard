@@ -121,8 +121,9 @@ async def test_push_minute_bar_from_other_thread_delivers_to_subscriber():
 async def test_out_of_order_AM_corrects_only_its_own_bucket(bb):
     """C2 successor (D7): an older AM is NOT dropped — it is the authoritative
     correction for ITS bucket (re-emitted with final=true) and never touches the
-    in-progress bucket."""
-    q5 = bb.subscribe("AAPL", "5")
+    in-progress bucket. Only opt-in (v2) subscribers get the older-t frame."""
+    q5 = bb.subscribe("AAPL", "5", v2=True)
+    legacy = bb.subscribe("AAPL", "5")
 
     bar1 = {"t": 1746468600000, "o": 100.0, "h": 101.0, "l": 99.5, "c": 100.5, "v": 1000}
     bb.push_minute_bar("AAPL", bar1)
@@ -141,6 +142,10 @@ async def test_out_of_order_AM_corrects_only_its_own_bucket(bb):
     assert msg["bar"]["o"] == 100.0   # open from bar1, untouched by the late bar
     assert msg["bar"]["v"] == 1750    # bar1 + bar2 only
     assert msg["bar"]["final"] is False
+    seen = []
+    while not legacy.empty():
+        seen.append(legacy.get_nowait()["bar"]["t"])
+    assert 1746468000000 not in seen and seen == sorted(seen)
 
 
 # ── Phase 4.5: A-event (per-second aggregate) tests ─────────────────────────

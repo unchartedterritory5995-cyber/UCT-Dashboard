@@ -7,6 +7,7 @@ import asyncio
 import json
 import logging
 import os
+import threading
 import time
 import uuid
 
@@ -505,6 +506,50 @@ async def stream_prices(
     )
 
 
+# D8 seed fetches (one provider REST call per newly streamed symbol) run on a
+# SMALL DEDICATED pool, never the shared default executor every to_thread() in
+# the app uses, and are BOUNDED: when _SEED_MAX_INFLIGHT are already queued or
+# running (a fast scan across tickers), further seeds are skipped — the chart
+# still streams, its bucket is "since subscribe" until the next AM-backed bucket.
+_SEED_WORKERS = int(os.environ.get("STREAM_BARS_SEED_WORKERS", "4"))
+_SEED_MAX_INFLIGHT = int(os.environ.get("STREAM_BARS_SEED_MAX_INFLIGHT", "16"))
+_seed_pool = None
+_seed_inflight = 0
+_seed_skipped_total = 0
+_seed_lock = threading.Lock()
+
+
+def _kick_seed(fn, sym: str) -> bool:
+    """Run fn(sym) on the bounded seed pool. Returns False when it was skipped."""
+    global _seed_pool, _seed_inflight, _seed_skipped_total
+    with _seed_lock:
+        if _seed_inflight >= _SEED_MAX_INFLIGHT:
+            _seed_skipped_total += 1
+            return False
+        if _seed_pool is None:
+            from concurrent.futures import ThreadPoolExecutor
+            _seed_pool = ThreadPoolExecutor(max_workers=_SEED_WORKERS, thread_name_prefix="bars-seed")
+        _seed_inflight += 1
+
+    def _run():
+        global _seed_inflight
+        try:
+            fn(sym)
+        except Exception as e:  # noqa: BLE001
+            _logger.debug("[stream_bars] seed failed for %s: %s", sym, type(e).__name__)
+        finally:
+            with _seed_lock:
+                _seed_inflight -= 1
+
+    try:
+        _seed_pool.submit(_run)
+    except Exception:  # noqa: BLE001 — pool shut down at exit
+        with _seed_lock:
+            _seed_inflight -= 1
+        return False
+    return True
+
+
 @router.get("/api/stream/bars")
 async def stream_bars(
     request: Request,
@@ -513,6 +558,11 @@ async def stream_bars(
     session: str = Query("rth", description=(
         "60m bucket alignment, TradingView-style: 'rth' = 9:30, 10:30 ... 15:30 "
         "(default), 'eth' = clock hours 04:00 ... 19:00. 1-30m are identical in both.")),
+    v: int = Query(1, description=(
+        "Wire version. v=2 opts in to OLDER-t `final` correction frames (a late "
+        "AM re-emitting a closed bucket). v=1 (default) never receives a frame "
+        "older than one it already got, so legacy consumers that take bar.c as "
+        "the live price cannot snap back.")),
     last_event_id: str | None = Query(None, description=(
         "Id of the last event a reconnecting client received (the pooled "
         "manager's door; a browser auto-reconnect sends the Last-Event-ID "
@@ -562,8 +612,15 @@ async def stream_bars(
 
     from api.services.bar_broadcaster import get_broadcaster
     bb = get_broadcaster()
+    v2 = isinstance(v, int) and v >= 2
+
     def _sub(sym, tf):
-        return bb.subscribe(sym, tf) if session == "rth" else bb.subscribe(sym, tf, session)
+        kw = {}
+        if session != "rth":
+            kw["session"] = session
+        if v2:
+            kw["v2"] = True
+        return bb.subscribe(sym, tf, **kw)
 
     queues = [(sym, tf, _sub(sym, tf)) for (sym, tf) in pairs]
     _logger.info("[stream_bars] subscribed %d pairs: %s", len(pairs), pairs[:10])
@@ -574,12 +631,8 @@ async def stream_bars(
     # means "bucket since subscribe" until the next AM-backed bucket.
     _seed = getattr(bb, "ensure_seeded", None)
     if _seed is not None:
-        _loop = asyncio.get_running_loop()
         for _sym in sorted({p[0] for p in pairs}):
-            try:
-                _loop.run_in_executor(None, _seed, _sym)
-            except Exception as _e:  # noqa: BLE001
-                _logger.debug("[stream_bars] seed kick failed for %s: %s", _sym, _e)
+            _kick_seed(_seed, _sym)
 
     resume = _resume_declaration("bars", _requested_last_event_id(request, last_event_id))
 
