@@ -65,11 +65,26 @@ def _get_basic_auth():
 
 
 def save_tokens(tokens: dict):
-    """Persist tokens to disk (Railway volume or /tmp fallback)."""
+    """Persist tokens to disk (Railway volume or /tmp fallback).
+
+    ⛔ THE REPLICATION HOOK IS DELIBERATELY HERE, not at the two call sites. Both the
+    OAuth exchange and every refresh land in this one function, so hooking it means a
+    login reaches flow-worker in seconds rather than at the next scheduler tick —
+    which is the whole complaint this answers ("every deploy I need to log in again").
+    """
     tokens["saved_at"] = time.time()
     TOKEN_FILE.parent.mkdir(parents=True, exist_ok=True)
     TOKEN_FILE.write_text(json.dumps(tokens, indent=2))
     print(f"[schwab] Tokens saved to {TOKEN_FILE}")
+
+    # ⛔ AFTER the write, fire-and-forget, never raising: a flow-worker outage must not
+    # be able to fail a login or a refresh. No-ops unless SCHWAB_TOKEN_PUSH_ENABLED=1,
+    # so it is inert on flow-worker (and on web until armed).
+    try:
+        from api.services import schwab_token_push
+        schwab_token_push.reconcile_async()
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def load_tokens() -> dict | None:
@@ -149,16 +164,46 @@ async def refresh_access_token() -> dict | None:
         return new_tokens
 
 
+def _is_expiring(tokens: dict) -> bool:
+    """Is this token within 60s of its ~30 min expiry (or already past it)?"""
+    saved_at = tokens.get("saved_at", 0)
+    expires_in = tokens.get("expires_in", 1800)
+    return (time.time() - saved_at) > (expires_in - 60)  # refresh 1 min early
+
+
 async def get_valid_token() -> str | None:
-    """Get a valid access token, refreshing if needed."""
+    """Get a valid access token, refreshing if needed.
+
+    ⚰️ SINGLE-FLIGHT, AND IT WAS NOT. This function used to call
+    `refresh_access_token()` with no lock, so every parallel caller that found an
+    expired token fired its OWN refresh. Measured on flow-worker 2026-11-09 against a
+    dead grant: **215 of 500 log lines (43%)** were `invalid_grant` failures, dozens
+    inside the SAME SECOND — one per concurrent chain/quote/OI caller. That noise is
+    what buried the onset minute of the flow.db corruption the same day, and against a
+    LIVE grant it is a burst of redundant token calls into Schwab's rate limit.
+
+    ⛔ `_TOKEN_REFRESH_LOCK` already existed for exactly this, but only
+    `_refresh_if_stale` (the 401 path) took it. This is the other door.
+
+    ⛔ DOUBLE-CHECKED: the token is re-read from disk AFTER acquiring the lock, so the
+    N-1 callers queued behind the one that refreshed return the fresh token instead of
+    refreshing again. Without the re-read the lock only serialises the storm.
+    """
     tokens = load_tokens()
     if not tokens:
         return None
 
-    # Check if access token is still valid (~30 min lifetime)
-    saved_at = tokens.get("saved_at", 0)
-    expires_in = tokens.get("expires_in", 1800)
-    if time.time() - saved_at > (expires_in - 60):  # refresh 1 min early
+    if not _is_expiring(tokens):
+        return tokens.get("access_token")
+
+    async with _TOKEN_REFRESH_LOCK:
+        # Re-read: another task may have refreshed while we waited.
+        tokens = load_tokens()
+        if not tokens:
+            return None
+        if not _is_expiring(tokens):
+            return tokens.get("access_token")
+
         logger.info("Access token expired, refreshing...")
         tokens = await refresh_access_token()
         if not tokens:

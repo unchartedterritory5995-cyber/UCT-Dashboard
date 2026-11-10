@@ -7283,6 +7283,52 @@ async def lifespan(app: FastAPI):
                                id="optionsflow_etf_replica_reconcile",
                                max_instances=1, coalesce=True, replace_existing=True)
 
+        # ── Schwab access token -> flow-worker ────────────────────────────────
+        #
+        # ⚰️ WHY THIS EXISTS. Schwab's OAuth callback can only land on `web`, and
+        # `/data/schwab_token.json` is on a PER-SERVICE volume. Measured 2026-11-09,
+        # minutes after a successful re-auth: web's token 0.0 days old, flow-worker's
+        # **113.4 days** old and failing `invalid_grant` on every cycle, silently
+        # covered by the Massive OI fallback. The owner read that as "every deploy I
+        # have to log in again" — the login fixed the pod they were looking at and
+        # never the one serving the data. `/data` survives deploys; nothing propagated.
+        #
+        # ⛔ NOT FOLDED INTO THE TICKER_TYPES BLOCK ABOVE, and not under its flag.
+        # Those carry datasets on a daily/30-min cadence; this carries a 30-MINUTE
+        # CREDENTIAL and must run far more often. Its own flag, its own job id, its
+        # own try/except — a fault in either must not stop the other.
+        #
+        # ⛔ A PUSH IS NOT THE PRIMARY PATH — `save_tokens` already pushes on every
+        # login and every refresh. This is the self-healing cadence, and it is what
+        # covers the case the owner actually hits: a flow-worker DEPLOY, which boots
+        # with whatever token the volume last held and cannot pull (web is IPv4-only
+        # on an IPv6 private network, so pull was disproved). A current pod costs one
+        # status probe and transfers nothing.
+        #
+        # ⚠️ THIS DOES NOT REMOVE THE WEEKLY RE-AUTH. Schwab caps the refresh token at
+        # 7 days and refreshing does not extend it. One manual OAuth per week on web
+        # is unavoidable; what this removes is the per-pod and per-deploy half.
+        #
+        # DARK until SCHWAB_TOKEN_PUSH_ENABLED=1 on web AND
+        # SCHWAB_TOKEN_REPLICA_RECEIVE_ENABLED=1 on flow-worker.
+        try:
+            def _schwab_token_push():
+                try:
+                    from api.services import schwab_token_push
+                    schwab_token_push.reconcile()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning(
+                        "[schwab-token-push] reconcile raised: %s", _e)
+
+            _scheduler.add_job(
+                _schwab_token_push, "interval",
+                minutes=int(os.environ.get("SCHWAB_TOKEN_PUSH_INTERVAL_MIN", "5")),
+                id="schwab_token_replica_push",
+                max_instances=1, coalesce=True, replace_existing=True)
+        except Exception as _e:
+            logging.getLogger(__name__).warning(
+                "[schwab-token-push] could not register job: %s", _e)
+
         # Breadth live -- rebuild the day's reference levels BEFORE the open.
         #
         # Levels are cached per session day, keyed on the last completed
