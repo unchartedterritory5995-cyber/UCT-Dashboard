@@ -759,6 +759,7 @@ const POS_WORDS = /\b(top-left|top-right|bottom-left|bottom-right|top left|top r
 // (probe 19) "everything (but / except …)", "all of these": the whole board, an exclusion taken out by the constraint check
 const MANY_COUNT = /\b(?:(both)\b|(?:all|every|each)(?:\s+(?:the|of the))?(?:\s+(two|three|four|five|six|seven|eight|nine|ten|\d{1,2}))?\s+(?:charts?|of them|ones)\b|everything\b(?!\s+(?:else\s+)?(?:in|on|along)\s+(?:this|that|its|my)\b)|all\s+of\s+(?:these|them)\b)/i
 const OTHER_CHARTS = /\b(?:(?:my|the|all(?: my| the)?|every) )?other charts\b/i
+const REST_OF_BOARD = /\b(?:(?:all\s+)?the\s+(?:rest|others|other\s+ones)|everything\s+else|all\s+(?:the\s+)?others|every\s+other\s+(?:one|chart))\b/i
 const OTHER_CHART = /\b(?:my|the|that|this) other (?:chart|one)\b/i
 // …and "a different chart", "another chart", "some other chart": a chart that is NOT the clicked one, not yet which
 const DIFFERENT_CHART = /\b(?:a|another|some|any)\s+(?:different|other)\s+(?:chart|one)\b|\banother\s+(?:chart|one)\b|\bone\s+other\b/i
@@ -960,6 +961,9 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
   const lineSet = wholeLinesNamed(words, charts)
   for (const r of lineSet) named.add(r)
   const lineNamed = !!absLine?.line || lineSet.size > 0
+  // (#988, AUDIT probe 20 a) "other than the one I'm looking at, put THE REST on log": with the click negated, "the rest / the
+  // others / everything else" names every chart but the click (a plan on the click is excluded by the negation screens)
+  if (sel && !answered && REST_OF_BOARD.test(words) && negatedPointer(words)) for (const c of charts) if (c.ref !== sel) named.add(c.ref)
   if (sel && (/\bthis\b/i.test(otherOne ? words.replace(OTHER_CHART, ' ') : words) || (!otherOne && !answered && !lineNamed && !chartsNamedBy(`${words.replace(POS_WORDS, ' ')} ${said.join(' ')}`, charts).size && clickFits(said, charts, sel)))) named.add(sel)
   const unnamed = [...targets.keys()].filter(c => !named.has(c))
   if (!unnamed.length) return null

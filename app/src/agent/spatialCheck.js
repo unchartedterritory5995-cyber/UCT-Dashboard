@@ -388,10 +388,20 @@ const NEG_EXCEPT = new RegExp('(?:\\b(?:instead\\s+of|rather\\s+than|besides|asi
   + '|(?:^|[,;:—–]|\\b(?:and|but))\\s*not(?!\\s+(?:just|only|merely|simply|sure|yet|now|too|so)\\b))\\s+(' + CLICK_ACT_NP + '|(?:the\\s+)?[A-Za-z0-9 -]{1,30}?)'
   + '(?=\\s+(?:on|to|in|onto|at|for|from|please|thanks|weekly|daily|monthly|hourly)\\b|\\s*[,.;!?—–]|\\s*$)', 'gi')
 const CLICK_ACT_ONLY = new RegExp('^' + CLICK_ACT_NP + '$', 'i')
+// (AUDIT control) NEG_EXCEPT's "X" excludes only a CHART or a POSITION — a chart noun, a place / order word, the click, or a ticker
+// on the board. A value or a setting ("weekly, not daily", "log, not linear", "show the 50, not the 200") is a contrast on the
+// change itself and excludes nothing.
+const NEG_CHART_WORD = /\b(?:one|ones|charts?|cells?|panes?|panels?|graphs?|top|bottom|upper|lower|left|right|middle|cent(?:er|re)|corner|first|second|third|fourth|last|row|column|this|that|it)\b/i
+function negNamesAChart(phrase, charts) {
+  if (CLICK_ACT_ONLY.test(phrase) || NEG_CHART_WORD.test(phrase)) return true
+  const words = phrase.toUpperCase().split(/[^A-Z0-9.]+/).filter(Boolean)
+  return charts.some(c => c?.symbol && words.includes(String(c.symbol).toUpperCase()))
+}
 /** The charts an exclusion in the words names (by symbol, position, order, or "this one" = the click). */
 export function excludedCharts(text, charts = [], sel = null) {
   const out = new Set()
-  for (const m of [...exceptMatches(text), ...exceptForm(text).matchAll(NEG_EXCEPT)]) {
+  const negs = [...exceptForm(text).matchAll(NEG_EXCEPT)].filter(m => negNamesAChart(m[1].trim(), charts))
+  for (const m of [...exceptMatches(text), ...negs]) {
     const phrase = m[1].trim()
     if (CLICK_ACT_ONLY.test(phrase)) { if (sel) out.add(sel); continue }
     const wl = /^(?:the\s+)?(top|bottom|upper|lower|middle|cent(?:er|re)|first|second|third|last|left|right)\s+(row|column)$/i.exec(phrase)

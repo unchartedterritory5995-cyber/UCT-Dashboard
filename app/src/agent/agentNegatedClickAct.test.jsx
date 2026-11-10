@@ -123,3 +123,41 @@ describe('(c) "make the one I have selected weekly, not the bottom-left": a bare
     expect(logged(m.board), transcript()).toEqual(['c1'])
   }, 40000)
 })
+
+// ── AUDIT controls (Lead, 11-10) ──
+// NEG_EXCEPT ", not <X>" excludes a CHART or a POSITION only — never a value or a setting: these apply on the click (no exclusion, no ask)
+const NOT_VALUE = ['put this one on log scale, not linear', 'log scale on this one, not linear', 'put it on log scale, not arithmetic',
+  'log scale on this chart, not the 200', 'put the one I selected on log scale, not linear', 'make this one log, not linear',
+  'log scale on this one, not daily', 'put this one on log scale, not weekly']
+describe('control: ", not <a value or setting>" excludes nothing', () => {
+  it.each(NOT_VALUE)('"%s" (c1 clicked) — a plan on the click is applied, no ask', async (t) => {
+    const m = at('c1')
+    p.st.envelopes.push(scaleOnAll('c1'))
+    await m.say(t)
+    expect(logged(m.board), transcript()).toEqual(['c1'])
+    expect(offered(), transcript()).toEqual([])
+  }, 40000)
+})
+// …while ", not <a chart>" still excludes it
+const NOT_CHART = [['put this one on log scale, not the top-left one', 'c0'], ['log scale on this one, not the bottom-left one', 'c2'],
+  ['put this one on log scale, not the bottom-right', 'c3']]
+describe('control: ", not <a chart>" excludes it', () => {
+  it.each(NOT_CHART)('"%s" (c1 clicked) — a plan on %s is never applied', async (t, ex) => {
+    const m = at('c1')
+    p.st.envelopes.push(scaleOnAll(ex))
+    await m.say(t)
+    expect(logged(m.board), transcript()).not.toContain(ex)
+    expect(offered(), transcript()).not.toContain(ex)
+  }, 40000)
+})
+// STAY_CLICK never swallows a positive instruction: "make the one I selected stay on log scale" SETS it (applied), never an exclusion
+const STAY_SET = ['make the one I selected stay on log scale', 'make the one I clicked stay on log scale', "have the chart I'm on stay on log scale",
+  'set the one I selected to stay on log scale']
+describe('control: an imperative to make the click STAY on a setting sets it', () => {
+  it.each(STAY_SET)('"%s" (c3 clicked) — a plan on the click is applied', async (t) => {
+    const m = at('c3')
+    p.st.envelopes.push(scaleOnAll('c3'))
+    await m.say(t)
+    expect(logged(m.board), transcript()).toEqual(['c3'])
+  }, 40000)
+})
