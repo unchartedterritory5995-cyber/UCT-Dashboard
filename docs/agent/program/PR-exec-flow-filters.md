@@ -98,15 +98,27 @@ Unit rails: `agentWhichWidget.test.js` (fail closed, named, re-aimed, single wid
   - The 13 that failed: the chips #872 refused as screens (sweeps, premium…), the conflicts, the two-widget asks, the reset.
 - Unit rails (`agentWhichWidget`, `agentFlowChipsParity`): `Tests 12 failed (12)`.
 
-**Mutations,** on `5ca372766b`, in a scratch worktree:
-1. fail-closed off (no words → no guard);
-2. same-group conflict guard off;
-3. chip gate off.
+**Mutations (AUDIT #1029 item 1), PARTIAL: M7 and M8 are still running.** The earlier "10 failed / 29 passed (39)" was ONE run with all three mutants applied together. It counted failing TESTS, not surviving mutants, so it is replaced here by one run per mutant.
 
-Totals: `Tests 10 failed | 29 passed (39)`. Each mutation was caught:
-1. the fail-closed unit rails (×2);
-2. the 3 conflict held-outs;
-3. the chip held-outs, among them "only sweeps in the options flow", "only 500k and up…" and the two-widget sweeps cases.
+Setup: scratch worktree at `e62493395b`, one mutant applied at a time and then reverted. Each run covers the same 5 files, 102 tests: flowFilters.outcome, agentFlowFiltersHeldOut, agentFlowChipsParity, agentWhichWidget, agentWidgetOptions. Command: `python ../tools/agent_suite_lock.py run --who pl-widget -- npx vitest run <the 5 files>`, at BelowNormal. Specs: scratchpad `f16m/mutants.json`.
+
+Found by this run: `agentFlowChipsParity.test.js` failed to LOAD on the fresh CRLF checkout, in the base run too. Its `_FLOW_CHIPS` regex expected LF. It is fixed at `697274a7f7` (line endings normalised). In the table, parity is therefore a load failure in every row and is not counted. M7 and M8 target parity, so they are re-run on `697274a7f7`.
+
+| mutant | what changed | tests failed / 102 | killed by |
+|---|---|---:|---|
+| base | none | 0 (parity load fail, see above) | — |
+| M1 fail-closed off | no words → no guard | 2 | agentWhichWidget "no words at all … FAIL CLOSED" (setOption, sendToJournal) |
+| M2 conflict guard off | same-group check skipped | 3 | the 3 conflict held-outs (calls and puts / sweeps and blocks / bull and bear) |
+| M3a chip gate closed | asksAFlowChip → false | 18 | agentWidgetOptions owner-exception and F-16-widened cases, flowFilters held-outs |
+| M3b chip gate open | asksAFlowChip → true | 4 | agentWidgetOptions "balls / falls / cells is no chip word", "F-16 holds" |
+| M4 approved re-asked | the approved skip removed | 4 | agentWhichWidget "an approved proposal: never asked again" ×2, flowFilters approve cases ×2 |
+| M5 re-aim off | a named other widget not re-aimed | 2 | agentWhichWidget "words that name the OTHER one" ×2 |
+| M6 chip words swapped | Bull ↔ Bear words | 4 | flowFilters bearish held-outs ×2, the bull-and-bear conflict, agentWidgetOptions "only show bears" |
+| M7 server table drops $1M | `_FLOW_CHIPS` | PENDING | expected: agentFlowChipsParity |
+| M8 server word drops sweeps | `_FLOW_CHIP_WORD` | PENDING | expected: agentFlowChipsParity |
+| M9 turn.py widening off | `plans_only_flow_chips` only Calls | NOT RUN (Python only, pytest is not run here) | tests/test_uct_agent_f16_flow_chips.py `test_every_chip_of_a_flow_widget_on_this_board_is_served` (CI) |
+
+Every mutant run so far is killed by at least one test, and none survived.
 
 **Head** (`5ca372766b`, 15 files, focused, NOT a full run): `Test Files 15 passed (15)` / `Tests 919 passed (919)`. The files were:
 - flowFilters.outcome 27;
@@ -124,3 +136,29 @@ Totals: `Tests 10 failed | 29 passed (39)`. Each mutation was caught:
 - C3-166 MISSING → VERIFIED (SIMULATED). Recounted by `docs/agent/program/recount-flow-filters.mjs`: 225 → 226 of 484 on this base.
 - C3-164 / C3-165 are covered by #1023 and not touched here.
 - When #1023 and #1027 land first, the recount scripts re-run on the new master. Each one stops if it cannot reproduce the current table.
+
+## Changed files (git diff --stat origin/master...HEAD at 697274a7f7)
+
+```
+ api/services/uct_agent/turn.py                     |  52 +++++-
+ app/src/agent/agentFlowChipsParity.test.js         |  43 +++++
+ app/src/agent/agentFlowFiltersHeldOut.test.js      |  55 +++++++
+ app/src/agent/agentWhichWidget.test.js             |  27 +++
+ app/src/agent/agentWidgetControls.test.jsx         |   8 +-
+ app/src/agent/agentWidgetOptions.test.jsx          | 130 +++++++++++++--
+ app/src/agent/capabilities/board.js                |  52 +++++-
+ app/src/agent/capabilities/screener.js             |  37 ++++-
+ app/src/agent/fastPath.js                          |  21 +--
+ .../qa/chartsOutcome/flowFilters.outcome.test.jsx  | 182 +++++++++++++++++++++
+ app/src/agent/settingsLiveness.test.js             |   4 +
+ app/src/agent/steps.js                             |   2 +-
+ app/src/agent/useAgent.js                          |  24 +--
+ app/src/widgets/widgetControls.js                  |  13 +-
+ docs/agent/CHARTS_EXECUTION_STATUS.md              |  20 ++-
+ docs/agent/program/PR-exec-flow-filters.md         | 126 ++++++++++++++
+ docs/agent/program/evidence/f16-run2-dark-pool.txt |  27 +++
+ docs/agent/program/recount-flow-filters.mjs        | 101 ++++++++++++
+ tests/test_uct_agent_f16_calls_control.py          |  84 ++++++++++
+ tests/test_uct_agent_f16_flow_chips.py             | 105 ++++++++++++
+ 20 files changed, 1054 insertions(+), 59 deletions(-)
+```
