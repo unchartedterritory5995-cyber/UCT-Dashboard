@@ -304,9 +304,57 @@ function targetClauses(text) {
 // (H5, probe 19) a clause that only says how a chart already IS ("the chart below it already is", "the two to its right are fine")
 // relates nothing: blanked out, position for position, before a relation is read from the words (a negation is NOT blanked — it
 // is an exclusion the relation readers keep)
-const STATED = /\b(?:fine|alone|already|can stay|stays?|stay put|untouched|as (?:it|they) (?:is|are)|left alone)\b/i
+// ROOT CAUSE (d97663ad4f, spatialCheck.blankStated): STATED was a word list ("alone", "as it is", "untouched", …) and blanked
+// IMPERATIVE negations of the click ("leave this alone", "keep this as it is") as if they were stated facts. Now a STRUCTURAL
+// test: a clause is STATIVE (blanked) only when it has a stative predicate (a copula / "already" / "has|have") and NO imperative
+// or negation operator; an imperative negation of the click is its own structure (negatedClick below) and EXCLUDES the click.
+// A STATEMENT about a chart: its SUBJECT comes first (a noun phrase: the / those / these / that / they / both / all / a ticker's
+// chart …) and then a stative predicate (a copula, "already", "has / have", "stays", "looks"). A clause that starts with the
+// change ("weekly for whatever is beneath it") or with a verb is never one, whatever copula a relative clause in it carries.
+// ("'s" is a copula only before a state — "it's fine" — never the possessive "it's right side", "this one's row")
+const STATIVE_PRED = /\b(?:is|are|was|were|isn['’]t|aren['’]t|already|has|have|stays?|looks?|seems?)\b|['’]re\b|['’]s\s+(?:fine|good|ok(?:ay)?|set|done|already|perfect|great)\b/i
+const SUBJECT_FIRST = /^\s*(?:(?:and|but|so|while|though|since)\s+)?(?:the|those|these|that|they|both|all|its|it|each|every)\b/i
+const RELATIVE_COPULA = /\b(?:whatever|whichever|which|who|what|that)\s+(?:is|are|was|were)\b/i
+const IMPERATIVE_NEG = /^\s*(?:(?:and|but|then|so|or)\s+)?(?:please\s+)?(?:leave|keep|let|don['’]?t|do\s+not|never|not|stop|skip|ignore|exclude|avoid)\b/i
+const NEG_OPERATOR = /\b(?:not|never|no)\b|n['’]t\b/i
+/** A clause that only STATES how a chart already is ("the chart below it already is", "the two to its right are fine"). */
+export const statedClause = (part) => SUBJECT_FIRST.test(part) && STATIVE_PRED.test(part) && !RELATIVE_COPULA.test(part)
+  && !IMPERATIVE_NEG.test(part) && !NEG_OPERATOR.test(part)
+const CLAUSE_PARTS = /([,;.!?]|\b(?:but|and then|then|and)\b)/i
 export function blankStated(text) {
-  return String(text || '').split(/([,;.!?]|\b(?:but|and then|then)\b)/i).map(part => (STATED.test(part) ? part.replace(/\S/g, ' ') : part)).join('')
+  return String(text || '').split(CLAUSE_PARTS).map(part => (statedClause(part) ? part.replace(/\S/g, ' ') : part)).join('')
+}
+// (AUDIT probe 3, #988) an IMPERATIVE NEGATION of the click — "leave this alone", "keep this one as it is", "don't touch this
+// chart", "don't change the clicked one", "not this one", "never touch it": the operator (leave / keep / let / don't / do not /
+// never / not …) governs the click (this / this one / this chart / it / the clicked or selected one / here) as its OBJECT. The
+// click is EXCLUDED; the clause names no other chart and relates nothing (blanked for the relation readers, positions kept).
+const CLICK_OBJ = '(?:this(?:\\s+(?:one|chart))?|it|here|the\\s+(?:clicked|selected|current|active)\\s+(?:one|chart))'
+const NEG_CLICK = new RegExp('^\\s*(?:(?:and|but|then|so|or)\\s+)?(?:please\\s+)?(?:'
+  + '(?:leave|keep|let)\\s+' + CLICK_OBJ + '\\b(?!\\s*[\'’]s)(?:\\s+(?:alone|be|as\\s+(?:it\\s+)?is|untouched|unchanged|where\\s+it\\s+is))?'
+  + '|(?:don[\'’]?t|do\\s+not|never)\\s+(?:touch|change|move|switch|alter|modify|update|do\\s+anything\\s+to)\\s+' + CLICK_OBJ + '\\b(?!\\s*[\'’]s)'
+  + '|not\\s+' + CLICK_OBJ + '\\b(?!\\s*[\'’]s)(?:\\s+(?:though|please))?'
+  + ')\\s*[.!]?\\s*$', 'i')
+// …and an imperative negation of a RELATION from the click ("leave the charts around it alone", "keep the ones around it as they
+// are", "don't touch the one below it", "not the one under it"): its charts are an EXCLUSION SET; the clause names no target and
+// relates nothing for the relation readers (blanked), so the rest of the words still say which chart the change is for
+const NEG_REL = new RegExp('^\\s*(?:(?:and|but|then|so|or)\\s+)?(?:please\\s+)?(?:leave|keep|let|(?:don[\'’]?t|do\\s+not|never)\\s+(?:touch|change|move|switch|alter|modify)|not)\\s+'
+  + '((?:the|those|these)\\s+(?:\\w+\\s+){0,3}?(?:charts?|ones?|cells?|panes?)\\s+(?:around|surrounding|next\\s+to|beside|near|below|under(?:neath)?|beneath|above|over|to\\s+the\\s+(?:left|right)\\s+of|left\\s+of|right\\s+of|on\\s+either\\s+side\\s+of)\\s+(?:it|this(?:\\s+(?:one|chart))?))'
+  + '(?:\\s+(?:alone|be|as\\s+(?:it|they)\\s+(?:is|are)|as\\s+is|untouched|unchanged))?\\s*[.!]?\\s*$', 'i')
+/** The negated relations in the words → the phrases ("the charts around it"), each an exclusion set. */
+export function negatedRelations(text) {
+  const out = []
+  for (const part of String(text || '').split(CLAUSE_PARTS)) { const m = NEG_REL.exec(part); if (m) out.push(m[1]) }
+  return out
+}
+/** → { excludes: bool, text: the words with each such clause blanked (positions kept) }. */
+export function negatedClick(text) {
+  let excludes = false
+  const out = String(text || '').split(CLAUSE_PARTS).map(part => {
+    if (NEG_CLICK.test(part)) { excludes = true; return part.replace(/\S/g, ' ') }
+    if (NEG_REL.test(part)) return part.replace(/\S/g, ' ')
+    return part
+  }).join('')
+  return { excludes, text: out }
 }
 /** The words with every inert clause dropped: what names a TARGET (AUDIT probe 18 G5: "…, the QQQ chart next to SPY is fine"). */
 export function activeText(text) {
@@ -426,6 +474,16 @@ export function spatialConstraints(text, charts = [], sel = null) {
   }
   // (G3) an exclusion is never a target, whatever else the words name
   for (const r of excludedCharts(text, charts, sel)) out.excluded.add(r)
+  // (AUDIT probe 3) "leave this alone …", "don't touch this chart …": the click is excluded, whatever the plan
+  if (sel && negatedClick(text).excludes) out.excluded.add(sel)
+  // "… leave the ones around it alone", "not the one under it": a negated RELATION — its charts are excluded
+  if (sel) { const rel = relativeChart(text, charts, sel); if (rel?.negated) for (const c of rel.excluded || []) out.excluded.add(c.ref) }
+  const s0 = sel ? charts.find(c => c.ref === sel && c.cell) : null
+  if (s0) for (const phrase of negatedRelations(text)) {
+    const all = /\b(?:around|surrounding|next\s+to|beside|near|on\s+either\s+side\s+of)\b/i.test(phrase)
+    const hits = all ? ['left', 'right', 'above', 'below'].flatMap(d => neighbours(charts, s0, d)) : (relativeChart(phrase, charts, sel)?.hits || [])
+    for (const c of hits) out.excluded.add(c.ref)
+  }
   return out
 }
 

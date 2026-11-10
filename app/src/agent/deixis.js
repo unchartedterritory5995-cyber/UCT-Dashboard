@@ -12,7 +12,7 @@
 import { addableRows } from './capabilities/indicatorEdits'
 import { resolvedTicker } from './nl/tickers'
 import { sanitizeChartTabs } from '../pages/charts/chartTabs'
-import { namedAnchorRelation, wholeLinesNamed, clickLineMatch, clickLineHits, activeText, relationAnchor, blankStated } from './spatialCheck'
+import { namedAnchorRelation, wholeLinesNamed, clickLineMatch, clickLineHits, activeText, relationAnchor, blankStated, negatedClick } from './spatialCheck'
 
 // Words that point at "the chart in front of me". "it" counts only for a CHART-kind op ("make it
 // weekly"), never on its own ("put it in Momentum", "what is it" are not about a chart).
@@ -212,7 +212,8 @@ const CROSS_CLAUSE = /(?:[,;]\s*|\s+)(?:and|then|but)\s+(?:put|make|set|switch|c
 /** The relation match, or null when the words relate nothing to the clicked CHART. */
 export function relationMatch(text0) {
   // (H5, probe 19) a clause that says a chart already is so relates nothing (blanked: positions kept)
-  const text = blankStated(text0)
+  // (AUDIT probe 3) an imperative negation of the click relates nothing either: blanked (the click is excluded by the check)
+  const text = blankStated(negatedClick(text0).text)
   const r0 = relationMatchIn(text)
   // pl-auto unseen12 (#988): the click's own line said as a relation ("the rest of this row", "same column, other row", "same row, far
   // end", "one column right from this chart", "this one, the first chart in its row") — read where the relation readers find
@@ -438,7 +439,9 @@ export function relationRole(text, m) {
  *  (hits may be 0 or several), else null. `hits` is what the relation makes the TARGET: none when it is negated or when another
  *  clause points at the click too; `excluded` is what a negated relation names, which nothing may touch. */
 export function relativeChart(text, charts = [], sel = null) {
-  text = possessiveAnchor(text)
+  // (AUDIT probe 3) the relation's ROLE is read without the click's own negation: "leave this alone and make the one under it
+  // weekly" — "this" there is the excluded click, never a second target (alsoClick)
+  text = possessiveAnchor(blankStated(negatedClick(text).text))
   const m = relationMatch(text)
   if (!m) return null
   const role = relationRole(text, m)
@@ -1011,7 +1014,7 @@ export function closedTabNamed(text, host) {
 // this one", "other than this" — EXCLUDES the clicked chart. It is never aimed at nor stood in for: a plan on the other charts
 // runs where it is planned, and an op on the click itself is asked about.
 const NEG_POINTER = /(?:\b(?:except(?:\s+for)?|not|other\s+than|besides|apart\s+from|aside\s+from|excluding|minus|save\s+for)|\b(?:all|every\w*|them|others?|charts?|ones)\s+but(?:\s+not)?)\s+(?:this|that|it|the\s+(?:selected|clicked|current|highlighted|active|focused)\s+(?:chart|one))\b/i
-export const negatedPointer = (text) => NEG_POINTER.exec(String(text || ''))
+export const negatedPointer = (text) => NEG_POINTER.exec(String(text || '')) || (negatedClick(text).excludes ? [String(text || '')] : null)
 // ⭐ round 3 (pl-exec): PER-CLAUSE TARGETS — "make the NVDA chart weekly and this one log". A sentence of several clauses, each
 // naming ONE chart (a description, a ticker, a position) or pointing at the click (this one / this chart / here / it), and each
 // saying ONE change the capability's own instant reader recognises once the chart words are lifted off. Each op of the plan is
