@@ -109,6 +109,20 @@ const REGIONS = `((ref, text) => {
   // (no \b here: REGIONS is a template string, where \b is a backspace)
   // a candle, the watermark, or the empty chart: the location-aware row keys to which one is under the pointer, so a person
   // tries points down the plot until the row they were told about is offered
+  else if (/ a candle/.test(' ' + t)) {
+    const cvs = [...cell.querySelectorAll('.tv-lightweight-charts canvas')].filter(cv => { const b = cv.getBoundingClientRect(); return b.width > p0.width * 0.8 && Math.abs(b.top - p0.top) < 4 })
+    const cv = cvs[0]
+    if (cv && cv.width) {
+      try {
+        const ctx = cv.getContext('2d'); const lb = cv.getBoundingClientRect(); const k = cv.width / lb.width
+        for (const fx of [0.5, 0.7, 0.3, 0.85, 0.15]) {
+          const x = Math.round(lb.width * fx * k); const d = ctx.getImageData(x, 0, 1, cv.height).data
+          for (let y = 0; y < cv.height; y++) { const r = d[y * 4], g = d[y * 4 + 1], bl = d[y * 4 + 2]; if (Math.max(r, g, bl) - Math.min(r, g, bl) > 70) { let e = y; while (e + 1 < cv.height && Math.max(d[(e + 1) * 4], d[(e + 1) * 4 + 1], d[(e + 1) * 4 + 2]) - Math.min(d[(e + 1) * 4], d[(e + 1) * 4 + 1], d[(e + 1) * 4 + 2]) > 70) e++; out.push({ x: Math.round(lb.left + x / k), y: Math.round(lb.top + (y + e) / 2 / k) }); break } }
+        }
+      } catch (e) { /* a canvas the page cannot read: the scan below */ }
+    }
+    for (const fx of [0.5, 0.75, 0.25]) for (let fy = 0.05; fy <= 0.951; fy += 0.05) out.push(at(p0, fx, fy))
+  }
   else if (/ a candle|watermark|empty part/.test(' ' + t)) { for (const fx of [0.5, 0.75, 0.25]) for (let fy = 0.05; fy <= 0.951; fy += 0.05) out.push(at(p0, fx, fy)); if (/watermark/.test(t)) { const c = at(p0, 0.5, 0.5); out.sort((m, n) => Math.hypot(m.x - c.x, m.y - c.y) - Math.hypot(n.x - c.x, n.y - c.y)) } }
   else if (/moving average/.test(t)) { for (const fx of [0.6, 0.8, 0.4]) for (let fy = 0.05; fy <= 0.95; fy += 0.01) out.push(at(p0, fx, fy)) }
   else { for (const fy of [0.4, 0.5, 0.3, 0.6]) out.push(at(p0, 0.5, fy)) }
