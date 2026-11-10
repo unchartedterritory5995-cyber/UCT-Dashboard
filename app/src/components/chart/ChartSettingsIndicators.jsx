@@ -1620,6 +1620,7 @@ export default function ChartSettingsIndicators({
             type="button"
             className={styles.insRowPrimary}
             data-row-primary={rid}
+            data-guide="indicators.row"
             tabIndex={structureTabStop === rid ? 0 : -1}
             aria-current={isSel ? 'true' : undefined}
           >
@@ -1725,6 +1726,7 @@ export default function ChartSettingsIndicators({
           type="button"
           className={styles.insRowPrimary}
           data-row-primary={row.id}
+          data-guide="indicators.row"
           tabIndex={structureTabStop === row.id ? 0 : -1}
           aria-current={isSel ? 'true' : undefined}
         >
