@@ -152,7 +152,7 @@ describe('5 · the plots, the table and the readout', () => {
     expect(paneTableFor(DEF, DARK, { inputs: {} }), 'no row stored, no table').toBeNull()
   })
 
-  it('the readout: the summary as the glance row, the numbers beneath it, the rating on the pane label', () => {
+  it('the readout: the summary as the glance row, the numbers beneath it, no chip number on the pane label', () => {
     const rows = readoutRows(DEF, PAYLOAD, { inputs: {} })
     const glance = rows.filter((r) => !r.detailOf)
     expect(glance.map((r) => r.key)).toEqual(['ratingView', 'history'])
@@ -162,7 +162,11 @@ describe('5 · the plots, the table and the readout', () => {
       ['Rating', '83'], ['21-session avg', '73'], ['20-session change', '20'], ['Sessions drawn', '24'],
       ['Rated as of', '2026-11-06'], ['Components', '1M 50 · 3M 60 · 6M 70 · 9M 80 · 12M 90'],
     ])
-    expect(readoutChipRows(DEF, rows).map((r) => [r.key, r.text])).toEqual([['rating', '83']])
+    // F3 (2026-11-10): the pane label's value IS the rating (the line's number live,
+    // the summary as the fallback), so the chip number that doubled it (`· 83  83, up…`)
+    // is gone — declared `chip: false`, never "the first rows".
+    expect(DEF.readout.find((r) => r.key === 'rating').chip).toBe(false)
+    expect(readoutChipRows(DEF, rows)).toEqual([])
     expect(glance[1]).toMatchObject({ label: 'Bars held', text: '30', muted: true })
     // the card: plain English, the honesty sentence, no trade words
     const card = DEF.readout.find((r) => r.key === 'ratingView').card

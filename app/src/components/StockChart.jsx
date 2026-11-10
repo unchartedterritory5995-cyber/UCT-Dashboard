@@ -308,6 +308,24 @@ const NO_PANE_KEYS = Object.freeze([])
  * @param {string} tf the chart timeframe
  * @returns {{table: object|null, ends: object[]}}
  */
+/**
+ * ⭐ F3 (2026-11-10) — the off-hover END-TAG chips, compared field for field so
+ * the refresh below writes state only when a tag's identity, ink or text moved
+ * (the chips are rebuilt on every call, so object identity says nothing).
+ */
+function sameEndTagChips(a, b) {
+  if (a === b) return true
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i], y = b[i]
+    if (!x || !y) return false
+    if (x.instanceId !== y.instanceId || x.plotKey !== y.plotKey || x.color !== y.color || !!x.hidden !== !!y.hidden) return false
+    const ex = x.endLabel || {}, ey = y.endLabel || {}
+    if (ex.text !== ey.text || !!ex.fromValue !== !!ey.fromValue || ex.spec !== ey.spec) return false
+  }
+  return true
+}
+
 function priceHostChips(chips, hostOf, tf) {
   const out = { table: null, ends: [] }
   if (!Array.isArray(chips) || !chips.length) return out
@@ -5323,6 +5341,24 @@ export default function StockChart({
   // ── Drawing tools state ──
   // ── Crosshair legend state ──
   const [crosshairData, setCrosshairData] = useState(null)
+  /**
+   * ⭐ F3 (2026-11-10) — THE LINE-END TAGS WHILE THERE IS NO READOUT PAYLOAD.
+   *
+   * ⚰️ MEASURED ON THE PHONE (sandbox, 390 px, `_phone_rsline_only.png`): the
+   * `RS 82` tag never showed on the price pane. The host that renders the tags
+   * read its chips off `crosshairData`, and the phone shell mounts with
+   * `alwaysShowLegend: false` (the legend is a crosshair inspection tool there,
+   * `MobileChartsApp.stockChartProps`), so off-hover `crosshairData` is `null`
+   * and the tag existed only under a finger. A desktop legend folded to
+   * hover-only (`compactLegend`) lost it the same way. The tag is MarketSurge's
+   * number at the line's end, pane furniture like the axis' own last-value tag,
+   * not a readout: it must not depend on the legend being persistent. So the
+   * chips that carry a tag are kept here, refreshed where the off-cursor readout
+   * is (`refreshOffCursorReadout`, and the two hover-leave sites), and the host
+   * reads them whenever `crosshairData` is absent. ⛔ END TAGS ONLY — the ranks
+   * strip stays a readout surface and keeps the legend's gates.
+   */
+  const [offHoverEndTagChips, setOffHoverEndTagChips] = useState(EMPTY_CHIPS)
   // Responsive vertical legend. "Collapsed" = the legend's full height reaches the
   // range-selector band (just above the price/volume boundary). At that point we
   // (a) hide the range bar, (b) switch the legend to HOVER-ONLY (like a multi-chart
@@ -5615,7 +5651,9 @@ export default function StockChart({
         resolved = resolvedInputsOf(def, (inst && inst.inputs) || {})
         scalars = readoutChipOpts.scalarsOf(def, resolved)
       } catch { scalars = null }
-      fallback = readoutFallbackValue(def, scalars, c.decimals, resolved)
+      // F3: the chip's plot, so a `legend.showValue: false` line withholds its
+      // dated last value the way it withholds the live one.
+      fallback = readoutFallbackValue(def, scalars, c.decimals, resolved, { plotKey: c.plotKey })
     }
     return { def, name, fallback }
   }
@@ -5870,6 +5908,17 @@ export default function StockChart({
     (alwaysShowLegend && !compactLegendRef.current) ? computeLatestCrosshair() : null
   )
   /**
+   * ⭐ F3 — the end-tag chips the price-pane host reads while `crosshairData` is
+   * `null` (see the state's own note). Empty while the legend is persistent: the
+   * readout payload carries the same chips then, and one source is enough. Reads
+   * refs only (`latestChips`), so the hover-leave closures may call it; a
+   * field-for-field compare keeps a no-change refresh from re-rendering.
+   */
+  const refreshOffHoverEndTags = (persistentLegend) => {
+    const next = persistentLegend ? EMPTY_CHIPS : latestChips().filter((c) => c && c.endLabel && c.hidden !== true)
+    setOffHoverEndTagChips((prev) => (sameEndTagChips(prev, next) ? prev : (next.length ? next : EMPTY_CHIPS)))
+  }
+  /**
    * Re-derive the off-cursor readout from the bars currently on the chart,
    * unless a hover or a synced crosshair owns it. ONE expression for the data
    * refresh effect and the switch-time applier, so the two cannot disagree.
@@ -5877,6 +5926,7 @@ export default function StockChart({
   const refreshOffCursorReadout = () => {
     if (readoutIsOwned()) return
     setCrosshairData(effAlwaysShow ? computeLatestCrosshair() : null)
+    refreshOffHoverEndTags(effAlwaysShow)
   }
   /**
    * Is something already OWNING the readout, so the off-hover refreshers must
@@ -16807,6 +16857,7 @@ export default function StockChart({
       if (!priceData) {
         legendHoveringRef.current = false
         setCrosshairData(offHoverCrosshair())
+        refreshOffHoverEndTags(alwaysShowLegend && !compactLegendRef.current)
         return
       }
 
@@ -16982,6 +17033,7 @@ export default function StockChart({
         crosshairParamRef.current = null
         legendHoveringRef.current = false
         setCrosshairData(offHoverCrosshair())
+        refreshOffHoverEndTags(alwaysShowLegend && !compactLegendRef.current)
         // Tell the sync bus the local user left the chart — but not when this
         // empty event was self-induced by applying an external crosshair.
         if (!applyingExternalRef.current && typeof onCrosshairMoveRef.current === 'function') {
@@ -22320,10 +22372,17 @@ export default function StockChart({
           (b) Every plot's line-end tag (`plots[].endLabel`), on whichever pane its
               series draws in, pinned by `pinEndLabel` from the series' own
               coordinates. Both follow the pane readouts' gates: declutter hides the
-              lines, so it hides their labels too. */}
-      {chartReady && !indicatorsHidden && crosshairData ? (() => {
+              lines, so it hides their labels too.
+          ⭐ F3 — the tags do NOT follow the legend's persistence: with no readout
+              payload (the phone shell, a legend folded to hover-only) the host
+              reads `offHoverEndTagChips`, which carries tags only, so the strip
+              still waits for a payload. */}
+      {chartReady && !indicatorsHidden && (crosshairData || offHoverEndTagChips.length) ? (() => {
         priceChromeRef.current = { legendFlush, toolbarCollapsed }
-        const hosted = priceHostChips(crosshairData.chips, chipPaneHost, resolvedTf)
+        const hosted = priceHostChips(crosshairData ? crosshairData.chips : offHoverEndTagChips, chipPaneHost, resolvedTf)
+        // ⛔ one chip carries BOTH the tag and the strip (the RS line's): off the
+        // payload the strip is dropped here, so it keeps the legend's gates.
+        if (!crosshairData) hosted.table = null
         if (!hosted.table && !hosted.ends.length) return null
         return (
           <Fragment>

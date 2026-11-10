@@ -5013,13 +5013,18 @@ const RS_LINE_SLIM_RAW = {
   ],
   plots: [
     // The line, one colour (info blue by default), its band to the average switched
-    // with the average (`fill.activeWhen`). `precision: 4` keeps the legend and the
-    // tag on one number (visual review D1). The line-end tag (U2) and the live
+    // with the average (`fill.activeWhen`). The line-end tag (U2) and the live
     // tail (U2b) ride it as on v5.
+    // ⭐ `legend.showValue: false` (F3, real screen 2026-11-10): the pane label read
+    // `UCT RS · SPY · 82  0.4378`, and the ratio means nothing to a member; the
+    // rating beside it is the number. The chip stays (the name, the chip rows, the
+    // tag, the readout menu); only the value is withheld, on the price pane and in
+    // an own pane alike (`readout.chipValueText`). V5 is unchanged: its Readings
+    // print their own numbers. `precision: 4` still formats the popover's rows.
     { key: 'rsLine', label: 'RS line', style: 'line', color: '$color', width: '$lineWidth',
       fill: { with: 'rsMa', colorMode: 'column:rsAbove', colorUp: RS_BULL, colorDown: RS_BEAR, activeWhen: RS_AVERAGE_ON },
       fillOpacity: RS_SHADE_OPACITY,
-      precision: 4, role: 'primary', legend: { decimals: 4 },
+      precision: 4, role: 'primary', legend: { decimals: 4, showValue: false },
       endLabel: { source: 'scalar:rating.ibd', prefix: 'RS ', when: ['input:showRating'] },
       liveTail: { kind: 'ratio', benchmark: 'scalar:benchmark.resolved' } },
     // The condition column, hidden: the band's colour rule reads it.
@@ -5243,8 +5248,11 @@ const RS_RATING_RAW = {
     quickMenu: false,
     timeframes: ['D'],
     // The pane has no last-value tag for a blank series: the server's summary
-    // (`82, up 6 in 20 sessions`) or, muted, its reason (`the rating history is
-    // not switched on`).
+    // (`82, up 6 in 20 sessions · as of Nov 6`) or, muted, its reason (`the
+    // rating history is not switched on`). The summary LEADS with the rating, so
+    // the readout declares no chip number (F3, real screen 2026-11-10: the label
+    // read `UCT RS Rating · 82  82, up 2 in 20 sessions`): live it reads
+    // `UCT RS Rating  82`, beside `UCT RS Phases · SPY  1.70`.
     legendFallback: [
       { source: 'scalar:ratingHistory.summary', format: 'text', muted: 'scalar:ratingHistory.reason' },
     ],
@@ -5292,8 +5300,13 @@ const RS_RATING_RAW = {
       lineStyle: 'solid', role: 'context' },
   ],
   // The readout: the server's summary as the glance row (muted when it is the
-  // reason), the numbers block beneath it, the latest rating on the pane label
-  // (`UCT RS Rating · 94`). Every row is banded by the site's rating colours.
+  // reason), the numbers block beneath it. ⛔ NO CHIP ROW (F3): the pane label's
+  // value IS the rating (the line's own number live, the summary's leading number
+  // as the fallback), so a chip number printed it twice. The Rating row says so
+  // with `chip: false` — named and not a chip — because a readout that names no
+  // chip row at all would put its first rows into the suffix instead
+  // (`readoutSchema.readoutChipRows`). Every row is banded by the site's rating
+  // colours.
   readout: [
     { key: 'ratingView', label: 'RS Rating', source: 'scalar:ratingHistory.summary', format: 'text',
       muted: 'scalar:ratingHistory.reason',
@@ -5301,7 +5314,7 @@ const RS_RATING_RAW = {
       card: { what: 'The RS Rating over time: the nightly IBD-style rating, 1 to 99, at each session on the chart, with its 21-session average dashed and guides at 80 and 90. A rising line means the stock has been climbing past the other names rated; a flat line near the top means it has held its place there. The row prints the latest rating and how many points it moved over the last 20 stored sessions. Daily charts only: the rating is stored once a session, and a session with no stored rating is left blank.',
         origin: 'IBD\'s Relative Strength Rating, with IBD\'s published term weights, ranked across our universe on our own bars. Deepvue and MarketSurge draw the rating as a line under the chart.',
         evidence: 'The rating is a rank of past return, not a forecast. ' + RS_HONESTY_SENTENCE } },
-    { key: 'rating', label: 'Rating', source: 'scalar:ratingHistory.value', format: 'int', chip: true,
+    { key: 'rating', label: 'Rating', source: 'scalar:ratingHistory.value', format: 'int', chip: false,
       detailOf: 'ratingView', band: { source: 'scalar:ratingHistory.value' } },
     { key: 'ratingAverage', label: '21-session avg', source: 'scalar:ratingHistory.average', format: 'ratio',
       detailOf: 'ratingView' },
