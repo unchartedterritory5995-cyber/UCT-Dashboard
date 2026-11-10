@@ -703,6 +703,19 @@ const LEDGER = [
   { file: 'app/src/components/chart/discoveryCatalog.js',
     region: 'POPULAR_DEF_IDS — the curated `Popular` tab of the Add Indicator library',
     anchor: 'export const POPULAR_DEF_IDS = Object.freeze([', fate: 'keep' },
+  // ⭐ UCT RS SPLIT, FIX LANE F1 (2026-11-10) — THE PUBLIC RS GLOSSARY'S INDICATOR
+  // TABLE. U9 landed `/methodology/relative-strength` with the four RS indicators
+  // (`rsLine`, `rsRating`, `rsPhases`, `rsVsEma`) in READING order, each with its
+  // lesson key and a teaching sentence; the fourth id took the page over the
+  // floor. Same species as `POPULAR_DEF_IDS` one row above: "which indicators the
+  // glossary teaches, and in what order" is a CONTENT judgment `listDefinitions()`
+  // cannot express (it lists fifty-six). `name` is each definition's `meta.name`
+  // and the RS Line's `what` its `meta.description`, pinned to the source by
+  // `RsGlossary.test.jsx` rather than derived, because the page is PUBLIC and must
+  // not import the chart engine to render a paragraph. `keep`: the table is the page.
+  { file: 'app/src/pages/RsGlossary.jsx',
+    region: 'RS_INDICATORS — the four RS indicators the public glossary teaches, in reading order',
+    anchor: 'export const RS_INDICATORS = Object.freeze([', fate: 'keep' },
   // ⭐ PHASE 4 (Unified Editing) — `builder/builtinForks.js::SPECS`, "Create custom
   // copy" of a UCT built-in: per built-in, the FORMULA that reproduces its native maths.
   // ⛔ NOTHING CAN DERIVE IT: a native compute is JavaScript, not a tree, and "RSI is
@@ -1240,7 +1253,10 @@ const RETIRED_BY_B4_ALERTS = [
 // the router's id → provider map (`signature.py`) and the provider module
 // (`rs_provider.py`, an over-match: each envelope names its own id, no list).
 // All three `keep`; see their rows.
-const SITE_COUNT = 20
+// ⭐ 20 -> 21 AT THE UCT RS SPLIT FIX LANE F1 (2026-11-10): U9's public glossary
+// (`pages/RsGlossary.jsx::RS_INDICATORS`) names all four RS ids in reading order
+// — a content judgment, ledgered `keep`; see its row.
+const SITE_COUNT = 21
 
 describe('the enumeration ledger — the count is a test, not a comment', () => {
   it(`holds ${SITE_COUNT} live sites, and every one of them is still where it says it is`, () => {
@@ -1423,7 +1439,9 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // ⭐ 16 -> 17 AT PHASE 4: `builtinForks.js::SPECS` joins as `keep` (see its row).
     // ⭐ `{keep: 17}` -> `{keep: 20}` AT THE UCT RS SPLIT (U6, 2026-11-09): the three
     // server-side rows above, every one `keep`.
-    expect(counts).toEqual({ keep: 20 })
+    // ⭐ `{keep: 20}` -> `{keep: 21}` AT FIX LANE F1 (2026-11-10): the public RS
+    // glossary's `RS_INDICATORS` table joins as a `keep`. See its LEDGER row.
+    expect(counts).toEqual({ keep: 21 })
     // …and by NAME, because a histogram cannot tell an absent bucket from a
     // bucket somebody renamed.
     expect(LEDGER.filter(s2 => s2.fate === 'phase'),
@@ -1530,6 +1548,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       ["app/src/components/chart/engine/nativeRegistry.js::RAW_DEFS — THE ONE THAT SHOULD SURVIVE","keep"],
       ["app/src/components/chart/engine/registrySizes.js::SHIPPED_DEF_IDS — the hand-written manifest the registry must equal","keep"],
       ["app/src/components/chart/keyboardShortcuts.js::INDICATOR_CHORDS — the four chord bindings, declared once","keep"],
+      ["app/src/pages/RsGlossary.jsx::RS_INDICATORS — the four RS indicators the public glossary teaches, in reading order","keep"],
       ["app/src/pages/charts/mobile/MobileIndicatorSheet.jsx::QUICK_STUDY_IDS — the curated two-tap study roster on the phone ƒx sheet","keep"],
       ["tools/chart_parity_cases.json::the parity case list","keep"],
     ])
@@ -2246,6 +2265,9 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       'app/src/components/chart/engine/nativeRegistry.js',
       'app/src/components/chart/engine/registrySizes.js',
       'app/src/components/chart/keyboardShortcuts.js',
+      // ⭐ UCT RS SPLIT, FIX LANE F1 (2026-11-10) — RS_INDICATORS, the public
+      // glossary's four-indicator teaching table. Ledgered; see its LEDGER row.
+      'app/src/pages/RsGlossary.jsx',
       // ⭐ MOBILE WAVE 4 — QUICK_STUDY_IDS, the phone ƒx sheet's curated
       // two-tap roster. Deliberate and ledgered; see its LEDGER row above.
       'app/src/pages/charts/mobile/MobileIndicatorSheet.jsx',
@@ -2345,6 +2367,8 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
         'app/src/components/chart/engine/nativeRegistry.js',
         'app/src/components/chart/engine/registrySizes.js',
         'app/src/components/chart/keyboardShortcuts.js',
+        // ⭐ UCT RS SPLIT F1 (2026-11-10) — RS_INDICATORS; a `.jsx` under app/src, walkable.
+        'app/src/pages/RsGlossary.jsx',
         // ⭐ MOBILE WAVE 4 — QUICK_STUDY_IDS; a `.jsx` under app/src, walkable.
         'app/src/pages/charts/mobile/MobileIndicatorSheet.jsx'])
     expect(keepWalkable.length).toBeGreaterThan(0)

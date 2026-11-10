@@ -120,7 +120,10 @@ describe('3-09b · every other label is byte-identical', () => {
       }
     }
     expect(compared).toBeGreaterThan(50)
-    expect(changed).toEqual(['rsLine {"benchmark":"CUSTOM"}'])
+    // ⭐ RS split F1 (2026-11-10): `rsPhases` and `rsVsEma` carry the same benchmark
+    // pair (`rsSplitBenchmarkInputs`, `identityFor: 'benchmark'`), so their CUSTOM
+    // chip reads the typed symbol too. `rsRating` has no benchmark and stays identical.
+    expect(changed).toEqual(['rsLine {"benchmark":"CUSTOM"}', 'rsPhases {"benchmark":"CUSTOM"}', 'rsVsEma {"benchmark":"CUSTOM"}'])
   })
 })
 

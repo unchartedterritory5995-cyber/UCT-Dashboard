@@ -111,13 +111,22 @@ adding one.
 
 ```
 LINTER-MEASUREMENT-V1
-definitions 53
-plots 148
+definitions 56
+plots 158
 decided 1
-undecidable-hand-written 147
+undecidable-hand-written 157
 verdict ichimoku.chikou preview-repaints forward=26
 disagreement ichimoku.chikou shipped=non-repainting measured=preview-repaints
 ```
+
+⭐ **2026-11-10 — the counts moved by three definitions and ten plots, and the FINDING
+did not move at all.** The UCT RS split (`feat/uct-rs-split`, fix lane F1) registered the three
+indicators carved out of `rsLine`: `rsRating` (`ratingLine`, `ratingMa`, the `ratingGuides`
+guide), `rsPhases` (`phase`, `divergence`, the `zero` guide) and `rsVsEma` (`dist`, `fast`,
+`slow`, the `zero` guide). All three are `server` computes like `rsLine`, so all ten plots land
+in `undecidable-hand-written`: `decided` stays 1, the one verdict and the one disagreement are
+unchanged. Measured by `ast/lint.test.js` on the integration branch at `7cbbaeb09d` (158 rows,
+24 of them `rsLine.*`), never edited into agreement.
 
 ⭐ **2026-09-16 — the counts moved by one definition and one plot, and the
 FINDING did not move at all.** `dollarVolume` was registered (the `$ Vol` reading
