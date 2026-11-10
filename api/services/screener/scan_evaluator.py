@@ -1405,6 +1405,8 @@ def _block_runs_withheld(definition: Any, key: Optional[str], bars: list, scalar
             "now": _eval_now,
             "barIndexAbsolute":
                 ast_interpret.bar_index_absolute_for(definition),
+            "varOriginAbsolute":
+                ast_interpret.bar_index_absolute_for(definition),
             "semantics":
                 ast_interpret.semantics_for(definition)}
     return block_runs.block_runs_refusal(
@@ -2196,6 +2198,10 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
                                                    "symbols": symbol_series,
                                                    "now": _eval_now,
                                                    "barIndexAbsolute":
+                                                       ast_interpret.bar_index_absolute_for(definition),
+                                                   # 2026-11-09 -- and its `var` state began on the
+                                                   # symbol's first bar (`var_origin_mask`)
+                                                   "varOriginAbsolute":
                                                        ast_interpret.bar_index_absolute_for(definition),
                                                    "semantics":
                                                        ast_interpret.semantics_for(definition)})
