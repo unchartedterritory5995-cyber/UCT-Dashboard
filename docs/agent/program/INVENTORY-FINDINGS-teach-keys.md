@@ -9,6 +9,10 @@
 | C3-223 | documentation mismatch | the key exists, but it captures a chart to the Journal; it toggles nothing |
 | C1-123 | alternative access path | the desktop /charts right-click menu never had Add indicator; other ways in exist |
 | C1-175 | documentation mismatch | Esc is declared and teachable; the row says it has no walkthrough and is BLOCKED |
+| C3-080 | intentional removal, dead residue | "Remove starred" lost its only trigger on purpose in `72482c8400`; the code and CLAUDE.md line are leftovers |
+
+Follow-up of 2026-11-10 (proposals only, nothing implemented): (a) C3-080 is below, and (b) and (c) are added under
+C3-223 and C1-123.
 
 ## C3-223: "Toggle the journal shortcut (Ctrl+Alt+J)", cited at CW:2678
 
@@ -33,6 +37,30 @@ is stale: the listener is at CW:2843 now.
 
 **Product follow-up, owner's call:** declare it in SHORTCUTS. The guide's key family would then teach it with no
 guide change, because rows are built from SHORTCUTS.
+
+**(b) Handler re-verified 2026-11-10 at `dfc645ccb3`**
+- **Intended behaviour.** Both handlers say the same thing in their code comments.
+  - CWID:586-615: "One-keystroke capture … only the last-hovered chart answers, so one press banks ONE chart into the
+    inbox even with six on the board."
+  - In detail, the widget handler checks `e.ctrlKey && e.altKey && e.key in {j, J}` and returns early on
+    `isHiddenDeskKey(e)`. It requires `activeChartRef.current === widgetIdRef.current`; it deliberately does not use
+    `hotkeysIsActive()`, because null-means-all would post N inbox rows.
+  - It then POSTs `/api/j2/inbox` and shows the toast "SYM captured → Notebook inbox" or "Capture failed — try again".
+  - CW:2833-2851 shows "Hover a chart first …" only when no chart is hovered, the board is shown and the layout is not
+    grid mode. Its comment says grid cells don't implement capture.
+- **History.**
+  - Added in `e312b0bf44` (2026-08-12).
+  - The explicit-hover-owner rule came from `e3236862f7` (2026-08-12, "capture demands an explicit hover owner").
+  - Last touched in `a01389e3e7` (2026-11-09, the popped-out windows change); `git log -L` shows no behaviour change since.
+- **No collision with Alt+J (horizontal ray).** `matchOverlayTool` returns null on any `ctrlKey || metaKey` (KS:404).
+  `matchShortcut` returns null on any `altKey` (KS:228). So Ctrl+Alt+J never arms `tool:hray`.
+- **Caveat for teaching it (flag before any SHORTCUTS declaration).** The handler tests `ctrlKey`, not `metaKey`.
+  - The key family's rule "on a Mac, Cmd for Ctrl" would therefore produce a wrong instruction here. It would say
+    Cmd+Option+J, but the code only answers Control+Option+J.
+  - The handler also matches `e.key`, not `e.code`. With Option held, macOS can change `e.key` (Option+J gives '∆').
+    Whether Control+Option+J reaches the handler with `e.key === 'j'` is UNVERIFIED: it needs a real Mac.
+  - If the key is declared, it needs a per-row Mac override (or a `code: 'KeyJ'` match in the handler), not the
+    blanket rule.
 
 ## C1-123: "Add indicator from menu", cited at SC:6012
 
@@ -61,6 +89,31 @@ guide change, because rows are built from SHORTCUTS.
   library. On desktop /charts that entry does not exist. If the spec stands, this becomes a **missing feature** on desktop
   /charts: the widget menu would need to render the `ind-add` row.
 
+**(c) Assessment of a widget-menu row that reuses the existing action (2026-11-10, proposal only)**
+- **The existing action.** `openIndicatorLibrary`, at SC ~6915-6929, is `addIndicatorItem`
+  (`id: 'ind-add'`, `onSelect: openIndicatorLibrary`).
+  - It asks `toolbarRef.current.openIndicatorLibrary()` first and falls back to `openSettings()` on any non-`true`
+    answer. That is the same order and the same call as Alt+Shift+A.
+  - It writes nothing itself. Every add goes through the library dialog, and so through `setIndicatorEnabled`.
+  - Its presence is the read-only gate (`showDrawingTools`).
+  - It is pushed into the Chart region's section (SC:7179).
+- **It already reaches the widget.** StockChart's `onBarContextMenu` payload carries `sections` (SC:18735-18742). The
+  widget's `handleBarContextMenu` (CWID:520) copies selected fields into `ctxMenu` and drops `sections`.
+- **Smallest no-duplicate shape.**
+  - In `handleBarContextMenu`, keep only the `onSelect` of the `ind-add` item found in `p.sections`, for example as
+    `addIndicator`.
+  - Render one row when it is present; the row calls it, then `closeCtx()`.
+  - No new launcher, no new gate, no settings write. If StockChart omits the item (read-only, Model Book, grid
+    cell), the row is absent too. The same pattern already exists for `p.resetView` and `p.openSettings`.
+- **What it does not cover.** `ind-add` is pushed only for the plot/price region branch, so a right-click on the price
+  axis or time axis would still show no row. That matches StockChart's own menu, so it is consistent rather than a gap.
+- **Costs and risks.**
+  - One new `data-menu-id` on the widget menu. The guide would need a target for it, and any `data-guide` attribute
+    needs the Lead's OK first.
+  - The widget menu's row-order tests and goldens would change.
+  - The C1-123 row would flip from "alternative access path" to "present".
+  - This is a product change: the owner decides whether spec §6 stands for desktop /charts.
+
 ## C1-175: "Escape to cursor / cancel", cited at KS:112
 
 **What the code does**
@@ -81,3 +134,44 @@ guide change, because rows are built from SHORTCUTS.
 - Example: "what key cancels the drawing tool".
 - Guide feature: chartKey, title "Cursor / cancel (Esc)".
 - BLOCKED applies to *executing* Esc, which needs pointer-session state. It does not apply to teaching it.
+
+## C3-080: "Remove all starred" (Watchlists list-name menu → "Remove starred (N)")
+
+**What the code does** (`pages/Watchlists.jsx` at `dfc645ccb3`)
+- The machinery is all still present:
+  - `starred` state (:930);
+  - `toggleStar` (:978);
+  - `getStarredSyms` (:983);
+  - `handleRemoveStarred` (:988; its only other `setStarred` call, at :1003, deletes keys);
+  - the menu row, gated on `getStarredSyms(id).length > 0` (:3658-3662).
+- `toggleStar` has no caller, and nothing else adds to `starred`. The set is therefore always empty, and the row can
+  never render.
+- The row's star now means Add to / Remove from Flagged.
+- CLAUDE.md:5191 still documents "Star selection + bulk remove: star icon per row, right-click 'Remove starred (N)'".
+
+**When and why the trigger was lost: intentionally**
+- `git log -S toggleStar -- app/src` gives two commits:
+  - `30bbd674e9` ("Add star selection and bulk remove for watchlist tickers") added it.
+  - `72482c8400` (2026-07-19, "Watchlist columnar redesign: Flag·Sym·Price·Volume·%Change + star-as-flag") removed
+    both `onClick={… toggleStar(…)}` callers.
+- The 72482c8400 commit body says so outright: "The left star IS the Flagged toggle now" and "Note: inline
+  drag-reorder + the old bulk 'star-select' were dropped in this pass (star is now the flag)."
+- It was an owner-era redesign commit, not a regression. The commit left the state, helpers and menu row in place as
+  dead code, and did not update CLAUDE.md.
+- `git log -S "Remove starred"` shows only the original commit plus later agent-guide commits. Those commits teach
+  around the row; none of them touch the product.
+
+**Teaching status:** consistent already. PR #1014 withdraws "Remove starred" (`guide/actions.js:199`, the `WITHDRAWN`
+set in `agentGuideHeldOutControls.test.js`, and "NOT IN PRODUCT (C3-080)").
+
+**Proposal (not implemented)**
+- Classify the row as **NOT IN PRODUCT: intentionally removed in 72482c8400**. It is not a defect, so restoration is
+  not recommended by default. Restoring the per-row star as a selector would collide with the star-as-Flagged
+  meaning the owner chose.
+- Product clean-up, owner's call:
+  - Delete the dead residue (`starred`, `toggleStar`, `getStarredSyms`, `handleRemoveStarred` and the
+    "Remove starred" menu row).
+  - Update CLAUDE.md:5191 to say the bulk star-select was dropped in 72482c8400.
+- If the owner wants bulk removal back, reuse the existing `starred` Set and `handleRemoveStarred` (it already handles
+  the Flagged list and linked-list gating) behind a selection gesture that is not the star, such as Ctrl/Cmd+click
+  row multi-select. That is a new design decision, not a restoration, so it needs owner approval before any work.
