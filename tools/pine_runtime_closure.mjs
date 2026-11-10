@@ -42,6 +42,7 @@ export const FORBIDDEN_MODULES = Object.freeze({
   [`${ENGINE}/runtimeKill.js`]: 'fetches the kill and allow lists (H4)',
   [`${ENGINE}/runtimePaneGate.js`]: 'a build gate (import.meta.env): it decides whether a pane runs, so it belongs to the door (H3)',
   [`${ENGINE}/lowerTfGate.js`]: 'a build gate (import.meta.env): registered at the door through lowerTfServing.js (H3)',
+  [`${ENGINE}/liveTail.js`]: 'the benchmark tail store: the door\'s request and a page-level cache with its wall clocks (H4/H5); the `liveTail` grammar is the leaf liveTailSchema.js',
   'app/src/lib/runtimePanePermission.js': 'fetches the member permission (H4)',
   [`${ENGINE}/runtime/runtimeAsync.js`]: 'the browser transport (H1)',
   [`${ENGINE}/runtime/runtimeWorker.js`]: 'the browser transport (H1)',

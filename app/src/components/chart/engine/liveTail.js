@@ -51,21 +51,24 @@
 // validateLiveTails` holds the grammar fail-closed; `serverCompute.test.js`'s
 // source scan keeps the lane free of definition ids.
 
+//
+// ⛔ NOT IN THE COMPUTE CLOSURE, AND NO NETWORK OF ITS OWN (fix lane F2,
+// 2026-11-10). The grammar `defSchema.js` validates against is the leaf
+// `liveTailSchema.js` (re-exported below), so the runtime lane's closure never
+// reaches this store. And the store does not know how to ASK: the request is the
+// host's, registered through `registerBenchmarkTailRequest` by the door that
+// already owns the envelope's own request (`serverCompute.js`, on import); a host
+// that never registers one (the test host, by `test-setup.js`; any other
+// process) asks for nothing and the server's value stands — unregistered is
+// OFF, as `lowerTfServing.js` reads its gate. No `import.meta.env` here: which
+// host this is was a build-flag read (`MODE === 'test'`), and a build flag
+// inside the lane is a second authority (SERVER-RUNTIME-DESIGN.md 2.2 H3).
+
 import { readoutSourceValue } from './readoutSchema'
+import { LIVE_TAIL_KINDS, LIVE_TAIL_FIELDS, LIVE_TAIL_MA_TYPES } from './liveTailSchema'
 
-/** The closed set of `liveTail.kind` values. */
-export const LIVE_TAIL_KINDS = Object.freeze(['ratio', 'ma'])
-
-/** The closed set of fields per kind (`kind` included). */
-export const LIVE_TAIL_FIELDS = Object.freeze({
-  ratio: Object.freeze(['kind', 'benchmark', 'scale']),
-  ma: Object.freeze(['kind', 'of', 'length', 'type']),
-})
-
-/** The averages whose last point can be continued exactly (both are linear in
- *  their newest term). Compared upper-cased: the server's `maType` row is
- *  `EMA` / `SMA`. */
-export const LIVE_TAIL_MA_TYPES = Object.freeze(['EMA', 'SMA'])
+/** The grammar, from its leaf (`liveTailSchema.js`): one import for every reader. */
+export { LIVE_TAIL_KINDS, LIVE_TAIL_FIELDS, LIVE_TAIL_MA_TYPES }
 
 /** How many benchmark bars one tail request asks for: the forming bar, the
  *  sealed one before it (the time join needs no more), and one spare for a
@@ -276,15 +279,23 @@ export function withLiveTail(def, columns, bars, inputs, opts) {
 // same route and store the chart's own candle is served from. Deduped in flight,
 // re-asked only when a compute reads a due entry, announced when it lands.
 
-const _TEST_MODE = (() => {
-  try { return !!(import.meta && import.meta.env && import.meta.env.MODE === 'test') } catch { return false }
-})()
-
 const _tails = new Map()       // key -> {sym, tf, bars: Array|null, fetchedAt, version}
 const _inflight = new Map()    // key -> Promise
 const _subscribers = new Set()
 let _version = 0
-let _testFetcher = null
+let _request = null            // the host's request for one URL, or null: this host asks for nothing
+
+/**
+ * The host's request for a benchmark tail: `(url) => Promise<barsBody>`, or
+ * `null` to take it away. The door registers the browser's (`serverCompute.js`,
+ * on import, the same `fetch` its envelopes use); the test host disarms it before
+ * every test (`test-setup.js`) and a suite arms a counting one through
+ * `__setBenchmarkTailFetcherForTests`. ⛔ Unregistered, the store never asks:
+ * the server's value stands, nothing is guessed.
+ */
+export function registerBenchmarkTailRequest(fn) {
+  _request = typeof fn === 'function' ? fn : null
+}
 
 function tailKey(sym, tf) {
   return `${String(sym).toUpperCase()}:${String(tf == null ? 'D' : tf)}`
@@ -296,13 +307,6 @@ export function benchmarkTailUrl(sym, tf) {
   const s = typeof sym === 'string' ? sym.trim() : ''
   if (!s) return null
   return `/api/bars/${encodeURIComponent(s)}?tf=${encodeURIComponent(String(tf == null ? 'D' : tf))}&bars=${BENCHMARK_TAIL_BARS}`
-}
-
-function _defaultFetch(url) {
-  return fetch(url, { credentials: 'include' }).then((r) => {
-    if (!r.ok) throw new Error(`HTTP ${r.status}`)
-    return r.json()
-  })
 }
 
 /** Notified with the entry key when a benchmark tail lands (or fails). @returns {() => void} */
@@ -339,8 +343,8 @@ function _land(key, sym, tf, bars, now) {
 }
 
 function _fetchTail(sym, tf, key, fetcher, now) {
-  const get = typeof fetcher === 'function' ? fetcher
-    : (typeof _testFetcher === 'function' ? _testFetcher : (_TEST_MODE ? null : _defaultFetch))
+  // The call's own request first, else the host's registered one, else nothing.
+  const get = typeof fetcher === 'function' ? fetcher : _request
   if (!get) return
   const url = benchmarkTailUrl(sym, tf)
   if (!url) return
@@ -426,9 +430,11 @@ export function _resetBenchmarkTailsForTests() {
   _version = 0
 }
 
-/** Test seam: arm (or, with null, disarm) the request for the whole module. */
+/** Test seam: arm (or, with null, disarm) the request for the whole module — the
+ *  test host's spelling of `registerBenchmarkTailRequest`, kept so a suite reads
+ *  as one that counts requests it armed itself. */
 export function __setBenchmarkTailFetcherForTests(fn) {
-  _testFetcher = typeof fn === 'function' ? fn : null
+  registerBenchmarkTailRequest(fn)
 }
 
 /** Test seam: the in-flight promises, to await a landing. */

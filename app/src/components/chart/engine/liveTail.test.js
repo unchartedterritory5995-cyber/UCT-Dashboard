@@ -7,7 +7,7 @@
 // benchmark tail store (one entry per (symbol, timeframe), re-asked only when
 // due, announced when it lands). Every fail-closed branch is a case of its own:
 // the whole point of the unit is that a value it cannot prove is the server's.
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
   ratioTail, movingAverageTail, liveBenchmarkSymbol, withLiveTail, liveTailPlots,
   definitionHasLiveTail, benchmarkTailFor, benchmarkTailUrl, benchmarkTailMaxAgeMs,
@@ -313,14 +313,53 @@ describe('the benchmark tail store', () => {
     expect(benchmarkTailFor('QQQ', 'D', { fetcher: bad, now: 1 })).toBeNull()
   })
 
-  it('⛔ under vitest the default request is DISARMED — no test pays for it by accident', () => {
+  it('⛔ the store holds no request of its own: UNREGISTERED IS OFF, and the host\'s registration arms it', () => {
+    // `test-setup.js` took the door's request away before this test; nothing is asked
     expect(benchmarkTailFor('SPY', 'D', { now: 0 })).toBeNull()
     expect(_inflightBenchmarkTails()).toEqual([])
-    // the module seam arms it
+    // the host registers one (the test host's spelling of `registerBenchmarkTailRequest`)
     const calls = []
     __setBenchmarkTailFetcherForTests((u) => { calls.push(u); return Promise.resolve({ bars: [] }) })
     benchmarkTailFor('SPY', 'D', { now: 0 })
     expect(calls).toEqual([benchmarkTailUrl('SPY', 'D')])
+    // ...and takes it away again: a due entry is not re-asked, the server's value stands
+    __setBenchmarkTailFetcherForTests(null)
+    _resetBenchmarkTailsForTests()
+    expect(benchmarkTailFor('SPY', 'D', { now: 0 })).toBeNull()
+    expect(_inflightBenchmarkTails()).toEqual([])
+    expect(calls).toHaveLength(1)
+    // a non-function registration is a disarm, never a throw on the paint path
+    __setBenchmarkTailFetcherForTests('fetch')
+    expect(benchmarkTailFor('SPY', 'D', { now: 0 })).toBeNull()
+    expect(_inflightBenchmarkTails()).toEqual([])
+  })
+
+  it('⭐ the chart door (`serverCompute.js`) registers the browser\'s request on import — the same fetch its envelopes use', async () => {
+    // A fresh module graph, as the browser loads one: the door imports the store and arms it before any compute.
+    vi.resetModules()
+    const seen = []
+    const realFetch = globalThis.fetch
+    globalThis.fetch = (url, init) => { seen.push([url, init]); return Promise.resolve({ ok: true, json: () => Promise.resolve({ bars: [{ t: '2026-11-09', c: 505 }] }) }) }
+    try {
+      const store = await import('./liveTail')
+      expect(store.benchmarkTailFor('SPY', 'D', { now: 0 }), 'before the door: nothing asked').toBeNull()
+      expect(seen).toEqual([])
+      await import('./serverCompute')
+      expect(store.benchmarkTailFor('SPY', 'D', { now: 0 })).toBeNull()   // the ask is in flight
+      expect(seen).toEqual([[store.benchmarkTailUrl('SPY', 'D'), { credentials: 'include' }]])
+      await Promise.all(store._inflightBenchmarkTails())
+      expect(store.benchmarkTailFor('SPY', 'D', { now: 1 }).bars).toEqual([{ t: '2026-11-09', c: 505 }])
+      // a non-2xx answer is a failed ask: remembered as "no tail", never served
+      store._resetBenchmarkTailsForTests()
+      globalThis.fetch = () => Promise.resolve({ ok: false, status: 402, json: () => Promise.resolve({ bars: [] }) })
+      store.benchmarkTailFor('QQQ', 'D', { now: 0 })
+      await Promise.all(store._inflightBenchmarkTails())
+      expect(store.benchmarkTailFor('QQQ', 'D', { now: 1 })).toBeNull()
+      expect(store.benchmarkTailVersion('QQQ', 'D')).not.toBe('0')
+    } finally {
+      globalThis.fetch = realFetch
+      vi.resetModules()
+    }
   })
 
   it('`primeBenchmarkTail` seeds an entry; the signature names the resolved benchmark and its version', () => {
