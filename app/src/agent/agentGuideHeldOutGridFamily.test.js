@@ -42,3 +42,15 @@ describe('a grid family ask walks to its control', () => {
     expect(seen(q)).toContain(needle)
   })
 })
+
+// CONTROLS (added with the fix): the chart's own grid LINES keep their walkthrough; a plain reset of a single chart's view
+// and an ordinary settings ask in the grid keep theirs
+describe('nothing else moves', () => {
+  it.each([
+    ['how do I turn off the grid lines', 'Grid lines'],
+    ['how do I hide the grid on my chart', 'Grid lines'],
+    ['how do I change the grid lines colour', 'Grid lines'],
+    ['how do I open the shared settings of my grid', 'chart.cellSettings'],
+    ['how do I reset a chart in the grid', 'chart.cellReset'],
+  ])('"%s" → %s', (q, needle) => { expect(seen(q)).toContain(needle) })
+})
