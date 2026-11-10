@@ -722,7 +722,9 @@ export function beginObjects(program, ctx) {
       // capture separates (C7: "unmeasured"): the collector reaching one makes the
       // family's held set unknown, so it is withheld WHOLE (`finish`), as the runtime
       // lane's collector already does (`runtime/objectStore.js::collect`).
-      if (!collectorInCollection.has(family)) {
+      // ⭐ r6 — a BOX in a list is WITNESSED collected like any other (objectPool.js
+      // C7, sonarlab-order-blocks-spy-1d): no fallback for boxes.
+      if (family !== 'box' && !collectorInCollection.has(family)) {
         for (const list of colls.values()) if (list.includes(inst.id)) { collectorInCollection.add(family); break }
       }
       reap(inst)
@@ -2110,7 +2112,7 @@ export function beginObjects(program, ctx) {
   {
     const listFams = new Set((program.colls || []).map((c) => (c && c.family) || '*'))
     for (const fam of collectorInCollection) withheldFams.add(fam)
-    for (const fam of collectorUnknown) if (listFams.has(fam) || listFams.has('*')) withheldFams.add(fam)
+    for (const fam of collectorUnknown) if (fam !== 'box' && (listFams.has(fam) || listFams.has('*'))) withheldFams.add(fam)
   }
   // ⭐⭐ W-C22-DEL — the lost-create rule above withholds a family WHOLE (how many
   // creates it lost is not counted, so no object's rank is bounded:

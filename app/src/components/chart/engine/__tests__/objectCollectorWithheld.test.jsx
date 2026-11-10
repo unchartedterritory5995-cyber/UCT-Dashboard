@@ -370,7 +370,7 @@ describe('⭐ the vendor harness grades a family withheld by name as a gap, neve
 // array is unmeasured. The runtime lane withholds the family when its collector
 // reaches one (`runtime/objectStore.js::collect`); the host lane now does the same,
 // under `withheldBy['objects:collector-all']` (the whole-family sentence).
-describe('⭐ r5 (N-g) — a `var` array of lines pushed past the cap: the line family is withheld WHOLE on BOTH lanes', () => {
+describe('⭐ r5/r6 (N-g) — a `var` array of lines pushed past the cap: the line family is withheld WHOLE on BOTH lanes (not witnessed, Q-C22-1); boxes are witnessed', () => {
   const NB = 300
   const days = Array.from({ length: NB }, (_, i) => new Date(Date.UTC(2021, 0, 4) + i * 86400000))
   const px = (i) => 100 + i * 0.05
@@ -398,6 +398,22 @@ describe('⭐ r5 (N-g) — a `var` array of lines pushed past the cap: the line 
     expect(host.withheldBy).toEqual({ 'objects:collector-all': ['line'] })
     expect(host.live.filter((o) => o.family === 'line')).toEqual([])
     expect(runtimeLane(true).withheld.line).toMatch(/held in an array or a user type/)
+  })
+
+  it('⭐ r6 — BOXES in a `var` array are WITNESSED collected (sonarlab-order-blocks-spy-1d): neither lane withholds, the host lane draws them', () => {
+    const boxSrc = ['//@version=6', 'indicator("t", overlay = true, max_boxes_count = 5)', 'var bxs = array.new_box()',
+      'if close > open', '    bxs.push(box.new(bar_index, high, bar_index + 1, low))', ''].join(LF)
+    const t = translatePine(boxSrc)
+    expect(t.objects, 'the host lane carries the program').toBeTruthy()
+    const reader = objectReaderFor({ objects: t.objects }, PRODUCT, { tf: 'D', newestBarIsForming: false })
+    const host = evaluateObjects(reader.program, { barCount: NB, readNode: reader.readNode, readTime: reader.readTime, readUnknown: reader.readUnknown })
+    expect(host.withheldBy).toBeUndefined()
+    expect(host.live.filter((o) => o.family === 'box').length).toBeGreaterThanOrEqual(5)
+    const b = buildRuntimeIr(boxSrc, { bars: RT_BARS, inputs: {}, objectsInRun: true, tf: 'D', basePeriod: 'D' })
+    if (!b.ok) throw new Error(`refused: ${b.refusal.guard} — ${b.refusal.message}`)
+    const p2 = lowerIrProgram(b.ir)
+    const fin = execute(p2, { bars: NB, series: SERIES, columns: p2.columns, confirmed: true, barTimes: RT_BARS.map((x) => x.t) }).objects.finish()
+    expect(fin.withheld.box).toBeUndefined()
   })
 
   it('⛔ CONTROL: the same lines held by nothing — the collector is measured, both lanes draw and name nothing', () => {

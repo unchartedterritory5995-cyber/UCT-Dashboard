@@ -415,7 +415,11 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
     for (const inst of [...live.values()]) {
       if (counts[fam] <= cap) break
       if (inst.family !== fam || inst.createdBar === bar || held.vars.has(inst.id)) continue
-      if (held.containers.has(inst.id)) {
+      // ⭐ W-C22-DEL r6 — a BOX held only in arrays is collected like any other box
+      // (objectPool.js C7: witnessed on sonarlab-order-blocks-spy-1d); every other
+      // kind in an array, and any kind in a map, a matrix or a UDT field, is not
+      // witnessed: the family is withheld (capture queue Q-C22-1).
+      if (held.containers.has(inst.id) || (fam !== 'box' && held.arrays && held.arrays.has(inst.id))) {
         withhold(fam, `TradingView's collector deletes the oldest ${fam}s past ${cap + 5}; one it reaches `
           + 'here is held in an array or a user type, and no capture shows whether such an object is spared')
       }
