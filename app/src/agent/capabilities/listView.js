@@ -37,6 +37,10 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b)
 const ALL_COLUMNS = [...OPTIONAL_COLS, ...EXTRA_COLS].map(c => columnLabel(c.key)).join(', ')
 
 const viewsOf = (host) => (host?.listViews ? host.listViews.snapshot() : [])
+// F6: a column Undo when NO layout was saved before the change. The widget's writer removes its storage key for it
+// (saveColCfg(null)), so the caller's defaults draw again; never `{}`, never a copy of the defaults.
+const NO_SAVED_COLS = Object.freeze({ noSavedLayout: true })
+const isNoSaved = (cfg) => !!cfg && cfg.noSavedLayout === true
 const viewOf = (host, ref) => viewsOf(host).find(v => v.ref === ref) || null
 const dirWords = (key, dir) => (key === 'sym' || TEXT_COLS.has(key) ? (dir === 'asc' ? 'A to Z' : 'Z to A') : (dir === 'asc' ? 'low to high' : 'high to low'))
 const sortText = (s) => (s ? `sorted by ${columnLabel(s.key)}, ${dirWords(s.key, s.dir)}` : 'in its saved order')
@@ -56,21 +60,23 @@ export const listViewKind = {
   },
   async commit(host, ref, patch) {
     if (!viewOf(host, ref)) throw new Error('that list is no longer on the board')
-    if (patch.cfg) host.listViews.saveCols(ref, patch.cfg)
+    if (patch.cfg) host.listViews.saveCols(ref, isNoSaved(patch.cfg) ? null : patch.cfg)
     if (patch.select) host.listViews.select(ref, patch.select)
     await afterRender()
     return true
   },
   landed(snap, patch) {
     if (!snap) return false
-    if (patch.cfg && !same(snap.cfg, patch.cfg)) return false
+    if (patch.cfg && (isNoSaved(patch.cfg) ? snap.savedCfg != null : !same(snap.cfg, patch.cfg))) return false
     if (patch.select && snap.selected !== patch.select) return false
     return true
   },
   undoPatch(item) {
     const p = item.patch || {}
     const out = {}
-    if (p.cfg) out.cfg = item.before?.cfg ?? {}
+    // what was SAVED before (a widget that keeps a layout), else what it drew (one that keeps none); nothing saved → remove
+    const b = item.before || {}
+    if (p.cfg) out.cfg = ('savedCfg' in b ? b.savedCfg : b.cfg) ?? NO_SAVED_COLS
     if (p.select && item.before?.selected) out.select = item.before.selected
     return Object.keys(out).length ? out : null
   },

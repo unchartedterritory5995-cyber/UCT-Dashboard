@@ -1875,12 +1875,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // ── Configurable + sortable columns ── (colCfg STATE is declared earlier, above
   // the meta/perf/theme fetches, so those fetches can gate on which columns show.)
   const saveColCfg = useCallback((next) => {
-    setColCfg(next)
+    // next === null: NO saved layout (the UCT Agent's Undo of a change made when none was saved). The key is removed,
+    // never written as {} or as a copy of the defaults, so the caller's defaults draw again and stay the defaults.
+    setColCfg(next ?? (defaultColCfg || {}))
     // ephemeralCols: in-session edits still apply, but nothing persists (so the next run
     // reverts to the default column view).
     if (ephemeralCols) return
-    try { localStorage.setItem(_colKey, JSON.stringify(next)) } catch { /* ignore */ }
-  }, [_colKey, ephemeralCols])
+    try { if (next == null) localStorage.removeItem(_colKey); else localStorage.setItem(_colKey, JSON.stringify(next)) } catch { /* ignore */ }
+  }, [_colKey, ephemeralCols, defaultColCfg])
   const [liveResize, setLiveResize] = useState(null)   // {key,width} during a drag
   const [colMenu, setColMenu] = useState(null)         // {x,y} right-click menu
   const resizingRef = useRef(false)                    // suppress the header sort-click after a resize
@@ -2378,6 +2380,12 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     cfg: colCfg, sort: colSort, columns: orderedKeys, fixedColumns: !!isAllIdxList, persisted: !ephemeralCols,
     selected: selectedSym, active: !!(activeRef && widgetKey && activeRef.current === widgetKey),
     saveCols: saveColCfg,
+    // UCT Agent (an Undo): the layout this widget's storage key holds now, null when none is saved; undefined when the
+    // widget keeps none (ephemeralCols), so its Undo puts back the in-session columns
+    savedCfg: () => {
+      if (ephemeralCols) return undefined
+      try { const s = JSON.parse(localStorage.getItem(_colKey)); return s && typeof s === 'object' ? s : null } catch { return null }
+    },
     // UCT Agent (watchlist.arrangeColumns): the header drag's and the gridline's own results, and each column's width now
     movedCfg: movedColCfg, resizedCfg: resizedColCfg, minWidthOf: colMinWidth,
     widthOf: (cfg, k) => cfg.widths?.[k] ?? COL_META[k]?.def ?? null,

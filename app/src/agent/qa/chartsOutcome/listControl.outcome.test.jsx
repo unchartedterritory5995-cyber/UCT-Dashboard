@@ -268,7 +268,7 @@ describe('2. add and hide columns: the header changes', () => {
     await waitFor(() => expect(cols().order).toEqual(expect.arrayContaining(['rvol', 'sector'])))
     expect(m.lastReceipt().textContent).toMatch(/Added RVOL and Sector to “Momentum” · Hid Volume on “Momentum”/)
     await m.say('undo')
-    await waitFor(() => expect(cols()).toEqual({}))
+    await waitFor(() => expect(cols()).toBe(null))            // F6: nothing was saved before, so the Undo leaves nothing saved (was `{}`)
   })
   it.each([
     ['sort by price', 'watchlist.sortColumn', { column: 'price', direction: null }],
