@@ -526,9 +526,9 @@ def _rs_column_methods() -> list:
          "how": (f"1 when the sign of the {agree}-session least-squares slope of the stock's "
                  f"RS line is the same against SPY and against RSP, the equal-weight S&P 500 "
                  f"(both rising or both falling); 0 when they disagree or either slope is "
-                 f"flat; blank until {agree} sessions exist against both. The chart's "
-                 f"sensitivity read has a third leg, the sector ETF, which the nightly build "
-                 f"does not read, so this is a TWO-benchmark test. " + _RS_BAR_NOTE),
+                 f"flat; blank until {agree} sessions exist against both. The nightly build "
+                 f"reads two benchmarks, SPY and RSP, and not the sector ETF, so this is a "
+                 f"TWO-benchmark test. " + _RS_BAR_NOTE),
          "caveat": ("Agreement cuts both ways: two falling slopes agree too. To mean leaders, "
                     "pair it with an RS rank floor or the RS line above its average, as the "
                     "starter does. It answers the denominator question (did the share "
@@ -742,13 +742,14 @@ def rs_columns_section() -> dict:
             "03:00 ET step from the same bars, only while that step's Phase 3 part is switched "
             "on, and are empty until then."),
         "notes": [
+            # U9 (RS split): these two notes no longer name a chart Reading. The slim UCT RS
+            # Line draws no Mansfield line and no sensitivity row (map §(a) U7); the screener
+            # columns are the readings that stay, and this page describes the columns.
             f"Mansfield RS is read on {p['mansfield']} DAILY bars, the curriculum's daily form "
-            f"of Weinstein's 52-week weekly average, never on weekly bars; the chart's "
-            f"Mansfield plot reads the same series.",
+            f"of Weinstein's 52-week weekly average, never on weekly bars.",
             f"RS Agrees vs SPY and RSP is a TWO-benchmark test: the sign of the "
-            f"{p['agree']}-session RS slope against SPY and against equal-weight RSP. The "
-            f"chart's sensitivity read adds a third leg, the sector ETF, which the nightly "
-            f"build does not read.",
+            f"{p['agree']}-session RS slope against SPY and against equal-weight RSP; the "
+            f"nightly build does not read the sector ETF.",
             f"The rating is IBD-style, our own calculation, not MarketSurge's: "
             f"{_ibd_formula_prose(p)}; percentile across the cap universe minus ETFs; "
             f"max(1, ceil(percentile x {p['max']})). Measured difference to MarketSurge: "
