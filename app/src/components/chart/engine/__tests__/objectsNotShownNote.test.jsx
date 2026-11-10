@@ -30,7 +30,7 @@ import { createFakeChart } from './fakeChart'
 import { enterMemberDoor, toProductBars, HARNESS_DEF_ID } from './vendorHarness/ourSide'
 import { objectRenderDropsFor, resetObjectRenderDrops } from '../objectRenderNotice'
 import { MERGED_HEAD_REWRITE_SENTENCE } from '../objectCells'
-import { NOT_SHOWN, notShownSentence, withRenderDrops, STOPPED_KEY } from '../ast/objectLoss'
+import { NOT_SHOWN, notShownSentence, withRenderDrops, STOPPED_KEY, plainStopReason, stoppedRunSentence } from '../ast/objectLoss'
 import { runtimeColumnsFor } from '../runtime/runtimeColumns'
 import { __permitRuntimePaneForTests } from '../runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests } from '../runtimeKill'
@@ -85,6 +85,23 @@ const CLOCK_AND_OTHER = src(['var float[] w = array.new_float()', 'if close > 0'
 const CLOCK_AND_WARMUP = src(['var float acc = 0', 'acc := acc * 0.9 + close',
   'if barstate.islast', '    label.new(bar_index, high, na(time("W")) ? "a" : "b")',
   'if barstate.isfirst', '    line.new(bar_index, acc, bar_index + 1, acc)', 'plot(close)'])
+// HOST — a label made on the first bar, its text later set from a `time("W")` read: the
+// update is withheld by the clock alone, so the taint it leaves is the clock's too (C17).
+const CLOCK_TAINT = src(['var label l = na', 'if barstate.isfirst', '    l := label.new(bar_index, high, "x")',
+  'if barstate.islast', '    label.set_text(l, na(time("W")) ? "a" : "b")', 'plot(close)'])
+// RUNTIME — `line.get_price` of a vertical line: a step whose answer is not measured (C40).
+const RT_GETPRICE = src(['var float acc = 0', 'acc += close', 'plot(acc)', 'if barstate.islast',
+  '    l = line.new(bar_index, low, bar_index, high)', '    label.new(bar_index, line.get_price(l, bar_index), str.tostring(acc, "#"))'])
+// HOST — a create the clock withholds leaves its register unknown; a second create that
+// tests that register (`not na(l)`) is withheld for the TAINT, which is the clock's too.
+const CLOCK_TAINT_CREATE = src(['var label l = na', 'if barstate.islast and na(time("W"))',
+  '    l := label.new(bar_index, high, "a")', 'if barstate.islast and not na(l)', '    label.new(bar_index, low, "b")', 'plot(close)'])
+// HOST — the same shape with the window ambiguity in place of the clock: the register's
+// taint is NOT the clock's, so the line the second create would draw is named too.
+const WINDOW_TAINT_CREATE = src(['var float[] w = array.new_float()', 'if close > 0', '    w.unshift(high)',
+  'if close > 0', '    w.unshift(low)', 'if w.size() > 3', '    w.pop()', 'var label l = na',
+  'if barstate.islast and w.size() >= 2', '    l := label.new(bar_index, w.get(1), "x")',
+  'if barstate.islast and not na(l)', '    line.new(bar_index - 1, low, bar_index, low)', 'plot(close)'])
 const CLOCK_ONLY = src(['if barstate.islast', '    label.new(bar_index, high, na(time("W")) ? "a" : "b")', 'plot(close)'])
 // RUNTIME — a plot that converges from any first bar (a decaying max) beside a label
 // whose text is a running total: off the listing two starts end with different drawings.
@@ -228,6 +245,7 @@ describe('⭐⭐ OZ r1 — a STOPPED run draws nothing and says why, on both lan
     expect(Object.keys(why)).toEqual([STOPPED_KEY])
     expect(why[STOPPED_KEY]).toMatch(/^None of this script's drawings are shown on this chart: it stops with an error here \(.*bar 120/)
     expect(why[STOPPED_KEY]).not.toContain('`')
+    expect(why[STOPPED_KEY]).not.toMatch(/captured|—/)
     expect(m.text).toContain(why[STOPPED_KEY])
     m.binder.teardown()
   })
@@ -245,6 +263,16 @@ describe('⭐⭐ OZ r1 — a STOPPED run draws nothing and says why, on both lan
     expect(m.last.tables).toEqual([])
     const why = objectRenderDropsFor(m.id).why
     expect(why[STOPPED_KEY]).toMatch(/^None of this script's drawings are shown on this chart: it reaches a step whose result on TradingView has not been measured yet \(table.cell addresses cell \(3, 0\) outside a 2 x 2 table\)/)
+    expect(m.text).toContain(why[STOPPED_KEY])
+    m.binder.teardown()
+  })
+
+  it('⭐ runtime: a step whose answer is not measured is said in plain words (no "captured")', () => {
+    const m = mount(RT_GETPRICE, { fromListing: true })
+    expect(m.def.compute.objects).toBe(true)
+    const why = objectRenderDropsFor(m.id).why
+    expect(why[STOPPED_KEY]).toContain('line.get_price of a vertical line: what TradingView answers has not been measured yet')
+    expect(why[STOPPED_KEY]).not.toMatch(/captured|`/)
     expect(m.text).toContain(why[STOPPED_KEY])
     m.binder.teardown()
   })
@@ -288,12 +316,58 @@ describe('⭐⭐ OZ r1 — with a chart-clock note, a family withheld for ANOTHE
     m.binder.teardown()
   })
 
+  it("⛔ a taint the clock alone left (a withheld set_text) is the clock note's, not a second sentence", () => {
+    const m = mount(CLOCK_TAINT, { tf: "30" })
+    expect(m.def.objects).toBeTruthy()
+    expect(m.last.labels).toEqual([])
+    expect(objectRenderDropsFor(m.id)).toBe(null)
+    expect(m.text).toContain('time(')
+    m.binder.teardown()
+  })
+
+  it("⛔ a create withheld for a clock-left TAINT is the clock note's too", () => {
+    const m = mount(CLOCK_TAINT_CREATE, { tf: '30' })
+    expect(m.last.labels).toEqual([])
+    expect(objectRenderDropsFor(m.id)).toBe(null)
+    expect(m.text).toContain('time(')
+    m.binder.teardown()
+  })
+
+  it('⭐ a create withheld for a taint the clock did NOT leave is named with the rest', () => {
+    const m = mount(WINDOW_TAINT_CREATE)
+    expect(m.last.labels).toEqual([])
+    expect(m.last.lines).toEqual([])
+    const t = notShownSentence(['line', 'label'], NOT_SHOWN.NOT_COMPUTABLE)
+    expect(objectRenderDropsFor(m.id).why).toEqual({ label: t, line: t })
+    m.binder.teardown()
+  })
+
   it("⛔ CONTROL — the clock alone: one note (the clock's), no drawing sentence", () => {
     const m = mount(CLOCK_ONLY, { tf: '30' })
     expect(m.last.labels).toEqual([])
     expect(objectRenderDropsFor(m.id)).toBe(null)
     expect(m.text).toContain('time(')
     m.binder.teardown()
+  })
+})
+
+describe("OZ r2 (N-e) — a stop reason in the member's words", () => {
+  const HOST_REASON = '`array.get` index 7 is out of bounds of an array of 3 on bar 120 — TradingView stops the script there'
+  it('from the listing the bar is named; no code marks, no em dash', () => {
+    expect(plainStopReason(HOST_REASON, true)).toBe('array.get index 7 is out of bounds of an array of 3 on bar 120, TradingView stops the script there')
+  })
+  it("off the listing no bar number is given (bar_index is this chart's count)", () => {
+    const t = stoppedRunSentence(HOST_REASON, 'error', { fromListing: false })
+    expect(t).toContain('on a bar of this chart')
+    expect(t).not.toMatch(/bar 120|\d{3}/)
+  })
+  it('"is not captured" is said as has not been measured yet', () => {
+    expect(plainStopReason("the script tests `na()` of a drawing that was deleted; whether TradingView answers true there is not captured", true))
+      .toBe('the script tests na() of a drawing that was deleted; whether TradingView answers true there has not been measured yet')
+  })
+  it('"not yet captured" is said as not measured yet', () => {
+    expect(plainStopReason('what TradingView draws there is not yet captured', true))
+      .toBe('what TradingView draws there is not measured yet')
   })
 })
 

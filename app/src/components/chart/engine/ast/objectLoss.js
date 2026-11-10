@@ -667,8 +667,21 @@ export const COLLECTOR_HELD_RE = /^TradingView's collector deletes the oldest /
  *  said to the member, with the code marks taken out. `kind`: `error` | `unmeasured`
  *  | `withheld`. Keyed `*` in the binder's `why` (every family). */
 export const STOPPED_KEY = '*'
-export function stoppedRunSentence(reason, kind) {
-  const plain = String(reason || '').replace(/`/g, '').replace(/\s+/g, ' ').trim().replace(/[.\s]+$/, '')
+
+/** ⭐ OZ r2 (N-e) — a stop reason in the member's words: no code marks, no em dash, no
+ *  "captured" (said as "measured"), and a bar NUMBER only on a chart that starts at the
+ *  symbol's listing: elsewhere `bar_index` is this chart's count, not TradingView's, so
+ *  the bar is "a bar of this chart". Pine call names stay: they are the script's own. */
+export function plainStopReason(reason, fromListing = false) {
+  let t = String(reason || '').replace(/`/g, '').replace(/\s+/g, ' ').trim()
+  t = t.replace(/\s+[—–]\s+/g, ', ')
+  t = t.replace(/\bis not captured\b/g, 'has not been measured yet')
+    .replace(/\bnot (yet )?captured\b/g, 'not measured yet')
+  if (!fromListing) t = t.replace(/\bon bar \d+\b/g, 'on a bar of this chart')
+  return t.replace(/[.\s]+$/, '')
+}
+export function stoppedRunSentence(reason, kind, { fromListing = false } = {}) {
+  const plain = plainStopReason(reason, fromListing)
   if (!plain) return null
   if (kind === 'error') {
     return `None of this script's drawings are shown on this chart: it stops with an error here (${plain}), `

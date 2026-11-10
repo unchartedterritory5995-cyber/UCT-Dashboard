@@ -416,8 +416,10 @@ export function beginObjects(program, ctx) {
     const cur = instTaint.get(id)
     if (cur === '*') return
     taintSeen = true
+    if (props !== '*' && !props.length) return
+    // ⭐ OZ r2 — the cause is counted only where a taint actually lands
+    if (taintCause !== 'clock') taintOtherSeen = true
     if (props === '*') { instTaint.set(id, '*'); return }
-    if (!props.length) return
     const s = cur || new Set()
     for (const p of props) s.add(p)
     instTaint.set(id, s)
@@ -444,6 +446,7 @@ export function beginObjects(program, ctx) {
     const cur = cellTaint.get(id)
     if (cur === '*') return
     taintSeen = true
+    if (taintCause !== 'clock') taintOtherSeen = true
     if (key === '*') { cellTaint.set(id, '*'); return }
     const s = cur || new Set()
     s.add(key)
@@ -537,6 +540,9 @@ export function beginObjects(program, ctx) {
    *  member. `taintCause` is the reason the op being withheld right now carries. */
   const famUnknownOther = new Set()
   let taintCause = 'other'
+  /** ⭐ OZ r2 — whether any taint this run carries came from a reason OTHER than the
+   *  chart clock. When none did, a taint-held family (C17) is the clock's to explain. */
+  let taintOtherSeen = false
   /** ⭐⭐ C9 — every `{v:'at'}` history read an op's values carry (see
    *  `MAX_BARS_BACK_CAP` in objectProgram.js), once per op. */
   const atAtoms = new Map()
@@ -1386,6 +1392,7 @@ export function beginObjects(program, ctx) {
      *  an update or delete marks whatever the handle holds now. */
     const taintOutputs = (op) => {
       taintSeen = true
+      if (taintCause !== 'clock') taintOtherSeen = true
       switch (op.k) {
         case 'create':
           if (op.into) regTaint.add(op.into)
@@ -1435,7 +1442,14 @@ export function beginObjects(program, ctx) {
       }
     }
     /** Withhold one op on this bar, marking what it would have written. */
-    const withholdTainted = (op) => { withheldTainted += 1; taintOutputs(op) }
+    // ⭐ OZ r2 — an op withheld because it reads a TAINT inherits the taint's cause: when
+    // every taint so far came from the chart clock alone, so does this one.
+    const withholdTainted = (op) => {
+      withheldTainted += 1
+      taintCause = taintOtherSeen ? 'other' : 'clock'
+      taintOutputs(op)
+      taintCause = 'other'
+    }
     /** The properties of an op's props whose VALUE is unknown. */
     const taintedProps = (props) => (!taintSeen ? NO_PROPS : Object.entries(props || {})
       .filter(([, v]) => isObj(v) && !v.r && tainted(v)).map(([k]) => k))
@@ -2193,7 +2207,7 @@ export function beginObjects(program, ctx) {
   const notShown = { [NOT_SHOWN.NOT_CARRIED]: [], [NOT_SHOWN.NOT_COMPUTABLE]: [] }
   if (!stopped) {
     const drawnFams = new Set(ordered.map((o) => o.family))
-    const taintFams = new Set([...taintHeld].map((id) => live.get(id).family))
+    const taintFams = taintOtherSeen ? new Set([...taintHeld].map((id) => live.get(id).family)) : new Set()
     for (const fam of Object.keys(counts)) {
       if (withheldFams.has(fam) || drawnFams.has(fam)) continue
       if (lost.has(fam)) notShown[NOT_SHOWN.NOT_CARRIED].push(fam)
@@ -2209,7 +2223,7 @@ export function beginObjects(program, ctx) {
   // ⭐⭐ OZ r1 — A STOPPED RUN DRAWS NOTHING (C9 / C40 above), AND SAYS WHY: its
   // reason, which until now reached only the layer's meta, in the member's note.
   const stoppedWhy = stopped ? stoppedRunSentence(reason,
-    status === OBJECT_STATUS.RUNTIME_ERROR ? 'error' : 'unmeasured') : null
+    status === OBJECT_STATUS.RUNTIME_ERROR ? 'error' : 'unmeasured', { fromListing: ctx.offListing === false }) : null
   const whyOut = {
     ...(stoppedWhy ? { [STOPPED_KEY]: stoppedWhy } : {}),
     ...notShownWhy,

@@ -1216,7 +1216,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         if (!payload) {
           // ⭐ OZ r1 — a run that withheld its drawings whole (`WITHHELD`) says why
           const wr = runtimeObjectsWithheldOf(memo && memo.cols)
-          const ws = wr ? stoppedRunSentence(wr.reason, 'withheld') : null
+          const ws = wr ? stoppedRunSentence(wr.reason, 'withheld', { fromListing: ctx.historyFromListing === true }) : null
           publishDrops(inst.instanceId, null, null, ws ? { [STOPPED_KEY]: ws } : null)
           attempt(() => rlayer.set(null, '')); continue
         }
@@ -1228,7 +1228,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         // ⭐ OZ r1 — and a run STOPPED on a step no capture settles (`OBJECT_UNWITNESSED`,
         // C40) draws nothing; its reason reached only the layer's meta until now.
         const rStop = payload.status && payload.status !== 'ok' && objPayload
-          ? stoppedRunSentence(payload.reason, 'unmeasured') : null
+          ? stoppedRunSentence(payload.reason, 'unmeasured', { fromListing: ctx.historyFromListing === true }) : null
         const rWhy = runtimeWithheldWhy(payload.withheld)
         publishDrops(inst.instanceId, rstate, null,
           rStop || rWhy ? { ...(rStop ? { [STOPPED_KEY]: rStop } : {}), ...(rWhy || {}) } : null)
