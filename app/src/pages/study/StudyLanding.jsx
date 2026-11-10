@@ -296,7 +296,7 @@ export default function StudyLanding({ curricula = [], byId = {}, badges = [], p
             <div className={s.sideBlock}>
               <div className={s.deckHead}>
                 <h3 className={s.deckTitle}>Skill games</h3>
-                <span className={s.deckSub}>Orders, sizing, options and risk, worked out on the spot. Every run earns XP.</span>
+                <span className={s.deckSub}>Orders, sizing, options, earnings, risk and discipline, worked out on the spot. Every run earns XP.</span>
               </div>
               <GameCards onOpenChallenge={onOpenChallenge} group="skill" label="Skill games" />
             </div>

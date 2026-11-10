@@ -17,6 +17,8 @@ export const GAME_LIST = [
   { kind: 'match', title: 'Word Match', sub: 'Three rounds of five. Pair each word with its meaning against the clock.', icon: 'link', plate: 'Match', accent: 'amber', group: 'skill', load: () => import('./WordMatchGame') },
   { kind: 'sectors', title: 'Sector Race', sub: 'Which group led? Sixty seconds on the track: every right answer runs a leg.', icon: 'flag', plate: 'Sectors', accent: 'amber', group: 'skill', load: () => import('./SectorRaceGame') },
   { kind: 'survive', title: 'Survive the Drawdown', sub: 'Five risk sizes, the same 50 trades. See which account survives.', icon: 'equity', plate: 'Survive', accent: 'red', group: 'skill', load: () => import('./SurviveGame') },
+  { kind: 'earnings', title: 'Earnings Desk', sub: 'Real quarters against the estimates. Beat, miss or in line, the surprise in percent, then what the stock did next. Three hearts.', icon: 'earnings', plate: 'Desk', accent: 'gold', group: 'skill', load: () => import('./EarningsDeskGame') },
+  { kind: 'mistake', title: 'Spot the Mistake', sub: 'A four-line trade plan or journal entry. One line breaks a rule. Tap it.', icon: 'journal', plate: 'Mistake', accent: 'red', group: 'skill', load: () => import('./SpotMistakeGame') },
 ]
 
 /** A game's listing without its loader. */

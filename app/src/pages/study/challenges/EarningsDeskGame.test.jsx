@@ -331,6 +331,40 @@ describe('EarningsDeskGame', () => {
     expect(screen.getByTestId('earnings-next')).toHaveTextContent('See the log')
   })
 
+  it('the verdict and the desk note carry nothing the reveal did not say: every sentence and every number is the bank’s own, the member’s or the server’s', async () => {
+    const fetcher = makeFetcher()
+    await begin(fetcher)
+    // every number a block shows must come from the reveal (why, the notes, the lesson, the calc, the quotes), the
+    // question or the story, or be what the member typed and what the server scored it (the near note's numbers)
+    const numbersIn = (text) => new Set((String(text).match(/\d[\d,]*(?:\.\d+)?/g) || []).map((n) => n.replace(/,/g, '')))
+    const BLOCKS = ['earnings-takeover-line', 'earnings-takeover-why', 'earnings-takeover-stock', 'earnings-call', 'earnings-why', 'earnings-stock', 'earnings-working', 'earnings-line', 'earnings-evidence']
+    const check = (id, typed = '') => {
+      const c = BY_ID[id]
+      const said = JSON.stringify([c.reveal, c.item.prompt_json, c.key, typed])
+      const allowed = numbersIn(said)
+      const sentencesOf = (text) => text.split(/(?<=[.!?])\s+(?=[A-Z$0-9"“(])/)
+      const corpus = [c.reveal.why, c.reveal.lesson_line, ...Object.values(c.reveal.wrong || {}), ...(c.reveal.depth?.sources || []).map((s) => s.quote)].join(' ')
+      for (const tid of BLOCKS) {
+        for (const el of screen.queryAllByTestId(tid)) {
+          const text = el.textContent.replace(/^(Why|What the stock did|The working|The lesson|Your call|Read the filings and the reports)/, '')
+          for (const n of numbersIn(text)) expect(allowed, `${id} ${tid}: ${n} in "${text}"`).toContain(n)
+          // a sentence of the reveal's prose is shown whole and unchanged (the working, the near note and the call are the module's own numbers, already checked)
+          if (['earnings-why', 'earnings-stock', 'earnings-takeover-stock', 'earnings-line', 'earnings-takeover-line'].includes(tid)) {
+            for (const s of sentencesOf(text.replace(/^[A-Z]/, (m) => m.toLowerCase()))) expect(corpus.toLowerCase(), `${id} ${tid}: "${s}"`).toContain(s.toLowerCase())
+          }
+        }
+      }
+    }
+    await answerTile('A beat'); check('ed_q01'); openNote(); check('ed_q01'); nextReport()
+    await answerTile('True'); check('ed_q02'); openNote(); check('ed_q02'); nextReport()
+    await answerTile('surprise'); check('ed_q03'); openNote(); check('ed_q03'); nextReport()
+    await answerNumber('25.15'); check('ed_q09', '25.15'); openNote(); check('ed_q09', '25.15'); nextReport()
+    await answerTile('Nothing: EPS beat'); check('ed_q14'); openNote(); check('ed_q14')
+    expect(screen.queryByTestId('earnings-takeover')).toBeNull()
+    expect(screen.getByTestId('earnings-stock')).toHaveTextContent('Shares plunged nearly 20% the next day.')
+    expect(screen.getByTestId('earnings-call')).toHaveTextContent("Nothing: EPS beat. A beat doesn't cancel a weak outlook. CNBC tied the plunge to the guidance cut.")
+  })
+
   it('a fill report: the picked word drops into the blank, picked by its number key, checked with Enter', async () => {
     const fetcher = makeFetcher()
     await begin(fetcher)

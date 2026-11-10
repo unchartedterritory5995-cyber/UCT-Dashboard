@@ -6,6 +6,8 @@
  * notes for a typed number, the hearts, the log and the end's rank. The fixtures are F5.08's own items
  * (docs/study/courses/F5/F5.08.json) as scripts/study/courses_lib.build_items makes them.
  */
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, it, expect } from 'vitest'
 import {
   EARNINGS_HEARTS, EARNINGS_KIND, EARNINGS_MIN, EARNINGS_SKILL, EARNINGS_TOTAL, EMPTY_LINE, FAILED_LINE, FORMULAS, NUMBER_HINT,
@@ -465,5 +467,119 @@ describe('the run', () => {
     expect(EMPTY_LINE).toBe('No questions in this game yet. They arrive as the courses are approved.')
     expect(thinLine(1)).toBe('Only 1 report is approved so far, too few for a run. More arrive as the courses are approved.')
     expect(thinLine(2)).toBe('Only 2 reports are approved so far, too few for a run. More arrive as the courses are approved.')
+  })
+})
+
+// ── the unit itself: every F5.08 question in the repo, built the way courses_lib.build_items builds it ──────────────
+describe('the F5.08 unit in the repo', () => {
+  const doc = JSON.parse(readFileSync(resolve(globalThis.process.cwd(), '..', 'docs/study/courses/F5/F5.08.json'), 'utf8'))
+  // the bank holds only the questions the checker passed (build_items only_passed); the calc results the server stores
+  const RESULT = { q09: 25.2, q10: 2.7, q12: 12.2, q13: 3, q16: 28.7, q24: 27.25 }
+  const passed = doc.questions.filter((q) => doc.verify?.[q.key]?.status === 'pass')
+  const items = passed.map((q) => {
+    const kind = { mcq: 'mcq', scenario: 'mcq', tf: 'tf', fill: 'fill', numeric: 'fill_numeric' }[q.format]
+    const prompt = { q: q.q, kind }
+    if (kind === 'mcq') prompt.choices = q.choices
+    if (q.format === 'scenario') prompt.story = q.story
+    if (kind === 'tf') prompt.choices = ['True', 'False']
+    if (kind === 'fill') { prompt.sentence = q.sentence; prompt.bank = q.bank }
+    for (const k of ['prefix', 'suffix', 'label']) if (q[k]) prompt[k] = q[k]
+    const reveal = { unit: 'F5.08', why: q.why, lesson_line: q.lesson_line, facts: {}, depth: { sources: [] } }
+    if (q.calc) reveal.facts.calc = { fn: q.calc.fn, args: q.calc.args, result: RESULT[q.key] }
+    if (q.wrong) reveal.wrong = q.wrong
+    reveal.answer = { answer: q.format === 'numeric' ? RESULT[q.key] : q.answer }
+    return { key: q.key, q, reveal, item: { id: `f5_08_${q.key}`, type: q.format === 'scenario' ? 'scenario' : 'recall', skill_id: EARNINGS_SKILL,
+      difficulty: q.rung <= 3 ? 1 : q.rung <= 6 ? 2 : 3, has_chart: false, prompt_json: prompt } }
+  })
+  const set = { session_id: 'sess-unit', items: items.map((x) => x.item) }
+  const all = reportsOf(set)
+  const report = (key) => all.find((c) => c.id === `f5_08_${key}`)
+  const truthFor = (key) => { const { reveal } = items.find((x) => x.key === key); const c = report(key); return truthOf(c, reveal, { choices: c.choices }) }
+
+  it('plays every approved question of the unit, and the whole unit fills a run', () => {
+    expect(passed.length).toBeGreaterThanOrEqual(20)
+    expect(all.map((c) => c.id)).toEqual(items.map((x) => x.item.id))
+    expect(all.length).toBeGreaterThanOrEqual(EARNINGS_MIN)
+    expect(deckOf(all)).toHaveLength(EARNINGS_TOTAL)
+    const d = deckOf(all).map((c) => c.difficulty)
+    expect(d).toEqual([...d].sort())
+  })
+
+  it('reads the company and the quarter off every report that opens on them, and none off the rest', () => {
+    const mast = Object.fromEntries(all.map((c) => [c.id.slice(6), deskLine(c)]))
+    expect(mast).toEqual({
+      q01: 'Netflix · First quarter 2022', q02: 'Walmart · First quarter of fiscal 2023', q04: 'Alphabet · First quarter 2024',
+      q05: 'Target · First quarter 2022', q06: '', q07: 'Nike · Fiscal Q4 2024', q08: '', q09: 'Alphabet · First quarter 2024', q10: '',
+      q11: 'Meta · Fourth quarter 2022', q12: 'Walmart · First quarter of fiscal 2023', q13: 'Meta · Q4 2022', q14: 'Nike · Fiscal Q4 2024',
+      q15: 'Walmart · May 2022', q16: 'Target · First quarter 2022', q17: 'Walmart · First quarter of fiscal 2023', q18: 'Netflix · First quarter 2022',
+      q19: 'Meta · Fourth quarter 2022', q20: '', q21: '', q22: '', q23: '', q24: '',
+    })
+    // the words the card carries are the bank's own: the masthead's opening lifted off, nothing else changed
+    for (const c of all) {
+      const { story, big } = cardText(c)
+      const src = c.story || c.q
+      const shown = c.story ? story : big
+      expect(src.toLowerCase().endsWith(shown.toLowerCase()), c.id).toBe(true)
+      if (!c.company) expect(shown, c.id).toBe(src)
+    }
+  })
+
+  it('reads every reveal without losing or changing a word: why, the stock’s sentences, the notes and the lesson', () => {
+    const squash = (s) => s.replace(/\s+/g, ' ').trim()
+    for (const { key, q, reveal } of items) {
+      const truth = truthFor(key)
+      expect(truth, key).toBeTruthy()
+      // the sentence splitter keeps every word of every passage
+      for (const text of [q.why, q.lesson_line, ...Object.values(q.wrong || {})]) expect(sentencesIn(text).join(' '), key).toBe(squash(text))
+      // why opens on the verdict the screen already shows, so the desk note starts on the next sentence of the same text
+      const reason = reasonOf(reveal, truth)
+      expect(reason.length, key).toBeLessThan(q.why.length)
+      expect(q.why.toLowerCase().endsWith(reason.toLowerCase()), key).toBe(true)
+      // the note keeps every sentence of why in order, the stock's at the end, word for word
+      const { print, stock } = splitWhy(reveal, truth)
+      expect([...print, ...stock].join(' '), key).toBe(reason)
+      for (const s of stock) expect(q.why.includes(s), key).toBe(true)
+      if (stock.length) expect(stockLine(stock), key).not.toBe('')
+    }
+  })
+
+  it('lifts out exactly the sentences that say what the stock did', () => {
+    const stocks = Object.fromEntries(items.map(({ key, reveal }) => [key, splitWhy(reveal, truthFor(key)).stock]))
+    expect(stocks).toEqual({
+      q01: [], q02: [], q04: [], q05: [], q06: [], q07: [], q08: [], q09: [], q10: [], q11: [], q12: [], q13: [], q15: [], q16: [], q24: [],
+      q14: ['Shares plunged nearly 20% the next day.'],
+      q17: ['The stock closed down 11.38% that day.'],
+      q18: ['The stock plunged 35% in one day.'],
+      q19: ['The stock closed up 23% the next day.'],
+      q20: ['Nike earned $1.01 against 83 cents expected and plunged nearly 20%.', 'Alphabet earned $1.89 against $1.51 and rose 10%.', 'Netflix beat too, and fell 35% in one day.'],
+      q21: ['Revenue beat, it cut its cost outlook, and it closed up 23% the next day.'],
+      q22: ['Its shares fell nearly 25%, and both stocks had their worst days since 1987.'],
+      q23: ['Nike plunged nearly 20%; Alphabet rose 10%, its sharpest rally since July 2015.'],
+    })
+  })
+
+  it('recomputes every calculation in the unit and agrees with the stored result', () => {
+    const texts = Object.fromEntries(items.filter((x) => x.q.calc).map(({ key, reveal }) => [key, workingOf(reveal, report(key))?.text]))
+    expect(texts).toEqual({
+      q09: '(end − start) ÷ start × 100 = (1.89 − 1.51) ÷ 1.51 × 100 = 25.2%',
+      q10: 'forecast + lost = 2.5 + 0.2 = 2.7 million',
+      q12: '(consensus − actual) ÷ consensus × 100 = (1.48 − 1.3) ÷ 1.48 × 100 = 12.2%',
+      q13: 'reported + charges = 1.76 + 1.24 = $3.00',
+      q16: '(consensus − actual) ÷ consensus × 100 = (3.07 − 2.19) ÷ 3.07 × 100 = 28.7%',
+      q24: '(low + high) ÷ 2 = (26 + 28.5) ÷ 2 = 27.25',
+    })
+    // the number cases read their answers the desk's way
+    expect(['q09', 'q10', 'q12', 'q13', 'q16'].map(truthFor)).toEqual(['25.2%', '2.7 million', '12.2%', '$3.00', '28.7%'])
+  })
+
+  it('keeps every wrong note under the pick it was written for', () => {
+    for (const { key, q, reveal } of items) {
+      const c = report(key)
+      for (const [pick, note] of Object.entries(q.wrong || {})) {
+        expect(c.choices, key).toContain(pick)
+        expect(pickNote(reveal, pick), key).toBe(note)
+      }
+      expect(pickNote(reveal, q.answer), key).toBe('')
+    }
   })
 })
