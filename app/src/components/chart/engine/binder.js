@@ -85,7 +85,7 @@ import { toRenderState } from './objectRenderState'
 // binder is where that is known per INSTANCE, so it publishes the sentence for
 // the disclosure strip (`runtimeErrorNotice.js`), exactly as the object layer
 // publishes a scaled table (`paneFitNotice.js`).
-import { runtimeErrorStopOf, runtimeObjectsWithheld, runtimeRunStopOf, columnErrors } from './nativeRegistry'
+import { runtimeErrorStopOf, runtimeObjectsWithheld, runtimeRunStopOf, runtimeColourStopOf, columnErrors } from './nativeRegistry'
 import { setRuntimeErrorNotice } from './runtimeErrorNotice'
 // W9-T13b: a strategy run's record, published for the (dark) report panel
 import { setStrategyRecord } from './strategyReportNotice'
@@ -1530,6 +1530,12 @@ export function createBinder({ chart, LWC, scope = '' }) {
     if (!sentence && def) {
       const ran = runtimeRunStopOf(def, cols)
       if (ran) sentence = ran.sentence
+    }
+    // ⭐ DIV-4 r1 — a host document's `barcolor` whose run-read colour is not served
+    // on this chart says why on the same strip (`nativeRegistry.runtimeColourStopOf`).
+    if (!sentence && def) {
+      const paint = runtimeColourStopOf(def, cols)
+      if (paint) sentence = paint.sentence
     }
     if (sentence) stoppedIds.add(instanceId)
     else if (!stoppedIds.has(instanceId)) return

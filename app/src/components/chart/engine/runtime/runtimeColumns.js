@@ -1607,7 +1607,11 @@ export function runtimeColumnsFor(def, bars, inputs, ctx) {
  *  signal are numbers; otherwise the spec says (`text`, `colour`), default a number. */
 const wantedKind = (spec) => (spec && !spec.passes && spec.node && spec.kind) || 'num'
 
-export function probeObjectRuntime(source, specs) {
+/** ⭐⭐ DIV-4 — `opts.paneLane: true`: the same compile check on the RUNTIME PANE's
+ *  lane (not the object door's master-only lane), for a value only a document
+ *  behind the runtime pane's own switch reads (`memberPaneDefinition::runtimeReadPaints`).
+ *  Absent, byte-identical to before. */
+export function probeObjectRuntime(source, specs, opts = {}) {
   const tooBig = sourceSizeRefusal(source)
   if (tooBig) return { ok: false, refusal: { guard: RUNTIME_LIMIT_GUARD, message: tooBig, limit: 'PROGRAM_SIZE' } }
   let built
@@ -1616,7 +1620,8 @@ export function probeObjectRuntime(source, specs) {
       bars: [], inputs: {}, objectTrees: [], objectTreesAt: specs, ...COMPILE_ON_A_PANE, ...runtimeClockOpts(false),
       // ⭐⭐ THE OBJECT DOOR (Phase 3 audit): this build serves members' drawings with no runtime
       // flag, so it gets master's lane only (`pineRuntimeFrontend.js::objectDoorRefuses`).
-      objectDoor: true,
+      // ⭐ DIV-4 — unless the caller is behind the runtime pane's switch (`paneLane`).
+      objectDoor: opts.paneLane !== true,
     })
   } catch (err) {
     return { ok: false, refusal: { guard: 'runtime:build', message: String((err && err.message) || err) } }
@@ -1695,7 +1700,7 @@ export function runtimeObjectValues(rt, bars, ctx = {}) {
   const tf = typeof ctx.tf === 'string' ? ctx.tf : undefined
   const forming = newestBarIsFormingFrom(ctx)
   const symbol = symbolOf(ctx)
-  const key = `${tf}|${forming}|${symbolKey(symbol)}|${rt.source.length}|${JSON.stringify(rt.at).length}`
+  const key = `${tf}|${forming}|${symbolKey(symbol)}|${rt.source.length}|${JSON.stringify(rt.at).length}|${rt.lane === 'pane' ? 'pane' : 'door'}`
   let perBars = _objectMemo.get(rows)
   if (!perBars) { perBars = new Map(); _objectMemo.set(rows, perBars) }
   const memoFor = perBars.get(rt)
@@ -1710,7 +1715,9 @@ export function runtimeObjectValues(rt, bars, ctx = {}) {
         objectTrees: [],
         objectTreesAt: at,
         pane: true,
-        objectDoor: true, // ⭐⭐ the object door: master's lane only (see `probeObjectRuntime`)
+        // ⭐⭐ the object door: master's lane only (see `probeObjectRuntime`); a document behind the
+        // runtime pane's switch names the pane lane (`rt.lane === 'pane'`, DIV-4)
+        objectDoor: !(rt && rt.lane === 'pane'),
         ...(symbol ? { symbol } : {}),
         ...(tf ? { basePeriod: tf, tf } : {}),
         ...runtimeClockOpts(forming, tf ? { tf } : {}),

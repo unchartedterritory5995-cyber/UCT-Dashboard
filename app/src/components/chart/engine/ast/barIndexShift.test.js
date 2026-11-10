@@ -125,18 +125,71 @@ const PINE = {
   'close[index % 4]': [['plot(close[bar_index % 4])'], 'dep', 0],
   'an index as a truth value': [['plot(bar_index ? 1 : 0)'], 'dep', 0],
 }
+/** ⭐⭐ 2026-11-09 — what else depends on where the series starts: `barstate.isfirst`
+ *  (the threshold `bar_index < 1`) and a `var` carried from the first bar
+ *  (`interpret.js::varOriginMask`). name → [lines of Pine, class, thresholds, inputs?] */
+export const ORIGIN = {
+  isfirst: [['plot(barstate.isfirst ? 1 : 0)'], 'inv', 1],
+  'barssince(isfirst)': [['plot(ta.barssince(barstate.isfirst))'], 'inv', 1],
+  'isfirst picks a source': [['plot(barstate.isfirst ? close : close[1])'], 'inv', 1],
+  'var first time': [['var int t0 = time', 'plot(t0 / 86400000)'], 'inv', 0],
+  'var first close, as a ratio': [['var float c0 = close', 'plot(close / c0)'], 'inv', 0],
+  'var seeded by an input': [['len = input.int(14)', 'var int k = len * 2', 'plot(close * 0 + k)'], 'inv', 0, { len: 14 }],
+  'var set on a rare bar': [['var float lv = 0.0', 'if close < 94', '    lv := low', 'plot(lv)'], 'inv', 0],
+  'var set on a rare bar, seeded na': [['var float lv = na', 'if close < 94', '    lv := low', 'plot(lv)'], 'inv', 0],
+  'var set on a frequent bar': [['var float lh = 0.0', 'if close > open', '    lh := high', 'plot(lh)'], 'inv', 0],
+  'an ema by hand': [['var float e = na', 'e := na(e[1]) ? close : 0.9 * e[1] + 0.1 * close', 'plot(e)'], 'inv', 0],
+  'a bar counter': [['var int n = 0', 'n += 1', 'plot(n)'], 'inv', 0],
+  'a run-length counter': [['var int r = 0', 'r := close > open ? r + 1 : 0', 'plot(r)'], 'inv', 0],
+  // a two-state machine (a SuperTrend direction): every window from either state meets a flip
+  'a direction that flips': [['var int dir = 1',
+    'dir := dir == 1 and close < open - 1 ? -1 : dir == -1 and close > open + 1 ? 1 : dir', 'plot(dir)'], 'inv', 0],
+  // ⭐ r1 — a three-state machine whose MIDDLE state absorbs, read only in a test (no `self`
+  // in any arm): probed from its least and greatest state alone it looks forgotten
+  'a latch read only in its test': [['var int r = 0',
+    'r := r == 1 ? 1 : close < 94 ? 1 : close > open ? 2 : 0', 'plot(r)'], 'inv', 0],
+  // ⭐ r1 — a two-state machine whose tests also compare PRICES with a number (a SuperTrend's
+  // factor): only the numbers compared with the value ITSELF are states, so 1.2 is no seed
+  'a direction with a threshold factor': [['var int dir = 1',
+    'dir := dir == 1 and open - close > 1.2 ? -1 : dir == -1 and close - open > 1.2 ? 1 : dir', 'plot(dir)'], 'inv', 0],
+  // ⭐ r2 (review VAR-OFF N-a) — an admitted contraction reached through a rare hold arm: from a FAR
+  // seed ~0.9^230 of 1e12 is left, under the residual of THAT seed's distance, not of the spread
+  'a contraction past a rare hold': [['var float e = na',
+    'e := na(e[1]) ? close : close - open > 1.45 ? e[1] : 0.9 * e[1] + 0.1 * close', 'plot(e)'], 'inv', 0],
+  // ⭐ r2 (review VAR-OFF N-b) — keltner's shape: the direction's levels are `na` under an input
+  // that is off, so it never flips and IS its seed; its dead arms are no states
+  'a direction whose levels an input turns off': [['jz = input.bool(false)', 'bz = input.bool(false)',
+    'lvl = jz or bz ? close[1] : na',
+    'var int t = 1', 't := t == 1 and close < lvl ? -1 : t == -1 and close > lvl ? 1 : t', 'plot(t + close * 0)'], 'inv', 0,
+  { jz: 0, bz: 0 }],
+  // ⭐ r1 — a state-gated hold: its TradingView state can lie outside every value this window takes
+  'a state-gated hold': [['var float s = close', 's := s > 115 ? s : low', 'plot(s)'], 'inv', 0],
+  // ⭐ r1 — a hold beside an admitted contraction: the seed survives ~0.94^125, above the residual
+  'a hold beside a contraction': [['var float e = na',
+    'e := na(e[1]) ? close : close > open ? e[1] : 0.94 * e[1] + 0.06 * close', 'plot(e)'], 'inv', 0],
+}
+const linesOf = (key) => (Object.prototype.hasOwnProperty.call(ORIGIN, key) ? ORIGIN[key] : PINE[key])[0]
+const inputsOf = (key) => (Object.prototype.hasOwnProperty.call(ORIGIN, key) && ORIGIN[key][3]) || {}
 const treeOf = (key) => {
-  const t = translatePine(`//@version=6\nindicator("p", max_bars_back = 50)\n${PINE[key][0].join('\n')}\n`, { strict: true })
+  const t = translatePine(`//@version=6\nindicator("p", max_bars_back = 50)\n${linesOf(key).join('\n')}\n`, { strict: true })
   if (!t.ok) throw new Error(`${key}: ${t.refusal && t.refusal.message}`)
   // `selected` is -1 for a lone `plot(ta.cum(1))`: the one output is still the tree
   return t.outputs[t.selected >= 0 ? t.selected : 0].ast
 }
 
 const PINE_DOC = { tf: 'D', barIndexAbsolute: true }
+const VAR_DOC = { ...PINE_DOC, varOriginAbsolute: true }
 /** [name, tree key, opts] — the Pine document off the listing, on it, and a
  *  formula-language document (no claim about TradingView's index). */
 const CASES = [
   ...Object.keys(PINE).map((k) => [`${k} · off the listing`, k, PINE_DOC]),
+  // ⭐⭐ 2026-11-09 — a Pine document states BOTH facts (`nativeRegistry.barIndexAbsoluteFor`,
+  // `varOriginAbsoluteFor`); the listing and the formula language are the controls.
+  ...Object.keys(ORIGIN).map((k) => [`${k} · var origin · off the listing`, k, VAR_DOC]),
+  ...['isfirst', 'var first time', 'var set on a rare bar', 'a bar counter']
+    .map((k) => [`${k} · var origin · from the listing`, k, { ...VAR_DOC, historyFromListing: true }]),
+  ...['var first time', 'var set on a rare bar', 'a bar counter']
+    .map((k) => [`${k} · var origin · the formula language's own accum`, k, { tf: 'D' }]),
   ...['index', 'index % 3', 'index > 50', 'index * close', 'a threshold under ta.cum', 'ta.cum(1)',
     'ta.cum(1) < 16 (a warm-up guard)', 'ta.cum(volume)', 'ta.obv', 'ta.accdist', 'ta.pvt', 'ta.wad', 'ta.nvi',
     'ta.pvi', 'ta.cum(close * volume) / ta.cum(volume)', 'has volume data (ta.cum(nz(volume)) > 0)']
@@ -147,11 +200,37 @@ const CASES = [
     .map((k) => [`${k} · as a position`, k, { ...PINE_DOC, barIndexUse: 'position' }]),
 ]
 
-function evaluate(ast, opts) {
+function evaluate(ast, opts, inputs = {}) {
   const sink = new Map()
-  const col = Array.from(interpret(ast, BARS, {}, undefined, undefined, { ...(opts || {}), chartClockSink: sink }))
+  const col = Array.from(interpret(ast, BARS, inputs, undefined, undefined, { ...(opts || {}), chartClockSink: sink }))
     .map((x) => (Number.isNaN(x) ? null : x))
   return { expected: col, codes: [...sink.keys()].sort() }
+}
+
+/** ⭐⭐ r1 (review VAR-OFF) — THE REVIEWER'S ORACLE SHAPE, held by both lanes: 900 bars,
+ *  closes climbing to 200 by bar 100, then a 95–105 range. TradingView's state was
+ *  decided in the rally; the last 600 bars (off the listing) never see it. */
+const RALLY = Array.from({ length: 900 }, (_, i) => {
+  const c = i <= 100 ? 100 + i : 100 + 5 * Math.sin(i / 3)
+  const o = c - Math.cos(i * 1.7)
+  const d = new Date(Date.UTC(2020, 0, 6))
+  d.setUTCDate(d.getUTCDate() + i)
+  return { t: d.toISOString().slice(0, 10), o, h: Math.max(o, c) + 1, l: Math.min(o, c) - 1, c, v: 1000 }
+})
+const RALLY_FROM = 300
+const RALLY_TREES = {
+  'latch held in an arm': ['var int regime = 0', 'regime := regime == 2 ? regime : close > 180 ? 2 : 1', 'plot(regime)'],
+  'latch by if': ['var bool hit = false', 'if close > 180', '    hit := true', 'plot(hit ? 1 : 0)'],
+  'state-gated hold': ['var float s = close', 's := s > 150 ? s : low', 'plot(s)'],
+  'state-gated hold, seeded 0': ['var float s = 0.0', 's := s > 150 ? s : low', 'plot(s)'],
+  ratchet: ['var float lvl = close', 'lvl := high > lvl * 1.5 ? high : lvl > 150 ? lvl : low', 'plot(lvl)'],
+  'self only in a condition': ['var int regime = 0',
+    'regime := regime == 2 ? 2 : close > 180 ? 2 : close > 100 ? 1 : 0', 'plot(regime)'],
+}
+const rallyTree = (lines) => {
+  const t = translatePine(`//@version=6\nindicator("p", max_bars_back = 50)\n${lines.join('\n')}\n`, { strict: true })
+  if (!t.ok) throw new Error(t.refusal && t.refusal.message)
+  return t.outputs[t.selected].ast
 }
 
 if (WRITE) {
@@ -161,13 +240,26 @@ if (WRITE) {
       + 'that file and by tests/test_ast_bar_index_shift_parity.py. `cls` / `thresholds` are '
       + 'barIndexShift.js::barIndexVerdict; `expected` is the JS lane\'s own interpret output under `opts` '
       + '(null = withheld / not computable); `codes` are the withholding codes the mask named.',
-    pine: Object.fromEntries(Object.entries(PINE).map(([k, v]) => [k, v[0]])),
+    pine: Object.fromEntries([...Object.entries(PINE), ...Object.entries(ORIGIN)].map(([k, v]) => [k, v[0]])),
     bars: BARS,
     cases: CASES.map(([name, key, opts]) => {
       const ast = treeOf(key)
       const v = barIndexVerdict(ast)
-      return { name, pine: key, opts, ast, cls: v.cls, thresholds: v.thresholds.length, ...evaluate(ast, opts) }
+      // ⭐ 2026-11-09 — a `var` FROM THE LISTING is the listing pass (C12w), which only this lane
+      // runs: no server lane is ever handed bars it can prove start at the listing.
+      const jsOnly = opts.historyFromListing === true && name.includes(' · var origin · ')
+      return { name, pine: key, opts, inputs: inputsOf(key), ast, cls: v.cls, thresholds: v.thresholds.length,
+        ...(jsOnly ? { jsOnly: true } : {}), ...evaluate(ast, opts, inputsOf(key)) }
     }),
+    // ⭐ r1 — the off-listing window of RALLY (`bars.slice(from)`) under a Pine document;
+    // `expected` is this lane's answer there, which the Python lane must reproduce.
+    rally: { bars: RALLY, from: RALLY_FROM, opts: VAR_DOC, cases: Object.entries(RALLY_TREES).map(([name, lines]) => {
+      const ast = rallyTree(lines)
+      const sink = new Map()
+      const expected = Array.from(interpret(ast, RALLY.slice(RALLY_FROM), {}, undefined, undefined,
+        { ...VAR_DOC, chartClockSink: sink })).map((x) => (Number.isNaN(x) ? null : x))
+      return { name, pine: lines, ast, expected, codes: [...sink.keys()].sort() }
+    }) },
   }
   writeFileSync(FIXTURE, `${JSON.stringify(doc)}\n`)
 }
@@ -310,7 +402,7 @@ describe('C45 · parity with the Python lane — one fixture, both lanes', () =>
     const v = barIndexVerdict(c.ast)
     expect(v.cls).toBe(c.cls)
     expect(v.thresholds.length).toBe(c.thresholds)
-    const got = evaluate(c.ast, c.opts)
+    const got = evaluate(c.ast, c.opts, c.inputs)
     expect(got.expected).toEqual(c.expected)
     expect(got.codes).toEqual(c.codes)
   })
