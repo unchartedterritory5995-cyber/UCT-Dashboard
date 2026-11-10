@@ -487,6 +487,10 @@
 .legendToolbarHidden {
   transform: translateY(-26px);
 }
+/* No toolbar band at all (legendFlush): the legend's first row sits at the pane's top. */
+.legendFlush {
+  transform: translateY(-30px);
+}
 .legendTime {
   color: var(--legend-ink-text, var(--text));
   font-weight: 600;

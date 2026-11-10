@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspense } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef, Suspense } from 'react'
+import { lazyDeferrable } from '../utils/lazyWithRetry'
 import { useSearchParams } from 'react-router-dom'
 import useSWR, { useSWRConfig } from 'swr'
 import { useVirtualizer } from '@tanstack/react-virtual'
@@ -55,7 +56,7 @@ import { useBreadthAgentHost } from '../agent/hosts/usePageAgentHosts'
 // toggle, market clock, timeframe bar, market-cap/earnings/UCT-rating meta,
 // settings gear and drawing tools. Lazy, so none of it lands in the eager
 // entry chunk.
-const ChartPane = lazy(() => import('../components/chart/pane/ChartPane'))
+const ChartPane = lazyDeferrable(() => import('../components/chart/pane/ChartPane'))
 
 // Throws on a non-2xx / network / 30 s deadline (jsonFetcher). The bare `r.json()` turned a
 // 402 or 5xx {detail} into a payload with no rows, which read "No data yet. Run python ...".
@@ -372,7 +373,7 @@ function cellClass(col, val, row = null) {
 // The window's code is fetched ahead of the click (on idle, and on hovering a
 // cell) so opening it never waits on a chunk download.
 const loadDrillModal = () => import('./breadth/drill/BreadthDrillModal')
-const BreadthDrillModal = lazy(loadDrillModal)
+const BreadthDrillModal = lazyDeferrable(loadDrillModal)
 function preloadDrillModal() { loadDrillModal().catch(() => {}) }
 
 // ── COLS lookup map ────────────────────────────────────────────────────────
