@@ -10,6 +10,8 @@
 | C1-123 | alternative access path → **present, pending merge** (owner-approved 2026-11-10) | the desktop /charts right-click menu never had Add indicator; the owner approved adding it, built on `agent/pl/chart-menu-add-indicator` (not yet on master) |
 | C1-175 | documentation mismatch | Esc is declared and teachable; the row says it has no walkthrough and is BLOCKED |
 | C3-080 | intentional removal, dead residue | "Remove starred" lost its only trigger on purpose in `72482c8400`; the code and CLAUDE.md line are leftovers |
+| (discovery) location-aware settings row | design question (owner) | a candle behind the centred watermark offers Watermark settings, not Candle settings |
+| (discovery) desktop chart menu Escape | keyboard / accessibility defect → **fix built** | the menu closed only on its backdrop; Escape did nothing |
 
 Follow-up of 2026-11-10 (proposals only, nothing implemented): (a) C3-080 is below, and (b) and (c) are added under
 C3-223 and C1-123.
@@ -188,3 +190,20 @@ set in `agentGuideHeldOutControls.test.js`, and "NOT IN PRODUCT (C3-080)").
 - If the owner wants bulk removal back, reuse the existing `starred` Set and `handleRemoveStarred` (it already handles
   the Flagged list and linked-list gating) behind a selection gesture that is not the star, such as Ctrl/Cmd+click
   row multi-select. That is a new design decision, not a restoration, so it needs owner approval before any work.
+
+## Found while teaching the chart menu (2026-11-10, agent/pl/teach-chart-menu)
+
+**A candle behind the watermark offers Watermark settings (design question; nothing changed)**
+- The location-aware row (CWID `ctxLocItem`) checks `ctxMenu.onWatermark` first, then the region and `onCandle`. Where the
+  watermark's rect covers candles, a right-click on a candle offers Watermark settings, never Candle settings.
+- Seen in a REAL BROWSER on the LOCAL harness (`evidence/teach-chart-menu/candle-diag.attempt-1.results.json`, `4c2a87e3d5`):
+  every candle-pixel point inside the centred watermark gave `settings-watermark`.
+- The walkthrough teaches it as it is: "Right-click on a candle away from the big symbol behind the chart. On the symbol,
+  the row is Watermark settings instead."
+- Owner decision: should a candle win over the watermark (the watermark is behind the candles), or stay as it is?
+
+**The desktop chart right-click menu had no Escape (defect; fix built, not merged)**
+- ChartWidget closed the menu only on a click or right-click of its backdrop. The app-root ChartContextMenu and the
+  screener layout menu both close on Escape.
+- Fix on `agent/pl/chart-menu-escape` (off master `5fed0561f1`), through the key registry (`charts.ctxMenuClose`):
+  Escape closes the menu and hands focus back to the chart. Not yet merged.
