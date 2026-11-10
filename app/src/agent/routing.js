@@ -104,6 +104,16 @@ export const GROUPS = [
       // CG-3a (corpus #769): a COUNT of charts with no tickers ("put four charts on my screen", "create four charts") is
       // new charts + an even re-tile — the widget adds and the arrange live here (chartGrid needs tickers)
       MULTI_CHARTS, GRID_CELLS, /\b(2 ?x ?2|[2-4] by [2-4])\b/] },
+  // ⭐ pl-grid (C3-042..061): the Multi Chart GRID itself — its shape, entering / leaving it, the sync toggles, Groups, saved
+  // grids, the shared settings dialog, maximize and "Reset to my chart" — its OWN fillLast group (two actions), so neither the
+  // NL-1 core nor the workspace / chartGrid groups grow. ADD-ONLY: routing only adds what the model may see.
+  { id: 'multiChart', title: 'The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart', domains: ['multiChart'], fillLast: true,
+    words: [/\bmulti[\s-]?charts?\b/, /\bgrids?\b/, /\b\d\s*(?:x|by|×)\s*\d\b/, /\b(?:one|two|three|four)\s+(?:by|x)\s+(?:one|two|three|four)\b/, /\b(?:rows?|columns?)\b/,
+      /\bcross[\s-]?hairs?\b/, /\bsync(?:ed|ing|hroni[sz]e)?\b/, /\bsame (?:dates|time ?range|range)\b/,
+      /\bgroups?(?: mode)?\b/, /\b(?:next|previous|prev) (?:group|theme)\b/,
+      /\bmaximi[sz]e|\bfull[\s-]?(?:size|screen)\b|\bblow (?:it |that |the \w+ )?up\b|\bwhole grid\b|\bun-?maximi[sz]e\b/,
+      /\bshared (?:chart )?settings\b|\bmy (?:own )?(?:chart|normal) settings\b|\breset\b.*\bmy chart\b|\bback to my (?:own )?chart\b/,
+      /\bnormal (?:board|charts? board)\b|\bback to (?:the |my )?(?:normal |regular )?(?:board|workspace)\b/] },
   // Split from 'workspace' (2026-10-09): a whole-group packer packs better with smaller groups, and
   // saved layouts are their own concept ("open my Swing layout", "save this").
   { id: 'layouts', title: 'Saved layouts (open, save, create, copy, rename, delete)', domains: ['layout'],

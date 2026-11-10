@@ -15,8 +15,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useMemo } from 'react'
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
+import { SWRConfig } from 'swr'
 
-const H = vi.hoisted(() => ({ prefs: {}, setPref: null, api: null, mc: null, nav: null, chartProps: {}, session: 'closed', alerts: [], alertCalls: [] }))
+const H = vi.hoisted(() => ({ prefs: {}, setPref: null, api: null, mc: null, nav: null, chartProps: {}, session: 'closed', alerts: [], alertCalls: [], layouts: null, layoutCalls: [], groupTop: null, topCalls: [] }))
 
 vi.mock('../../../hooks/usePreferences', async (importOriginal) => {
   const real = await importOriginal()
@@ -59,6 +60,7 @@ import { registerBuiltins } from '../../builtins'
 import { AuthContext } from '../../../context/AuthContext'
 import AgentPanel from '../../AgentPanel'
 import useMultiChartState from '../../../pages/charts/grid/useMultiChartState'
+import useGridAgentControl from '../../../pages/charts/grid/useGridAgentControl'
 import MultiChartGrid from '../../../pages/charts/grid/MultiChartGrid'
 import { buildWorkspaceHost } from '../../host'
 import { groupOfAction } from '../../routing'
@@ -91,8 +93,57 @@ function alertsRoute(u, init) {
   }
   return json({ detail: 'no' }, 405)
 }
+// ── the saved-layouts service (/api/charts/layouts): a stateful book of rows, multichart and workspace kinds side by side ──
+let layoutN = 100
+function layoutsRoute(u, init) {
+  const method = (init.method || 'GET').toUpperCase()
+  H.layoutCalls.push([method, u, init.body ? JSON.parse(init.body) : null])
+  if (method === 'GET') return json(H.layouts)
+  if (method === 'POST') {
+    const b = JSON.parse(init.body)
+    const key = b.scope === 'global' ? 'global' : 'mine'
+    if (b.create_only && H.layouts[key].some(t => t.name === b.name)) return json({ detail: 'A layout with that name already exists' }, 409)
+    const row = { id: ++layoutN, name: b.name, layout: b.layout, groups: b.groups, scope: b.scope }
+    H.layouts = { ...H.layouts, [key]: [...H.layouts[key], row] }
+    return json(row)
+  }
+  if (method === 'DELETE') {
+    const id = Number(u.split('/').pop())
+    H.layouts = { global: H.layouts.global.filter(t => t.id !== id), mine: H.layouts.mine.filter(t => t.id !== id) }
+    return json({ ok: true })
+  }
+  return json({ detail: 'no' }, 405)
+}
+// ── the groups service (/api/groups): a fixture theme list and each theme's ranking (H.groupTop may re-rank between calls) ──
+const GROUPS = [
+  { id: 'semis', name: 'Semiconductors', chartable: 16 },
+  { id: 'semi_equipment', name: 'Semiconductor Equipment', chartable: 6 },
+  { id: 'space', name: 'Space', chartable: 4 },
+  { id: 'memory', name: 'Memory & HBM', chartable: 4 },
+  { id: 'dead', name: 'Dead Theme', chartable: 0 },
+]
+const TOP = () => ({
+  semis: { syms: ['NVDA', 'AMD', 'AVGO', 'MU', 'TSM', 'INTC', 'QCOM', 'MRVL', 'ARM'], etf: 'SMH' },
+  semi_equipment: { syms: ['AMAT', 'LRCX', 'KLAC', 'ASML', 'TER', 'ONTO'], etf: null },
+  space: { syms: ['RKLB', 'ASTS', 'LUNR', 'BKSY'], etf: 'UFO' },
+  memory: { syms: ['MU', 'WDC', 'STX', 'SNDK'], etf: null },
+  dead: { syms: [], etf: null },
+})
+function groupsRoute(u) {
+  if (u === '/api/groups') return json({ groups: GROUPS })
+  const m = /^\/api\/groups\/([^/]+)\/top\?n=(\d+)/.exec(u)
+  if (m) {
+    const id = decodeURIComponent(m[1])
+    H.topCalls.push(id)
+    const t = (H.groupTop || TOP())[id]
+    if (!t) return json({ detail: 'no' }, 404)
+    return json({ syms: t.syms.slice(0, Number(m[2])), etf: t.etf, rows: t.syms.map(sym => ({ sym })), total: t.syms.length, by: 'today', ranked_as_of: 'regular' })
+  }
+  return json({ seed: null, group_id: null, peers: [], source: 'none' })
+}
 beforeEach(() => {
   envelopes = []; scriptErrors = []; boardAdds = []; turns = 0
+  H.layouts = { global: [], mine: [] }; H.layoutCalls = []; H.groupTop = null; H.topCalls = []
   H.prefs = { multichart_state: JSON.stringify(GRID()) }
   H.setPref = vi.fn(async (k, v) => { H.prefs = { ...H.prefs, [k]: v }; return true })
   H.api = { current: new Map() }
@@ -112,6 +163,8 @@ beforeEach(() => {
     }
     if (u === '/api/agent/record') return json({ conversationId: 'ac_1' })
     if (u.startsWith('/api/watchlist-alerts')) return alertsRoute(u, init)
+    if (u.startsWith('/api/charts/layouts')) return layoutsRoute(u, init)
+    if (u.startsWith('/api/groups')) return groupsRoute(u)
     const q = /ticker-search\?q=([^&]+)/.exec(u)
     if (q) return json({ results: [{ ticker: decodeURIComponent(q[1]).toUpperCase() }] })
     if (u.includes('keys=multichart_state')) return json({ multichart_state: H.prefs.multichart_state })
@@ -123,10 +176,15 @@ afterEach(() => { vi.restoreAllMocks(); cleanup() })
 
 const BOARD = [{ id: 'hidden1', type: 'chart', x: 0, y: 0, w: 24, h: 20, color: 'A', opts: {} }]
 const withTracingsSync = (host) => ({ ...host, drawings: { ...host.drawings, confirm: async () => ({ ok: true }) } })
+// ⭐ pl-grid: the Stage is ChartsWorkspace's own wiring — the grid only while Multi Chart is on (its `mode`), the panel in grid
+// mode exactly then, and the host carrying the grid's writers (useGridAgentControl, as ChartsWorkspace builds it)
 function Stage() {
   const mc = useMultiChartState()
   H.mc = mc
+  const gridControl = useGridAgentControl(mc)
+  const gridMode = mc.state.mode === 'grid'
   const host = useMemo(() => withTracingsSync(buildWorkspaceHost({
+    gridControl,
     chartApiById: H.api,
     getWidgets: () => BOARD,
     selectedChart: () => 'hidden1',
@@ -139,12 +197,12 @@ function Stage() {
       persist: async () => ({ ok: true }),
       groupSyms: () => ({ A: 'SPY' }),
     },
-  })), [])
-  return (<><MultiChartGrid mc={mc} /><AgentPanel host={host} gridMode surface="charts" onClose={() => {}} /></>)
+  })), [])   // eslint-disable-line react-hooks/exhaustive-deps
+  return (<>{gridMode && <MultiChartGrid mc={mc} />}<AgentPanel host={host} gridMode={gridMode} surface="charts" onClose={() => {}} /></>)
 }
 const idle = () => waitFor(() => expect(screen.queryByTestId('agent-typing')).toBeNull(), { timeout: 10000 })
 function mount() {
-  render(<AuthContext.Provider value={{ user: { id: 1, role: 'member' } }}><Stage /></AuthContext.Provider>)
+  render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><AuthContext.Provider value={{ user: { id: 1, role: 'member' } }}><Stage /></AuthContext.Provider></SWRConfig>)
   const box = screen.getByLabelText('Message UCT Agent')
   const send = async (t) => { await idle(); fireEvent.change(box, { target: { value: t } }); fireEvent.keyDown(box, { key: 'Enter' }); await idle() }
   /** The member says `text`; `plan(context)` → the ops a correct planner sends from THIS request. */
@@ -331,27 +389,294 @@ describe('Multi Chart execution family — rows an existing capability executes 
   }, 30000)
 })
 
-describe('Multi Chart execution family — rows no existing capability executes (GAP / BLOCKED-owner)', () => {
-  // grid-level writers that already exist in useMultiChartState.js but are NOT on the Agent's grid object (gridBoard,
-  // MultiChartGrid.jsx:232-245 — read-only: cells/shape/selected/lastChanged/maximized/syncTimeRange/groupsMode/persist) and
-  // have no capability; any write to target 'board' | 'workspace' | 'layouts' is refused in grid mode (gridMode.js:75)
-  it.todo('C3-042 enter a preset grid — GAP: writer mc.enterGrid (useMultiChartState.js:133) has no capability; from the board the Agent has no handle on mc at all (buildWorkspaceHost, host.js:749, carries no grid writer), and a workspace-target write is refused in grid mode (gridMode.js:75)')
-  it.todo('C3-043 custom rows × columns grid — GAP: writer mc.applyCustomLayout (useMultiChartState.js:144) is not on gridBoard (MultiChartGrid.jsx:232-245); no multiChart.set capability; GRID_MAX_CELLS cap lives only in MultiChartMenu.jsx:66-80')
-  it.todo('C3-044 exit Multi Chart — GAP: writer mc.exitGrid (useMultiChartState.js:140) is not on gridBoard; no capability; gridMode.js:75 refuses board/workspace targets')
-  it.todo('C3-045 toggle crosshair sync — GAP: writer mc.setSyncCrosshair (useMultiChartState.js:229) is not on gridBoard (only a read of syncTimeRange is); no capability')
-  it.todo('C3-046 toggle time-range sync — GAP: writer mc.setSyncTimeRange (useMultiChartState.js:233) is not on gridBoard (gridBoard.syncTimeRange is read-only, MultiChartGrid.jsx:242); no capability')
-  it.todo('C3-047 turn on Groups mode — GAP: writer mc.setGroupsMode(true) (useMultiChartState.js:237) is not on gridBoard (gridBoard.groupsMode is read-only, MultiChartGrid.jsx:243); no capability')
-  it.todo('C3-048 pick a group for the grid — GAP: the fetch-and-fill (fetchGroupTop + pinEtf → mc.fillCells, useMultiChartState.js:161) lives in MultiChartMenu.jsx (group picker); no capability, not on gridBoard')
-  it.todo('C3-049 step or switch group — GAP: stepGroup is component logic in MultiChartMenu.jsx:84-101 (fetchGroups/neighborGroup/fetchGroupTop → mc.fillCells); needs lifting into a writer on gridBoard + a capability')
-  it.todo('C3-050 refresh the group — GAP: the refresh handler is inline in MultiChartMenu.jsx:288-312 (→ mc.fillCells); needs a writer on gridBoard + a capability, and live group data to verify against (fixture)')
-  it.todo('C3-051 exit Groups — GAP: writer mc.setGroupsMode(false) / mc.clearGroup (useMultiChartState.js:237, :225) is not on gridBoard; no capability')
-  // saved grids: the same /api/charts/layouts store, kind:'multichart'
-  it.todo('C3-052 apply a saved grid — GAP: writer mc.applyGridTemplate (useMultiChartState.js:245) is not on gridBoard; the Agent layout source omits multichart rows (ChartsWorkspace.jsx:2861-2862 filter → dockEntries → agentLayoutsRef.entries :3376); layout.open (capabilities/layout.js:351) opens workspace layouts only')
-  it.todo('C3-053 save a grid — GAP: layout.saveAs (capabilities/layout.js:454) saves the WORKSPACE board, not {kind:\'multichart\', layout, cells, group} (MultiChartMenu.jsx:103-127), and gridMode.js:75 refuses every non-query layouts write in grid mode; needs a kind:\'multichart\' path')
-  it.todo('C3-054 save a grid as global (admin) — BLOCKED-owner: admin/global scope is an owner decision (same as C3-032); not attempted')
-  it.todo('C3-055 delete a saved grid — GAP: layout.delete (capabilities/layout.js:598) only sees dockEntries (workspace kind; multichart filtered at ChartsWorkspace.jsx:2861-2862) and is refused in grid mode by gridMode.js:75; needs a kind:\'multichart\' filter/path')
-  // per-cell rows
-  it.todo('C3-059 reset a cell to my chart — GAP: the product writes settings:null (GridChartCell.jsx:228-231 resetToMyChart → onChange, merged by presence at MultiChartGrid.jsx:202-205); chart.resetDefaults (capabilities/chart.js:893) writes CHART_DEFAULTS into a fork instead — a different outcome; needs a cell-reset capability (or a chart.resetDefaults grid mapping to settings:null in gridAgentAdapter.js)')
-  it.todo('C3-060 maximize or restore a cell — GAP: maxId is local useState in MultiChartGrid.jsx:104 (setMaxId :108); gridBoard exposes maximized() read-only (:241); needs a writer on gridBoard + a capability')
-  it.todo('C3-061 open shared grid settings — GAP: mc.setSettingsOpen (useMultiChartState.js:61) opens the grid\'s ONE shared ChartSettingsModal (MultiChartGrid.jsx:344, :563); no capability opens a dialog (same as C1-127)')
+// ── pl-grid: the grid's own actions (multiChart.set / multiChart.cell over useGridAgentControl) ──
+const gridRef = (ctx) => must(ctx.multiChart?.ref, 'multiChart section')
+const gridOp = (op, extra = {}) => (ctx) => [{ action: 'multiChart.set', target: gridRef(ctx), args: { op, rows: null, cols: null, on: null, name: null, direction: null, ...extra } }]
+const cellOp = (position, op) => (ctx) => [{ action: 'multiChart.cell', target: cellAt(ctx, position).ref, args: { op } }]
+/** the board exactly as persisted in memory (device scoping included) — what Undo must give back byte for byte */
+const raw = () => H.mc.snapshot()
+const persisted = () => H.prefs.multichart_state
+const syms = () => cells().map(c => c.sym || null)
+const board = () => H.api.current.get('grid:board')?.agent?.gridBoard || null
+const transcript = () => screen.getByTestId('agent-transcript').textContent
+/** Undo, then: the board is byte-identical in memory AND in the saved pref, and nothing else is left over */
+async function undoesExactly(undo, raw0, { maxId = null, settingsOpen = false } = {}) {
+  await undo()
+  await waitFor(() => expect(raw()).toBe(raw0))
+  await waitFor(() => expect(persisted()).toBe(raw0), { timeout: 3000 })
+  expect(H.mc.maxId ?? null).toBe(maxId)
+  expect(!!H.mc.settingsOpen).toBe(settingsOpen)
+}
+const groupState = (g, extra = {}) => ({ groupsMode: true, group: g, ...extra })
+const tpl = (layoutId, symsIn, extra = {}) => ({ kind: 'multichart', widgets: [], layout: layoutId, cells: symsIn.map(sym => ({ sym, tf: 'D', chartType: null })), group: null, ...extra })
+const layoutsLoaded = () => waitFor(() => expect(H.layoutCalls.some(([m]) => m === 'GET')).toBe(true))
+
+describe('Multi Chart execution family — the grid itself (pl-grid: multiChart.set / multiChart.cell)', () => {
+  it('C3-042 "can you split my screen into a two by three grid of charts" from the BOARD: Multi Chart opens at 2×3; the four cells keep their charts, two new ones are empty; Undo puts the board back byte for byte', async () => {
+    H.prefs = { multichart_state: JSON.stringify(GRID({ mode: 'workspace' })) }
+    const { say, undo } = mount()
+    expect(screen.queryByTestId('canvas-c0')).toBeNull()                // the board, not the grid, is on screen
+    const raw0 = raw(); const keep = JSON.stringify(cells())
+    await say('can you split my screen into a two by three grid of charts', gridOp('layout', { rows: 2, cols: 3 }))
+    await waitFor(() => expect(H.mc.state.mode).toBe('grid'))
+    expect(H.mc.state.layout).toBe('2x3')
+    expect(cells()).toHaveLength(6)
+    expect(JSON.stringify(cells().slice(0, 4))).toBe(keep)
+    expect(cells().slice(4).map(c => c.sym)).toEqual([null, null])
+    await waitFor(() => expect(JSON.parse(persisted()).layout).toBe('2x3'))
+    await waitFor(() => expect(screen.getByTestId('canvas-c0')).toBeTruthy())
+    expect(receipts().at(-1).textContent).toMatch(/whole grid is now 2×3 \(6 charts\)/)
+    await undoesExactly(undo, raw0)
+    expect(H.mc.state.mode).toBe('workspace')
+  }, 30000)
+
+  it('C3-043 "I want three rows and four columns": a custom 3×4 grid (12 cells) through applyCustomLayout; Undo is exact', async () => {
+    const { say, undo } = mount()
+    const raw0 = raw(); const keep = JSON.stringify(cells())
+    await say('I want three rows and four columns of charts', gridOp('layout', { rows: 3, cols: 4 }))
+    await waitFor(() => expect(H.mc.state.layout).toBe('3x4'))
+    expect(cells()).toHaveLength(12)
+    expect(JSON.stringify(cells().slice(0, 4))).toBe(keep)
+    await undoesExactly(undo, raw0)
+  }, 30000)
+
+  it('C3-043 a grid past the cap ("make it five rows by two") is refused in words; nothing changes', async () => {
+    const { say } = mount()
+    const raw0 = raw()
+    await say('make it five rows by two', gridOp('layout', { rows: 5, cols: 2 }))
+    await waitFor(() => expect(transcript()).toMatch(/at most 4 rows by 4 columns/))
+    expect(raw()).toBe(raw0)
+    expect(receipts()).toHaveLength(0)
+  }, 30000)
+
+  it('C3-044 "close the multi chart view and take me back to my normal board": the grid leaves the screen, kept for next time; Undo brings it back exactly', async () => {
+    const { say, undo } = mount()
+    const raw0 = raw(); const keep = JSON.stringify(cells())
+    await say('close the multi chart view and take me back to my normal board', gridOp('exit'))
+    await waitFor(() => expect(H.mc.state.mode).toBe('workspace'))
+    await waitFor(() => expect(screen.queryByTestId('canvas-c0')).toBeNull())
+    expect(JSON.stringify(cells())).toBe(keep)                            // the grid itself is kept
+    await waitFor(() => expect(JSON.parse(persisted()).mode).toBe('workspace'))
+    await undoesExactly(undo, raw0)
+    expect(H.mc.state.mode).toBe('grid')
+  }, 30000)
+
+  it('C3-045 "link the crosshairs across all four charts": crosshair sync on for the whole grid (the receipt says so); cells untouched; Undo is exact', async () => {
+    const { say, undo } = mount()
+    const raw0 = raw(); const keep = JSON.stringify(cells())
+    await say('link the crosshairs across all four charts', gridOp('syncCrosshair', { on: true }))
+    await waitFor(() => expect(H.mc.state.syncCrosshair).toBe(true))
+    await waitFor(() => expect(JSON.parse(persisted()).syncCrosshair).toBe(true))
+    expect(JSON.stringify(cells())).toBe(keep)
+    expect(receipts().at(-1).textContent).toMatch(/every chart in the grid/)
+    await undoesExactly(undo, raw0)
+  }, 30000)
+
+  it('C3-046 "keep every chart scrolled to the same dates": time-range sync on (gridBoard reads it); Undo is exact', async () => {
+    const { say, undo } = mount()
+    const raw0 = raw(); const keep = JSON.stringify(cells())
+    await say('keep every chart scrolled to the same dates', gridOp('syncTimeRange', { on: true }))
+    await waitFor(() => expect(board().syncTimeRange()).toBe(true))
+    await waitFor(() => expect(JSON.parse(persisted()).syncTimeRange).toBe(true))
+    expect(JSON.stringify(cells())).toBe(keep)
+    await undoesExactly(undo, raw0)
+    expect(board().syncTimeRange()).toBe(false)
+  }, 30000)
+
+  it('C3-047 "switch groups mode on": Groups mode on (gridBoard reads it); cells untouched; Undo is exact', async () => {
+    const { say, undo } = mount()
+    const raw0 = raw(); const keep = JSON.stringify(cells())
+    await say('switch groups mode on', gridOp('groupsMode', { on: true }))
+    await waitFor(() => expect(board().groupsMode()).toBe(true))
+    expect(JSON.stringify(cells())).toBe(keep)
+    await undoesExactly(undo, raw0)
+    expect(board().groupsMode()).toBe(false)
+  }, 30000)
+
+  it('C3-048 "fill the grid with the space stocks": the picker\'s own fetch-and-fill — the ETF pinned first, the grid size kept, Groups mode on; Undo is exact', async () => {
+    const { say, undo } = mount()
+    const raw0 = raw()
+    await say('fill the grid with the space stocks', gridOp('pickGroup', { name: 'space' }))
+    await waitFor(() => expect(syms()).toEqual(['UFO', 'RKLB', 'ASTS', 'LUNR']))
+    expect(H.mc.state.group).toMatchObject({ id: 'space', name: 'Space' })
+    expect(H.mc.state.groupsMode).toBe(true)
+    expect(H.topCalls).toContain('space')
+    await waitFor(() => expect(JSON.parse(persisted()).group?.id).toBe('space'))
+    expect(receipts().at(-1).textContent).toMatch(/every cell of the grid/)
+    await undoesExactly(undo, raw0)
+  }, 30000)
+
+  it('C3-048 a group name that fits two groups ("the semiconductor group") is asked by name, never guessed; nothing changes', async () => {
+    const { say } = mount()
+    const raw0 = raw()
+    await say('load the semiconductor group', gridOp('pickGroup', { name: 'semiconductor' }))
+    await waitFor(() => expect(transcript()).toMatch(/Several groups match/))
+    expect(transcript()).toMatch(/Semiconductors/)
+    expect(transcript()).toMatch(/Semiconductor Equipment/)
+    expect(raw()).toBe(raw0)
+    expect(receipts()).toHaveLength(0)
+  }, 30000)
+
+  it('C3-048 a group with nothing chartable: the picker would have switched Groups mode on first — the Agent takes that back, and nothing is left changed', async () => {
+    const { say } = mount()
+    const raw0 = raw()
+    await say('load the Dead Theme group', gridOp('pickGroup', { name: 'Dead Theme' }))
+    await waitFor(() => expect(transcript()).toMatch(/no chartable names/))
+    await waitFor(() => expect(raw()).toBe(raw0))
+    expect(H.mc.state.groupsMode).toBe(false)
+    expect(receipts()).toHaveLength(0)
+  }, 30000)
+
+  it('C3-049 "go to the next group": Next › — the next theme\'s leaders fill the grid; Undo is exact', async () => {
+    H.prefs = { multichart_state: JSON.stringify(GRID({ cells: [cell('c0', 'UFO'), cell('c1', 'RKLB'), cell('c2', 'ASTS'), cell('c3', 'LUNR')], ...groupState({ id: 'space', name: 'Space', by: 'today', n: 4 }) })) }
+    const { say, undo } = mount()
+    const raw0 = raw()
+    await say('go to the next group', gridOp('stepGroup', { direction: 'next' }))
+    await waitFor(() => expect(syms()).toEqual(['MU', 'WDC', 'STX', 'SNDK']))
+    expect(H.mc.state.group).toMatchObject({ id: 'memory', name: 'Memory & HBM' })
+    await undoesExactly(undo, raw0)
+  }, 30000)
+
+  it('C3-049 "switch over to the memory & HBM group" (an also-in chip): the switcher swaps the current group into the chips; Undo is exact', async () => {
+    H.prefs = { multichart_state: JSON.stringify(GRID({ cells: [cell('c0', 'SMH'), cell('c1', 'NVDA'), cell('c2', 'AMD'), cell('c3', 'AVGO')], ...groupState({ id: 'semis', name: 'Semiconductors', by: 'today', n: 4, seed: 'NVDA', alsoIn: [{ id: 'memory', name: 'Memory & HBM' }] }) })) }
+    const { say, undo } = mount()
+    const raw0 = raw()
+    await say('switch over to the memory & HBM group', gridOp('pickGroup', { name: 'memory & HBM' }))
+    await waitFor(() => expect(syms()).toEqual(['MU', 'WDC', 'STX', 'SNDK']))
+    expect(H.mc.state.group.id).toBe('memory')
+    expect(H.mc.state.group.alsoIn).toEqual([{ id: 'semis', name: 'Semiconductors' }])
+    await undoesExactly(undo, raw0)
+  }, 30000)
+
+  it('C3-050 "refresh the group": ↻ Refresh — the loaded group re-ranked now; a cell whose ticker stays keeps its id; Undo is exact', async () => {
+    H.prefs = { multichart_state: JSON.stringify(GRID({ cells: [cell('c0', 'SMH'), cell('c1', 'NVDA'), cell('c2', 'AMD'), cell('c3', 'AVGO')], ...groupState({ id: 'semis', name: 'Semiconductors', by: 'today', n: 4, seed: 'NVDA', alsoIn: [{ id: 'memory', name: 'Memory & HBM' }] }) })) }
+    H.groupTop = { ...TOP(), semis: { syms: ['AVGO', 'MU', 'NVDA', 'AMD'], etf: 'SMH' } }
+    const { say, undo } = mount()
+    const raw0 = raw()
+    await say('refresh the group', gridOp('refreshGroup'))
+    await waitFor(() => expect(syms()).toEqual(['SMH', 'AVGO', 'MU', 'NVDA']))
+    expect(at('c0').sym).toBe('SMH')
+    expect(cells().find(c => c.sym === 'AVGO').id).toBe('c3')
+    // a refresh keeps the group it refreshed — its also-in chips — exactly as ↻ Refresh does ({ ...g, n })
+    expect(H.mc.state.group).toMatchObject({ id: 'semis', alsoIn: [{ id: 'memory', name: 'Memory & HBM' }] })
+    await undoesExactly(undo, raw0)
+  }, 30000)
+
+  it('C3-051 "get out of groups mode": Exit Groups — the group is dropped, the charts stay; Undo is exact', async () => {
+    H.prefs = { multichart_state: JSON.stringify(GRID({ cells: [cell('c0', 'UFO'), cell('c1', 'RKLB'), cell('c2', 'ASTS'), cell('c3', 'LUNR')], ...groupState({ id: 'space', name: 'Space', by: 'today', n: 4 }) })) }
+    const { say, undo } = mount()
+    const raw0 = raw(); const symsBefore = syms()
+    await say('get out of groups mode', gridOp('groupsMode', { on: false }))
+    await waitFor(() => expect(H.mc.state.groupsMode).toBe(false))
+    expect(H.mc.state.group).toBe(null)
+    expect(syms()).toEqual(symsBefore)
+    await undoesExactly(undo, raw0)
+  }, 30000)
+
+  it('C3-052 "open my Momentum Nine grid": the saved multichart grid (not the workspace layout of a similar name) replaces the board; Undo is exact', async () => {
+    const nine = ['NVDA', 'AMD', 'TSLA', 'META', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'NFLX']
+    H.layouts = { global: [], mine: [
+      { id: 7, name: 'Momentum Nine', scope: 'user', layout: tpl('3x3', nine) },
+      { id: 8, name: 'Momentum Board', scope: 'user', layout: { widgets: [{ id: 'w1', type: 'chart' }], cols: 24 } },
+    ] }
+    const { say, undo } = mount()
+    await layoutsLoaded()
+    const raw0 = raw()
+    let seen = null
+    await say('open my Momentum Nine grid', (ctx) => { seen = ctx.multiChart; return gridOp('applySaved', { name: 'Momentum Nine' })(ctx) })
+    expect(seen.savedGrids).toEqual(['Momentum Nine'])                    // the workspace layout is not offered as a grid
+    await waitFor(() => expect(H.mc.state.layout).toBe('3x3'))
+    expect(syms()).toEqual(nine)
+    await undoesExactly(undo, raw0)
+  }, 30000)
+
+  it('C3-053 "save this grid as Chip Watch": one create-only POST of the menu\'s own shape (kind multichart, the cells, the member\'s scope); the grid is untouched; Undo deletes it', async () => {
+    const { say, undo } = mount()
+    await layoutsLoaded()
+    const raw0 = raw()
+    await say('save this grid as Chip Watch', gridOp('saveGrid', { name: 'Chip Watch' }))
+    await waitFor(() => expect(H.layouts.mine.map(t => t.name)).toEqual(['Chip Watch']))
+    const posts = H.layoutCalls.filter(([m]) => m === 'POST')
+    expect(posts).toHaveLength(1)
+    expect(posts[0][2]).toMatchObject({ name: 'Chip Watch', scope: 'user', create_only: true, layout: { kind: 'multichart', layout: '2x2', group: null } })
+    expect(posts[0][2].layout.cells.map(c => c.sym)).toEqual(['NVDA', 'AMD', 'TSLA', null])
+    expect(raw()).toBe(raw0)
+    await undo()
+    await waitFor(() => expect(H.layouts.mine).toEqual([]))
+    expect(H.layoutCalls.filter(([m]) => m === 'DELETE')).toHaveLength(1)
+    expect(raw()).toBe(raw0)
+  }, 30000)
+
+  it('C3-054 BOUNDARY: a PREBUILT (global) grid is not the member\'s to delete — refused in words, no DELETE sent', async () => {
+    H.layouts = { global: [{ id: 3, name: 'UCT Leaders', scope: 'global', layout: tpl('2x2', ['SPY', 'QQQ', 'IWM', 'DIA']) }], mine: [] }
+    const { say } = mount()
+    await layoutsLoaded()
+    await say('delete the UCT Leaders grid', gridOp('deleteSaved', { name: 'UCT Leaders' }))
+    await waitFor(() => expect(transcript()).toMatch(/prebuilt grid, which only an admin can delete/))
+    expect(H.layoutCalls.filter(([m]) => m === 'DELETE')).toHaveLength(0)
+    expect(H.layouts.global).toHaveLength(1)
+  }, 30000)
+
+  it('C3-055 "delete my Old Grid layout": shown first; Apply sends ONE DELETE of that row only; Undo saves it again under its name with its content', async () => {
+    const old = tpl('1x2', ['SPY', 'QQQ'])
+    H.layouts = { global: [], mine: [{ id: 9, name: 'Old Grid', scope: 'user', layout: old }, { id: 10, name: 'Keep Grid', scope: 'user', layout: tpl('2x1', ['IWM', 'DIA']) }] }
+    const { say, apply, undo } = mount()
+    await layoutsLoaded()
+    const raw0 = raw()
+    await say('delete my Old Grid layout', gridOp('deleteSaved', { name: 'Old Grid' }))
+    expect(H.layoutCalls.filter(([m]) => m === 'DELETE')).toHaveLength(0)    // a proposal: nothing deleted yet
+    await apply()
+    await waitFor(() => expect(H.layouts.mine.map(t => t.name)).toEqual(['Keep Grid']))
+    expect(H.layoutCalls.filter(([m]) => m === 'DELETE').map(([, u]) => u)).toEqual(['/api/charts/layouts/9'])
+    expect(raw()).toBe(raw0)
+    await undo()
+    await waitFor(() => expect(H.layouts.mine.map(t => t.name).sort()).toEqual(['Keep Grid', 'Old Grid']))
+    expect(H.layouts.mine.find(t => t.name === 'Old Grid').layout).toEqual(old)
+  }, 30000)
+
+  it('C3-059 "put the top-right chart back to my own chart settings": Reset to my chart — that cell drops its fork, keeps its Style pick and timeframe; no other cell moves; Undo is exact', async () => {
+    H.prefs = { multichart_state: JSON.stringify(GRID({ cells: [cell('c0', 'NVDA', { settings: { upColor: '#111111' } }), cell('c1', 'AMD', { tf: 'W', chartType: 'hollow', settings: { upColor: '#123456', chartType: 'bars' } }), cell('c2', 'TSLA'), cell('c3', null)] })) }
+    const { say, undo } = mount()
+    const raw0 = raw(); const before = othersOf('c1')
+    await say('put the top-right chart back to my own chart settings', cellOp('top-right', 'resetToMine'))
+    await waitFor(() => expect(at('c1').settings).toBeUndefined())
+    expect(at('c1')).toMatchObject({ id: 'c1', sym: 'AMD', tf: 'W', chartType: 'hollow' })
+    expect(othersOf('c1')).toBe(before)
+    await waitFor(() => expect(JSON.parse(persisted()).cells[1].settings).toBeUndefined())
+    await undoesExactly(undo, raw0)
+  }, 30000)
+
+  it('C3-060 "blow up the bottom-left chart to full size": maximized (gridBoard reads it), the grid unchanged; "restore the grid" un-maximizes; each Undo is exact', async () => {
+    const { say, undo } = mount()
+    const raw0 = raw()
+    await say('blow up the bottom-left chart to full size', cellOp('bottom-left', 'maximize'))
+    await waitFor(() => expect(board().maximized()).toBe('c2'))
+    expect(raw()).toBe(raw0)
+    await undo()
+    await waitFor(() => expect(board().maximized()).toBe(null))
+    expect(raw()).toBe(raw0)
+    await say('blow up the bottom-left chart to full size', cellOp('bottom-left', 'maximize'))
+    await waitFor(() => expect(board().maximized()).toBe('c2'))
+    await say('ok put the grid back to normal', gridOp('restoreGrid'))
+    await waitFor(() => expect(board().maximized()).toBe(null))
+    await undo()
+    await waitFor(() => expect(board().maximized()).toBe('c2'))
+    expect(raw()).toBe(raw0)
+  }, 30000)
+
+  it('C3-061 "open the shared chart settings for the grid": the grid\'s ONE Shared Chart Settings dialog opens (its scope said); Undo closes it', async () => {
+    const { say, undo } = mount()
+    const raw0 = raw()
+    await say('open the shared chart settings for the grid', gridOp('openSettings'))
+    await waitFor(() => expect(H.mc.settingsOpen).toBe(true))
+    expect(receipts().at(-1).textContent).toMatch(/every chart in the grid/)
+    expect(raw()).toBe(raw0)
+    await undo()
+    await waitFor(() => expect(H.mc.settingsOpen).toBe(false))
+    expect(raw()).toBe(raw0)
+  }, 30000)
+})
+
+describe('Multi Chart execution family — rows not executed (BLOCKED-owner)', () => {
+  it.todo('C3-054 save a grid as global (admin) — BLOCKED-owner: admin/global scope is an owner decision (same as C3-032); not attempted. The Agent saves only the member\'s own grids (multiChart.set saveGrid, scope user) and refuses to delete a prebuilt one (C3-054 BOUNDARY above)')
 })
