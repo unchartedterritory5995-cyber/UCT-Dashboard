@@ -861,7 +861,7 @@
    "title": "UTHR, September 2025: the textbook Slingshot",
    "steps": [
     "UTHR, September 2025. A 37.7% news gap on 2025-09-02 is the drive. Three tiny red days hug the line.",
-    "Context holds: above its 50-day and 200-day, 9.3% deep, orderly at 0.45 ATR, ordinary volume on the trigger.",
+    "Context holds: above its 50-day and 200-day, 9.3% deep, orderly at 0.45 ATR.",
     "2025-09-18: a close back over the line at 0.92 of its range. Buy the close, 409.87. Stop under the low, 402.47.",
     "Failure mode: the next session opens lower and takes the stop. Instead it reaches 3R in 3 sessions. Trim a third."
    ],
@@ -1446,7 +1446,7 @@
    "q": "Tap the number that fits the blank.",
    "answer": "10",
    "why": "10. A trade still under 1R after 10 trading days is sold, freeing the money.",
-   "lesson_line": "Ten days and nothing. A Slingshot that does not resume was not a Slingshot.",
+   "lesson_line": "Ten days and nothing: sell it and free the money.",
    "facts": [
     "h15",
     "c39"
@@ -1590,7 +1590,7 @@
    ],
    "wrong": {
     "Buy; the close is over the line": "Over the line is one test. The gap and the mid-range close fail the other two.",
-    "Buy half size": "Size does not fix a weak trigger. The B- row is a gap of 2% or more and a weak close."
+    "Buy half size": "Size does not fix a failed gate. A decisive trigger is a gate on our card."
    },
    "house": true,
    "story": "The pullback is four tight closes, 6% deep. Today opens 3% up on news and closes over the line, mid-range."
@@ -1720,7 +1720,7 @@
    "q": "On a Slingshot the stop moves to breakeven once the trade is 2R up, anywhere up to 5R.",
    "answer": "True",
    "why": "True. Breakeven once the trade is 2R up; anywhere from 2R to 5R is allowed. The first trim at 3R is the natural moment.",
-   "lesson_line": "Breakeven between 2R and 5R. Earlier is noise; later is giving it back.",
+   "lesson_line": "Breakeven somewhere from 2R to 5R. The first trim at 3R is the natural moment.",
    "facts": [
     "h05",
     "c32"
@@ -1777,7 +1777,7 @@
    ],
    "wrong": {
     "Buy; the chart outranks the reading": "Orange still allows A+ setups. Red allows mostly cash and shorts.",
-    "Buy small": "Small in a Red market is a small mistake. The rule is no new longs."
+    "Buy small": "Red is mostly cash and shorts. A small long still goes against the guide."
    },
    "house": true,
    "story": "The reading turned Red last week. Today a leader closes decisively back over its 4-day line after a quiet pullback."
@@ -1825,7 +1825,7 @@
    ],
    "answer": "Prefer a rising 50-day over the 200-day",
    "why": "Prefer the 50-day over the 200-day and rising. Here the 50-day sat under the 200-day, the location our card prefers to avoid. The stop was the rule's stop and the loss was planned.",
-   "lesson_line": "A right-looking pullback in the wrong location is a B- at best. Location grades the trade.",
+   "lesson_line": "Location matters. Prefer a Slingshot over a rising 50-day that sits above the 200-day.",
    "facts": [
     "c12",
     "d14",
@@ -1833,7 +1833,7 @@
     "h02"
    ],
    "wrong": {
-    "Never buy a three-close pullback": "Three closes is the minimum and it works often. The location was the problem here.",
+    "Never buy a three-close pullback": "Three closes is the minimum, not a flaw. The location was the problem here.",
     "Too tight; the pullback low was the stop": "The stop is a few cents under the trigger day's low. The stock fell 12.6% under the buy within 20 sessions; a wider stop would have lost more."
    },
    "house": true,
@@ -2351,7 +2351,7 @@
    ],
    "answer": "The one over a rising 50 above the 200",
    "why": "The one over a rising 50-day that sits above the 200-day. Our card prefers that location; the other is the location it prefers to avoid.",
-   "lesson_line": "Same shape, two locations. The rising stack earns the bigger size.",
+   "lesson_line": "Same shape, two locations. Rising averages in the right order earn the better grade.",
    "facts": [
     "c12",
     "d15",
@@ -2377,7 +2377,7 @@
     "Add; it is still above the line"
    ],
    "answer": "Sell; under 1R after 10 days",
-   "why": "Sell. A trade still under 1R after 10 trading days is sold, freeing the money. A Slingshot is a resumption; one that drifts was not one.",
+   "why": "Sell. A trade still under 1R after 10 trading days is sold, freeing the money. A Slingshot is a resumption, and this one has not resumed.",
    "lesson_line": "Ten days and nothing. The money has somewhere better to be.",
    "facts": [
     "h15",
@@ -2428,7 +2428,7 @@
     "t03"
    ],
    "wrong": {
-    "A+; the drive is huge": "The drive is one row of the grade. The pullback fails the orderly test twice.",
+    "A+; the drive is huge": "The drive is one row of the grade. The pullback fails the orderly test on every count.",
     "B; buy half": "Half of a messy pullback is still a messy pullback. Orderly is a gate, not a grade."
    },
    "house": true,
@@ -2458,7 +2458,7 @@
     "Sized up": "Sized up is A+ only."
    },
    "house": true,
-   "story": "A Slingshot grades B- on your read: a weak close on the trigger day and a thin name. The reading is Green."
+   "story": "Every gate passes, but on your read this Slingshot grades B-. The reading is Green."
   },
   {
    "key": "q63",
@@ -2545,7 +2545,7 @@
    "q": "What do you do?",
    "choices": [
     "Nothing; no setup, no trade",
-    "Buy the close one; Green is full risk",
+    "Buy the near one; Green is full risk",
     "Buy it small"
    ],
    "answer": "Nothing; no setup, no trade",
@@ -2556,8 +2556,8 @@
     "c04"
    ],
    "wrong": {
-    "Buy the close one; Green is full risk": "Green sets the size for a setup that passes. It does not create one.",
-    "Buy it small": "Small is a size, not a setup. Never force a trade to have something on."
+    "Buy it small": "Small is a size, not a setup. Never force a trade to have something on.",
+    "Buy the near one; Green is full risk": "Green sets the size for a setup that passes. It does not create one."
    },
    "house": true,
    "story": "Earnings season, and the reading is Green. Your list shows no Slingshot that passes every gate. One is close, but its trigger closed mid-range."
@@ -2578,7 +2578,429 @@
   "Analyzing Alpha's hourly backtest (QQQ members, fixed reward-to-risk exits) is not taught; the source is cited only for the stop and the definition. The dossier's own base rate (24.6% to 3R, 16.5% to 5R on 3,411 firings) is not taught either; nothing in this unit states a win rate.",
   "The short mirror (dossier 8.6, a 4-period EMA of the lows under the 200-day) is not taught here (D-001).",
   "BigGuavaTrading's script page (the three-consecutive-bars default) is forum level and is not cited; the three closes rest on Scot1and's own scan (o01) and the card.",
-  "UNITS-method SET.27 says 'Reversals & Reclaims' and names the Model Book card; the sources describe a continuation (D-014). This unit follows the criteria card."
+  "UNITS-method SET.27 says 'Reversals & Reclaims' and names the Model Book card; the sources describe a continuation (D-014). This unit follows the criteria card.",
+  "Cold check 2026-11-10: 64 pass (10 fixed; the 3 walk-throughs are in the pass count), 2 fix, 4 cut. Look first at: (1) q64, the ASO near-miss keys 'no drive' on D-106's numbers, while option c and your own words ('strong stock, or consolidation after a nice uptrend') could admit a steady climber; (2) q44 teaches PSX's loss as the leadership rule with no RS data in the story or the bars; (3) the card lists the same misses as gates and as B- rows (a gap of 2% or more, a weak close, thin, choppy), which made q28 and q62 half-right for a smaller size; both now key the gate."
  ],
- "verify": {}
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "d01/d02/d00 verbatim (UTHR 2025-09-18: drive +32.8% on a 37.7% gap, 3 closes, 9.3%, 0.45 ATR, DCR 0.92, buy 409.87, stop 402.47 = 1.81%, 3R in 3 sessions). Removed 'ordinary volume on the trigger': UTHR's trigger volume is not in any cited fact. 'Buy the close' follows the card's trigger (D-003 option A, pending).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "d03/d04 verbatim (RELY: +17.8% on a 24.4% earnings gap, 4 closes, 7.5%, 1.04 ATR, DCR 0.92, buy 20.46, stop 19.96 = 2.44%, best 13.7R). c02 settled (drive never the trigger). Close entry rests on D-003 option A.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "d05/d06 verbatim (URI: +17.1% on a 9.3% gap, 3 closes, DCR 0.88, buy 93.86, stop 91.69 = 2.31%, 3R in 6 sessions, 17.2R best, two-month trend). Trims and breakeven at the first trim match B19/E51.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "c01 (ss.line, settled), o04, a03, v01 found. Three Tier 2 publishers agree on the idea; wrong notes true (Oops and gap tells are the card lookalikes).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "c01, o02, t01 found. Fill bank fine.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "c01, t01, a02 found. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "c02 (ss.drive_not_trigger, settled), c18. Kept over q18, which asks the same fact as a story.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "c07 (settled), h24 (F62), t04, a01 found. Kept; q11 asks where the stop lives (D41), a different fact.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "c44, o04, t05, t02 found. Keys only that a strong move comes first, which Scot1and's own words (t05) and every D-106 option keep.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "h14 (C31), c28 (settled), o06 found.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "c05 (ss.trigger_volume, proposed), c23 verbatim. Kept over q50 (the same fact as true/false). D-108 is about the size of the day, not volume.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "h26 (F65), c43 verbatim. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "h11, h12 (C28), c35 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "h18 (D41), c07 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "c09 (ss.inv_both_falling, proposed), t02 found.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "t03, t06 (TaPlot quoting Scot1and) and a01 (Analyzing Alpha) found: two Tier 2 publishers agree. Not house; the key is his own words.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "h09 (B23), c29, c48 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "c04 (proposed 0.7), c23 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "c04, c19 verbatim (the 2% open line, proposed).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "c06 (proposed numbers), c25 verbatim; t03 found.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "cut",
+   "notes": "Duplicate of q04: the same fact (the gap day is the drive, never the trigger) on the same kind of case. q04 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "calc (93.86 - 91.69) / 93.86 = 2.31% recomputed; d05, d06, h04 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "h05 (B19), h20 (E51), c33, c34 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "c13, c14, c01, c16 verbatim (lookalike tells).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "h02 (A4), c42, c22 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "cut",
+   "notes": "Duplicate of q61: the same time-stop fact (C33, under 1R after 10 trading days). q61 kept as the applied case. (Its lesson 'a Slingshot that does not resume was not a Slingshot' also called a valid trade invalid; reworded before the cut.)",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "calc drawdown_pct 110.00 to 101.20 = 8.0 recomputed. Keys the arithmetic only, not the D-107 range; o03 found.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "calc (68.40 - 66.10) / 1.50 = 1.53 recomputed; c06 verbatim (about 1.6, proposed).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "calc 20.46 + 3 x 0.50 = 21.96 recomputed; d03, d04 verbatim (RELY best 13.7R).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "c10 (proposed), h02 verbatim. No-adding note is A5.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "c04, c19, c24 verbatim. The wrong note cited the B- row ('a gap of 2% or more and a weak close'), which reads as a smaller-size trade and so half-supports 'Buy half size'; ss.trigger_decisive is a gate, so the note now says that. Owner: the card lists the same miss as a gate and a B- cue.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "h06, h07 (B20), c41 verbatim. 1R = 2.00; the 30-minute low 49.10 is a 1.45R loss, inside 2R (48.00).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "c11 (ss.reentry, settled), h28 (B21), c22 verbatim. 'At least 3 closes' rests on the settled re-entry statement.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "h13 (C29), c36 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "h08 (B22), c37, c46, c47 verbatim. FSLR taught as the earnings-window case, as the dossier corrected it.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "h31 (A5), c38 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "h05 (B19), c32 verbatim. Lesson said 'later is giving it back', against B19's allowed 2R to 5R; reworded.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "d12, d13, d21 verbatim (SRPT: buy 122.76, stop 119.10 = 3.0%, open 121.51, low 115.90, 3R level 4 sessions later); c11. Loss framed as planned.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "h26 (F65), c43 verbatim. The wrong note said 'The rule is no new longs'; F65 is 'mostly cash and shorts', a guide (A10); reworded.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "h21 (E52), c40 verbatim; o07 found (Scot1and's own trail, named as his).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "d14, d15 verbatim (LOW: buy 24.90, stop 24.53 = 1.5%, 50-day under the 200-day); c12. Fixed: the lesson's 'a B- at best' is not on the card (ss.ma_rising_pref is a preference, not a grade row), and the wrong note's 'it works often' had no source.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "cut",
+   "notes": "Duplicate of q55: the same GSK 2025-10-23 near-miss and the same fact (a 0.54 close fails the 0.7 line). q55 keeps it on the chart.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "calc 40,000 x 0.75% / (269.73 - 259.09) = 28.2, 28 shares recomputed; 28 x 269.73 = 7,552, 19% of the account, under the A7 cap. d09 verbatim (MELI).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "c08 (ss.stop_wider, proposed), t04 found.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "h16 (C34), c30 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "h25 (F63), c31 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "fix",
+   "notes": "The story gives nothing about the stock's RS or group, so the key ('buy leaders') can only be reached by elimination; the dossier itself says the bars cannot tell whether PSX was a leader that day (d17). Teaching this loss as a leadership failure needs PSX's RS rating on 2020-12-10 from a real source, or the item should be cut.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "c11, h28, h29 (E56), d18, d19 verbatim (PLTR: 185.93, 177.98 = 4.3%, best 0.31R, gap under the stop on day 4).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "calc 1,500,000 x 1% = 15,000 recomputed; h19 (D42) verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "c09 (proposed), t02 found.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "c15, c16, c01 verbatim (lookalike tell). The key is the line, not the D-107 count.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "c17 verbatim (the Oops tell: at least three closes, every D-107 option starts at 3).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "cut",
+   "notes": "Duplicate of q08: the same fact (no volume surge needed on the trigger day). q08 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "c20, o04, o05 found/verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "pass",
+   "notes": "h21 (E52), h17 (C35), c40, d07, d08 verbatim (GRMN 50% higher in two months).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "c21, c01 verbatim; v02 found (the Deepvue dissent, not keyed).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "c04, c02, d01, d02 verbatim (UTHR, DCR 0.92, 3R in 3 sessions). The 4-day EMA of highs is not on the member chart (unit conflicts); the key rests on the last bar and the drive.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "c04, d20 verbatim (GSK DCR 0.54, stopped at 0R). Kept over q39.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "h29 (E56), c11 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "h08 (B22), c37 verbatim. Different fact from q32 (holding through, not buying into).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "calc r_multiple (15.50 - 13.94) / 0.52 = 3.0 recomputed; d10, d11 verbatim (FRO 3R in 7 sessions).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "c12, d15, h30 (D38) verbatim. 'The rising stack' in the lesson was untaught shorthand; reworded. Grading is discretionary (E50); the A+ row names the rising 50 and 200.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "h15 (C33), c39 verbatim. The why said a drifting trade 'was not one' (a Slingshot), calling a valid trade invalid; reworded. Kept over q23.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "d21 verbatim (SRPT day 1, LOW day 1, PSX day 2, PLTR day 4: three of four within two sessions); t06 found.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "c06, c25 verbatim; t03 found. The story fails all three orderly tests (1.85 ATR, a 4% red body, a down day on heavy volume); the wrong note said 'twice', now 'on every count'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "h30 (D38), h33 (E49) verbatim. The story made it B- by 'a weak close on the trigger day and a thin name': on our card both are gates (ss.trigger_decisive, ss.liquidity), so the answer would be no trade, not a smaller size. Now the story gives the grade with every gate passing.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "h22 (E57), h24 (F62), h05, d05, d06 verbatim (URI). The story gives the low, so the key is reachable. Close entry rests on D-003 option A (unit conflicts).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "fix",
+   "notes": "The key ('no drive to sling from') rests on ss.drive's numbers (no 5% gap, no 4% volume day, no 20% in five sessions), which are pending (D-106). Option c, 'any strong stock, as Scot1and does', and the owner's own words ('a slingshot is supposed to be used for an earnings gapper, strong stock, or consolidation after a nice uptrend', card evidence) could admit a steady climber like ASO. Hold until D-106.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "h02 (A4), h06 (B20), c41 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "h32 (D44), c04 verbatim. The choice 'Buy the close one' read as 'buy at the close'; now 'the near one'.",
+   "fixed": true,
+   "by": "checker"
+  }
+ }
 }

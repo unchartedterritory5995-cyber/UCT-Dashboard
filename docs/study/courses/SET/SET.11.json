@@ -927,7 +927,7 @@
    "title": "BABA, January 2025: under the bundle, then the launch",
    "steps": [
     "BABA, 2025. After a 31.6% correction, 26 of 40 closes sat under the bundle, none above. The 200-day is 1% away.",
-    "That is the picture: weeks under pinched averages near the 200-day, a stock that can move, the market turning.",
+    "That is the picture: weeks under pinched averages, with the 200-day close by.",
     "2025-01-24: up 3.5%, closing at its high above all four. Fill 89.14; stop a few cents under the low, 86.43.",
     "Not stacked on the day; the stack formed within 3 sessions. 3R came in three sessions. The first third comes off."
    ],
@@ -1317,7 +1317,7 @@
    "house": true,
    "wrong": {
     "300,000 shares": "That is a tenth of the day's volume. You could not get out without moving it.",
-    "3,000 shares": "That is a tenth of the line. The ceiling is 1%.",
+    "3,000 shares": "That is a tenth of the 1% ceiling. The ceiling is 1%, not less.",
     "No ceiling with a tight stop": "A stop cannot catch a gap. The ceiling stands."
    }
   },
@@ -1369,12 +1369,12 @@
    "rung": 3,
    "format": "tf",
    "criterion": "lp.trim_2",
-   "q": "Every one of our ten launchpad examples reached 5R before the fixed stop.",
-   "answer": "True",
-   "why": "True. All ten examples reached 5R before the fixed stop. That is where the second third comes off.",
-   "lesson_line": "A third at 3R, a third at 5R, trail the rest.",
+   "q": "In our scan of 2,417 launchpads, most reached 5R before the fixed stop.",
+   "answer": "False",
+   "why": "False. 26.6% reached 3R and 14.6% reached 5R before the fixed stop. Most launches never get there.",
+   "lesson_line": "Most launchpads never reach 5R. The small stop keeps the misses small.",
    "facts": [
-    "c53",
+    "d32",
     "h20"
    ],
    "house": true
@@ -1497,7 +1497,7 @@
    ],
    "house": true,
    "wrong": {
-    "Buy; it is near the averages": "The averages are not the buy point. The launch close is, and this open is 5% past it.",
+    "Buy; it is near the averages": "Near is not the test. The open is 5% past the launch close, and further still past the averages.",
     "Buy half size": "Half of a chase is still a chase."
    },
    "story": "The launch closed at 50.00. Next morning it opens at 52.50. The top of the averages sits at 47.00.",
@@ -1548,7 +1548,7 @@
     "The launch if volume is 2x"
    ],
    "answer": "Not the launch; a gap trade",
-   "why": "Not the launch. The launch opens no more than 6% above the prior close and is not a news bar; a bigger gap is a different setup.",
+   "why": "Not the launch. The launch opens no more than 6% above the prior close and is not a news bar. A bigger gap is a different setup.",
    "lesson_line": "A news gap is its own setup with its own rules. The pad launches on a push, not a gap.",
    "facts": [
     "c12",
@@ -1803,7 +1803,7 @@
     "4"
    ],
    "answer": "2",
-   "why": "2 times. Volume of 2 times the 50-day average or more is the A+ launch bar, not a rule; a 2x launch bar was not a protection.",
+   "why": "2 times. Volume of 2 times the 50-day average or more is the A+ launch bar, not a rule. A 2x launch bar was not a protection.",
    "lesson_line": "Heavy volume grades the launch up. It does not make it safe.",
    "facts": [
     "c11",
@@ -2026,7 +2026,7 @@
     "Equal; both passed"
    ],
    "answer": "The 0.98 close on 2.1x",
-   "why": "The 0.98 close on 2.1x. A close near the high and volume about 2 times average is the A+ launch bar; the floor is 0.65 of the range.",
+   "why": "The 0.98 close on 2.1x. A close near the high and volume about 2 times average is the A+ launch bar. The floor is 0.65 of the range.",
    "lesson_line": "Close near the high on heavy volume grades the launch up. Both still need the pad behind them.",
    "facts": [
     "c10",
@@ -2080,7 +2080,7 @@
     "Yes; buy the 200-day retest"
    ],
    "answer": "No; the bundle spread, off the list",
-   "why": "No. Before the entry, a bundle wider than 3% again or a close back under the 200-day after a pop takes it off the list.",
+   "why": "No. Before the entry, a bundle wider than 3% again takes it off the list. So does a close back under the 200-day after a pop.",
    "lesson_line": "A pad that unwinds is not resting. Drop it and look again later.",
    "facts": [
     "c22"
@@ -2224,7 +2224,7 @@
     "Yes; above the 200-day is enough"
    ],
    "answer": "No; the fall was too shallow",
-   "why": "No. The rule needs a correction of 15% or more; 11.2% is a shallow pullback in an uptrend, a moving-average pullback, not a pad.",
+   "why": "No. The rule needs a correction of 15% or more. 11.2% is a shallow pullback in an uptrend, a moving-average pullback, not a pad.",
    "lesson_line": "A shallow dip in an uptrend is a pullback trade with its own rules.",
    "facts": [
     "d21",
@@ -2289,12 +2289,12 @@
    "criterion": "lp.tradeable_name",
    "q": "What is the read?",
    "choices": [
-    "Right rules, wrong stock; 1R lost",
+    "Right bar, wrong stock; 1R lost",
     "The volume lied; skip 2x bars",
     "The stop was too tight"
    ],
-   "answer": "Right rules, wrong stock; 1R lost",
-   "why": "Right rules, wrong stock. A big-volume launch in a slow large cap; the launch bar looks the same on winners and losers, and the stock carries the edge. The loss stayed at 1R.",
+   "answer": "Right bar, wrong stock; 1R lost",
+   "why": "Right bar, wrong stock. A big-volume launch in a slow large cap. The launch bar looks the same on winners and losers; the stock carries the edge. The loss stayed at 1R.",
    "lesson_line": "The bar is the timing. The stock, the base and the market are the edge.",
    "facts": [
     "d19",
@@ -2348,7 +2348,7 @@
     "Both; take either"
    ],
    "answer": "A flat base; the buy is the base top",
-   "why": "A flat base. It holds above the 50-day and breaks out over its own highest high; a launchpad lives under the averages, and the launch is the close above them, not a base top.",
+   "why": "A flat base. It holds above the 50-day and breaks out over its own highest high. A launchpad lives under the averages, and the launch is the close above them.",
    "lesson_line": "Look where the closes sat. Above the 50-day in a box is the flat base.",
    "facts": [
     "c34",
@@ -2467,7 +2467,7 @@
    "criterion": "lp.launch_above_all",
    "q": "On daily bars the launch bar alone is the edge; the base and the stock are secondary.",
    "answer": "False",
-   "why": "False. The bundle alone adds one or two points over any strong day above the averages. The stock, the base and the market are the edge; the launch bar is the timing.",
+   "why": "False. The launch bar looks the same on winners and losers. The stock, the base and the market are the edge; the launch bar is the timing.",
    "lesson_line": "The bar times the trade. The stock, the base and the market decide it.",
    "facts": [
     "c42",
@@ -2516,7 +2516,7 @@
    ],
    "answer": "The one on the 200-day",
    "why": "The one on the 200-day. Better: at or just under the bundle; the 200-day well away from the bundle is the B- end.",
-   "lesson_line": "The closer the 200-day, the better the pad. Nine percent away still passes, as a B-.",
+   "lesson_line": "The closer the 200-day, the better the pad. Nine percent away passes, but grades lower.",
    "facts": [
     "c07",
     "c44"
@@ -2535,11 +2535,11 @@
    "criterion": "lp.stop",
    "q": "Write the plan: entry, stop, first trim.",
    "choices": [
-    "89.14 at market; stop 86.43; third at 3R",
+    "89.14 at market; stop 86.43; 3R",
     "Limit 85.00; stop base low; hold all",
     "Next open; stop the 200-day; out at 2R"
    ],
-   "answer": "89.14 at market; stop 86.43; third at 3R",
+   "answer": "89.14 at market; stop 86.43; 3R",
    "why": "89.14 at market, stop 86.43, a third at 3R. A market order, a few cents under the launch day's low, the first third at 3R. BABA reached 3R in three sessions.",
    "lesson_line": "Entry, stop, trim, trail. Write it before the close; execute it without a debate.",
    "facts": [
@@ -2652,7 +2652,435 @@
   "The chart questions (q65 BABA asof 2025-01-23, q66 AAPL asof 2022-11-30) show the member's own chart with their averages; the keys rest on the dossier's reads (d04, d26, d27). If the member's chart settings do not draw the 8, 21, 50 and 200-day, the question still reads; the importer resolves the bars from our own history.",
   "The owner's published Substack words (u1, u2) are cited as Tier 3 house sources with their URLs; the quote checker marks Tier 3 as house and does not fetch them.",
   "The short mirror (the bearish launch pad, dossier 8.6) is not taught here (D-001).",
-  "The sources s2 and s3 (traderlion.com) refuse non-browser clients; the quote checker will report them unreachable and the checker must confirm the quotes with a browser or TraderLion's public WordPress API as the dossier did."
+  "The sources s2 and s3 (traderlion.com) refuse non-browser clients; the quote checker will report them unreachable and the checker must confirm the quotes with a browser or TraderLion's public WordPress API as the dossier did.",
+  "Cold check 2026-11-10: 62 pass (13 fixed), 1 fix, 8 cut. Look first at: (1) q65's written plan keys the launch-day-close entry and the launch-low stop, which is D-003 option A; it is held, and every walk-through narrates the same close fill. (2) q18 keyed 'all ten examples reached 5R' as a fact; those ten were picked as winners, so it now asks the scan's base rate (14.6% reached 5R). (3) Seven duplicates cut (q20, q21, q24, q34, q36, q41, q58) plus q38, FDX's 'stop in the noise', which passed the 6% gap line and has no rule behind it, as in the pilot. The u01-u03 quotes are verbatim in dossier 6.2, which 3.5 names as where the owner's full quotes sit."
  ],
- "verify": {}
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "KBH numbers match the dossier row (-24.8%, 2.91% bundle, +2.5%, 0.94, buy 35.26, stop 34.26, 3R in 7 sessions). The fill is the scan's launch-day close, narrated as the example's fact; no key on the entry time (D-003).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "BABA numbers match (-31.6%, 26/0 of 40, 200-day 1.0%, +3.5%, 0.98, buy 89.14, stop 86.43, 3R in 3). Step 2 claimed 'a stock that can move, the market turning': nothing in the dossier says the market was turning in January 2025 or measures BABA's range; cut to what the row shows.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "DDOG numbers match (-22.1%, 1.66%, +4.4%, 0.97, 1.63x, buy 122.69, stop 118.32 = 3.56%, 3R in 33, over 1R inside 10 days). Size shrinks with the wider stop (A5); no stop cap keyed (D-005).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "30,000 = 1% of 3,000,000 (D42). The 3,000 wrong note said 'a tenth of the line', which does not read; now 'a tenth of the 1% ceiling'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "Rewritten. It keyed 'all ten examples reached 5R' as a fact worth learning: those ten were picked as winners, so it teaches survivorship. Now asks the scan's base rate (d32: 2,417 hits, 26.6% to 3R, 14.6% to 5R), keyed False.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "cut",
+   "notes": "Duplicate of q67 (AAPL 2022-11-30: above the three fast averages, under the 200-day, not the launch); the chart version is kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "cut",
+   "notes": "Duplicate of q54 (price riding on top of the bundle is a pullback breakout, not a pad); q54 kept at rung 7.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "5.0 re-derived (52.50 / 50.00 - 1). Passes under both D-022 buy points (5% over the launch close, 11.7% over the 47.00 top of the averages). The wrong note said 'the averages are not the buy point; the launch close is', which picks D-022's option for the owner: now says the open is past both.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "cut",
+   "notes": "Duplicate of q59 (the time stop's 1R line after 10 days, DDOG); q59 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "Key on c12 (proposed). Why had a 24-word sentence: split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "17.5 re-derived (1 - 66/80).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "2.72 re-derived ((41.20 - 40.10) / 40.50). The averages are the card's 8/21/50 as given in the question; no key depends on D-021.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "0.70 re-derived ((31.40 - 30.00) / 2.00); the 0.65 floor is c10 (proposed).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "3.56 re-derived ((122.69 - 118.32) / 122.69); DDOG's levels match d05. No stop cap keyed (D-005).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "NEE's levels: R = 3.73; a 71.20 first-30-minute low is a 4.96 loss, 1.33R, inside B20's 2R ceiling. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "cut",
+   "notes": "Duplicate of q37: both key A5's 'a wider honest stop means fewer shares, never a tighter stop'; q37 (NEE) kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "Keys only the 2x A+ cue (proposed), never D-006's 1.2x gate. Why had a 25-word sentence: split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "cut",
+   "notes": "Duplicate of q55: both key 'the stock (lp.tradeable_name) would have kept you out; the bar looks the same on winners and losers'; q55 (CMCSA) kept at rung 7.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "cut",
+   "notes": "FDX's launch opened 4.2% up, inside the card's 6% gap line, so lp.not_gap passed; the key ('a gap launch leaves a stop in the noise') has no card or rulebook rule behind it. Same call the pilot's checker made on SET.07's XOM 'stop inside the noise' lesson and SET.08's TSLA.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "cut",
+   "notes": "Duplicate of q12 (a launch two sessions before earnings is not bought, B22).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "Grade cues c10/c11 (proposed). Why had a 23-word sentence: split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "147 re-derived: 400 / 2.71 = 147.6, rounded down. 147 x 89.14 = 13,104, 33% of 40,000, under the 40% cap (A7).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "Key on c22 (proposed). Why had a 24-word sentence: split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "24% fails both base_span options (20% proposed, 22% the finder's).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "pass",
+   "notes": "MSFT 2023-10-06 near-miss numbers match d21/d22. 11.2% fails both lp.correction options (15, 13). Why had a 23-word sentence: split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "CMCSA numbers match d19/d20. 'Right rules, wrong stock' contradicted itself (a stock we would trade, lp.tradeable_name, is one of the rules): now 'right bar, wrong stock'. Why had a 24-word sentence: split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "5.0 re-derived ((102.69 - 89.14) / 2.71); BABA reached 21.9R, so it got there.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "The card's flat-base lookalike (c34, c33). Why had a 31-word sentence: split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "cut",
+   "notes": "Duplicate of q31 (B20: the first 30-minute low is the new stop, out past 2R); q31 asks both halves on numbers.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "The why opened on 'the bundle alone adds one or two points', which answers a different question (the bundle, not the bar) in an unexplained unit; now leads with c45, the bar looks the same on winners and losers.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier (sections 3, 6, 12, 13) and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "Key on c07/c44 (proposed grade rows). The lesson line called 9% away 'a B-': the card gives no number for 'well away', so it now says only that it grades lower.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "fix",
+   "notes": "The plan's entry (at market at the launch-day close) and its stop (under the launch day's low) are lp.trigger option A; under D-003's option B the entry is intraday over the prior day's high with the stop under the prior day's low, so the key rests on a pending-owner choice. Also the lesson line says 'write it before the close' while D39 says before the open. BABA numbers are right. The answer choice was 41 characters: shortened.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "BABA asof 2025-01-23 is the session before the 2025-01-24 launch; d04's 26 of 40 under, none above. Keys 'weeks under the bundle', never D-062's count.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "AAPL asof 2022-11-30 is the near-miss bar itself (close 148.03, 8/21/50 top 146.83, 200-day 154.21, d26). lp.launch_above_all is settled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "Haber's 3% quoted as his (b06, verbatim in dossier 3.8); our half is A13. No cap keyed.",
+   "fixed": false,
+   "by": "checker"
+  }
+ }
 }

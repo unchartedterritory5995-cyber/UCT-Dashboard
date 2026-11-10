@@ -1106,7 +1106,7 @@
    "key": "w1",
    "title": "GDS, February 2025: the textbook climax",
    "steps": [
-    "GDS, February 2025. A 13-session burst from a flat base, up 145% in 13 sessions, four of four boxes.",
+    "GDS, February 2025. A 13-session run from a flat base, up 145%, four of four boxes.",
     "On 2025-02-20 it gaps up 15.4% on record volume, the highest of the run. Nothing at the open.",
     "The trigger lives on the 5-minute chart: the break under VWAP after the high. Our daily stand-in is the red close, 48.50.",
     "Stop a few cents over the day's high, 52.56. Target the daily 9 EMA: reached in 2 sessions, 3R on day 5."
@@ -1130,7 +1130,7 @@
    "steps": [
     "CGC, February 2021: a cannabis mania. Up 74% in 12 sessions, three gap days in a row into the climax.",
     "On 2021-02-10 it gaps up 7.6% on 3x volume and prints a long upper wick: it opens higher and closes lower.",
-    "Short at the crack. On daily bars that is the close, 521.70. Stop a few cents over the high, 565.54.",
+    "Short at the crack. On daily bars that is the close, 521.70. Stop just over the high, 565.54.",
     "The 9 EMA comes the next day, 3R on day 2, 5R in 6 weeks. Failure mode: a reclaim of the high."
    ],
    "facts": [
@@ -1462,11 +1462,11 @@
     "d23"
    ],
    "wrong": {
-    "Yes; the gap and red close make it": "The daily shape fits, the context does not. Two days out of a base is not an exhausted run.",
+    "Yes; the gap and red close make it": "The daily shape fits, the context does not. Three days out of a base is not an exhausted run.",
     "Yes, at half size": "Size does not fix the wrong setup. It is a pass."
    },
    "house": true,
-   "story": "A stock broke out of a six-month base last week. Two up days, then today it gaps up 4% and closes red."
+   "story": "A stock broke out of a six-month base three days ago. Two up days, then today it gaps up 4% and closes red."
   },
   {
    "key": "q13",
@@ -1568,7 +1568,7 @@
     "c35"
    ],
    "wrong": {
-    "Lighter than the day before": "Light volume on the gap day is a B- cue. The climax wants a record.",
+    "Lighter than the day before": "Lighter volume is not a climax. The card wants a record; rising but not a record is only a B- mark.",
     "Average; volume does not matter": "Volume is half of Bracco's first two checks: range and volume expansion.",
     "Heavy only in the last hour": "The record volume comes at the open, in the first minutes of the gap."
    },
@@ -1730,7 +1730,7 @@
     "The next morning, whatever happens"
    ],
    "answer": "When the 9 EMA is tested on the backside",
-   "why": "When the 9 EMA is tested on the backside of the move. That is his target and our rule's target; the thirds other setups take are not the yardstick here.",
+   "why": "When the 9 EMA is tested on the backside of the move. That is his target and our rule's target.",
    "lesson_line": "The trade is done at the 9 EMA. Do not wait for a crash.",
    "facts": [
     "b23",
@@ -2323,7 +2323,7 @@
     "A Parabolic Long": "A long needs a burst down and a gap down. This is a stall after a bounce."
    },
    "house": true,
-   "story": "A stock under its 200-day stalled five days at its 10-day EMA after a bounce. Today it closed under both the 10 and 20-day EMAs."
+   "story": "A stock under its 200-day topped days ago, then stalled five days at its 10-day EMA. Today it broke down out of that stall."
   },
   {
    "key": "q46",
@@ -2343,8 +2343,8 @@
     },
     "round": 2
    },
-   "why": "1.52R. The fill minus the target, over the stop minus the fill. CGC reached the 9 EMA the next day; 3R came on day 2 and 5R six weeks later, past the target.",
-   "lesson_line": "Count the target in R before you short. It is often under 2R.",
+   "why": "1.52R. The fill minus the target, over the stop minus the fill. That is the whole reward on this setup.",
+   "lesson_line": "Count the target in R before you short. The 9 EMA is the trade's reward.",
    "facts": [
     "d05",
     "h05",
@@ -2432,14 +2432,14 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "ps.red_close_daily",
-   "q": "What happened, and why was it a mistake?",
+   "q": "What was the mistake?",
    "choices": [
-    "4.5R loss on a gap up; no crack, one box",
-    "It worked; a gap is a gap",
-    "Lost; the stop was too tight"
+    "Shorted strength: no crack, no burst",
+    "None; any gap up is a climax",
+    "The stop over the high was too tight"
    ],
-   "answer": "4.5R loss on a gap up; no crack, one box",
-   "why": "A 4.5R loss on the next day's gap up. The day closed above its open, so there was no crack, and one box is no burst. Shorting into strength is the first named mistake.",
+   "answer": "Shorted strength: no crack, no burst",
+   "why": "Shorting strength. The day closed above its open, so there was no crack, and one box is no burst. Shorting that close lost 4.5R on the next day's gap up.",
    "lesson_line": "A green close with one box is strength. Shorting strength pays in R, the wrong way.",
    "facts": [
     "c43",
@@ -2447,11 +2447,11 @@
     "c02"
    ],
    "wrong": {
-    "It worked; a gap is a gap": "It lost 4.5R. A gap that closes green is not a climax that cracked.",
-    "Lost; the stop was too tight": "The stop was the rule's stop. The entry was the mistake: a green day with no burst."
+    "None; any gap up is a climax": "A gap up that closes green has not cracked. The gap is the setup, the crack is the trigger.",
+    "The stop over the high was too tight": "The stop was the rule's stop. The entry was the mistake: a green day with no burst."
    },
    "house": true,
-   "story": "After one up day the stock gaps 2.2% and closes 7.3% above its open. You short the close anyway."
+   "story": "The stock gaps up 2.2% and closes 7.3% above its open. Only one burst box is checked. You short the close anyway."
   },
   {
    "key": "q51",
@@ -2505,7 +2505,7 @@
     "The 9 EMA target": "The target was right and it was reached. The context was wrong."
    },
    "house": true,
-   "story": "Fresh out of a base: one up day, then a 3.9% gap that closes red. You short 31.64, stop 34.44. Day 5 touches the 9 EMA at 0.99R; day 6 a new high takes the stop."
+   "story": "Fresh out of a base: two up days, then a 3.9% gap that closes red. You short 31.64, stop 34.44. Day 5 touches the 9 EMA at 0.99R; day 6 a new high takes the stop."
   },
   {
    "key": "q53",
@@ -2513,16 +2513,16 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "ps.vwap_trigger",
-   "q": "What do you do?",
+   "q": "Where should the short have been?",
    "choices": [
-    "Enter at the VWAP break, not the close",
-    "Short the close; it is five stars",
-    "Short the close, stop at 3%",
-    "Pass; five-star climaxes are traps"
+    "At the VWAP break, after the turn",
+    "At the close; it is five stars",
+    "At the close, with a 3% stop",
+    "Nowhere; five-star climaxes are traps"
    ],
-   "answer": "Enter at the VWAP break, not the close",
-   "why": "The VWAP break is the entry, not the close. On Bracco's own five-star climax the VWAP break at 90.01 ran 1.16R with the same stop. A short at the close put the stop 34.3% away and lost.",
-   "lesson_line": "The entry is near the high, right after the turn. The close of a crash day is not it.",
+   "answer": "At the VWAP break, after the turn",
+   "why": "At the VWAP break. On this climax the VWAP break at 90.01 ran 1.16R with the same stop. The short at the close, 34.3% from its stop, lost.",
+   "lesson_line": "The entry is the VWAP break after the turn. The close of a crash day is not it.",
    "facts": [
     "d19",
     "d20",
@@ -2531,9 +2531,9 @@
     "c04"
    ],
    "wrong": {
-    "Short the close; it is five stars": "Five stars does not fix a 34.3% stop. If the honest stop does not fit, skip.",
-    "Short the close, stop at 3%": "A stop inside the day's range is a stop pulled in to fit. You never do that.",
-    "Pass; five-star climaxes are traps": "The setup was right. The entry at the close was the problem; the VWAP break worked."
+    "At the close; it is five stars": "Five stars does not fix a 34.3% stop. If the honest stop does not fit, skip.",
+    "At the close, with a 3% stop": "A stop inside the day's range is a stop pulled in to fit. You never do that.",
+    "Nowhere; five-star climaxes are traps": "The setup was right. The entry at the close was the problem; the VWAP break worked."
    },
    "house": true,
    "story": "Bracco's five-star climax, four of four boxes. The day fell 34% from its high and closed at the low. A short at the close puts the stop 34.3% away."
@@ -2588,24 +2588,24 @@
    "rung": 7,
    "format": "mcq",
    "criterion": "ps.above_200",
-   "q": "A 395% V-rally off a crash low ends with a 6% gap and a closing reversal, under the 200-day. Is the short allowed?",
+   "q": "Is the short allowed under our 200-day rule?",
    "choices": [
     "Yes; below the 200 needs no exception",
-    "No; parabolic shorts need the 200 below",
+    "No; a parabolic short must be above it",
     "Only if the market is Red"
    ],
    "answer": "Yes; below the 200 needs no exception",
-   "why": "Yes. Shorts are allowed below the 200-day as a matter of course; the parabolic exception is only needed above it. CAR was the one example under the line.",
+   "why": "Yes. Shorts are allowed below the 200-day as a matter of course; the parabolic exception is only needed above it.",
    "lesson_line": "Below the 200-day a short needs no excuse. Above it, only the parabolic one.",
    "facts": [
-    "d14",
     "h01"
    ],
    "wrong": {
-    "No; parabolic shorts need the 200 below": "Nearly every climax sits far above its 200-day. Under it is the easy case, not a bar.",
+    "No; a parabolic short must be above it": "Nearly every climax sits far above its 200-day. Under it is the easy case, not a bar.",
     "Only if the market is Red": "The market reading is not what gates a short below the 200-day."
    },
-   "house": true
+   "house": true,
+   "story": "A stock below its 200-day rips higher in a burst, then ends with a 6% gap up and a closing reversal."
   },
   {
    "key": "q57",
@@ -2692,8 +2692,8 @@
     "A 2.8% gap is an A+ cue"
    ],
    "answer": "The time limit; a small gap grades lower",
-   "why": "The time limit, and a small gap grades lower. A 2.8% gap is the B- row; five weeks under the climax high breaks the 3-session rule. It paid 2.95R, as luck, not as the plan.",
-   "lesson_line": "A slow climax is a bad climax. Take the small loss or scratch and move on.",
+   "why": "The time limit, and a small gap grades lower. A 2.8% gap is the B- row; five weeks under the climax high breaks the 3-session rule. It paid 2.95R, but not by the plan.",
+   "lesson_line": "A climax that will not crack in three sessions is out of time. Cover and move on.",
    "facts": [
     "d10",
     "d11",
@@ -2702,7 +2702,7 @@
     "c30"
    ],
    "wrong": {
-    "Hold five weeks; it paid 2.95R": "It got there, but five weeks under the high breaks the 3-session limit. That is luck, not the plan.",
+    "Hold five weeks; it paid 2.95R": "It got there, but five weeks under the high breaks the 3-session limit. That is not the plan.",
     "A 2.8% gap is an A+ cue": "A gap of 5% or more is the A+ cue. A small gap is the weak point."
    },
    "house": true,
@@ -2721,7 +2721,7 @@
     "A five-star climax"
    ],
    "answer": "Quick opening range breakdown; weakest",
-   "why": "The Quick Opening Range Breakdown: the high set on the first 5-minute candle, then the opening range breaks. His least liked, because it often appears on day 1 or 2 of the burst.",
+   "why": "The Quick Opening Range Breakdown: the high set on the first 5-minute candle, then the opening range breaks. His least liked, and it often appears on day 1 or 2 of the burst.",
    "lesson_line": "A top on the first candle of day two is usually not the top.",
    "facts": [
     "b20",
@@ -2788,24 +2788,24 @@
    "rung": 8,
    "format": "mcq",
    "criterion": "ps.climax_gap",
-   "q": "The burst has four boxes and record volume, but the climax gap is 1.7%, like SCHW in 1999. The grade?",
+   "q": "Four boxes and record volume, but the climax gap is only 1.7%, like SCHW in 1999. Does the small gap rule it out?",
    "choices": [
-    "B-; a small gap is the weak point",
-    "Pass; no real gap means no trade",
-    "A+; four boxes decide alone"
+    "No; it passes, but the gap is weak",
+    "Yes; a gap under 5% is a pass",
+    "No; gap size does not matter"
    ],
-   "answer": "B-; a small gap is the weak point",
-   "why": "B-. A small climax gap is the B- row; the A+ row wants all 4 boxes plus a gap of 5% or more. SCHW still reached the 9 EMA the next session, with the 1.7% gap its weak point.",
-   "lesson_line": "Four boxes with a tiny gap is a good climax, not a great one. Size it like a B-.",
+   "answer": "No; it passes, but the gap is weak",
+   "why": "No. It opened above the prior close, so it passes the gate; a small gap is a B- mark on our card. SCHW still reached the 9 EMA the next session.",
+   "lesson_line": "Any gap up passes the gate. A big one grades higher.",
    "facts": [
+    "c01",
     "c31",
     "c30",
-    "d12",
-    "b07"
+    "d12"
    ],
    "wrong": {
-    "Pass; no real gap means no trade": "It opened above the prior close, so the gate is passed. Small is a grade, not a pass.",
-    "A+; four boxes decide alone": "The A+ row needs the boxes and a gap of 5% or more. The gap is half the grade."
+    "Yes; a gap under 5% is a pass": "5% is the A+ mark, not the gate. The gate is any open above the prior close.",
+    "No; gap size does not matter": "It matters for the grade. A gap of 5% or more is the A+ row; a small one is a B- mark."
    },
    "house": true
   },
@@ -2838,7 +2838,7 @@
     "Wait for the close; stop at the 9 EMA": "The close is a daily stand-in, not the trade. And the 9 EMA is below the price; it is the target."
    },
    "house": true,
-   "story": "GDS, February 2025: a 13-session burst from a flat base, four of four boxes, a 15.4% gap on record volume. On the 5-minute chart it runs, then breaks VWAP."
+   "story": "GDS, February 2025: a 13-session run from a flat base, four of four boxes, a 15.4% gap on record volume. On the 5-minute chart it runs, then breaks VWAP."
   },
   {
    "key": "q66",
@@ -2853,7 +2853,7 @@
     "Pass; no gap up today"
    ],
    "answer": "Take it; a gap up that closed red",
-   "why": "Take it. A gap up that closed red after a 13-session burst: four of four boxes, a 15% gap on record volume. It closed in the lower half; the 9 EMA came in 2 sessions.",
+   "why": "Take it. A gap up that closed red after a 13-session run: four of four boxes, a 15% gap on record volume. It closed in the lower half; the 9 EMA came in 2 sessions.",
    "lesson_line": "Gap up, record volume, red close after a burst: that is the climax day.",
    "facts": [
     "c01",
@@ -2886,7 +2886,7 @@
     "Take it; volume is huge"
    ],
    "answer": "Pass; a green close, no crack",
-   "why": "Pass. The day closed 15.8% above its open, at 95% of its range: a green climax day with no crack. The real top came the next day; a short at that close was stopped at 0R.",
+   "why": "Pass. The day closed 15.8% above its open, at 95% of its range: a green climax day with no crack. The real top came the next day; a short at that close was stopped out the next session.",
    "lesson_line": "A gap that never looks back has not cracked. Wait for the red one.",
    "facts": [
     "c02",
@@ -2938,10 +2938,10 @@
    "rung": 9,
    "format": "tf",
    "criterion": "ps.cover_9ema",
-   "q": "In our scan, most climax-day shorts were paid at the 9 EMA within a few sessions, not at 3R.",
+   "q": "In our scan of climax-day shorts, fewer than one in five reached 3R before the stop.",
    "answer": "True",
    "why": "True. Only 18.8% reached 3R and 12.5% reached 5R before the stop. This setup is paid at the 9 EMA, inside a few sessions, or not at all.",
-   "lesson_line": "Take the 9 EMA. The 3R and 5R thirds belong to other setups.",
+   "lesson_line": "Do not wait for 3R on this setup. The 9 EMA is the target.",
    "facts": [
     "d32",
     "d30",
@@ -2968,7 +2968,441 @@
   "The chart questions (q66 GDS asof 2025-02-20, q67 TSLA asof 2020-02-03) show the climax day as the last bar so the member can read the gap and the close; the keys rest on the dossier's reads (d01, d03, d24, d25). The member's own chart settings may or may not draw a 9 EMA; the questions do not need it.",
   "The intraday trigger (1 to 5-minute bars, VWAP) cannot be shown on the daily chart item; q08, q22, q34, q41, q53 and q61 teach it in words from Bracco's and Kullamagi's descriptions, and the walk-throughs name the 5-minute chart.",
   "Kullamagi's VWAP-reclaim exit for a VWAP-fail entry (ps.inv_vwap_reclaim, proposed) is keyed in q41 as the card states it; the card's main stop (ps.stop) is the day's high for the VWAP-break entry. The two entries carry two exits; the question says which entry it is.",
-  "q56 (CAR under the 200-day) keys 'a short below the 200-day needs no exception' from B26's plain words; the card's ps.above_200 is pending only for the ABOVE case."
+  "q56 (CAR under the 200-day) keys 'a short below the 200-day needs no exception' from B26's plain words; the card's ps.above_200 is pending only for the ABOVE case.",
+  "Cold check 2026-11-10: 65 pass (18 fixed), 0 fix, 7 cut (q32, q39, q54, q57, q58, q62 as duplicates of q67, q15, q11, q28, q16, q17; q55 because it said the window capped three tries, against c13 and q68). Look first: (1) CAR 2020-06-08 was ABOVE its 200-day on our bars (close 32.28, 200-day SMA 26.3), so the dossier's 'the only one under the 200-day' and the card's ps.above_200 evidence are wrong; q56 no longer leans on it. (2) q64 used to grade a whole setup 'B-' from one B- mark; E50 says grading is discretionary, so the unit now keys only that a small gap passes the gate; say if the card's A+ and B- rows may be keyed as grades. (3) SMCI's 'real' VWAP entry (90.01) still had a 19.9% stop to 107.90, so the card's 'median about 4% from a VWAP entry' does not hold on Bracco's own example, and the ten examples (all close-entry proxies) are still unreviewed (dossier question 15)."
  ],
- "verify": {}
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "d01-d03 verbatim in dossier section 13 (GDS 2025-02-20: +145% in 13 sessions, 4/4 boxes, gap +15.4%, short 48.5, stop 52.56, 3R day 5, 9 EMA in 2); bars agree (prior close 43.01, open 49.65 = +15.4%, high 52.50, close 48.50 in the lower half). Step 1 called the 13-session run a 'burst', which the unit teaches as 3 to 5 days (b01, q10); now 'a 13-session run', and the doubled '13 sessions' is gone.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "d04-d06 verbatim (CGC 2021-02-10: +74% in 12 sessions, gap +7.6%, short 521.70, stop 565.54, 9 EMA next day, 3R day 2, 5R in 6 weeks). On our bars the high was 564.97, so the proxy stop (0.1% plus a cent) sits 57 cents over it; 'a few cents over' now reads 'just over'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "d07-d09 verbatim (BILI 2024-10-02: +121% in 12 sessions, gap +11.3%, short 29.66, stop 31.81 = 7.2%, 9 EMA in 4, 3R day 4, 5.46R best); h09/h18 verbatim in sizing_rule.md section 9; d30 verbatim in dossier section 14. Sentences 22 words or fewer.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "Key matches b01/s10 (Bracco) and k01; c42 and b30 verbatim. Wrong notes true (the 200-day line is B26's; shorting before the crack is the card's first mistake; the long is the mirror).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "B26 (h01) verbatim; h04 verbatim. Key is the rulebook's own words. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "b06 verbatim (s1) and c01 (card, settled ps.climax_gap). True.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "D47 (h05) and b14 verbatim; ps.cover_9ema's open question (D-013) is how much comes off there, not the level, so the key rests on the settled D47 line.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "b15, h05 (D47), c05 (settled ps.stop) and k03 verbatim. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "c03 (ps.open_wait, proposed), b13 and k04 verbatim. False is right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "B26's box list (h02) and b02-b05 verbatim. Only the box is keyed, not the 3-of-4 count (D-040 pending). Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "b11/b12 verbatim (the U-Turn, 10 to 60 minutes in; first entry under VWAP); c04 the card's proposed trigger. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "c02 (ps.red_close_daily) and b21 verbatim; u02 Bulkowski found on the page. True.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "b01 and s06 verbatim: 3 to 5 days. Bank fine.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "k01 verbatim (Kullamagi's page, found); c12 is the card's proposed ps.prior_move. Keyed as his rule. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "Key rests on c09 (ps.not_this, proposed) and s04. The story said the breakout came 'last week', which made today week two while the key says 'week one out of a base'; now 'three days ago', and the wrong note matches. Same lesson as q52, but q12 asks the recognition and q52 diagnoses the real RGTI loss.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "D48 (h06) verbatim, c39 (settled ps.borrow), k08 found on Kullamagi's FAQ. True.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "E57 (h08) verbatim; c47 the card. Wrong notes true (the sell-stop under the low is Bracco's second entry, not ours, D-135 settled).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "b16, c06 (settled ps.stop_reclaim), A4 (h11), s12 verbatim. 52.60 is over the 52.56 stop, so out is right. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "b17, s03, c11 verbatim; g01/g02 found on ChartSchool. The wrong note for 'Lighter than the day before' said light volume is 'a B- cue'; the card's B- row is 'rising but not a record' (c35), so the note now says that.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "b09, b22 and c09/c25 verbatim. False is right; Bracco's AAPL stair-step is the card's not-this case.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "B22 (h15) and c18 (settled ps.earnings) verbatim. A report after tomorrow's close is inside 3 sessions. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "calc pct_change 42.00 to 48.47 = 15.40, round 1 = 15.4. Hypothetical prices with GDS's percent (GDS itself: 43.01 to 49.65 on our bars, also 15.4%). c01 and d01 verbatim; g02 found.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "c13 (settled ps.window, D-142), B21 (h17), E56 (h16) and m01 (found) verbatim. One failed try, then a new trigger on day 1 after the setup day: inside the window. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "B23 (h07) and c40 verbatim. True.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "b26, b11 verbatim; c32 the A+ row. Bank fine.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "b23, b14 and D47 (h05) verbatim. The why added 'the thirds other setups take are not the yardstick here', which is D-013's open question (does all of it come off at the 9 EMA, or a third); cut that clause. Wrong notes true.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "calc pct_change 40.00 to 48.50 = 21.25. Computes a percent only, never a pending D-040 cut; h22 (A14) and s01/s02/s05 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "calc (31.81 - 29.66) / 29.66 x 100 = 7.249, round 2 = 7.25; the dossier rounds BILI to 7.2%. A13 (h18) and A5 (h09) verbatim. Keys arithmetic, not D-005's options.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "calc shares_from_risk 50,000 x 0.5% = 250 / (52.56 - 48.50 = 4.06) = 61.58, rounded down 61. A5 (h09), A3 (h12) verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "c03, b13, k04, m03 verbatim. Wrong notes true; 'never short a gap up' is a real misunderstanding.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "B20 (h13, h14) and c07 (settled ps.stop_gap) verbatim. R = 4.06; at 53.40 the loss is 4.90 = 1.21R, inside 2R, so 53.40 is the new stop. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "A5 (h10), c17 (ps.one_entry, settled D-135) and b27 verbatim. True.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "c16 (ps.no_chase, proposed), C28 (h24), D47 (h23) verbatim. 50.00 / 47.50 - 1 = 5.3%, over 4%. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "b10, c10, b33 verbatim. Bank fine.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "cut",
+   "notes": "Same case and fact as q67 (TSLA 2020-02-03, d24/d25: a 15.8% green climax day, no crack); q67 asks it on the real chart, so this story version is the duplicate. Its why also said 'stopped at 0R', which reads as a contradiction to a member.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "b07 and B26 (h03) verbatim ('the more boxes checked, the stronger'); c30/c34 the A+ rows. Relative grade only; no 3-of-4 count keyed (D-040).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "b24, b25 verbatim; c33 the B- row. Wrong notes true (the Quick Opening Range Breakdown is his least liked, b19/b20).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "c41 (ps.breakeven, settled) verbatim; B19 (h20) says 2R to 5R ideally, the card says 2R if held. True.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "c14 (ps.time_limit, proposed, taught as the card's rule), d17/d18 verbatim (TSLA 2020-07-13: short 99.80, stop 119.80, 9 EMA only on day 8, above the entry), C33 (h19). Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "c44 (MSTR 2024-11-21: 9 EMA 0.14R away, never more than 0.77R) and D47 verbatim. The key teaches the 9 EMA as the yardstick; the lesson line says a near target means a small trade. A good trader might go further and skip a 0.14R target; no source says so, so it is left as written.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "d15/d16 verbatim (QCOM 1999-12-22: short 60.68, stop 65.34, 9 EMA day 2 at 0.52R, new high day 3, +27.7% 20 sessions later); d31, c29, c46 verbatim. The why says the cover rule would have exited at the 9 EMA, so the loss is not framed as a rule-following mistake.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "cut",
+   "notes": "Same fact as q15 (a reclaim of the day's high is the exit; the stop never widens: b16, c06, A4), asked again as a true/false with nothing new.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "c36 (ps.commodity_etf, proposed cue), s13, s12, c45 verbatim. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "c15 (ps.inv_vwap_reclaim, proposed) and k03/k07 verbatim (found). The story says which entry it was, as the conflicts line requires.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "d28/d29 verbatim (AAOI 2026-03-02: 2 of 4 boxes, a one-day 27.7% gap, the News Failure shape, 2.16R then stopped), c22, c21, b01. The one failing rule is the burst (ps.burst_boxes), as the card names.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "d26/d27 verbatim (NVDA 2024-03-08: 12.33, 5.27, 13.33, middle week smaller), c10, s09. The one failing rule is ps.parabolic_not_linear, as the card names. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "c19 (the card's lookalike tell) and B26 (h03) verbatim. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "c21 and c20 verbatim (the card's Wedge Drop tell: days later, a 3 to 10 day stall near the 10-day EMA, below the 200-day). The story's 'closed under both the 10 and 20-day EMAs' was a Wedge Drop trigger detail no cited fact gives, and 'after a bounce' did not match the card's 'days later'; now 'topped days ago ... broke down out of that stall'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "calc r_multiple short: (521.70 - 455.00) / (565.54 - 521.70 = 43.84) = 1.5214, round 2 = 1.52. The short and stop are CGC's (d05), but 455.00 is a made-up 9 EMA and the why tied it to CGC ('CGC reached the 9 EMA the next day ...'), which a member would read as CGC's real number; the why now teaches the arithmetic only. The lesson line's 'it is often under 2R' had no cited fact; replaced.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "A13 (h18), A3 (h12), c05 and d13 (GSAT's 24% stop) verbatim. True; never pulling the stop in is A3's 'if the honest stop does not fit, skip'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "A5 (h10), s12 and c24 verbatim. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "c38 (ps.index_stretched, proposed cue), b28 and s15 verbatim. No market reading keyed (D-023). Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "c43 verbatim (MSTR 2024-03-08: gap +2.2%, closed +7.3% over its open, 1 box, lost 4.5R on the next day's gap up); c23, c02. The old key put the outcome ('4.5R loss') in the right choice, which the story did not give, and the story's 'after one up day' is in no source; the question now asks only the mistake and the 4.5R moves to the why.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "s11 and c37 verbatim. Bank fine.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "pass",
+   "notes": "d22/d23 verbatim (RGTI 2025-09-24: only 2 up closes before a 3.9% gap, short 31.64, stop 34.44, 9 EMA day 5 at 0.99R, new high day 6), c09, s04. The story said 'one up day'; d22 says 2 up closes (the card's failure entry says 1; the dossier table is the source cited), now 'two up days'. The one failing rule is ps.not_this, as the card names.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "d19-d21 verbatim (SMCI 2024-02-16: closed at the low, close-entry stop 34.3% away, lost; the hourly VWAP break at 90.01 with the 107.90 stop ran 1.16R), A3, c04. The story ends at the close, so 'What do you do? Enter at the VWAP break' asked for an entry that had already passed; now 'Where should the short have been?'. The lesson line said the VWAP entry is 'near the high': at 90.01 it was 17% under the 107.90 stop (a 19.9% stop), so that phrase is gone.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "cut",
+   "notes": "Same fact as q11 (k01, Kullamagi's percent bands by cap size); q11's why and wrong note already teach the 300% to 1,000% small-cap band. Small caps are also D-122 pending.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "cut",
+   "notes": "The key said the 1 to 2 day window 'capped' Bracco's three AGQ tries, but our window (c13) drops the idea after two failed triggers, so it contradicts q68; what is left (no adding, no revenge) is q48's and q68's lesson.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "Key from B26's plain words (h01). The why said 'CAR was the one example under the line' (d14), but on our bars CAR closed 32.28 on 2020-06-08 with the 200-day SMA at 26.3: above it, as the dossier table's own structure column says. The CAR claim and d14 are removed, the story is generic and now a scenario-style mcq with no example attached, and the wrong choice 'need the 200 below' (unclear) now reads 'must be above it'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "cut",
+   "notes": "Same numbers and rule as q28 (48.50, 52.56, 53.40; B20 with the 2R ceiling); q28's why already says 53.40 is inside the ceiling, so this is the arithmetic behind the same answer asked twice. The calc itself was right: 4.90 / 4.06 = 1.21R.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "cut",
+   "notes": "Same fact and quote as q16 (b17, the highest opening volume of the run).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "c08 (settled ps.inv_no_gap), b06, B26 (h02) verbatim. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "d10/d11 verbatim (TPL 2026-02-23: 4/4 boxes, a 2.8% gap, short 502.85, stop 547.76, 2.95R best, 9 EMA in 8 sessions), c14 (proposed time limit), c31/c30. The why called the 2.95R 'luck'; the dossier says 'patience or the time limit', so it now says 'not by the plan'. The lesson line 'A slow climax is a bad climax' overstated it; replaced.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "b20, b19, c33, b11, b08 verbatim. The why gave 'because' as Bracco's reason; he names it least liked and separately warns it often comes on day 1 or 2, so 'because' became 'and'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "cut",
+   "notes": "Same fact as q17 (b22/b09/c25: judging by percent gain alone, a linear run is not this setup); q17's why quotes the same line.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "B20's ceiling (h14, h13), c07, c29 verbatim. R = 3.00; the open at 72.00 is a 12.00 loss = 4R, past 2R: out. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "c01 (settled: any gap up passes; 5% or more is stronger), c31/c30 (the card's grade rows), d12 verbatim (SCHW 1999-04-14, 1.7% gap, 9 EMA the next session). The old key graded the whole setup 'B-' from one mark, which E50 (grading is discretionary, no fixed checklist taught as ours) and the card's mixed rows do not support; the question now asks whether the small gap rules it out.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "c04, c05, D47 (h05), E57 (h08), d01-d03 verbatim; the plan is market at the VWAP break, a few cents over the day's high, the 9 EMA. 'A 13-session burst' now 'a 13-session run' (the burst is 3 to 5 days). Wrong notes true.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "Chart GDS asof 2025-02-20: on our bars the last bar opened 49.65 over a 43.01 prior close and closed 48.50, in the lower half of a 45.44 to 52.50 range, so the key and both wrong notes read right off the chart. Ticker and date not given away. 'Burst' now 'run' for the 13 sessions.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "Chart TSLA asof 2020-02-03; d24/d25 verbatim (closed 15.8% over its open at 95% of its range; the top came the next day). 'Stopped at 0R' reads as a contradiction to a member (a stop-out is a loss); now 'stopped out the next session'. The one failing rule is ps.red_close_daily, as the card names.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "c13 (settled ps.window), m01, c27 verbatim. Two failed triggers on days 1 and 2 after the climax, Thursday is past the window: drop it. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q69": {
+   "status": "pass",
+   "notes": "d32 verbatim (18.8% to 3R, 12.5% to 5R). The statement was 'most climax-day shorts were paid at the 9 EMA within a few sessions', which no cited fact measures (the card has the 9 EMA before a new high 51% of the time); it now states what d32 says. The lesson line's 'the 3R and 5R thirds belong to other setups' is D-013's open question; replaced.",
+   "fixed": true,
+   "by": "checker"
+  }
+ }
 }

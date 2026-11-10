@@ -255,7 +255,7 @@
   {
    "id": "k5",
    "source": "s8",
-   "quote": "This method can also be traded by anticipating the breakout but I don't find it as effective and more skill and experience is needed.",
+   "quote": "I don't find it as effective and more skill and experience is needed.",
    "claim": "Kullamagi finds anticipating the breakout less effective."
   },
   {
@@ -1011,7 +1011,7 @@
    "title": "AMD, August 2018: four quiet days after an earnings gap",
    "steps": [
     "AMD, 2018. An earnings-gap pole: 29% in 14 days to 20.28. Then four days, 18.73 to 20.10, on 0.75x volume.",
-    "Our kind of flag: short and shallow, the pole on a catalyst. The rest sits on the fast averages.",
+    "Our kind of flag: short and shallow, the pole on a catalyst. The pause is 7.6% deep.",
     "2018-08-21: the prior day's high breaks. Buy at market, 20.09. Stop a few cents under the low, 19.81, 1.4% away.",
     "A third at 3R, a third at 5R, the rest on the trail. It ran from 20 to 34 in five weeks."
    ],
@@ -1033,7 +1033,7 @@
     "RARE, 2015. A 53% pole in 13 days to 85.93, then four days resting at the 10-day EMA, 80.25 to 85.79.",
     "2015-05-27: it trades over the prior day's high before the flag's high breaks. Buy at market, 83.26.",
     "Stop a few cents under the low, 81.18, 2.5% away. Full size at one price, one stop. No starter, no adds.",
-    "Then a second leg the same size. The next flag is a new trade from flat, not an add to this one."
+    "Then a second leg the same size. You hold what is left on the trail, with no adds on the way."
    ],
    "facts": [
     "d05",
@@ -1041,8 +1041,7 @@
     "c36",
     "h22",
     "h28",
-    "c38",
-    "h27"
+    "c38"
    ]
   }
  ],
@@ -1066,7 +1065,8 @@
    "facts": [
     "b2",
     "cs2",
-    "z1"
+    "z1",
+    "b1"
    ],
    "wrong": {
     "A long flat base": "A base can come before the run, but the flag itself follows the run.",
@@ -1194,12 +1194,12 @@
    "criterion": "bf.which_flag",
    "q": "Which flag in a run is the one we want most?",
    "choices": [
-    "The first after a breakout or correction",
+    "First after a breakout or correction",
     "The third, once the trend is proven",
     "Any; the shape decides",
     "The one with the deepest pullback"
    ],
-   "answer": "The first after a breakout or correction",
+   "answer": "First after a breakout or correction",
    "why": "The first flag after a base breakout or a market correction. That is the A+ case on our card; the second is normal.",
    "lesson_line": "First flag, best flag. Each one after it is later in the run.",
    "facts": [
@@ -1336,7 +1336,7 @@
    "q": "One flag trade: full size at one price with one stop, no starter, no adds, no averaging down.",
    "answer": "True",
    "why": "True. The full size at one price with one stop. No starter, no adding to a flag trade, no averaging down.",
-   "lesson_line": "One price, one stop, one size. The next flag is a new trade.",
+   "lesson_line": "One price, one stop, one size. No starter, no adds.",
    "facts": [
     "c38",
     "h28"
@@ -1385,14 +1385,14 @@
     "A wedge up"
    ],
    "answer": "The A+ version",
-   "why": "The A+ version. Riding the 9 or 10-day through the flag is A+; tagging the 20 or 21-day EMA and reclaiming it is the A or B version. Kullamagi: price surfs the rising 10- and 20-day.",
+   "why": "The A+ version. Riding the 9 or 10-day through the flag is A+. Tagging the 20 or 21-day EMA and reclaiming it is the A or B version. Kullamagi: price surfs the rising 10- and 20-day.",
    "lesson_line": "The closer the rest rides to the fast line, the stronger the hands holding it.",
    "facts": [
     "c11",
     "k3"
    ],
    "wrong": {
-    "The B- version": "B- is one close under the 21-day EMA, reclaimed next day. Riding the 10-day is the top row.",
+    "The B- version": "B- is for a loose, jagged rest. Riding the 10-day is the top row.",
     "Not a flag; it must tag the 21-day": "Tagging the 21-day is allowed, not required. The best flags never get there.",
     "A wedge up": "A wedge up is about the highs rising. This is about where the closes rest."
    },
@@ -1421,7 +1421,7 @@
    ],
    "wrong": {
     "No; a 2.9% range is too shallow": "Shallow is not a fault. Four sessions in a 2.9% range was the tightest of our ten winners.",
-    "No; four sessions is too short": "Four sessions is a normal flag. Four of our ten examples rested four days."
+    "No; four sessions is too short": "Four sessions is a normal flag. Eight of our ten examples rested four days."
    },
    "house": true,
    "story": "After a 36% pole the stock pauses four sessions in a 2.9% range on half the pole's volume. The pole's bars were far wider."
@@ -1434,13 +1434,13 @@
    "criterion": "bf.holds_21ema",
    "q": "On flag day four price dips under the 21-day EMA at noon and closes back above it. What is that?",
    "choices": [
-    "Allowed; often the buy",
+    "Allowed; the close held",
     "The flag is over",
     "A heavy red day",
     "A wedge up"
    ],
-   "answer": "Allowed; often the buy",
-   "why": "Allowed, and often the buy. An intraday undercut that closes back above the 21-day EMA is allowed. A close under it is the other case.",
+   "answer": "Allowed; the close held",
+   "why": "Allowed. An intraday undercut that closes back above the 21-day EMA is allowed. The close is what counts.",
    "lesson_line": "An undercut that closes back above is a shakeout, not a break.",
    "facts": [
     "c10"
@@ -1638,7 +1638,7 @@
     },
     "round": 1
    },
-   "why": "55%. The drop from the pole top to the flag low, divided by the pole's height. DKNG gave back 55% and the dossier called it a deeper retest than a flag.",
+   "why": "55%. The drop from the pole top to the flag low, divided by the pole's height. DKNG's flag gave back the same 55%.",
    "lesson_line": "Measure the give-back against the pole, not against the price.",
    "facts": [
     "d30",
@@ -1689,7 +1689,6 @@
    "why": "No. Two closes under the 21-day EMA end the flag. One close reclaimed the next session is the grey area; two is the exit from the idea.",
    "lesson_line": "One close under the line is a question. Two is the answer.",
    "facts": [
-    "c09",
     "c10",
     "k3"
    ],
@@ -1739,12 +1738,11 @@
     "Buy half size"
    ],
    "answer": "Wait for a proper base",
-   "why": "Wait. The third flag in a short run without a proper base is a wait-for-the-base case on our card. Bonde: a flag can form so late in a move that waiting for it misses the return.",
+   "why": "Wait. The third flag in a short run without a proper base is a wait-for-the-base case on our card.",
    "lesson_line": "Three flags and no base is a run that needs a rest, not a fourth buy.",
    "facts": [
     "c17",
-    "c31",
-    "p6"
+    "c31"
    ],
    "wrong": {
     "Buy; the trend is proven": "Proven and late are the same word here. Our card grades the third flag B- or passes.",
@@ -1789,7 +1787,10 @@
    "facts": [
     "b4",
     "cs4",
-    "c06"
+    "c06",
+    "cs6",
+    "br2",
+    "i1"
    ],
    "wrong": {
     "Up to 12 weeks, no limit": "ChartSchool stretches the outside to 12 weeks, but even it calls one to four ideal.",
@@ -1865,7 +1866,7 @@
     "Wait for an inside day"
    ],
    "answer": "Tighten the stop to fit the size",
-   "why": "Never tighten the stop to fit. Stop first; the size comes from the stop; if the honest stop does not fit the risk, skip the trade or wait for a tighter spot.",
+   "why": "Never tighten the stop to fit. Stop first; the size comes from the stop. If the honest stop does not fit the risk, skip the trade or wait for a tighter spot.",
    "lesson_line": "You never pick a size and back-fit a stop inside the noise.",
    "facts": [
     "h01",
@@ -1892,7 +1893,7 @@
     "Yes; a 12% stretch is normal"
    ],
    "answer": "No; wait for the 10-day to catch up",
-   "why": "No. A flag right after a parabolic burst is extended until the 10-day catches up; no entry while the closes sit more than 10% above the 10-day. QCOM 2019 was a textbook flag after a one-gap pole, and the trigger day was the top.",
+   "why": "No. A flag right after a parabolic burst is extended until the 10-day catches up. No entry while the closes sit more than 10% above the 10-day. QCOM 2019 was a textbook flag after a one-gap pole, and the trigger day was the top.",
    "lesson_line": "A pole that was one gap is not a leader's run. Let the average catch up first.",
    "facts": [
     "c04",
@@ -1938,19 +1939,19 @@
    "rung": 5,
    "format": "numeric",
    "criterion": "bf.stop",
-   "q": "Account 60,000. Risk 1%. Fill 20.09, stop 19.81. How many shares?",
-   "answer": 2142,
+   "q": "Account 60,000. Risk 0.5%. Fill 20.09, stop 19.81. How many shares?",
+   "answer": 1071,
    "calc": {
     "fn": "shares_from_risk",
     "args": {
      "account": 60000,
-     "risk_pct": 1,
+     "risk_pct": 0.5,
      "entry": 20.09,
      "stop": 19.81
     },
     "round": 0
    },
-   "why": "2142. Account times risk percent, divided by the fill minus the stop, rounded down. AMD's 1.4% stop set the size, not the other way round.",
+   "why": "1071. Account times risk percent, divided by the fill minus the stop, rounded down. It stays under the position cap. AMD's 1.4% stop set the size, not the other way round.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h03",
@@ -1984,7 +1985,7 @@
    "q": "What does that day do to the flag?",
    "choices": [
     "Drops the grade; a second one ends it",
-    "Nothing; volume only counts on the break",
+    "Nothing; only break volume counts",
     "Ends the flag at once"
    ],
    "answer": "Drops the grade; a second one ends it",
@@ -1995,8 +1996,8 @@
     "c15"
    ],
    "wrong": {
-    "Nothing; volume only counts on the break": "Volume is read inside the flag too. A heavy red day is sellers, not rest.",
-    "Ends the flag at once": "One such day drops the grade. The flag ends on the second."
+    "Ends the flag at once": "One such day drops the grade. The flag ends on the second.",
+    "Nothing; only break volume counts": "Volume is read inside the flag too. A heavy red day is sellers, not rest."
    },
    "house": true,
    "story": "Day three of the flag closes red on 1.8 times its average volume. Every other day was quiet."
@@ -2009,17 +2010,16 @@
    "criterion": "bf.inv_close_under_flag_low",
    "q": "What does that close mean?",
    "choices": [
-    "The idea is dead; the stop went long ago",
+    "Idea dead; the stop went long ago",
     "Widen the stop to the flag low",
     "Hold; the pole still counts"
    ],
-   "answer": "The idea is dead; the stop went long ago",
+   "answer": "Idea dead; the stop went long ago",
    "why": "The idea is dead. After the entry a close under the flag's low means the idea failed; the stop was hit well before it, at 19.81.",
    "lesson_line": "By the time price closes under the flag low you should be long gone.",
    "facts": [
     "c18",
-    "c14",
-    "d03"
+    "c14"
    ],
    "wrong": {
     "Widen the stop to the flag low": "The stop only moves up. The flag low was never the stop; it is the line that says the idea failed.",
@@ -2151,7 +2151,7 @@
     "No stop; wait for the close"
    ],
    "answer": "The first 30-minute low, out if past 2R",
-   "why": "The first 30-minute low of the gap-down day is the new stop, with a ceiling: if the first 30 minutes take the loss past 2R, get out. That is the one exception to a stop that never widens.",
+   "why": "The first 30-minute low of the gap-down day is the new stop. The ceiling: if the first 30 minutes take the loss past 2R, get out. That is the one exception to a stop that never widens.",
    "lesson_line": "A gap through the stop gets 30 minutes, not a new opinion.",
    "facts": [
     "h06",
@@ -2163,7 +2163,7 @@
     "No stop; wait for the close": "The close is hours away. The first 30 minutes decide, and past 2R you are out."
    },
    "house": true,
-   "story": "Your flag long filled at 62.80 with the stop at 61.65. Next morning it opens at 60.10 on sector news."
+   "story": "Your flag long filled at 62.80 with the stop at 61.65. Next morning it opens at 61.10 on sector news."
   },
   {
    "key": "q46",
@@ -2182,14 +2182,15 @@
    "lesson_line": "The pole names the setup. A near-double is the other lesson.",
    "facts": [
     "c19",
-    "p4"
+    "p4",
+    "c20"
    ],
    "wrong": {
-    "A bull flag": "A 95% run in six weeks is a near-double. That pole belongs to the high tight flag.",
-    "A flat base": "Eight sessions is no base. It is a short pause on top of a huge pole."
+    "A bull flag": "A 110% run in six weeks is more than a double. That pole belongs to the high tight flag.",
+    "A flat base": "Fifteen sessions is too short for a flat base, which rests at least 25."
    },
    "house": true,
-   "story": "The stock ran 95% in six weeks on a product launch. Now it pauses eight sessions a little under the high."
+   "story": "The stock ran 110% in six weeks on a product launch. Now it pauses 15 sessions a little under the high."
   },
   {
    "key": "q47",
@@ -2231,7 +2232,7 @@
     "A high tight flag"
    ],
    "answer": "A VCP",
-   "why": "A VCP. Look for shrinking pullbacks: a flag is one short drift on lighter volume; a VCP strings several pullbacks, each smaller than the last, before its pivot.",
+   "why": "A VCP. Look for shrinking pullbacks. A flag is one short drift on lighter volume. A VCP strings several pullbacks, each smaller than the last, before its pivot.",
    "lesson_line": "One drift is a flag. A string of shrinking swings is the VCP lesson.",
    "facts": [
     "c21",
@@ -2261,11 +2262,10 @@
    "lesson_line": "No run, no flag. A drift to the 20-day after a grind is a pullback lesson.",
    "facts": [
     "c22",
-    "b2",
-    "d28"
+    "b2"
    ],
    "wrong": {
-    "A bull flag": "An 8% grind over weeks is not a pole. META's 18.2% rise in 20 sessions was judged the same way: no pole, no flag.",
+    "A bull flag": "An 8% grind over six weeks is not a steep run. No pole, no flag.",
     "A wedge up": "The drift is down to a line, not up. The missing piece is the run before it."
    },
    "house": true,
@@ -2385,8 +2385,7 @@
    "lesson_line": "Sell partials into strength. The trims are the part the market cannot take back.",
    "facts": [
     "h05",
-    "h20",
-    "d07"
+    "h20"
    ],
    "wrong": {
     "Nothing; it never reached 10R": "Waiting for 10R with nothing banked is how a 6R trade becomes a scratch.",
@@ -2477,7 +2476,7 @@
     "Nothing; the flag never triggered"
    ],
    "answer": "Its job; the flag was late in the run",
-   "why": "Its job. LLY's flag came late in a long run, in a stock already extended on the weekly chart: a later flag with a planned 2.25% loss. The lesson is which flag, not the stop.",
+   "why": "Its job. LLY's flag came late in a long run, in a stock already extended on the weekly chart. The planned loss was 2.25%. The lesson is which flag, not the stop.",
    "lesson_line": "The stop pays for the lesson. The lesson here was the count of flags, not the shape.",
    "facts": [
     "d23",
@@ -2490,7 +2489,7 @@
     "Nothing; the flag never triggered": "It triggered at 957.53 and reached 0.56R. The stop then did what stops do."
    },
    "house": true,
-   "story": "A five-day flag at all-time highs after a 30% pole. You buy at 957.53, stop 935.95. It makes 0.56R and is stopped on day three."
+   "story": "A five-day flag at all-time highs after a 30% pole, late in a long run. You buy at 957.53, stop 935.95. It makes 0.56R and is stopped on day three."
   },
   {
    "key": "q59",
@@ -2560,11 +2559,11 @@
    "criterion": "bf.market_order",
    "q": "Write the plan: entry, stop, first trim.",
    "choices": [
-    "Market over 66.26; stop low; third 3R",
+    "Market over 66.26; day-low stop; 3R",
     "Limit 64.00; stop 59.50; hold to 10R",
     "Buy the close; stop flag low; 5 days"
    ],
-   "answer": "Market over 66.26; stop low; third 3R",
+   "answer": "Market over 66.26; day-low stop; 3R",
    "why": "Market as it trades through, a few cents under the entry day's low, a third at 3R. Written tonight, done tomorrow without a debate.",
    "lesson_line": "Entry, stop, trim, trail. Write it before the open.",
    "facts": [
@@ -2605,7 +2604,7 @@
     "Hold all of it for the measured move": "The measured move is a reference, never a hold rule. A burst is the time to lighten."
    },
    "house": true,
-   "story": "Three weeks after your flag buy the stock gaps up three mornings in a row on rising volume and closes far above its 10-day."
+   "story": "Three weeks after your flag buy the stock gaps up three mornings in a row on rising volume. It closes far above its 10-day."
   },
   {
    "key": "q63",
@@ -2674,7 +2673,7 @@
    ],
    "wrong": {
     "Buy today; use the flag low as the stop": "The flag low is the invalidation, not the stop. It is almost never a 3% stop.",
-    "Buy today at half size": "Half size on a wide stop is still a wide stop. The inside day fixes the stop, not the shares."
+    "Buy today at half size": "Fewer shares is allowed, but the stop is still 4.6% wide. The tight day can bring it inside 3%."
    },
    "house": true,
    "story": "The flag's wide day four leaves the honest stop 4.6% under the break. The stock looks ready to print a narrow inside day tomorrow."
@@ -2755,7 +2754,429 @@
   "No HVE: the card's A+ pole line names an HVE; the unit says 'a catalyst, such as an earnings gap' because the house word is not taught in this unit.",
   "Brooks's bull flag (s16) is cited only so a member is not confused by the term (q56); the glossary page names no author on the page itself, and the publisher is Al Brooks's own course.",
   "The short mirror (the bear flag, dossier 8.6) is not taught here (D-001). No ETF appears in this unit.",
-  "SET.08 in UNITS-method.md plans the stop under the flag low and the trendline break as the trigger; the card (bf.stop_not_flag_low, proposed; bf.stop, settled) puts the stop under the day's low and q09 teaches the difference. The unit follows the card (D-002)."
+  "SET.08 in UNITS-method.md plans the stop under the flag low and the trendline break as the trigger; the card (bf.stop_not_flag_low, proposed; bf.stop, settled) puts the stop under the day's low and q09 teaches the difference. The unit follows the card (D-002).",
+  "Cold check 2026-11-10: 62 pass (25 fixed), 3 fix, 5 cut. Look first at: (1) q37's key broke the 40% cap (2142 shares of AMD = 72% of the account; A5 caps it), now 0.5% risk = 1071 shares; every sizing item must check the cap. (2) q27, q50, q60 held on D-047, D-045 and D-027: the two-closes EMA rule, the 20-session ceiling and the prior-day-high buy ahead of the flag top; D-047's yes/no options do not both end on two closes as the conflict above claimed. (3) q46 moved to 110% and 15 sessions so the HTF key holds under every D-048/D-049 option; q45's gap open was already past the 2R ceiling; q16 said four of ten examples rested four days (it is eight)."
  ],
- "verify": {}
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "d01/d02 match the dossier's SHOP 2020-05-04 row (pole +99% in 12 d to 66.57, flag 8 d 59.50-66.26, 0.85x, buy 62.80, stop 61.65 = 1.83%, best 41.7R). The prior-day-high buy is narrated as what the scan did, not taught as the rule (D-027 pending).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "AMD numbers match the dossier row (29% in 14 d to 20.28, 4 d 18.73-20.10, 0.75x, buy 20.09, stop 19.81 = 1.39%, 20 to 34). Step 2 said 'the rest sits on the fast averages': no source says that of AMD (the dossier row says only a four-day pause), so it now gives the row's 7.6% depth.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "RARE numbers match (53% in 13 d to 85.93, 4 d 80.25-85.79, buy 83.26, stop 81.18 = 2.50%). Step 4 said 'the next flag is a new trade from flat': while the last third is still on the trail, a buy on the next flag would be an add (A5), and h27 is about a stop-out, not a second flag. Now: hold the rest on the trail, no adds; h27 dropped from the facts.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "Key on b2/cs2/z1 (two publishers). The wrong note quotes Bulkowski's 'unusually steep' pole, which was b1 and not cited: b1 added.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "Keyed on the direction only ('usually'), from Zanger and Bulkowski's 74%; never 'required' (D-006 pending). Quotes verbatim in dossier 3.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "Key on the card's which_flag row (proposed, c03/c40). The answer choice was 40 characters; shortened to 36.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "Key on c38/h28 (A5). The lesson line said 'the next flag is a new trade', which reads as permission to buy the next flag while the trail third is still on (an add). Now restates the rule.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "Key on c11 (proposed grade row). Why had a 25-word sentence (split). The B- wrong note defined B- as one close under the 21-day reclaimed next day, the pending D-047 grace; now uses the card's other B- row, loose and jagged (bf.tightness).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "PANW's rest (36% pole, 4 sessions in 2.9% on half the volume, d10). Wrong number fixed: the note said four of our ten examples rested four days; the dossier table has eight (QCOM, ISRG, BB, NUS, RARE, AMD, PANW, TSEM; UIS 7, SHOP 8).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "The key said 'often the buy': that is the T1 support-reclaim buy, pending D-027, and the reclaim-as-buy half of D-047. Now keys only that the close held, which every option of both allows.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "cut",
+   "notes": "Duplicate of q35: both key C29's 'more than 10% above the 10-day, skip' (q35 is the applied case, kept).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "66.25 re-derived: 62.80 + 3 x 1.15; SHOP's levels match d01.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "4.8 re-derived: 52.40 / 50.00 - 1 = 4.8%, past C28's 4%.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "18.0 re-derived (47.20 / 40.00 - 1). Computes the pole only; no verdict on the pending 20% (D-029). Kullamagi's 30% is quoted as his.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "55.0 re-derived ((50-44.5)/(50-40)). The why said 'the dossier called it a deeper retest than a flag': a verdict on the pending D-046 half-pole cap and an untaught word ('dossier'). Now only says DKNG's flag gave back the same 55%.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "2.5 re-derived: (83.26 - 81.18) / 83.26 = 2.50%; RARE's stop 81.18 matches d05. No pending stop-width cap is keyed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "fix",
+   "notes": "The key 'two closes under the 21-day EMA end it' is bf.inv_ema / bf.holds_21ema, both pending-owner (D-047). D-047's options are yes or no, so the conflicts note's claim that both options end on two closes does not hold: under 'no' the line may not be the disqualifier at all (Kullamagi lets a flag toe the 50-day, k3). Holds for the owner. c09 (heavy red days) was cited and does not support the key: removed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "Key on c17/c31 (proposed). The why leaned on Bonde's p6, which says waiting for a bull flag can miss the move (an argument for buying earlier), not that a third flag should be skipped: removed with p6.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "Keys Bulkowski's own line as his (b4); the wrong notes quote ChartSchool's 12 weeks, Brooks's one sideways bar and IBD's 7 to 8 weeks, which were not cited: cs6, br2, i1 added.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "cut",
+   "notes": "Duplicate: q07 keys the first flag as the A+ case and q29 the third flag as wait/pass; q32 asks both again.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "Key on A3 (settled); no stop-width cap is keyed (D-005 pending). Why had a 26-word sentence: split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "Key on C29 (settled) and c04; QCOM 2019 numbers match the failure table. Why had a 26-word sentence: split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "Wrong key fixed: at 1% risk the answer 2142 shares x 20.09 = 43,033, 72% of a 60,000 account, past the 40% cap (A7), and A5 (h03, cited) says the size is the smaller of the two, so the true answer was 1194. Now 0.5% risk: 300 / 0.28 = 1071.43, rounded down 1071; 1071 x 20.09 = 21,516, 36% of the account, under the cap.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "Key on c09/c15 (proposed). A choice was 40 characters: shortened.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "Key on c18/c14. The answer choice was 40 characters (shortened). The story is invented on AMD's levels while AMD in fact ran to 34; d03 was cited as if it happened: removed (the numbers are givens).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "STZ numbers match the failure table (44.34, 43.55 = 1.78%, 0.85R, day 2 low 43.07, ran to 50). A loss at the stop is framed as the plan working.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "5.0 re-derived: (52.43 - 48.98) / 0.69; PANW levels match d09 (best 26.4R, so it did get there).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "Wrong number fixed: an open at 60.10 is already 2.35R below a 62.80 fill with a 61.65 stop, so B20's 2R ceiling meant out, and the key's 'new stop' was moot. Now opens at 61.10 (1.48R). Why had a 27-word sentence: split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "The key rested on pending HTF numbers: 95% fails D-048's 100% option and an eight-session rest fails D-049's 10 and 15 options. Now 110% and 15 sessions, an HTF under every option; the flat-base note now cites c20's 25 sessions.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "Nine weeks (about 45 sessions) is past every D-045 option including Kullamagi's 2 months; the flat ceiling tapped twice is the flat base tell (c20).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "Key on the card's VCP lookalike (c21). Why had a 26-word sentence: split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "Key holds under every D-029 option (an 8% grind is no steep run). The wrong note graded META on the pending 20% pole number (D-029): now says only that a grind is not a steep run; d28 dropped.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "fix",
+   "notes": "The key 'past 20 sessions it is a base' rests on bf.inv_length, pending-owner (D-045: 15, 20 or up to 2 months). Under option C a 21-session rest is still a flag. Holds for the owner.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "cut",
+   "notes": "Duplicate of q27 (two closes under the 21-day EMA end the flag); also rests on pending D-047.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "cut",
+   "notes": "Duplicate of q43: both key 'the stop did its job, a small planned loss' under bf.stop. TSLA's own lesson (a stop inside the daily range) was already cut in the pilot as having no rule behind it.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "cut",
+   "notes": "Same arithmetic as q44 (r_multiple from fill, stop and exit); q44 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "Key on B19/E51. The story is invented on BB's levels (BB really ran to 32R, not 6R and back): d07 was cited as if it happened, removed; the numbers are givens.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "LLY numbers match (957.53, 935.95 = 2.25%, 0.56R, day 3). The key 'late in the run' depended on something the story did not say: 'late in a long run' added. Why had a 25-word sentence: split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "20,000 re-derived: 1% of 2,000,000 (D42).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "fix",
+   "notes": "The key says a prior-day-high buy ahead of the flag-top break is a normal buy. That is bf.trigger_prev_day_high, pending-owner (D-027): under option (a), the pivot break only, this buy is not taken at all. BB numbers are right. Holds for the owner.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "Flag-top break over 66.26 is allowed under every D-027 option; stop and first trim are settled (A3, B19). The answer's 'stop low' did not say which low: now 'day-low stop'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "Key on C34 (settled). Story had a 24-word sentence: split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "Key, numbers and quotes checked against the card, the dossier and the rulebook; voice clean.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "Key on the card's tighter-spot option and A13 (settled guidance), asked as the better plan. The half-size wrong note said 'half size on a wide stop is still a wide stop', which contradicts q34 (fewer shares is the rule working, A5): now says fewer shares is allowed but the inside day gives the nearer stop.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "SHOP asof 2020-05-01 is the session before the 2020-05-04 trigger; d02 says every flag close held the 21-day EMA, which passes every D-047 option.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "BA asof 2020-11-30 is the session before the 2020-12-01 near-miss; highs rose 5.6% (d31), the card's wedge-up line (proposed).",
+   "fixed": false,
+   "by": "checker"
+  }
+ }
 }

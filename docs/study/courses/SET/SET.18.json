@@ -1114,7 +1114,7 @@
    "steps": [
     "MOD, May 2023. Flat for six months, down 8%. Then a surprise earnings report gaps it 18.8% on 3.2x volume.",
     "The gap day closes at 96% of its range and never fills. Neglect plus a named catalyst: the EP picture.",
-    "Day two: it trades over the gap-day high, 24.50. Buy at market, 25.00. Stop under the day's low, 24.75.",
+    "Day two opens above the gap-day high, 24.50. Buy at market, 25.00. Stop under the day's low, 24.75.",
     "Failure mode: a fill or a reversal through the stop. Instead 3R comes next session. Trim a third; it ran to 89.9R."
    ],
    "facts": [
@@ -1133,10 +1133,10 @@
    "key": "w2",
    "title": "CACI, August 2004: the day-one entry",
    "steps": [
-    "CACI, August 2004. An 11.3% earnings gap on 6.7x volume after five months of drift, down 5%.",
+    "CACI, August 2004. An 11.3% earnings gap on 6.7x volume after six months of drift, down 5%.",
     "The one day-one entry of the ten: the gap day's low sat within 3% of the close. The stop fits.",
-    "Buy at market, 46.55. Stop a few cents under the low of the day, 45.42, 2.4% away.",
-    "A slower start: 3R on day 6, then two months above a rising 10-day. Trim a third, trail the rest."
+    "Buy at market near the close, 46.55. Stop a few cents under the low of the day, 45.42, 2.4% away.",
+    "A slower start: 3R on day 6, then a steady trend above a rising 10-day. Trim a third, trail the rest."
    ],
    "facts": [
     "d03",
@@ -1157,7 +1157,7 @@
     "ENPH, October 2021. An 18.5% earnings gap on 8.3x volume, closing at 56% of its range: the upper half, just.",
     "Day three: it breaks the post-gap high, 227.59. Buy at market, 227.60. Stop 224.95, 1.2% under.",
     "3R the next session: a third off, stop to breakeven. 5R: another third. The last third trails the 10-day.",
-    "Later it tops and collapses through the stop inside the window. The trims and the trail kept the 20.7R a win."
+    "Later it tops and collapses back through the old stop. The trims and the trail kept it a win."
    ],
    "facts": [
     "d05",
@@ -1187,7 +1187,8 @@
   "The chart questions (q62 MOD asof 2023-05-25, q63 CRM asof 2020-08-26) show the gap day as the last visible bar on the member's own chart; the keys rest on the dossier's reads (d01, d02, d26, d27) and the card's neglect line. The importer resolves the bars from our own history.",
   "Comment-reply quotes from Bonde's blog (b11, b12, b13 on the 2007-03-20 post; b22, b23 on the 2007-02-26 post are in the post body) sit in Blogger's comment section; the quote checker reads the page's HTML and may not see dynamically loaded comments. If it reports them MISSING the checker should confirm with a browser.",
   "The short mirror (the bearish EP, dossier 8.6) is not taught here (D-001).",
-  "Bulkowski's site states it must not be used to train AI systems; two short quotes with links are cited as the dossier did (s14), never as a key on their own."
+  "Bulkowski's site states it must not be used to train AI systems; two short quotes with links are cited as the dossier did (s14), never as a key on their own.",
+  "Cold check 2026-11-10: 62 pass (30 fixed; the 3 walk-throughs are in the pass count), 1 fix, 4 cut. Look first at: (1) q11/q39: the card gates a second EP and a stock up 50%+ (ep.first_ep, ep.neglect) and also only grades them down (ep.inv_late, the B- row); pick one. (2) q40's size broke A7's 40% cap at 1% risk (784 shares, 62% of the account); now 0.5% risk, 392 shares. (3) The day-one buy (q05, q18, w2) rests on D-005, whose option c would cut all three; and q49's gap-over-25% cue runs against the scan (68% to 3R over 30%)."
  ],
  "questions": [
   {
@@ -1302,18 +1303,19 @@
     "At the close, if it held all day"
    ],
    "answer": "Over the opening-range high, at market",
-   "why": "Over the opening-range high, at market, in regular hours. Kullamagi: enter opening range highs, the stop at the lows of the day. The owner: enter there and place a stop at the low of the day.",
+   "why": "Over the opening-range high, at market, in regular hours. Kullamagi: enter opening range highs, the stop at the lows of the day. Our GRRR plan: break the opening range, enter there, stop at the low of the day.",
    "lesson_line": "The opening range is the trigger. The low of the day is the stop.",
    "facts": [
     "c11",
     "k09",
     "u04",
-    "h22"
+    "h22",
+    "c32"
    ],
    "wrong": {
     "At the open, before any range forms": "Buying the open means buying with no low to lean on. Let the range form first.",
     "On a limit order under the open": "A limit under the open fills only when the gap is failing. Entries are market orders.",
-    "At the close, if it held all day": "The close is the last buyer in line. By then the opening-range buy is far behind you."
+    "At the close, if it held all day": "By the close the low is often 7% or more away. Buy early near the opening-range high."
    },
    "house": true
   },
@@ -1478,7 +1480,7 @@
     "Above the 200-day only"
    ],
    "answer": "Upper half, gap never filled",
-   "why": "Close in the upper half of its range, and never trade back to the prior close. The owner: we want bull gaps to stay open; it shows who is in control.",
+   "why": "Close in the upper half of its range, and never trade back to the prior close. We want bull gaps to stay open; it shows who is in control of the strength.",
    "lesson_line": "An open gap and a strong close. The buyers who came for the news stayed.",
    "facts": [
     "c07",
@@ -1525,7 +1527,7 @@
     "7"
    ],
    "answer": "3",
-   "why": "3. The hard rule for the first trim is a third at 3R; in practice the owner often waits for 5R. Among the scan's winners the median time to 3R was 2 sessions.",
+   "why": "3. The hard rule for the first trim is a third at 3R. Among the scan's winners the median time to 3R was 2 sessions.",
    "lesson_line": "A third at 3R. EPs get there fast; be ready.",
    "facts": [
     "h05",
@@ -1632,7 +1634,7 @@
    ],
    "story": "A neglected stock gaps 14% on earnings on 6x volume. At 9:40 it trades over the 5-minute high. The low of the day is 2.1% below.",
    "answer": "Buy at market; stop under the day's low",
-   "why": "Buy at market, stop a few cents under the low of the day. The gap holds, the volume is there, and the stop sits inside 3%. The owner: enter there and place a stop at the low of the day.",
+   "why": "Buy at market, stop a few cents under the low of the day. The gap holds, the volume is there, and the stop sits inside 3%. Our GRRR plan: enter there and place a stop at the low of the day.",
    "lesson_line": "A tight low under a holding gap is the day-one buy. Take it.",
    "facts": [
     "c11",
@@ -1703,7 +1705,7 @@
    ],
    "wrong": {
     "Buy; the fill is support": "A filled gap is the invalidation. There is no EP left to buy.",
-    "Buy at the close if it bounces": "A bounce after a fill is a different day. The EP needed the gap to hold.",
+    "Buy at the close if it bounces": "The fill already ended the setup. A late bounce does not bring it back.",
     "Short; the gap is dead": "Not an EP means no long. It does not make it a short."
    },
    "house": true
@@ -1825,7 +1827,7 @@
     },
     "round": 1
    },
-   "why": "20%. The close before the gap over the close 126 sessions earlier, minus one. Inside our card's neglect line of no more than 25% over 126 sessions.",
+   "why": "20%. The close before the gap over the close 126 sessions earlier, minus one. Inside our card's neglect line of 25% over 126 sessions.",
    "lesson_line": "Neglect is measured, not felt. Six months back, count how far it has come.",
    "facts": [
     "c05",
@@ -1858,7 +1860,7 @@
     "u03"
    ],
    "wrong": {
-    "Pass; day one was the only entry": "The delayed entry is the card's second trigger, and it tested better than the day-one proxy. The gap held.",
+    "Pass; day one was the only entry": "The delayed entry is our second trigger, and it tested better than the day-one proxy. The gap held.",
     "Buy; stop under the gap-day low": "The stop is the trigger day's low. The gap-day low is wider than it needs to be.",
     "Wait for a pullback to the prior close": "A trade back to the prior close fills the gap and ends the setup. That is not a pullback to buy."
    },
@@ -1929,7 +1931,7 @@
    "criterion": "ep.not_three_green",
    "q": "Three green days in a row before the delayed trigger is a reason to wait. A guide, not a gate.",
    "answer": "True",
-   "why": "True. Not after three green days in a row; a guide, not a gate. After three up closes the chase line is close and the stop is far.",
+   "why": "True. Not after three green days in a row. It is a guide, not a gate: wait for a tighter trigger.",
    "lesson_line": "Three green days means the easy part is behind you. Wait for a tighter trigger.",
    "facts": [
     "c15"
@@ -1968,7 +1970,7 @@
    ],
    "story": "A $7 stock that trades about $4 million a day gaps 20% on a contract. Even on the gap day it trades $9 million.",
    "answer": "No; under $10 and $20 million a day",
-   "why": "No. We trade only stocks at $10 or more that trade at least $20 million a day, and this one fails both before and on the gap day. Bonde loved low-priced, thin names; we do not trade them.",
+   "why": "No. We trade only stocks at $10 or more that trade at least $20 million a day. This one fails both, before and on the gap day. Bonde loved low-priced, thin names; we do not trade them.",
    "lesson_line": "A perfect EP in a thin stock is still a thin stock.",
    "facts": [
     "h09",
@@ -2000,7 +2002,7 @@
     "round": 2
    },
    "why": "25.75. One R is the fill minus the stop; add three of those to the fill. MOD got there the next session.",
-   "lesson_line": "Know your 3R before the open. EPs reach it in days, sometimes hours.",
+   "lesson_line": "Know your 3R before the open. EPs often get there in days.",
    "facts": [
     "h05",
     "d01"
@@ -2017,7 +2019,7 @@
    "q": "On an EP the stop moves to breakeven at the first trim by default.",
    "answer": "True",
    "why": "True. Breakeven between 2R and 5R, at the first trim by default. The first third comes off at 3R and the stop goes to the fill.",
-   "lesson_line": "Trim a third, stop to breakeven. From there the trade cannot hurt you.",
+   "lesson_line": "Trim a third, stop to breakeven. The rest rides with little at risk.",
    "facts": [
     "h05"
    ],
@@ -2068,7 +2070,7 @@
    "story": "You bought a delayed EP entry. Ten trading days later it sits at 0.4R, never near 3R, never near the stop.",
    "answer": "Sell; under 1R after 10 trading days",
    "why": "Sell. A trade still under 1R after 10 trading days is sold, freeing the money. Bonde was stricter: the stock should move within 5 days or you go on to the next one.",
-   "lesson_line": "An EP that does nothing is not an EP. Free the money.",
+   "lesson_line": "Ten days and no progress: the trade has had its chance. Free the money.",
    "facts": [
     "h15",
     "b13",
@@ -2117,13 +2119,13 @@
    "criterion": "ep.fundamentals",
    "q": "Grade the catalyst of each.",
    "choices": [
-    "First A+; second only at the cue",
+    "First A+; second below the cue",
     "Both A+; a beat is a beat",
     "Second A+; slower is safer",
     "Neither; growth is not a rule"
    ],
    "story": "Two earnings EPs. One reports sales up 140% with a beat and raised guidance. The other reports sales up 20% with a beat.",
-   "answer": "First A+; second only at the cue",
+   "answer": "First A+; second below the cue",
    "why": "The first is A+: triple-digit growth, a beat and a raised guide. The second sits under the 25% growth cue. Kullamagi: ideally triple digit growth; mid to high double digits works too.",
    "lesson_line": "Growth plus a beat plus a raise. Fundamentals grade the EP; they do not gate it.",
    "facts": [
@@ -2202,19 +2204,19 @@
    "rung": 6,
    "format": "numeric",
    "criterion": "ep.stop_delayed",
-   "q": "Account 40,000. Risk 1%. Fill 31.76, stop 31.25. How many shares?",
-   "answer": 784,
+   "q": "Account 40,000. Risk 0.5%. Fill 31.76, stop 31.25. How many shares?",
+   "answer": 392,
    "calc": {
     "fn": "shares_from_risk",
     "args": {
      "account": 40000,
-     "risk_pct": 1,
+     "risk_pct": 0.5,
      "entry": 31.76,
      "stop": 31.25
     },
     "round": 0
    },
-   "why": "784. Account times risk percent, divided by the fill minus the stop, rounded down. That was OII's day-4 entry; the stop sets the size.",
+   "why": "392. Account times risk percent, divided by the fill minus the stop, rounded down. That was OII's day-4 entry, and it stays under the 40% position cap.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h03",
@@ -2278,7 +2280,7 @@
    "wrong": {
     "An EP; the gap holds": "A holding gap is not enough. Bonde: the news element is as critical as the price and volume.",
     "An EP; the red close is the neglect": "One red day is not six months of neglect. The red close is the Kicker's tell.",
-    "Neither; gaps need news": "A Kicker needs no news; it is a positioning candle. It is its own setup."
+    "Neither; gaps need news": "A Kicker needs no news. It is its own setup."
    },
    "house": true
   },
@@ -2432,7 +2434,7 @@
    ],
    "story": "A 13.0% earnings gap on 7.4x volume, closing at 86%, on a stock up 19% over the prior six months. The day-3 break at 35.16 reaches 0.51R, then the stop at 34.16 goes.",
    "answer": "A stock already up into the news",
-   "why": "A stock already up into the news. Up 19% over six months sat inside the neglect line but was the least neglected of the four failures. It reached 0.5R and gave it back; the stop kept the loss near 1R.",
+   "why": "A stock already up into the news. Up 19% over six months sat inside the neglect line but was the least neglected of the four failures. Every rule passed. It reached 0.5R and gave it back; the stop kept the loss near 1R.",
    "lesson_line": "The less neglected the name, the less surprise is left in the news.",
    "facts": [
     "d20",
@@ -2463,7 +2465,7 @@
    "story": "A stock down 31% over six months gaps 28.5% on earnings on 15.0x volume, closing at 97%. You buy the day-2 break at 42.01, stop 40.97. It reverses the next session.",
    "answer": "Small; a B- grade day",
    "why": "Small. A 28.5% gap is over the 25% grade-down line, B- at best, and B- or lower is sized down. The neglect was textbook; the gap size was the warning.",
-   "lesson_line": "The grade sets the size. A B- EP gets a small position before it gets a stop.",
+   "lesson_line": "The grade sets the size. A B- EP gets a small position.",
    "facts": [
     "d22",
     "d23",
@@ -2472,8 +2474,8 @@
     "b20"
    ],
    "wrong": {
-    "Full; neglect plus volume is A+": "Two A+ cues and one B- cue. The grade is the weakest line, and the size follows the grade.",
-    "Sized up; the biggest gaps run the most": "Bonde: gaps over 20% pull back most of the time. The biggest gaps are often one-day moves.",
+    "Full; neglect plus volume is A+": "The gap over 25% caps the grade at B- at best, and B- is sized down.",
+    "Sized up; the biggest gaps run the most": "Bonde: gaps over 20% pull back most of the time. Smaller gaps are better.",
     "Not at all; a 28.5% gap is banned": "Graded down, not banned. Small size is the answer, not no trade."
    },
    "house": true
@@ -2502,7 +2504,7 @@
    ],
    "wrong": {
     "Yes; the gap held all day": "Holding the gap is one gate. Closing in the upper half is another, and this fails it.",
-    "Yes; buy the close, the gap is support": "The would-be close buy was stopped. A fade into the close is distribution.",
+    "Yes; buy the close, the gap is support": "The would-be close buy at 109.88 was stopped. A held gap with a weak close is not an EP.",
     "No; the volume was too light": "4.6x is plenty. The close is what fails."
    },
    "house": true
@@ -2523,7 +2525,7 @@
    "story": "A stock down 17% over six months gaps 12.1% on earnings on 3.6x, closing at 66%. The day-2 break would fill at 161.21. The 200-day sits at 168.35.",
    "answer": "No; the buy is under the 200-day",
    "why": "No. No longs below the 200-day simple moving average. A bear-market earnings gap under a falling 200-day is not a long setup, however good the day looked.",
-   "lesson_line": "Neglected stocks often live under the 200-day. The gap has to carry you over it.",
+   "lesson_line": "Neglected stocks often live under the 200-day. No long until price is over it.",
    "facts": [
     "d28",
     "d29",
@@ -2617,7 +2619,7 @@
     "d09"
    ],
    "wrong": {
-    "Nothing; it never hit a target": "3R and 5R are the targets, and it passed both in days.",
+    "Nothing; it never hit a target": "3R and 5R are the targets, and it passed both.",
     "Everything at 3R": "Selling everything early is a named mistake. A third at 3R, not all of it.",
     "A third at 34R": "34R was the peak, not a rule. The trims come at 3R and 5R, long before."
    },
@@ -2689,13 +2691,13 @@
    "criterion": "ep.market_reading",
    "q": "What do you do?",
    "choices": [
-    "Nothing long; Red is cash and shorts",
+    "Pass; Red is mostly cash and shorts",
     "Buy it; EPs ignore the market",
     "Buy half size",
     "Buy it; Red allows an A+"
    ],
    "story": "The market reading is Red. A neglected stock gaps 15% on a blowout report, on 8x volume, and holds all day.",
-   "answer": "Nothing long; Red is cash and shorts",
+   "answer": "Pass; Red is mostly cash and shorts",
    "why": "Nothing long. Red is mostly cash and shorts, a guide we follow even though Bonde says the market plays no role. Bulkowski buys the earnings breakout only when the market and industry trend higher.",
    "lesson_line": "The best EP in a Red market goes on the list, not in the account.",
    "facts": [
@@ -2734,7 +2736,7 @@
     "c17"
    ],
    "wrong": {
-    "Pass; three days is too late": "The gap held and the trigger is tight. Most of the dossier's examples were delayed entries like this.",
+    "Pass; three days is too late": "The gap held and the trigger is tight. Nine of our ten examples were delayed entries like this.",
     "Buy; stop under the gap-day low": "The inside day's low is the stop. The gap-day low is wider than the trade needs.",
     "Wait for the gap-day high to break": "That is the other trigger. The inside-day break came first, with a tighter stop."
    },
@@ -2753,7 +2755,7 @@
     "Market at close; stop at gap fill; 2R",
     "Market 25.00; no stop; third at 10R"
    ],
-   "story": "MOD, May 2023: flat for six months, then an 18.8% earnings gap on 3.2x volume closing at 96%. Day two it trades over the gap-day high, 24.50.",
+   "story": "MOD, May 2023: flat for six months, then an 18.8% earnings gap on 3.2x volume closing at 96%. Day two opens at 25.00, over the gap-day high of 24.50, and holds above 24.80.",
    "answer": "Market 25.00; stop 24.75; third at 3R",
    "why": "Market at 25.00, stop 24.75, a third at 3R. Buy at market as it trades over the gap-day high, a few cents under the day's low, the first third at 3R. MOD reached 3R the next session.",
    "lesson_line": "Entry, stop, trim, trail. Write it before the open; execute it without a debate.",
@@ -2778,14 +2780,14 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "ep.volume_ideal",
-   "q": "A+, A, B or B-?",
+   "q": "On the cues shown: A+, A, B or B-?",
    "choices": [
     "A+; record volume, neglect, first EP",
     "B-; the gap is over 20%",
     "A; record volume is just a cue",
     "B; the close is only 82%"
    ],
-   "story": "A stock sideways-to-down for a year gaps 20.3% on earnings on 27.6x volume, the highest volume on its chart by far, closing at 82%.",
+   "story": "A stock sideways-to-down for a year gaps 20.3% on earnings on 27.6x volume. That is the highest volume on its chart by far. It closes at 82%.",
    "answer": "A+; record volume, neglect, first EP",
    "why": "A+. The highest volume in years is the A+ volume cue, after a year of sideways-to-down, the first EP. Bonde: the earnings-day volume is often the highest in the stock's history.",
    "lesson_line": "Record volume on a forgotten stock is the loudest EP there is.",
@@ -2825,10 +2827,11 @@
     "d10",
     "d11",
     "h15",
-    "h02"
+    "h02",
+    "b13"
    ],
    "wrong": {
-    "Sell; five flat days is failure": "The time stop is 10 trading days under 1R, not five. Selling early is fear.",
+    "Sell; five flat days is failure": "Bonde used 5 days. Our time stop is 10 trading days under 1R.",
     "Move the stop up to breakeven now": "Breakeven comes at the first trim. The trade has not earned it.",
     "Add; it is building a base": "Full size at one price. No adding."
    },
@@ -2840,7 +2843,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "ep.neglect",
-   "q": "Hidden ticker, the gap day is the last bar. Flat for months, then this gap holds and closes strong. Take the day-2 break or pass?",
+   "q": "Hidden ticker; the gap day is the last bar. Read the months before it and the gap day. Take the day-2 break, or pass?",
    "choices": [
     "Take it; neglect, a held gap",
     "Pass; the stock was already up",
@@ -2908,7 +2911,7 @@
    "criterion": "ep.stop_only_up",
    "q": "After a delayed-entry buy, the stop may be moved down to the gap-day low to give it room.",
    "answer": "False",
-   "why": "False. The stop only moves up, never down or wider. The delayed entry's stop is the trigger day's low, and it stays there until the first trim.",
+   "why": "False. The stop only moves up, never down or wider. The delayed entry's stop is the trigger day's low; it moves up to breakeven at the first trim.",
    "lesson_line": "The stop is an appointment, not a debate.",
    "facts": [
     "h02",
@@ -2918,5 +2921,408 @@
    "house": true
   }
  ],
- "verify": {}
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "d01/d02 verbatim (MOD 2023-05-25: 18.8%, 3.2x, 96%, -8%, buy 25.00 day 2 over 24.50, stop 24.75 = 1.0%, 3R next session, 89.9R best). Step 3 said 'it trades over 24.50. Buy at market, 25.00': 25.00 is the scan's open-above-the-pivot fill (conflicts), so it now reads 'Day two opens above the gap-day high'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "d03/d04 verbatim (CACI 2004-08-19: 11.3%, 6.7x, -5% over six months, close-proxy buy 46.55, stop 45.42 = 2.43%, 3R on day 6). Fixed: 'five months' to 'six months' (the table's 6-mo change); the buy is the scan's close proxy, so 'Buy at market near the close'; 'two months' is not in the cited facts, now 'a steady trend'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "d05/d06 verbatim (ENPH: 18.5%, 8.3x, 56%, buy 227.60 over 227.59, stop 224.95 = 1.16%, 3R next session, 20.7R best). Step 4 said the trims 'kept the 20.7R a win': 20.7R is the best R, not what the trims kept; reworded. Breakeven at the first trim matches B19.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "b21, b08, k16 verbatim on the Stockbee and Qullamaggie pages (quote checker found). Two Tier 2 originators agree; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "b21, k16 found; c01/c22 verbatim on the card. Keys only \"no named catalyst\", which holds under both D-032 options.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "b18, k05, b14 found. Key and wrong notes match both originators.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "c16 (F62/ep.stop_day1, settled), h24, k11 verbatim. Fill bank fine.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "c11 (card trigger), k09, u04, h22 verbatim. 'The owner:' removed from the why (member-facing; u04 is the unsigned GRRR plan). The close wrong note now uses the card's named mistake (7% or more away) instead of an unsourced line. Rests on ep.entry_day1 (D-005): option c, delayed entries only, would cut this item.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "b06, k10 found; c13 and h23 (E58, settled D-141) verbatim. Kept over q13, which asks the same rule.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "b01 and k14 found; two originators agree. Wrong notes true (biotech hardest is on the card evidence, b22 the low-probability list).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "c20 (ep.inv_sold_off) and k03 found. Wrong notes true; fading the gap is the card's named mistake.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "c07 and u02 verbatim. Close to q12 (the same upper-half gate) but asks a different thing: whether huge volume overrides the close. Kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "c03, k04, k15 verbatim/found. First 30 minutes = by 10:00 ET. The B- note matches the card grading (2x to 3x). Kept over q30, which asks the same on-pace test.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "fix",
+   "notes": "The card disagrees with itself: ep.first_ep is a gate (no qualifying EP in 126 sessions, and dossier 8.1 says all must be true), while ep.inv_late and the B- grading row grade a second EP down, not out. The key 'graded down hard' and the why's 'Our card wants no qualifying EP' cannot both hold, and the distractor 'Not an EP' is half right under the gate. Owner: gate or grade-down for a second EP?",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "c07, u02, k03 verbatim. 'The owner:' removed from the why.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "cut",
+   "notes": "Duplicate of q06: the same rule (E58, no buys outside regular hours) asked the same way (true/false). q06 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "h05 (B19) verbatim; d31 verbatim (median 2 sessions to 3R). 'the owner often waits for 5R' removed from the member-facing why.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "c17 (A3, settled), h24, h01, m02 (found), c32, h18 verbatim. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "calc pct_change 40.00 to 44.80 = 12.0 recomputed. Keys the arithmetic only; the 10% floor (D-033) is quoted as Kullamagi's (k01, k02 found), not graded.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "c22, b22, b23 found/verbatim. A 10% gap meets every D-033 option, so \"the size is fine\" holds.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "c11, c16, u04, u01, h22, h04 verbatim. 2.1% is inside A13's 3% (settled). 'The owner:' removed. Rests on ep.entry_day1 (D-005 option c would cut it); the no-adding wrong note is A5.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "c18, h01, h04, c14 verbatim. Key holds under D-005 options a and b (b allows a wider stop only at smaller size; the distractor says full size).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "c19, u02, k03 verbatim. The wrong note 'A bounce after a fill is a different day' was false (same day); rewritten.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "c24 and h26 (F65, settled) verbatim. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "c25 verbatim (Kullamagi via the card); b16 found. k17 is cited but not needed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "calc 5.5 / 2.0 = 2.75 recomputed. c03, c31 verbatim; b07 found (v>3*avgv50).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "c27, c05 verbatim; b14, k06 found. Up 40% fails the neglect line (proposed); the PEG key holds under both D-002 options.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "calc pct_change 20 to 24 = 20.0 recomputed. c05 verbatim. Why tightened (no change in substance).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "c14, c17, h22, u03 verbatim. Keys the trigger while the gap holds, not the 10-session window (D-084). 'the card's second trigger' to 'our second trigger'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "h06/h07 (B20, settled) verbatim. 1R = 0.60; the 30-minute low 29.00 is a 1.67R loss, inside the 2R ceiling (28.80). Key right; no computed number in the text.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "c12, h11, h12 (C28, settled) verbatim. 52.60 is 5.2% over 50.00, past the 4% line.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "c15 verbatim (proposed). The why's 'the chase line is close and the stop is far' had no source (C28 measures from the trigger, not the green days); removed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "cut",
+   "notes": "Duplicate of q10: the same on-pace volume test (the full average daily volume in the first 30 minutes). q10 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "h09 (B23) verbatim; b03 found. Fails every D-030 option ($7, $9 million on the gap day). The 27-word why sentence split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "calc 25 + 3 x 0.25 = 25.75 recomputed; d01 (3R the next session). Lesson's 'sometimes hours' had no source; now 'often in days' (median 2 sessions).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "h05 (B19) verbatim. Lesson said 'the trade cannot hurt you', untrue with gap risk past a stop (A7); softened.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "h21 (E52), c36, k13 verbatim/found. Keys the 10-day for a fast mover only, which every D-024 option except the 20 EMA keeps; the no-adding note is A5.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "h15 (C33), b13 found, h08 (B22). Lesson said 'An EP that does nothing is not an EP', which is not the rule (the time stop sells it); rewritten.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "cut",
+   "notes": "Duplicate of q49: the same fact (a gap over 25% is graded B- at best) asked the same way. q49 keeps it on a real example (ANF).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "c09 (D40, settled cue), k08 found, h17. The answer choice 'second only at the cue' was unclear (20% is under the 25% cue); now 'second below the cue'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "h16 (C34) verbatim; sc3 found. The story checks Bracco's burst boxes (B26 text). Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "c23, c05 verbatim; k06, b12 found. Note for the owner: up 70% also fails the neglect gate (25%), so the card's 'graded down hard' (inv_late, not a gate) and 'not an EP' (neglect, a gate) disagree; no choice says 'not an EP', so the key stands.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "WRONG NUMBER: at 1% risk the risk size is 784 shares = 24,900 = 62% of the account, over A7's 40% cap, and A5 says the size is the smaller of the two (503). Changed the risk to 0.5% (E49, A/B grade): 200 / 0.51 = 392 shares = 12,450, 31% of the account, under the cap. calc recomputed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "c28, c04 verbatim; b04 found. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "c29 verbatim (Kicker gap 1.5%+), c22, b21. Wrong note's 'a positioning candle' was untaught shorthand; removed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "c30, c07 verbatim; k03 found.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "c10 verbatim; b24, b02 found.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "c26, h27 (F68) verbatim; b16 found.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "d16, d17, d30 verbatim (SBUX: 18.2%, 13.1x, 98%, buy 94.97, stop 92.93 = 2.1%, 0.0R). The loss is framed as a planned loss; 28% against 41% is the dossier's cut.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "d18, d19, d30, h28 (B21) verbatim (TSLA: 22.01, 21.46 = 2.5%).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "d20, d21, d30 verbatim (GOOGL: 13.0%, 7.4x, 86%, +19%, 35.16, 34.16 = 2.8%, best 0.51R). Added 'Every rule passed' so a valid trade's loss is not read as a mistake. Note: c23 (up 50%+) does not apply to +19%; the card's ep.inv_late label on GOOGL is loose.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "d22, d23 verbatim (ANF: 28.5%, 15.0x, 97%, -31%, 42.01, 40.97 = 2.5%); c02, h30 (D38), b20 found. Fixed: 'the grade is the weakest line' is not our rule (E50), 'one-day moves' had no source, and the lesson put the size before the stop (A3). Owner: the scan's 25 gaps over 30% reached 3R 68% of the time, against this cue.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "d24, d25, c07 verbatim (MU: 32% of range, low 107.53 over prior close 95.77). 'A fade into the close is distribution' was unsourced; replaced with d25's stopped close buy.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "d28, d29, h10 (B26) verbatim (AMZN 161.21 under 168.35). The buy itself is under the 200-day, so B26 decides under both D-020 options; the lesson's 'the gap has to carry you over it' leaned on D-020 option a and was reworded.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "cut",
+   "notes": "Duplicate of q63: the same CRM 2020-08-26 example and the same neglect numbers (25.5% and 19.3% against 25% and 15%). q63 keeps it on the chart.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "calc r_multiple (235.55 - 227.60) / 2.65 = 3.0 recomputed; d05, d06 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "d08, d09 verbatim (COIN 259.70, 257.10, 34.6R); h05, h20. 'passed both in days': the day it reached 5R is not in the facts; trimmed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "d05, d06, h21, c36, h05 verbatim. Close to w3 (unscored), different from q53 (the 3R arithmetic).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "h08 (B22, settled) verbatim. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "c24, h26 (F65) verbatim; bk1 found. Answer said Red 'is cash and shorts'; F65 says 'mostly cash and shorts', a guide (A10); now 'mostly'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "d12, d13 verbatim (WING 59.92 over 59.91, stop 58.54 = 2.3%, 3R day 6). 'the dossier's examples' (member-facing) to 'Nine of our ten examples' (card evidence).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "d01, d02, h22, h24, h05, h36 verbatim. The story never gave 25.00 or the day's low, so the key was found only by elimination; it now gives the open (25.00, the scan's fill) and the low the stop sits under (24.75 is 5 cents under 24.80, the scan's stop rule).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "d14, d15, c04, c35, c02 verbatim (DLB). Grading is discretionary (E50) and the story gives no fundamentals or market, so the q now says 'On the cues shown'; the 24-word story sentence split. Rests on the proposed A+ cue, not a measured edge (the scan found none beyond 3x).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "d10, d11, h15, h02 verbatim (SIG 94.17, 93.17, 3R on day 8). The wrong note called selling 'fear'; it now names Bonde's 5 days against our C33.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "d01, d02, c05, c07 verbatim (MOD). The question said 'Flat for months, then this gap holds and closes strong', which gave away the answer and contradicted both distractors; now it asks the member to read the chart.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "d26, d27, c05, c27 verbatim (CRM). Keys neglect (proposed); PEG under both D-002 options. Kept over q52.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "h02 (A4), c17, h18 verbatim. Why said the stop 'stays there until the first trim'; it may only move up, so reworded.",
+   "fixed": true,
+   "by": "checker"
+  }
+ }
 }
