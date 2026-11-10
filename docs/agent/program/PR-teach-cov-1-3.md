@@ -53,3 +53,13 @@ https://claude.ai/code/session_01Dhm4qhJhGoto7iixuJEEzM
   - The 3 failures are pre-existing master reds: `src/pages/command/keyListenerCensus` ×2 and `shortcutRegistry`
     DrillPlayer ×1.
   - `src/agent` is all green.
+
+## Re-merged on master `18a3fee48a` (#1008 ship-4+5 merged): head `c4b9ac161f` (SIMULATED)
+- `77cbbdf4ee`: one merge commit of `origin/master` `18a3fee48a`. No conflicts.
+- `c4b9ac161f`: the `/screener` "where do I change the filters?" test now waits for the card's text with `waitFor`, as
+  its neighbours do. The assertion is unchanged; it had flaked once under full-suite load.
+- **Related tests:** 1026 passed.
+- **Bytes:** 2,252,617 B, +9 B against master, from the same minifier naming in the entry chunk as above.
+- **One locked full suite** at `c4b9ac161f`:
+  - `Test Files 2 failed | 302 passed | 5 skipped (309)`, `Tests 3 failed | 9777 passed | 14 skipped (9794)`.
+  - The 3 failures are the pre-existing `src/pages/command` reds. `src/agent` is all green.
