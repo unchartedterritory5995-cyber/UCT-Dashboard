@@ -85,7 +85,7 @@ import { toRenderState } from './objectRenderState'
 // binder is where that is known per INSTANCE, so it publishes the sentence for
 // the disclosure strip (`runtimeErrorNotice.js`), exactly as the object layer
 // publishes a scaled table (`paneFitNotice.js`).
-import { runtimeErrorStopOf, runtimeObjectsWithheld, runtimeRunStopOf, columnErrors } from './nativeRegistry'
+import { runtimeErrorStopOf, runtimeObjectsWithheld, runtimeRunStopOf, runtimeColourStopOf, columnErrors } from './nativeRegistry'
 import { setRuntimeErrorNotice } from './runtimeErrorNotice'
 // W9-T13b: a strategy run's record, published for the (dark) report panel
 import { setStrategyRecord } from './strategyReportNotice'
@@ -1126,16 +1126,19 @@ export function createBinder({ chart, LWC, scope = '' }) {
   // TradingView's collector may have removed objects this chart still holds
   // (`objectRuntime.js`, `withheldBy['objects:collector']`), said by name in the
   // same note.
+  // `familiesAll`: those withheld WHOLE (`withheldBy['objects:collector-all']`).
   // ⭐ DIV-3 r2 — `why`: family → the member's sentence, for a family the HOST run
   // withheld whole by a named guard of its own (`objectRuntime.js`, `withheldWhy`:
   // a `table.cell` on a merged head cell). Said in the same note, never a silent drop.
-  const publishDrops = (instanceId, state, families = null, why = null) => {
+  const publishDrops = (instanceId, state, { families = null, familiesAll = null, why = null } = {}) => {
     const n = state ? renderDroppedCount(state) : 0
     const fams = Array.isArray(families) ? families : []
+    const all = Array.isArray(familiesAll) ? familiesAll : []
     const whyN = why && typeof why === 'object' ? Object.keys(why).length : 0
-    if (!n && !fams.length && !whyN && !dropsPublished.has(instanceId)) return
-    attempt(() => setObjectRenderDrops(instanceId, n, state ? renderHeldCount(state) : 0, noticeScope, fams, why))
-    if (n || fams.length || whyN) dropsPublished.add(instanceId)
+    if (!n && !fams.length && !all.length && !whyN && !dropsPublished.has(instanceId)) return
+    attempt(() => setObjectRenderDrops(instanceId, n, state ? renderHeldCount(state) : 0, noticeScope,
+      { families: fams, familiesAll: all, why }))
+    if (n || fams.length || all.length || whyN) dropsPublished.add(instanceId)
     else dropsPublished.delete(instanceId)
   }
   // ⭐⭐ W9-T12 — the marker outcome per instance (served, or the refusal's sentence), for the
@@ -1217,7 +1220,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
           // ⭐ OZ r1 — a run that withheld its drawings whole (`WITHHELD`) says why
           const wr = runtimeObjectsWithheldOf(memo && memo.cols)
           const ws = wr ? stoppedRunSentence(wr.reason, 'withheld', { fromListing: ctx.historyFromListing === true }) : null
-          publishDrops(inst.instanceId, null, null, ws ? { [STOPPED_KEY]: ws } : null)
+          publishDrops(inst.instanceId, null, { why: ws ? { [STOPPED_KEY]: ws } : null })
           attempt(() => rlayer.set(null, '')); continue
         }
         const rstate = attempt(() => toRenderState(payload.live,
@@ -1230,8 +1233,8 @@ export function createBinder({ chart, LWC, scope = '' }) {
         const rStop = payload.status && payload.status !== 'ok' && objPayload
           ? stoppedRunSentence(payload.reason, 'unmeasured', { fromListing: ctx.historyFromListing === true }) : null
         const rWhy = runtimeWithheldWhy(payload.withheld)
-        publishDrops(inst.instanceId, rstate, null,
-          rStop || rWhy ? { ...(rStop ? { [STOPPED_KEY]: rStop } : {}), ...(rWhy || {}) } : null)
+        publishDrops(inst.instanceId, rstate,
+          { why: rStop || rWhy ? { ...(rStop ? { [STOPPED_KEY]: rStop } : {}), ...(rWhy || {}) } : null })
         const rsig = `rt:${bars.length}:${bars.length ? bars[bars.length - 1].t : 0}:${(payload.stats || {}).nextId}:${theme.fg || ''}/${theme.bg || ''}`
           + markSig
         const rset = attempt(() => rlayer.set(rstate, rsig, {
@@ -1401,8 +1404,11 @@ export function createBinder({ chart, LWC, scope = '' }) {
           meta.stats.dropped = hstate.dropped
         } else markersCleared()
       }
-      publishDrops(inst.instanceId, hstate, (built.value.run.withheldBy || {})['objects:collector'] || null,
-        built.value.run.withheldWhy || null)
+      publishDrops(inst.instanceId, hstate, {
+        families: (built.value.run.withheldBy || {})['objects:collector'] || null,
+        familiesAll: (built.value.run.withheldBy || {})['objects:collector-all'] || null,
+        why: built.value.run.withheldWhy || null,
+      })
       if (!attempt(() => layer.set(hstate, sig + markSig, meta)).ok) markersCleared()
     }
     for (const [id, layer] of objectLayers) {
@@ -1548,6 +1554,12 @@ export function createBinder({ chart, LWC, scope = '' }) {
     if (!sentence && def) {
       const ran = runtimeRunStopOf(def, cols)
       if (ran) sentence = ran.sentence
+    }
+    // ⭐ DIV-4 r1 — a host document's `barcolor` whose run-read colour is not served
+    // on this chart says why on the same strip (`nativeRegistry.runtimeColourStopOf`).
+    if (!sentence && def) {
+      const paint = runtimeColourStopOf(def, cols)
+      if (paint) sentence = paint.sentence
     }
     if (sentence) stoppedIds.add(instanceId)
     else if (!stoppedIds.has(instanceId)) return

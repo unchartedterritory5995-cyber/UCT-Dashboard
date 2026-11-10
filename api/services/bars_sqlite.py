@@ -472,6 +472,23 @@ def delete_bars(ticker: str | None = None, tf: str | None = None) -> int:
     return cur.rowcount
 
 
+def iter_tickers(conn: sqlite3.Connection):
+    """Yield each distinct ticker in ohlcv, in order, by seeking the primary key.
+
+    `SELECT DISTINCT ticker` reads every index entry, about 58M on the worker.
+    Each step here is one index seek, so the cost follows the number of tickers."""
+    current = ""
+    while True:
+        row = conn.execute(
+            "SELECT ticker FROM ohlcv WHERE ticker>? ORDER BY ticker LIMIT 1",
+            (current,),
+        ).fetchone()
+        if row is None:
+            return
+        current = row[0]
+        yield current
+
+
 def purge_mis_keyed_weekly_rows() -> int:
     """Delete weekly rows whose date key is not the FRIDAY of its ISO week.
 
@@ -491,39 +508,40 @@ def purge_mis_keyed_weekly_rows() -> int:
     IN (...)` full-scans the ~58M-row table PER CHUNK. The first deploy of
     this purge did exactly that while holding _WRITE_LOCK at worker boot,
     blocked the healthcheck past its 600s budget, and FAILED the deploy.
-    This version deletes per-ticker (PK-prefixed → indexed) and takes the
-    write lock per-ticker so the prewarmer is never starved. Callers on a
-    boot path MUST use purge_mis_keyed_weekly_rows_async().
+    This version reads and deletes per-ticker (PK-prefixed → indexed) and
+    takes the write lock only for a ticker with something to delete, so the
+    prewarmer is never starved. Callers on a boot path MUST use
+    purge_mis_keyed_weekly_rows_async().
+
+    2026-11-09: discovery was still one `WHERE tf='W'` table scan. It took 35
+    minutes on the worker, and the R2 uploader waits for this purge, so
+    frequent deploys kept the uploader from ever running.
 
     Returns rows deleted.
     """
     import datetime as _dt
 
-    c = _conn()
-    # One pass to collect distinct weekly keys. Unavoidable scan (tf is not
-    # a leading index column), but it's a single read pass with no lock held.
-    rows = c.execute("SELECT DISTINCT ts FROM ohlcv WHERE tf='W'").fetchall()
-    bad: list[int] = []
-    for (ts,) in rows:
+    def _is_bad(ts: int) -> bool:
         s = str(ts)
         if len(s) != 8:
-            bad.append(ts)  # not a YYYYMMDD key — malformed for a date TF
-            continue
+            return True  # not a YYYYMMDD key — malformed for a date TF
         try:
             d = _dt.date(int(s[:4]), int(s[4:6]), int(s[6:]))
         except ValueError:
-            bad.append(ts)
-            continue
-        if d.weekday() != 4:  # 4 = Friday
-            bad.append(ts)
-    if not bad:
-        return 0
-    # Tickers that hold weekly rows — DISTINCT ticker walks the PK index.
-    tickers = [t for (t,) in c.execute(
-        "SELECT DISTINCT ticker FROM ohlcv WHERE tf='W'"
-    ).fetchall()]
+            return True
+        return d.weekday() != 4  # 4 = Friday
+
+    c = _conn()
     deleted = 0
-    for tkr in tickers:
+    for tkr in iter_tickers(c):
+        bad = [
+            ts for (ts,) in c.execute(
+                "SELECT ts FROM ohlcv WHERE ticker=? AND tf='W'", (tkr,)
+            ).fetchall()
+            if _is_bad(ts)
+        ]
+        if not bad:
+            continue
         with _WRITE_LOCK:
             for i in range(0, len(bad), 500):
                 chunk = bad[i:i + 500]

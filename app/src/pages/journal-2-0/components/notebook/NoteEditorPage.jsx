@@ -118,7 +118,8 @@ import { refreshEvidenceCandidates } from '../../hooks/useEvidenceCandidates'
 import { invalidateNoteLinkTarget } from '../../lib/noteLinkTargetsBatch'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import {
-  noteContentGuardOptions, replaceDocument, undoCrossesSwap, HistoryCompleteWatch, isUnreadable, useUnreadableNote,
+  noteContentGuardOptions, replaceDocument, undoCrossesSwap, HistoryCompleteWatch, NoImplicitAtomSelection,
+  isUnreadable, useUnreadableNote,
 } from '../../lib/noteContentGuard'
 import {
   OWN_READ, bodyWrittenSchema, isSchemaRefusal, writtenSchemaOf,
@@ -148,6 +149,7 @@ import useNoteLinkTarget from '../../hooks/useNoteLinkTarget'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
 import { useNoteNavigation } from '../../lib/splitView'
 import { TranscriptInsertHost } from './TranscriptDoors'
+import { TWEET_EVENT, tweetImportEnabled } from '../../lib/tweetImport'
 import { normalizeNoteTicker } from '../../lib/noteTicker'
 import { noteDayOf } from '../../lib/blocks/toolDays'
 import { smartChipsEnabled } from '../../lib/smartChipsFlag'
@@ -184,6 +186,9 @@ const VoiceInputButton = lazyChunk(() => import('../VoiceInputButton'))
 // Wave 7 lane H2 — the writing-help preview. LAZY for the same reason: it is
 // fetched the first time a member opens it, never on note open.
 const WritingHelpPanel = lazyChunk(() => import('./WritingHelpPanel'))
+// Import a tweet's sheet host. LAZY, and mounted only while its flag is on, so a member without
+// the flag never fetches it (`docs/notebook/perf-budgets.json`).
+const TweetInsertHost = lazyChunk(() => import('./TweetDoors'))
 // Wave 11 lane 11A: the voice-note dialog loads on first use, like writing help.
 const VoiceNoteDialog = lazyChunk(() => import('./VoiceNoteDialog'))
 // Wave 11 lane 11D — the trade-plan canvas board. LAZY: only a canvas note
@@ -3069,7 +3074,7 @@ export default function NoteEditorPage({
     // ⭐ Review I-1: `HistoryCompleteWatch` is what keeps the Undo crossing
     // detector honest (`undoCrossesSwap`, noteContentGuard.js) — ONLY this editor
     // carries an edit lineage, so only this editor needs it.
-    extensions: [...buildExtensions(), HistoryCompleteWatch],
+    extensions: [...buildExtensions(), HistoryCompleteWatch, NoImplicitAtomSelection],
     // ⛔ S1/H14: content the schema cannot read LOCKS the editor instead of
     // opening it empty (noteContentGuard.js) -- the empty stand-in is what the
     // next save used to write over the note.
@@ -5773,6 +5778,16 @@ export default function NoteEditorPage({
               label={<UIcon name="paperclip" {...TOOLBAR_ICON} />}
               title="Attach a file"
             />
+            {/* Import a tweet: the same event as /tweet, on this editor's own DOM root.
+                Absent while notebook_tweet_import_enabled is off. */}
+            {tweetImportEnabled() && (
+              <ToolButton
+                onClick={() => editor.view.dom.dispatchEvent(new CustomEvent(TWEET_EVENT, { bubbles: true }))}
+                label={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--ut-gold)' }}><UIcon name="xLogo" {...TOOLBAR_ICON} />Import a tweet</span>}
+                title="Import a tweet"
+                disabled={!editor.isEditable}
+              />
+            )}
             </span>
             {/* Wave 7 lane H1: dictation into THIS editor (the slash menu's
                 "Dictate" starts the same mic). Paid members only — the mic
@@ -6203,6 +6218,12 @@ export default function NoteEditorPage({
       )}
       {/* Wave 13 lane 13G-1: the /transcript insert's sheet (renders nothing while its gate is off). */}
       <TranscriptInsertHost editor={editor} noteId={noteId} ticker={note?.ticker} />
+      {/* Import a tweet: the /tweet and toolbar sheet (renders nothing while its gate is off). */}
+      {tweetImportEnabled() && (
+        <Suspense fallback={null}>
+          <TweetInsertHost editor={editor} noteId={noteId} ticker={note?.ticker} noteTitle={title} />
+        </Suspense>
+      )}
       {writingHelp && (
         <Suspense fallback={null}>
           <WritingHelpPanel

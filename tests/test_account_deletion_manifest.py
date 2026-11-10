@@ -228,6 +228,9 @@ def _seed_member(conn, uid: str) -> None:
     conn.execute("INSERT INTO j2_note_excerpts (id, user_id, note_id, document_id, page_number, captured_text,"
                  " created_at) VALUES (?,?,?,?,1,?,?)", (f"exc-{uid}", uid, f"note-{uid}", f"doc-{uid}",
                                                          f"saved passage {uid}", ts))
+    # Import a tweet: the card's sidecar, emptied by its AFTER DELETE trigger on j2_note_documents.
+    conn.execute("INSERT INTO j2_note_tweet_captures (document_id, user_id, note_id, tweet_id, created_at)"
+                 " VALUES (?,?,?,?,?)", (f"doc-{uid}", uid, f"note-{uid}", "1", ts))
     # Wave 10 (lane 10A): the note carries a tag, so the tag index (db.py, one row per
     # note tag, trigger-kept) holds a row for the member too. The task index holds a
     # member's task TEXT and is emptied by its AFTER DELETE trigger on j2_notes. A door writes the row after its body write;

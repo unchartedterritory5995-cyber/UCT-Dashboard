@@ -354,6 +354,71 @@ export async function prepareForDisplay(sym, tf) {
   }
 }
 
+// The handoff's one request for a symbol nothing has cached. A 503 rejects tagged exactly as
+// StockChart's fetcher does (`warming`, `retryAfterMs`).
+export async function _chartLaneFetch(url, signal) {
+  const r = await fetch(url, signal ? { signal } : undefined)
+  if (r.ok) return r.json()
+  const err = new Error(`HTTP ${r.status}`)
+  err.status = r.status
+  if (r.status === 503) {
+    const ra = parseInt(r.headers?.get?.('Retry-After') || '', 10)
+    if (Number.isFinite(ra) && ra > 0) err.retryAfterMs = ra * 1000
+    try {
+      const b = await r.clone().json()
+      if (b && (b.warming === true || b.error === 'warming')) err.warming = true
+    } catch { /* non-JSON body: a generic 5xx */ }
+  }
+  throw err
+}
+const _chartLaneInflight = new Map()
+
+/**
+ * Daily/weekly/monthly analogue of `prepareForDisplay` for the symbol handoff: get the
+ * set the chart will paint into the synchronous memory cache, without replacing it.
+ * A cached set is promoted with its own saved time (so the paint gate still judges it
+ * by when it was written). An uncached symbol asks for the chart's own URL.
+ *
+ * ⛔ ONLY A GOOD ANSWER IS OFFERED TO THE CHART (via `preload`). SWR hands a preloaded
+ * value to the key's next reader as DATA, so a shed left there reads as an empty answer,
+ * `barsSwrOnErrorRetry` never runs, and the next attempt is the 5-minute daily refresh.
+ * On any failure the chart does its own fetch, which retries on its own schedule.
+ */
+export async function prepareDailyForDisplay(sym, tf, { signal } = {}) {
+  if (!sym || !tf) return 'error'
+  try {
+    const have = await idbGet(sym, tf)
+    if (have?.bars?.length) {
+      memPut(sym, tf, have.bars, { savedAt: have.savedAt ?? null })
+      return 'current'
+    }
+    if (signal?.aborted) return 'error'
+    const url = _url(sym, tf, false)
+    let req = _chartLaneInflight.get(url)
+    if (!req) {
+      req = _chartLaneFetch(url, signal).finally(() => { _chartLaneInflight.delete(url) })
+      _chartLaneInflight.set(url, req)
+    }
+    let json
+    try {
+      json = await req
+    } catch (e) {
+      if (e?.status === 503 || e?.warming) _noteWarmResult({ bars: [], error: 'warming' })
+      return 'error'
+    }
+    if (signal?.aborted) return 'error'
+    _noteWarmResult(json)
+    if (!_isAuthoritativeAnswer(json, sym, tf).ok) return 'error'
+    if (json.delta || !json.bars.length) return 'nodata'
+    memPut(sym, tf, json.bars)
+    idbPut(sym, tf, json.bars)
+    preload(url, () => Promise.resolve(json))
+    return 'current'
+  } catch {
+    return 'error'
+  }
+}
+
 /**
  * Did this response genuinely come from the authority, FOR THIS REQUEST?
  *

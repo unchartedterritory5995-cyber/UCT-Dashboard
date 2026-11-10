@@ -13,6 +13,7 @@ import { makeBoard } from './__fixtures__/board'
 import { setupPanel, ONE } from './testing/panelHarness'
 import { WIDGET_REGISTRY, WORKSPACE_MENU_TYPES } from '../widgets/registry'
 import { widgetControls } from '../widgets/widgetControls'
+import { allControls } from './widgetNames'
 import { loadAgentConfig, _resetAgentConfig } from './agentClient'
 import { routingV2Active } from './nlm1/flag'
 
@@ -112,7 +113,8 @@ describe('widget.setOption — the registry schema decides, the board writer wri
     // an UNBOUNDED numeric key (no min/max in the registry: nhnl.minPrice, volumescan.minRvol/minMove/minDollarK) is not an option at all
     expect(await refuse(host, { widget: 'nh', key: 'minPrice', value: 5 })).toMatch(/has no option “minPrice” — its options are universe, universes\.$/)
     expect(await refuse(host, { widget: 'vs', key: 'minRvol', value: 3 })).toMatch(/has no option “minRvol” — its options are showLogos, list\.$/)
-    expect(await refuse(host, { widget: 'ch', key: 'tf', value: 'W' })).toMatch(/has no options I can change here/)
+    // (a chart's options are its Company Info panel's, round 5: the timeframe is chart.setTimeframe's)
+    expect(await refuse(host, { widget: 'ch', key: 'tf', value: 'W' })).toMatch(/has no option “tf” — its options are companyTab, holdingsOpen, companyOpen/)
     // ⛔ declared in the schema, but the mounted widget never reads them back from opts: refused in words, nothing written
     for (const [id, key, value] of [['br', 'tileStyle', 'spark'], ['nh', 'minCount', 5]]) {
       expect(await refuse(host, { widget: id, key, value }), `${id}.${key}`).toMatch(new RegExp(`I can't change “${key}” .*doesn't read a saved value`))
@@ -131,7 +133,7 @@ describe('widget.setOption — the registry schema decides, the board writer wri
     await refreshContext(1500, { groups: ['boardEdit'] })
     const said = buildContext(host, CTX).context.widgetControls[0].controls
     for (const type of WORKSPACE_MENU_TYPES) {
-      if (widgetControls(type).length) expect(said[type], type).toBeTruthy()
+      if (allControls(type).some(f => !f.when?.({}))) expect(said[type], type).toBeTruthy()
       else expect(said[type], type).toBeUndefined()
       for (const f of WIDGET_REGISTRY[type].paramsSchema || []) {
         if (f.live === true) expect(said[type], `${type}.${f.key}`).toContain(`${f.key}(`)

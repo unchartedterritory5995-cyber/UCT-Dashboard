@@ -38,6 +38,9 @@ import { setObjectRenderDrops, objectRenderDropsFor, resetObjectRenderDrops } fr
 import { withRenderDrops, collectorFamiliesSentence, DRAWING_NOTE_NAME } from '../ast/objectLoss'
 import AttachedPineDisclosures from '../../pane/AttachedPineDisclosures'
 import { compareObjects } from '../../../../../../tools/vendor_harness/compare.mjs'
+import { buildRuntimeIr } from '../ast/pineRuntimeFrontend.js'
+import { lowerIrProgram } from '../runtime/lowerIr.js'
+import { execute } from '../runtime/vm.js'
 
 const LF = String.fromCharCode(10)
 const Q = String.fromCharCode(34)
@@ -156,11 +159,55 @@ describe('⭐ the runtime: a known-false measured conjunct is a certain skip; ev
     for (const r0 of rows.filter((x) => x.ambiguous && !x.measured)) expect(lineWithheld).not.toContain(r0.i)
   })
 
-  it('⛔ past the collector\'s trigger the family is withheld WHOLE and NAMED; nothing of it is drawn', () => {
-    const r = run(translate(50))
-    expect(r.live.filter((o) => o.family === 'line')).toEqual([])
+  it('⛔ past the collector\'s trigger the line family is NAMED, and only the lines certainly among what TradingView keeps are drawn (W-C22-DEL r3/r4)', () => {
+    const t = translate(50)
+    const r = run(t, { trace: true })
+    // the rule by hand, off the run's own trace: a line's rank from TradingView's newest
+    // is at most 1 + (our line creates after it) + (line creates Pine MAY have made
+    // after it); the collector always leaves the newest 50, so rank <= 50 is certain
+    const creates = r.events.filter((e) => e.k === 'create' && e.family === 'line')
+    const marks = []
+    let made = 0
+    for (const e of r.events) {
+      if (e.family !== 'line') continue
+      if (e.k === 'create') made += 1
+      else if (e.k === 'withheld') marks.push(made)
+    }
+    // P: one slot per register that may hold a line (objectPool.js C7) — none in this script
+    const P = (t.objects.regs || []).filter((g) => g.family === 'line' || !g.family || g.family === '*').length
+    expect(P).toBe(0)
+    const want = creates.filter((c, seq) => 1 + (creates.length - seq - 1) + marks.filter((m) => m > seq).length + P <= 50)
+      .map((c) => c.id)
+    expect(marks.length).toBeGreaterThan(0)
+    expect(want.length).toBeGreaterThan(5)
+    expect(want.length).toBeLessThan(50)
+    expect(r.live.filter((o) => o.family === 'line').map((o) => o.id)).toEqual(want)
     expect(r.withheld.line).toBeGreaterThan(0)
     expect(r.withheldBy).toEqual({ 'objects:collector': ['line'] })
+  })
+
+  it('⛔ the boundary is exact: a line whose bound rank is EXACTLY the cap is drawn (the collector leaves the newest `cap`), across caps 50..80', () => {
+    let boundaryHits = 0
+    for (let cap = 50; cap <= 80; cap += 1) {
+      const t = translate(cap)
+      const r = run(t, { trace: true })
+      const creates = r.events.filter((e) => e.k === 'create' && e.family === 'line')
+      const marks = []
+      let made = 0
+      for (const e of r.events) {
+        if (e.family !== 'line') continue
+        if (e.k === 'create') made += 1
+        else if (e.k === 'withheld') marks.push(made)
+      }
+      if (!r.withheldBy) continue
+      const P = (t.objects.regs || []).filter((g) => g.family === 'line' || !g.family || g.family === '*').length
+      const rank = (seq) => 1 + (creates.length - seq - 1) + marks.filter((m) => m > seq).length + P
+      if (creates.some((c, seq) => rank(seq) === cap)) boundaryHits += 1
+      const want = creates.filter((c, seq) => rank(seq) <= cap).map((c) => c.id)
+      expect(r.live.filter((o) => o.family === 'line').map((o) => o.id), `cap ${cap}`).toEqual(want)
+    }
+    // non-vacuity: some cap really puts a line at rank === cap
+    expect(boundaryHits).toBeGreaterThan(0)
   })
 
   it('⛔ CONTROL: below the trigger (max_lines_count=500) nothing is collected, the unambiguous lines are drawn and nothing is named', () => {
@@ -223,12 +270,19 @@ describe('⛔ N1 — the skip is claimed only where it is certain', () => {
 })
 
 describe('⭐ the member is told, by name', () => {
-  it('the sentence names the families and says why; it joins a document note and stands alone', () => {
+  it('the sentences name the families and say why; partial says the newest are drawn, whole says none is', () => {
     const s = collectorFamiliesSentence(['line', 'linefill'])
-    expect(s).toMatch(/^No line or fill between lines is shown on this chart: /)
+    expect(s).toMatch(/^Older lines and fills between lines are held back on this chart: /)
     expect(s).toMatch(/TradingView has already removed/)
+    expect(s).toMatch(/The newest ones are drawn\.$/)
+    expect(s).not.toMatch(/certainly/)
+    const w = collectorFamiliesSentence(['line', 'linefill'], { whole: true })
+    expect(w).toMatch(/^No lines and fills between lines are shown on this chart: /)
+    expect(w).not.toMatch(/drawn/)
     expect(withRenderDrops(null, { dropped: 0, held: 0, families: ['line'] }))
       .toEqual({ name: DRAWING_NOTE_NAME, note: collectorFamiliesSentence(['line']) })
+    expect(withRenderDrops(null, { dropped: 0, held: 0, familiesAll: ['line'] }))
+      .toEqual({ name: DRAWING_NOTE_NAME, note: collectorFamiliesSentence(['line'], { whole: true }) })
     expect(withRenderDrops({ name: DRAWING_NOTE_NAME, note: 'A partial.' }, { dropped: 0, held: 0, families: ['box'] }).note)
       .toBe(`A partial. ${collectorFamiliesSentence(['box'])}`)
     // ⛔ CONTROL: no families and no drops ⇒ the document's own note, untouched
@@ -237,11 +291,13 @@ describe('⭐ the member is told, by name', () => {
   })
 
   it('the store keeps an entry that names families with nothing dropped, and clears when neither is left', () => {
-    setObjectRenderDrops('x', 0, 0, '', ['line'])
+    setObjectRenderDrops('x', 0, 0, '', { families: ['line'] })
     expect(objectRenderDropsFor('x')).toEqual({ dropped: 0, held: 0, families: ['line'] })
+    setObjectRenderDrops('x', 0, 0, '', { familiesAll: ['box'] })
+    expect(objectRenderDropsFor('x')).toEqual({ dropped: 0, held: 0, familiesAll: ['box'] })
     setObjectRenderDrops('x', 2, 4)
     expect(objectRenderDropsFor('x')).toEqual({ dropped: 2, held: 4 })
-    setObjectRenderDrops('x', 0, 4, '', [])
+    setObjectRenderDrops('x', 0, 4, '', {})
     expect(objectRenderDropsFor('x')).toBe(null)
   })
 })
@@ -306,5 +362,64 @@ describe('⭐ the vendor harness grades a family withheld by name as a gap, neve
     expect(compareObjects(vendor, ours()).verdict).toBe('DIVERGE')
     const v = compareObjects(vendor, ours({ withheldFamilies: ['line'], counts: { ...ours().counts, labels: 128 } }))
     expect(v.verdict).toBe('DIVERGE')
+  })
+})
+
+// ─── ⭐ r5 (N-g) — a COLLECTION-held object the collector reaches: BOTH lanes withhold the family WHOLE ───
+// objectPool.js C7: whether TradingView's collector spares an object held only in an
+// array is unmeasured. The runtime lane withholds the family when its collector
+// reaches one (`runtime/objectStore.js::collect`); the host lane now does the same,
+// under `withheldBy['objects:collector-all']` (the whole-family sentence).
+describe('⭐ r5/r6 (N-g) — a `var` array of lines pushed past the cap: the line family is withheld WHOLE on BOTH lanes (not witnessed, Q-C22-1); boxes are witnessed', () => {
+  const NB = 300
+  const days = Array.from({ length: NB }, (_, i) => new Date(Date.UTC(2021, 0, 4) + i * 86400000))
+  const px = (i) => 100 + i * 0.05
+  const PRODUCT = days.map((d, i) => ({ t: d.toISOString().slice(0, 10), o: px(i) - 0.5, h: px(i) + 1, l: px(i) - 1, c: px(i), v: 1000 }))
+  const RT_BARS = days.map((d, i) => ({ t: Math.floor(d.getTime() / 1000), o: px(i) - 0.5, h: px(i) + 1, l: px(i) - 1, c: px(i), v: 1000 }))
+  const SERIES = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(RT_BARS.map((b) => b[k])))
+  const src = (hold) => ['//@version=6', 'indicator("t", overlay = true, max_lines_count = 5)',
+    ...(hold ? ['var lines = array.new_line()', 'if close > open', '    lines.push(line.new(bar_index, close, bar_index + 1, close))']
+      : ['if close > open', '    line.new(bar_index, close, bar_index + 1, close)']), ''].join(LF)
+  const hostLane = (hold) => {
+    const t = translatePine(src(hold))
+    expect(t.objects, 'the host lane carries the program').toBeTruthy()
+    const reader = objectReaderFor({ objects: t.objects }, PRODUCT, { tf: 'D', newestBarIsForming: false })
+    return evaluateObjects(reader.program, { barCount: NB, readNode: reader.readNode, readTime: reader.readTime, readUnknown: reader.readUnknown })
+  }
+  const runtimeLane = (hold) => {
+    const b = buildRuntimeIr(src(hold), { bars: RT_BARS, inputs: {}, objectsInRun: true, tf: 'D', basePeriod: 'D' })
+    if (!b.ok) throw new Error(`refused: ${b.refusal.guard} — ${b.refusal.message}`)
+    const p = lowerIrProgram(b.ir)
+    return execute(p, { bars: NB, series: SERIES, columns: p.columns, confirmed: true, barTimes: RT_BARS.map((x) => x.t) }).objects.finish()
+  }
+
+  it('held in an array: the host lane withholds lines WHOLE (collector-all), the runtime lane withholds them too', () => {
+    const host = hostLane(true)
+    expect(host.withheldBy).toEqual({ 'objects:collector-all': ['line'] })
+    expect(host.live.filter((o) => o.family === 'line')).toEqual([])
+    expect(runtimeLane(true).withheld.line).toMatch(/held in an array or a user type/)
+  })
+
+  it('⭐ r6 — BOXES in a `var` array are WITNESSED collected (sonarlab-order-blocks-spy-1d): neither lane withholds, the host lane draws them', () => {
+    const boxSrc = ['//@version=6', 'indicator("t", overlay = true, max_boxes_count = 5)', 'var bxs = array.new_box()',
+      'if close > open', '    bxs.push(box.new(bar_index, high, bar_index + 1, low))', ''].join(LF)
+    const t = translatePine(boxSrc)
+    expect(t.objects, 'the host lane carries the program').toBeTruthy()
+    const reader = objectReaderFor({ objects: t.objects }, PRODUCT, { tf: 'D', newestBarIsForming: false })
+    const host = evaluateObjects(reader.program, { barCount: NB, readNode: reader.readNode, readTime: reader.readTime, readUnknown: reader.readUnknown })
+    expect(host.withheldBy).toBeUndefined()
+    expect(host.live.filter((o) => o.family === 'box').length).toBeGreaterThanOrEqual(5)
+    const b = buildRuntimeIr(boxSrc, { bars: RT_BARS, inputs: {}, objectsInRun: true, tf: 'D', basePeriod: 'D' })
+    if (!b.ok) throw new Error(`refused: ${b.refusal.guard} — ${b.refusal.message}`)
+    const p2 = lowerIrProgram(b.ir)
+    const fin = execute(p2, { bars: NB, series: SERIES, columns: p2.columns, confirmed: true, barTimes: RT_BARS.map((x) => x.t) }).objects.finish()
+    expect(fin.withheld.box).toBeUndefined()
+  })
+
+  it('⛔ CONTROL: the same lines held by nothing — the collector is measured, both lanes draw and name nothing', () => {
+    const host = hostLane(false)
+    expect(host.withheldBy).toBeUndefined()
+    expect(host.live.filter((o) => o.family === 'line').length).toBeGreaterThanOrEqual(5)
+    expect(runtimeLane(false).withheld.line).toBeUndefined()
   })
 })

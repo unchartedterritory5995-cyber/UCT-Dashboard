@@ -30,7 +30,7 @@ import { createFakeChart } from './fakeChart'
 import { enterMemberDoor, toProductBars, HARNESS_DEF_ID } from './vendorHarness/ourSide'
 import { objectRenderDropsFor, resetObjectRenderDrops } from '../objectRenderNotice'
 import { MERGED_HEAD_REWRITE_SENTENCE } from '../objectCells'
-import { NOT_SHOWN, notShownSentence, withRenderDrops, STOPPED_KEY, plainStopReason, stoppedRunSentence } from '../ast/objectLoss'
+import { NOT_SHOWN, notShownSentence, withRenderDrops, STOPPED_KEY, plainStopReason, stoppedRunSentence, runtimeWithheldWhy } from '../ast/objectLoss'
 import { runtimeColumnsFor } from '../runtime/runtimeColumns'
 import { __permitRuntimePaneForTests } from '../runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests } from '../runtimeKill'
@@ -368,6 +368,22 @@ describe("OZ r2 (N-e) — a stop reason in the member's words", () => {
   it('"not yet captured" is said as not measured yet', () => {
     expect(plainStopReason('what TradingView draws there is not yet captured', true))
       .toBe('what TradingView draws there is not measured yet')
+  })
+})
+
+describe('OZ (C22 merge) — the runtime collector sentence follows C22\'s rule', () => {
+  const REASON = "TradingView's collector deletes the oldest boxs past 6; one it reaches here is held in an array or a user type, and no capture shows whether such an object is spared"
+  it('a box (withheld only for a map, a matrix or a field) never reads "an array"', () => {
+    const t = runtimeWithheldWhy({ box: REASON }).box
+    expect(t).toBe(notShownSentence(['box'], NOT_SHOWN.COLLECTOR_HELD_BOX))
+    expect(t).not.toMatch(/array|list/)
+  })
+  it('a line or label held in an array does say so; families sharing a cause share a sentence', () => {
+    const w = runtimeWithheldWhy({ line: REASON.replace('boxs', 'lines'), label: REASON.replace('boxs', 'labels'), box: REASON })
+    expect(w.line).toBe(notShownSentence(['label', 'line'], NOT_SHOWN.COLLECTOR_HELD))
+    expect(w.label).toBe(w.line)
+    expect(w.line).toContain('an array')
+    expect(w.box).toBe(notShownSentence(['box'], NOT_SHOWN.COLLECTOR_HELD_BOX))
   })
 })
 

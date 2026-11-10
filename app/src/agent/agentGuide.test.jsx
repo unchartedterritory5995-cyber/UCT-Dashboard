@@ -197,6 +197,16 @@ describe('S · Show me highlights the real control and changes nothing', () => {
     expect(screen.getByTestId('guide-notice').textContent).toMatch(/I can’t see that control on screen any more/)
   }, 30000)
 
+  // round 6 (pl-auto new-command): a new request typed with Enter mid-walkthrough ends it (useAgent → guideStore.endForNewRequest)
+  it('a new command typed to the Agent mid-walkthrough ends the walkthrough', async () => {
+    controls(['c'])
+    const { say } = p.mount(...ONE())
+    await say('where do I change the timeframe?')
+    await waitFor(() => expect(card()).toBeTruthy())
+    await say('make this chart weekly')
+    await waitFor(() => expect(card()).toBeNull())
+  }, 30000)
+
   describe('S6b Escape is one press, one action', () => {
     const start = async () => {
       const root = controls(['c'])
@@ -265,15 +275,19 @@ describe('S · Show me highlights the real control and changes nothing', () => {
       await settled()
       expect(card()).toBeTruthy()
     }, 30000)
-    it('a press another handler consumed is left alone', async () => {
+    // round 6 (pl-auto esc-on-board): the board's own handlers stop or prevent Escape even with nothing to cancel, so a
+    // consumed press no longer keeps the walkthrough up. What owns a press is a field, a layer, a menu, an armed tool or a drawing
+    it('a press a board handler stopped or prevented, with nothing of its own to close, still ends the guide', async () => {
       await start()
-      const stop = (e) => e.stopPropagation()
+      const stop = (e) => { e.stopPropagation(); e.preventDefault() }
       document.addEventListener('keydown', stop, { once: true })
       press()
-      await settled()
-      expect(card()).toBeTruthy()
-      const prevent = (e) => e.preventDefault()
-      document.addEventListener('keydown', prevent, { once: true })
+      await waitFor(() => expect(card()).toBeNull())
+    }, 30000)
+    it('an armed drawing tool owns the press: the guide stays', async () => {
+      const root = await start()
+      const tool = document.createElement('button'); tool.setAttribute('data-guide', 'chart.tool.trendline'); tool.setAttribute('aria-pressed', 'true')
+      root.appendChild(tool)
       press()
       await settled()
       expect(card()).toBeTruthy()

@@ -28,6 +28,7 @@
 //
 import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { isHiddenDeskKey } from './charts/deskKeyGate'
 import { useVirtualizer, observeElementRect } from '@tanstack/react-virtual'
 
 // Above this many rows a watchlist renders through the virtualizer. Chosen to sit
@@ -913,7 +914,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const [saving, setSaving] = useState(false)
   const [renamingId, setRenamingId] = useState(null)
   const [renameValue, setRenameValue] = useState('')
-  const [ctxMenu, setCtxMenu] = useState(null) // { x, y, id, isOwner, symbols, sym? }
+  const [ctxMenu, setCtxMenu] = useState(null) // { x, y, id, isOwner, symbols, sym?, fromTitle? }
+  // the list menu opened from a single-list widget's TITLE (its ⋯ button, a right-click or a long-press on the title): the
+  // element focus returns to when the menu closes, and the menu's own box (its first item takes focus as it opens)
+  const titleMenuBtnRef = useRef(null)
+  const ctxMenuRef = useRef(null)
   // FT-041: the metered server export (Excel). Null while the server door is
   // dark or the plan is free -- then the menu offers only the in-browser CSV.
   const [serverExport, setServerExport] = useState(null)
@@ -1265,6 +1270,16 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const allTickers = useMemo(() => {
     const tickers = []
     if (scanMode) {
+      // ⛔ GROUPED, the scan's items are the GROUP rows ("SEMICONDUCTORS"), not
+      // stocks. Streaming those left every member row of a LIVE grouped drill
+      // with Price / % Chg / Vol all "—" (owner, 2026-11-09). Stream the members:
+      // all of them when the list is small, the visible window when it is large.
+      if (groupMode && scanGroups) {
+        const members = []
+        for (const m of Object.values(scanGroups)) if (Array.isArray(m)) members.push(...m)
+        if (members.length > 800) return scanVisibleSyms
+        return members
+      }
       const all = scanWl?.items || []
       // A whole-market scan (e.g. Custom-Period Sort, ~5,000 rows) streams ONLY the
       // visible window — streaming every row would open ~100 SSE connections. Small
@@ -1294,7 +1309,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     }
     tickers.push(...visibleFromVirtualized)
     return tickers
-  }, [activeTab, flagged, tags, myLists, communityResolvable, expandedLists, scanMode, scanWl, scanVisibleSyms, visibleFromVirtualized])
+  }, [activeTab, flagged, tags, myLists, communityResolvable, expandedLists, scanMode, scanWl, scanVisibleSyms, visibleFromVirtualized, groupMode, scanGroups])
 
   const { prices: feedPrices } = useRealtimePrices(allTickers)
   // The whole-list SORT VECTOR — one slow pass at 15 s, matching the server's own
@@ -1537,6 +1552,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
 
   // Keyboard nav: arrow up/down moves through every expanded list.
   const handleKeyDown = useCallback((e) => {
+    if (isHiddenDeskKey(e)) return
     // Don't hijack arrows while user is typing in an input/textarea/contenteditable
     const tgt = e.target
     if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return
@@ -1889,6 +1905,29 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const pickOwnedId = pickList === 'flagged'
     ? 'flagged'
     : (pickList?.startsWith('user:') ? pickList.slice(5) : null)
+
+  // ⭐ the LIST MENU from the title (owner GO 2026-11-09): pick mode hides the list's own header, and with it the right-click
+  // menu on its name and its action buttons. The title opens that SAME menu (ctxMenu, the same items and handlers) for the
+  // member's own lists, Flagged and a community list. A tag list, a prebuilt list and a scan have no list menu (unchanged).
+  const titleMenuList = (() => {
+    if (!pickList || scanMode || pickTitleSlot) return null
+    if (pickList === 'flagged') return { id: 'flagged', isOwner: true, symbols: [...flagged] }
+    const own = pickList.startsWith('user:') ? (myLists || []).find(w => String(w.id) === pickList.slice(5)) : null
+    if (own) return { id: own.id, isOwner: true, symbols: (own.items || []).map(i => i.sym) }
+    const com = pickList.startsWith('community:') ? (communityLists || []).find(w => String(w.id) === pickList.slice(10)) : null
+    if (com) return { id: com.id, isOwner: false, symbols: (com.items || []).map(i => i.sym) }
+    return null
+  })()
+  const openTitleMenu = (x, y) => {
+    if (!titleMenuList) return
+    setCtxMenu({ x: Math.min(x, window.innerWidth - 220), y: Math.min(y, window.innerHeight - 300), ...titleMenuList, fromTitle: true })
+  }
+  const openTitleMenuFrom = (el) => { const r = el?.getBoundingClientRect?.(); openTitleMenu(r ? r.left : 0, r ? r.bottom + 4 : 0) }
+  const closeTitleMenu = () => { setCtxMenu(null); titleMenuBtnRef.current?.focus?.() }
+  useEffect(() => {
+    if (!ctxMenu?.fromTitle) return
+    ctxMenuRef.current?.querySelector?.('button')?.focus?.()
+  }, [ctxMenu])
 
   // Number of stocks in the picked list — shown in the widget footer (watchlist widgets).
   const pickCount = useMemo(() => {
@@ -2557,6 +2596,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // ── Render a watchlist accordion group ──
   function renderWatchlistGroup(wl, isOwner) {
     const open = expandedLists.has(wl.id)
+    const renamingHere = renamingId === wl.id
     const items = wl.items || []
     // TERM-077: a LINKED list's members belong to its source, so they are
     // read-only here. A list with no `origin` (every list while the gate is
@@ -2565,7 +2605,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     return (
       <div key={wl.id} className={styles.wlGroup}>
         <div
-          className={styles.wlHeader}
+          className={`${styles.wlHeader}${renamingHere ? ' ' + styles.wlHeaderRenaming : ''}`}
           onClick={() => toggleList(wl.id)}
           role="button"
           tabIndex={0}
@@ -2778,7 +2818,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     return (
       <div className={styles.wlGroup}>
         <div
-          className={styles.wlHeader}
+          className={`${styles.wlHeader}${renamingId === 'flagged' ? ' ' + styles.wlHeaderRenaming : ''}`}
           onClick={() => toggleList('flagged')}
           role="button"
           tabIndex={0}
@@ -2949,7 +2989,34 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
             {onExitPick && <button data-guide="watchlist.lists" className={styles.pickBackBtn} onClick={() => onExitPick()} title="Choose a different list">{backLabel || '‹ Lists'}</button>}
             {/* A host may put its own controls where the title sits (the breadth
                 drill: group-by + filters, since its window already names the list). */}
-            {pickTitleSlot ?? <span className={styles.pickTitle}>{pickName || 'Watchlist'}</span>}
+            {pickTitleSlot ?? (
+              // The label is full-width and pointer-events: none (presses fall through to ‹ Lists and the buttons beside it).
+              // Only the name's own TEXT takes a press (pickTitleHit, pointer-events: auto), and only for the list menu: a
+              // right-click or a long-press. It has no click handler, so a left click on it bubbles to the same header and
+              // ancestors as before (it used to land on the header itself).
+              <span className={styles.pickTitle}>
+                <span
+                  className={styles.pickTitleHit}
+                  data-guide="watchlist.title"
+                  onContextMenu={titleMenuList ? (e => { e.preventDefault(); e.stopPropagation(); openTitleMenu(e.clientX, e.clientY) }) : undefined}
+                  {...(titleMenuList ? longPressMenu(e => ({ x: Math.min(e.clientX, window.innerWidth - 220), y: Math.min(e.clientY, window.innerHeight - 300), ...titleMenuList, fromTitle: true })) : {})}
+                >{pickName || 'Watchlist'}</span>
+              </span>
+            )}
+            {titleMenuList && (
+              <button
+                ref={titleMenuBtnRef}
+                type="button"
+                className={styles.wlActionBtn}
+                data-guide="watchlist.listMenu"
+                aria-haspopup="menu"
+                aria-expanded={!!ctxMenu?.fromTitle}
+                aria-label="List actions"
+                title="List actions"
+                onClick={e => (ctxMenu?.fromTitle ? closeTitleMenu() : openTitleMenuFrom(e.currentTarget))}
+                onKeyDown={e => { if (e.key === 'F10' && e.shiftKey) { e.preventDefault(); openTitleMenuFrom(e.currentTarget) } }}
+              >⋯</button>
+            )}
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
               {/* Add a symbol — only on lists you own (community lists aren't yours).
                   Opens the same predictive inline add row used everywhere else. */}
@@ -3570,6 +3637,25 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 setCtxMenu(null)
               }}>Version history</button>
             )}
+            {ctxMenu.fromTitle && (() => {
+              const wl = ctxMenu.id === 'flagged' ? null : [...(myLists || []), ...(communityLists || [])].find(w => w.id === ctxMenu.id)
+              return (
+                <>
+                  {ctxMenu.id === 'flagged' && (
+                    <button className={styles.ctxItem} onClick={() => { toggleShare(); setCtxMenu(null) }}>{isShared ? 'Make Private' : 'Share with community'}</button>
+                  )}
+                  {wl && ctxMenu.isOwner && (
+                    <button className={styles.ctxItem} onClick={() => { handleTogglePublic(wl); setCtxMenu(null) }}>{wl.is_public ? 'Make Private' : 'Share with community'}</button>
+                  )}
+                  {wl && ctxMenu.isOwner && user?.role === 'admin' && (
+                    <button className={styles.ctxItem} onClick={() => { handleTogglePrebuilt(wl); setCtxMenu(null) }}>{wl.is_prebuilt ? 'Unpublish from Prebuilt (UCT)' : 'Publish to Prebuilt (UCT)'}</button>
+                  )}
+                  {wl && !ctxMenu.isOwner && watchlistCopyOrLinkEnabled && (
+                    <button className={styles.ctxItem} onClick={() => { setSaveSource(wl); setCtxMenu(null) }}>Save to My Lists…</button>
+                  )}
+                </>
+              )
+            })()}
             {ctxMenu.isOwner && getStarredSyms(ctxMenu.id).length > 0 && !isLinkedList(myLists?.find(w => w.id === ctxMenu.id)) && (
               <button className={`${styles.ctxItem} ${styles.ctxItemDanger}`} onClick={() => handleRemoveStarred(ctxMenu.id)}>
                 Remove starred ({getStarredSyms(ctxMenu.id).length})
@@ -3586,8 +3672,22 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           )
         }
         return (
-          <div className={styles.ctxBackdrop} onClick={() => setCtxMenu(null)} onContextMenu={e => { e.preventDefault(); setCtxMenu(null) }}>
-            <div className={styles.ctxMenu} data-guide="watchlist.rowMenu" style={{ top: ctxMenu.y, left: ctxMenu.x }} onClick={e => e.stopPropagation()}>
+          <div className={styles.ctxBackdrop} onClick={() => (ctxMenu.fromTitle ? closeTitleMenu() : setCtxMenu(null))} onContextMenu={e => { e.preventDefault(); if (ctxMenu.fromTitle) closeTitleMenu(); else setCtxMenu(null) }}>
+            <div
+              ref={ctxMenuRef}
+              className={styles.ctxMenu}
+              data-guide="watchlist.rowMenu"
+              style={{ top: ctxMenu.y, left: ctxMenu.x }}
+              onClick={e => e.stopPropagation()}
+              onKeyDown={ctxMenu.fromTitle ? (e => {
+                if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeTitleMenu(); return }
+                if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+                const items = [...e.currentTarget.querySelectorAll('button')]
+                const at = items.indexOf(document.activeElement)
+                const next = items[(at + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length]
+                if (next) { e.preventDefault(); next.focus() }
+              }) : undefined}
+            >
               {ctxBody}
             </div>
           </div>

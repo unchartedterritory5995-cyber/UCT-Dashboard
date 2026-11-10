@@ -55,6 +55,8 @@ log = logging.getLogger("worker")
 _uploader_state = {
     "last_attempt_at": None,   # int unix seconds, or None before first loop
     "last_outcome": None,      # "success" | "no_data" | "error" | None
+    "base_started_at": None,   # int unix seconds while a daily base is building
+    "base_last_outcome": None, # "base" | "no_data" | "no_credentials" | "error" | None
 }
 _uploader_state_lock = threading.Lock()
 
@@ -143,6 +145,10 @@ def _start_massive_ws():
         log.exception(f"Massive WS consumer failed to start (non-fatal): {e}")
 
 
+#: How long the day's full base waits for the boot's first delta to finish.
+BASE_WAITS_FOR_DELTA_SECONDS = 3600
+
+
 def _start_uploader():
     """Push a snapshot to R2 every SNAPSHOT_INTERVAL_SECONDS."""
     from api.services import data_sync
@@ -161,6 +167,8 @@ def _start_uploader():
         from zoneinfo import ZoneInfo
         return _dt.datetime.now(ZoneInfo("America/New_York")).date().isoformat()
 
+    first_delta_done = threading.Event()
+
     def loop():
         while True:
             # Default to "error" so an exception below leaves the right
@@ -172,24 +180,14 @@ def _start_uploader():
                 if not data_sync.credentials_ok():
                     outcome = "no_credentials"
                 elif data_sync.DELTA_ENABLED:
-                    # One full base per ET day; deltas the rest of the time.
-                    today = _et_today()
-                    if _last_base_day["d"] != today:
-                        ts = data_sync.upload_snapshot(force=True)  # full base
-                        if ts and ts != data_sync.SNAPSHOT_UNCHANGED:
-                            _last_base_day["d"] = today
-                            data_sync.set_last_base_day(today)
-                            outcome = "base"
-                            log.info(f"uploaded base snapshot {ts}")
-                        else:
-                            outcome = "no_data"
+                    # The day's full base runs on its own thread (base_loop).
+                    started = time.monotonic()
+                    ts = data_sync.upload_delta()
+                    if ts:
+                        outcome = "delta"
+                        log.info(f"uploaded delta {ts} in {time.monotonic() - started:.0f}s")
                     else:
-                        ts = data_sync.upload_delta()
-                        if ts:
-                            outcome = "delta"
-                            log.info(f"uploaded delta {ts}")
-                        else:
-                            outcome = "unchanged"  # nothing in the window
+                        outcome = "unchanged"  # nothing in the window
                 else:
                     ts = data_sync.upload_snapshot()
                     if ts == data_sync.SNAPSHOT_UNCHANGED:
@@ -204,9 +202,49 @@ def _start_uploader():
             with _uploader_state_lock:
                 _uploader_state["last_attempt_at"] = int(time.time())
                 _uploader_state["last_outcome"] = outcome
+            first_delta_done.set()
             # Adaptive cadence: 5 min in the active data window, slow overnight/
             # weekends. With skip-if-unchanged this drops the round-the-clock
             # 688 MB upload firehose to near-zero when the market's closed.
+            time.sleep(data_sync.snapshot_interval_seconds())
+
+    def base_loop():
+        # ⛔ The base gets its OWN thread so it can never hold up the deltas.
+        # It takes hours on a 40 GB bars.db and a master merge restarts this
+        # process, so on 2026-11-09 every base was killed before finishing and,
+        # sharing the delta loop, no delta shipped after the restore. A base stamped
+        # after deltas that ran during its build is safe: each delta carries a
+        # full 7-45 day window, so the next one restores anything a pod skipped.
+        #
+        # ⛔ The boot's first delta goes first. While the base copied bars.db on
+        # 2026-11-09 a delta wrote 286 KB in 10 minutes, then 12 MB a minute once
+        # the copy ended, so running them together lost the short gap between deploys.
+        first_delta_done.wait(BASE_WAITS_FOR_DELTA_SECONDS)
+        while True:
+            outcome = None
+            try:
+                today = _et_today()
+                if not data_sync.credentials_ok():
+                    outcome = "no_credentials"
+                elif _last_base_day["d"] != today:
+                    with _uploader_state_lock:
+                        _uploader_state["base_started_at"] = int(time.time())
+                    outcome = "error"
+                    ts = data_sync.upload_snapshot(force=True)
+                    if ts and ts != data_sync.SNAPSHOT_UNCHANGED:
+                        _last_base_day["d"] = today
+                        data_sync.set_last_base_day(today)
+                        outcome = "base"
+                        log.info(f"uploaded base snapshot {ts}")
+                    else:
+                        outcome = "no_data"
+            except Exception as e:
+                outcome = "error"
+                log.exception(f"base upload error (non-fatal): {e}")
+            if outcome is not None:
+                with _uploader_state_lock:
+                    _uploader_state["base_started_at"] = None
+                    _uploader_state["base_last_outcome"] = outcome
             time.sleep(data_sync.snapshot_interval_seconds())
 
     log.info(
@@ -214,6 +252,8 @@ def _start_uploader():
         f"({data_sync.SNAPSHOT_INTERVAL_SECONDS // 60}-min cadence)"
     )
     threading.Thread(target=loop, daemon=True, name="s3_upload").start()
+    if data_sync.DELTA_ENABLED:
+        threading.Thread(target=base_loop, daemon=True, name="s3_base_upload").start()
 
 
 def _start_breadth_backfill():
@@ -899,6 +939,8 @@ def _build_app() -> FastAPI:
         with _uploader_state_lock:
             last_attempt_at = _uploader_state["last_attempt_at"]
             last_outcome = _uploader_state["last_outcome"]
+            base_started_at = _uploader_state["base_started_at"]
+            base_last_outcome = _uploader_state["base_last_outcome"]
         seconds_since_attempt = (
             int(time.time()) - last_attempt_at
             if last_attempt_at is not None else None
@@ -929,6 +971,9 @@ def _build_app() -> FastAPI:
             "uploader_last_attempt_at": last_attempt_at,
             "uploader_last_outcome": last_outcome,
             "uploader_seconds_since_attempt": seconds_since_attempt,
+            # The daily full base runs apart from the deltas above.
+            "base_upload_started_at": base_started_at,
+            "base_upload_last_outcome": base_last_outcome,
             # PREWARMER liveness + DAILY store freshness — the signals whose absence
             # let the 2026-08-11 week-long freeze go undetected. `prewarm.alive`
             # false or `bars_daily.stale` true means warming has stopped.

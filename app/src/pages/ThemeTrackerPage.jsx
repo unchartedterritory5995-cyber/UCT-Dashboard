@@ -1,5 +1,6 @@
 // app/src/pages/ThemeTrackerPage.jsx
 import { useWidgetDoor } from './charts/widgetDoors'
+import { isHiddenDeskKey } from './charts/deskKeyGate'
 import { useState, useMemo, useEffect, useLayoutEffect, useRef, useCallback, useContext, lazy, Suspense, memo } from 'react'
 import { createPortal } from 'react-dom'
 import useMobileSWR from '../hooks/useMobileSWR'
@@ -13,6 +14,7 @@ import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
 import { TAG_BY_KEY } from '../constants/tagColors'
 import { prefetchBar, prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent, prewarmVisibleList } from '../utils/prefetchBars'
+import { sessionState, nextBoundary } from '../lib/marketClock/marketClock'
 import { useNeighborWarm } from '../hooks/useNeighborWarm'
 import { fetchTf } from '../components/chart/timeframes'
 import TickerActionsMenu, { useTickerActions } from '../components/TickerActions'
@@ -66,6 +68,28 @@ function fmtEtTime(iso) {
       { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' })
   } catch { return '' }
 }
+
+// /api/theme-performance is 161 KB a poll, about 58 MB an hour at 10 s, so 10 s is for the regular
+// session only. The clock is read at each tick (a page left open across the bell speeds up without a
+// re-render), and this stays one module-level function because SWR restarts its timer whenever the
+// interval's identity changes. `computing` is a short first-build state, so it keeps its own retry.
+//
+// Outside the session the timer also stops at the next session boundary, so the first poll of the
+// session lands at the bell instead of up to a full slow interval later. `pollFactor` is useMobileSWR's
+// touch multiplier: it is applied to the value returned here, so the boundary is divided by it.
+const THEME_PERF_SLOW_MS = 120_000
+const THEME_PERF_MIN_MS = 1_000
+function themePerformanceRefreshMs(d, pollFactor = 1) {
+  if (d?.status === 'computing') return 15_000
+  const now = new Date()
+  if (sessionState(now).isOpen) return 10_000
+  const boundary = nextBoundary(now)
+  const untilBoundary = boundary ? Math.ceil((boundary.at.getTime() - now.getTime()) / pollFactor) : Infinity
+  return Math.max(THEME_PERF_MIN_MS, Math.min(THEME_PERF_SLOW_MS, untilBoundary))
+}
+
+// The most rows one list prewarm may request from the open theme group.
+const THEME_PREWARM_ROW_CAP = 50
 
 // localStorage key holding the last /api/theme-performance response, used to
 // paint the tab instantly on load before the fresh (632KB) fetch returns.
@@ -640,14 +664,14 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   // A selected personal set overlays server-side via ?set=<id>. Default = shared tracker.
   const perfUrl = themeSetId ? `/api/theme-performance?set=${encodeURIComponent(themeSetId)}` : '/api/theme-performance'
   const { data, isLoading, mutate } = useMobileSWR(perfUrl, fetcher, {
-    // 10s so the theme %s stay near-live and the leaderboard re-sorts in order.
+    // 10s in the regular session so the theme %s stay near-live and the leaderboard re-sorts in order.
     // (The server overlay is cached at the same 10s window — see _LIVE_1D_TTL —
     // so this polls no faster than the data actually refreshes.) Theme %s are
     // aggregates of up to ~2,050 holdings; we can't stream them tick-by-tick
     // like the watchlist (that would fan out the single-process SSE backend),
     // so a short server-refresh window is the live-enough, safe approach.
     fallbackData: themeSetId ? undefined : themeFallback,
-    refreshInterval: (d) => d?.status === 'computing' ? 15_000 : 10_000,
+    refreshInterval: themePerformanceRefreshMs,
     dedupingInterval: 8_000,
     revalidateOnFocus: false,
   })
@@ -955,11 +979,11 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
       const theme = data?.themes?.find(t => t.ticker === ticker)
       if (theme?.holdings?.length) {
         const syms = theme.holdings.map(h => h.sym)
-        // Warm the WHOLE just-opened group so arrowing/scrolling it is instant.
+        // Warm the just-opened group, up to the cap, so arrowing/scrolling it is instant.
         // Daily-only + idle-deferred via the shared helper — NOT all timeframes,
         // which 503-floods the origin at market open and starves the visible chart
         // (see prewarmVisibleList). Intraday warms on-demand per clicked symbol.
-        prewarmVisibleList(syms, { chartTf: warmTfRef.current })
+        prewarmVisibleList(syms, { chartTf: warmTfRef.current, cap: THEME_PREWARM_ROW_CAP })
       }
       return ticker                      // opening a new one closes the previous
     })
@@ -1133,7 +1157,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
         const bv = b.returns?.[activeKey] ?? (sortDir === 'desc' ? -Infinity : Infinity)
         return sortDir === 'desc' ? bv - av : av - bv
       })
-      return sorted.map(h => ({ sym: h.sym, name: h.name, themeTicker: theme.ticker, key: `${theme.ticker}::${h.sym}` }))
+      return sorted.map(h => ({ sym: h.sym, name: h.name, themeTicker: theme.ticker, themeKey: theme.custom_key || theme.ticker, key: `${theme.ticker}::${h.sym}` }))
     }), [filteredThemes, activeKey, sortDir])
 
   // ── Live percentages ── Stream real-time prices for the holdings of EXPANDED
@@ -1173,6 +1197,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   }, [rtPrices, barPrices, expandedSyms])
 
   const handleKeyDown = useCallback((e) => {
+    if (isHiddenDeskKey(e)) return
     // Space advances like ArrowDown (next ticker).
     const navSpace = e.key === ' ' || e.key === 'Spacebar'
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && !navSpace) return
@@ -1243,6 +1268,13 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   const allStockSyms = useMemo(() => allStocks.map(s => s.sym), [allStocks])
   useNeighborWarm(allStockSyms, selectedSym, warmTf)
 
+  // ⛔ THE OPEN GROUP ONLY, AND CAPPED. This used to pass `allStockSyms`, every holding of every
+  // theme whether its group was open or not: ~370 bar requests in 30 s on a fresh profile, on a page
+  // where all themes start closed and no row is showing. Collapsed groups render no rows.
+  const openRowSyms = useMemo(() => (
+    openTheme ? allStocks.filter(s => s.themeKey === openTheme).map(s => s.sym) : []
+  ), [allStocks, openTheme])
+
   // RE-WARM THE OPEN LIST WHEN THE LINKED CHART RETIMES. `toggleTheme` warms the
   // whole group at the timeframe in force WHEN IT WAS OPENED; retiming the chart
   // afterwards used to leave only the ±6 neighbours above covered, so the first
@@ -1251,9 +1283,9 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   // and backpressure-guarded inside prefetchBars — so a timeframe keypress can't
   // flood the origin.
   useEffect(() => {
-    if (!allStockSyms.length) return
-    prewarmVisibleList(allStockSyms, { chartTf: warmTf })
-  }, [allStockSyms, warmTf])
+    if (!openRowSyms.length) return
+    prewarmVisibleList(openRowSyms, { chartTf: warmTf, cap: THEME_PREWARM_ROW_CAP })
+  }, [openRowSyms, warmTf])
   const { isFlagged, toggle: toggleFlag } = useFlagged()
   const { getTag } = useTickerTags()
   const tickerActions = useTickerActions()
@@ -1269,6 +1301,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   useEffect(() => {
     if (!selectedSym) return
     const handler = (e) => {
+      if (isHiddenDeskKey(e)) return
       // S2 CP5 — reads the DECLARED chord table instead of spelling the modifier
       // set out inline. Behaviour is identical by construction and proved so in
       // ThemeTrackerPage.chordAdoption.test.jsx.

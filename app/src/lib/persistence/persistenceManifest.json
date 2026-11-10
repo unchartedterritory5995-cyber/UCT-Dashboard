@@ -699,6 +699,17 @@
       ]
     },
     {
+      "key": "uct.deskUsage.sent",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Platform",
+      "kind": "internal",
+      "label": "Daily usage report marker",
+      "files": [
+        "app/src/hooks/useDeskUsage.js"
+      ]
+    },
+    {
       "key": "volume_scan_lists",
       "store": "server-preference",
       "scope": "cross-device",
@@ -1896,6 +1907,18 @@
       ]
     },
     {
+      "key": "uct.desk.v1:*:*",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "work",
+      "label": "Popped-out chart boards, kept so a reload or crash does not lose them",
+      "pattern": true,
+      "files": [
+        "app/src/pages/charts/popout/deskStore.js"
+      ]
+    },
+    {
       "key": "uct.draw.recentTools",
       "store": "localStorage",
       "scope": "device-local",
@@ -2474,6 +2497,18 @@
       "surface": "Screener",
       "kind": "cache",
       "label": "Pinned screens to open on, per member",
+      "pattern": true,
+      "files": [
+        "app/src/pages/screener/focus/landing.js"
+      ]
+    },
+    {
+      "key": "uct.screener.lastScreen:*",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Screener",
+      "kind": "state",
+      "label": "The screen the Screener reopens on, per member",
       "pattern": true,
       "files": [
         "app/src/pages/screener/focus/landing.js"
