@@ -54,7 +54,7 @@ def test_the_multi_chart_grid_family_is_a_BOARD_action_not_history():
     # the board domain ("the Charts workspace: widgets, tabs, arrangement…"), as board.* / widget.* are
     assert v2.domain_for("multiChart.set") == "board"
     assert v2.domain_for("multiChart.cell") == "board"
-    assert "multiChart__set" in v2.domain_listing("board", turn.validate_manifest(CAPS))
+    assert "multiChart__set" in v2.domain_listing("board", turn.validate_manifest(CAPS, limit=len(CAPS)))
 
 
 def test_an_UNLISTED_prefix_is_misfiled_under_history_not_refused():
