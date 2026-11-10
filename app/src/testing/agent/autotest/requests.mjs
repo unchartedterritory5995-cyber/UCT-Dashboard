@@ -21,6 +21,7 @@ import { unseen12 } from './families/unseen12.mjs'
 import { unseen13 } from './families/unseen13.mjs'
 import { unseen14 } from './families/unseen14.mjs'
 import { unseen15 } from './families/unseen15.mjs'
+import { unseen16 } from './families/unseen16.mjs'
 
 export function publicRequests() {
   const L = []
@@ -144,6 +145,13 @@ export function unseen15Requests() {
   const L = []
   unseen15(L)
   return L.map(r => ({ ...r, set: 'unseen15' }))
+}
+
+/** Batch 16, NEGATED ANCHOR (2026-11-09): 'leave this alone and change the one under it' in both orders, plus stative controls; pl-auto's own words, written before any run. */
+export function unseen16Requests() {
+  const L = []
+  unseen16(L)
+  return L.map(r => ({ ...r, set: 'unseen16' }))
 }
 
 /** The set's identity: the owner's authorization names it, so editing the set after approval voids the approval. */
