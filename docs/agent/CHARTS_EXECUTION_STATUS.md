@@ -8,12 +8,25 @@ Built on `agent/pl/bar-time-coverage` from `agent/pl/integration-1` `b07a97d526`
 
 ## The number
 
-**158 of 484 actions, 32.6%, are VERIFIED at panel level with a scripted model.** That proves the Agent is given what it needs and that a correct plan reaches the right state. It does not prove the real model picks that plan, and it does not prove the real chart redraws.
+**193 of 484 actions, 39.9%, are VERIFIED at panel level with a scripted model** (158 in the 2026-11-05 run, plus 35 from the cited-test re-run on 2026-11-10). A further 5 are PARTIAL (SIMULATED): part of the action passes, part is not covered. See "Update 2026-11-10: cited-test re-run (pl-auto)" below. That proves the Agent is given what it needs and that a correct plan reaches the right state. It does not prove the real model picks that plan, and it does not prove the real chart redraws.
 
 - Production evidence with the real planner covers 13 of those 158 rows, from the 2026-11-03 live run on the older build `463a4bcba5`, read by receipt and some server reads.
 - Real component in a browser, Agent executing: 0 rows. The browser runs in teach-status.md prove walkthroughs, where a person clicks. They never ran an Agent plan.
-- A further 43 rows have a passing runtime test (capability and writer, no panel). They are IMPLEMENTED / UNVERIFIED and are not in the 158.
-- P0 actions: 58 of 74 VERIFIED.
+- A further 36 rows have a passing runtime test (capability and writer, no panel). They are IMPLEMENTED / UNVERIFIED and are not in the 193. (It was 43; 7 of them were raised on 2026-11-10.)
+- P0 actions: 58 of 74 VERIFIED (as of 2026-11-05; this doc carries no per-row P0 tag, so the 2026-11-10 update did not recount it).
+
+## Update 2026-11-10: cited-test re-run (pl-auto)
+
+52 NOT VERIFIED rows were named by an existing test (ledger `docs/agent/program/EXEC-LEDGER-CITED-52.md`). 40 of them have a test that is not a held-out phrasing list. Each of those 10 test files was run once, on its own, under the suite lock, at `origin/master` `dfc645ccb3` (branch `agent/pl/exec-cited-rerun`). All 10 files passed with no failures, skips, todos or `it.fails`. Method, commands, totals lines and the reason for every row: `docs/agent/program/EXEC-CITED-RERUN.md`. Evidence: vitest, scripted model, jsdom, fixture data; not a real browser and not the real model.
+
+- VERIFIED (35), state "VERIFIED (SIMULATED outcome test, scripted model, jsdom)" or "(SIMULATED panel test, ...)": C1-011, C1-019, C2-092, C3-002, C3-003, C3-006, C3-016, C3-017, C3-019, C3-030, C3-107, C3-110, C3-120, C3-121, C3-138, C3-148, C3-150, C3-152, C3-156, C3-158, C3-163, C3-169, C3-170, C3-171, C3-174, C3-177, C3-183, C3-184, C3-187, C3-188, C3-192, C3-202, C3-216, C3-217, C3-219. Of these, 11 were IMPLEMENTED / UNVERIFIED and 24 were MISSING.
+- PARTIAL (SIMULATED), not VERIFIED (5); each row's status says what is covered and what is not: C1-022 (percent only, no log), C3-139 (watchlist filter only, no category or linked symbol), C3-172 (open a theme, not pick a holding), C3-193 (Y and size axes, no X), C3-201 (open a note by name, not the note search). C1-022 and C3-172 were IMPLEMENTED / UNVERIFIED; the other 3 were MISSING.
+- GAP: none. No cited test failed, was skipped or was a todo.
+- The 12 rows named only by held-out phrasing lists stay as they were and point to the doc above, where they are listed for pl-exec: C1-065, C1-066, C3-125, C3-133, C3-151, C3-159, C3-164, C3-165, C3-166, C3-194, C3-195, C3-206.
+- Counts: VERIFIED 158 → 193, PARTIAL 0 → 5, IMPLEMENTED / UNVERIFIED 112 → 99, MISSING 154 → 127. BLOCKED, UNMAPPED, in scope (484) and excluded (19) are unchanged. The counts table gained the PARTIAL column that PR #1016 introduced. PARTIAL is in scope but never VERIFIED.
+- Where a row's 2026-11-05 note below says an offer was withdrawn (C3-152, C3-169, C3-170), the outcome test re-run here now passes over the real widget, so the row is VERIFIED on this run; the note is left as that run wrote it.
+- Merge order: PR #1016 (chart settings) and exec-multichart also edit these totals and this table. Whichever merges later rebases and recounts the "All actions" table, and rewrites "Counts by area" and "The number" from that recount.
+- How the counts were updated: with no generator (none exists). A script recounted the "All actions" table and confirmed it reproduced every "Counts by area" row exactly before the edit, rewrote the 40 rows (and the pointer on the 12), rebuilt the counts table from the recount, and a second recount matched it. Line endings were kept per line. The 2026-11-05 sections below are left as that run wrote them.
 
 ## Rules used
 
@@ -88,88 +101,88 @@ Every file:line citation in the control column was checked against this tree: 33
 
 ## Counts by area
 
-| Part | Area | VERIFIED | IMPL / UNVERIFIED | MISSING | BLOCKED | UNMAPPED | In scope | Excluded |
-|---|---|---:|---:|---:|---:|---:|---:|---:|
-| C1 | Symbol | 3 | 1 | 1 | 0 | 0 | 5 | 0 |
-| C1 | Timeframe | 2 | 4 | 0 | 0 | 0 | 6 | 1 |
-| C1 | Chart type | 1 | 3 | 0 | 0 | 1 | 5 | 1 |
-| C1 | Session | 1 | 1 | 0 | 0 | 0 | 2 | 1 |
-| C1 | Scale | 1 | 2 | 1 | 1 | 0 | 5 | 0 |
-| C1 | View | 2 | 0 | 0 | 1 | 0 | 3 | 0 |
-| C1 | Go to date | 2 | 1 | 1 | 0 | 0 | 4 | 0 |
-| C1 | Compare | 1 | 4 | 3 | 0 | 0 | 8 | 0 |
-| C1 | Replay | 2 | 0 | 1 | 1 | 1 | 5 | 0 |
-| C1 | Settings | 5 | 20 | 7 | 0 | 0 | 32 | 0 |
-| C1 | Themes | 1 | 1 | 1 | 0 | 0 | 3 | 0 |
-| C1 | Templates | 3 | 0 | 0 | 0 | 0 | 3 | 1 |
-| C1 | Volume | 2 | 4 | 0 | 0 | 0 | 6 | 1 |
-| C1 | Panes | 1 | 1 | 0 | 0 | 0 | 2 | 1 |
-| C1 | Crosshair | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
-| C1 | Legend | 6 | 2 | 1 | 0 | 0 | 9 | 0 |
-| C1 | Measure | 4 | 0 | 0 | 0 | 0 | 4 | 0 |
-| C1 | Share | 0 | 0 | 0 | 4 | 0 | 4 | 0 |
-| C1 | Alerts | 6 | 1 | 1 | 0 | 0 | 8 | 0 |
-| C1 | Right-click | 1 | 1 | 4 | 0 | 0 | 6 | 3 |
-| C1 | Settings door | 0 | 0 | 1 | 0 | 0 | 1 | 0 |
-| C1 | Drawing | 27 | 3 | 3 | 3 | 2 | 38 | 1 |
-| C1 | Boards | 0 | 0 | 4 | 0 | 0 | 4 | 0 |
-| C1 | Keyboard | 2 | 0 | 0 | 1 | 2 | 5 | 0 |
-| C2 | Picker | 0 | 2 | 1 | 0 | 0 | 3 | 0 |
-| C2 | Add | 3 | 3 | 2 | 0 | 2 | 10 | 0 |
-| C2 | Remove | 3 | 0 | 0 | 0 | 1 | 4 | 0 |
-| C2 | Visibility | 4 | 0 | 0 | 0 | 0 | 4 | 0 |
-| C2 | Read | 1 | 1 | 0 | 0 | 0 | 2 | 0 |
-| C2 | Inputs | 2 | 2 | 2 | 0 | 0 | 6 | 0 |
-| C2 | Style | 3 | 3 | 0 | 0 | 0 | 6 | 0 |
-| C2 | Placement | 1 | 1 | 0 | 0 | 0 | 2 | 0 |
-| C2 | Panes | 1 | 1 | 0 | 0 | 1 | 3 | 0 |
-| C2 | Legend | 0 | 3 | 2 | 2 | 0 | 7 | 0 |
-| C2 | Undo | 0 | 1 | 0 | 0 | 0 | 1 | 0 |
-| C2 | Copy | 1 | 0 | 1 | 0 | 0 | 2 | 0 |
-| C2 | Templates | 4 | 0 | 0 | 0 | 0 | 4 | 0 |
-| C2 | Create | 5 | 4 | 0 | 0 | 0 | 9 | 0 |
-| C2 | Builder | 1 | 9 | 2 | 0 | 0 | 12 | 0 |
-| C2 | Import | 0 | 0 | 4 | 0 | 0 | 4 | 0 |
-| C2 | Image | 0 | 0 | 2 | 0 | 0 | 2 | 0 |
-| C2 | Saved | 1 | 1 | 1 | 3 | 0 | 6 | 0 |
-| C2 | Alerts | 7 | 2 | 4 | 0 | 0 | 13 | 0 |
-| C2 | Mobile | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
-| C3 | Board | 2 | 2 | 1 | 0 | 0 | 5 | 0 |
-| C3 | Link | 0 | 1 | 1 | 0 | 0 | 2 | 0 |
-| C3 | Float | 0 | 0 | 3 | 1 | 0 | 4 | 0 |
-| C3 | Popout | 0 | 0 | 4 | 0 | 0 | 4 | 0 |
-| C3 | Widget tabs | 0 | 4 | 0 | 0 | 0 | 4 | 0 |
-| C3 | Chart tabs | 4 | 1 | 0 | 0 | 0 | 5 | 0 |
-| C3 | Layout Dock | 7 | 3 | 5 | 2 | 0 | 17 | 0 |
-| C3 | Multi Chart | 0 | 0 | 2 | 19 | 0 | 21 | 0 |
-| C3 | Watchlist | 15 | 4 | 15 | 5 | 1 | 40 | 4 |
-| C3 | Scanner | 5 | 1 | 6 | 2 | 0 | 14 | 0 |
-| C3 | Volume Surge | 0 | 2 | 4 | 0 | 0 | 6 | 0 |
-| C3 | Alerts | 4 | 0 | 2 | 0 | 0 | 6 | 0 |
-| C3 | News | 1 | 1 | 3 | 0 | 0 | 5 | 0 |
-| C3 | TE News | 0 | 2 | 8 | 0 | 0 | 10 | 0 |
-| C3 | Calendar | 1 | 2 | 6 | 0 | 0 | 9 | 0 |
-| C3 | Breadth | 1 | 0 | 6 | 0 | 0 | 7 | 0 |
-| C3 | Options Flow | 1 | 2 | 2 | 0 | 0 | 5 | 0 |
-| C3 | Themes | 0 | 1 | 8 | 0 | 0 | 9 | 0 |
-| C3 | Fundamentals | 2 | 0 | 1 | 0 | 0 | 3 | 0 |
-| C3 | Profile | 2 | 0 | 0 | 0 | 0 | 2 | 0 |
-| C3 | Indexes | 0 | 0 | 2 | 0 | 0 | 2 | 0 |
-| C3 | Market Context | 0 | 0 | 1 | 0 | 1 | 2 | 0 |
-| C3 | NH/NL | 1 | 0 | 3 | 0 | 0 | 4 | 0 |
-| C3 | H/L Pulse | 0 | 0 | 1 | 0 | 0 | 1 | 0 |
-| C3 | Market Map | 0 | 0 | 4 | 0 | 0 | 4 | 0 |
-| C3 | AI Search | 0 | 1 | 4 | 0 | 0 | 5 | 0 |
-| C3 | Notebook | 0 | 0 | 3 | 1 | 0 | 4 | 0 |
-| C3 | Period Sort | 0 | 0 | 4 | 0 | 0 | 4 | 0 |
-| C3 | Replay | 2 | 1 | 1 | 0 | 0 | 4 | 0 |
-| C3 | Review | 0 | 0 | 0 | 0 | 0 | 0 | 3 |
-| C3 | Company dock | 0 | 2 | 3 | 0 | 0 | 5 | 0 |
-| C3 | Workspace | 0 | 0 | 1 | 1 | 1 | 3 | 0 |
-| C1 | **all** | 73 | 49 | 29 | 11 | 6 | 168 | 11 |
-| C2 | **all** | 37 | 33 | 21 | 5 | 4 | 100 | 1 |
-| C3 | **all** | 48 | 30 | 104 | 31 | 3 | 216 | 7 |
-| | **Total** | 158 | 112 | 154 | 47 | 13 | 484 | 19 |
+| Part | Area | VERIFIED | PARTIAL | IMPL / UNVERIFIED | MISSING | BLOCKED | UNMAPPED | In scope | Excluded |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| C1 | Symbol | 3 | 0 | 1 | 1 | 0 | 0 | 5 | 0 |
+| C1 | Timeframe | 3 | 0 | 3 | 0 | 0 | 0 | 6 | 1 |
+| C1 | Chart type | 1 | 0 | 3 | 0 | 0 | 1 | 5 | 1 |
+| C1 | Session | 2 | 0 | 0 | 0 | 0 | 0 | 2 | 1 |
+| C1 | Scale | 1 | 1 | 1 | 1 | 1 | 0 | 5 | 0 |
+| C1 | View | 2 | 0 | 0 | 0 | 1 | 0 | 3 | 0 |
+| C1 | Go to date | 2 | 0 | 1 | 1 | 0 | 0 | 4 | 0 |
+| C1 | Compare | 1 | 0 | 4 | 3 | 0 | 0 | 8 | 0 |
+| C1 | Replay | 2 | 0 | 0 | 1 | 1 | 1 | 5 | 0 |
+| C1 | Settings | 5 | 0 | 20 | 7 | 0 | 0 | 32 | 0 |
+| C1 | Themes | 1 | 0 | 1 | 1 | 0 | 0 | 3 | 0 |
+| C1 | Templates | 3 | 0 | 0 | 0 | 0 | 0 | 3 | 1 |
+| C1 | Volume | 2 | 0 | 4 | 0 | 0 | 0 | 6 | 1 |
+| C1 | Panes | 1 | 0 | 1 | 0 | 0 | 0 | 2 | 1 |
+| C1 | Crosshair | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
+| C1 | Legend | 6 | 0 | 2 | 1 | 0 | 0 | 9 | 0 |
+| C1 | Measure | 4 | 0 | 0 | 0 | 0 | 0 | 4 | 0 |
+| C1 | Share | 0 | 0 | 0 | 0 | 4 | 0 | 4 | 0 |
+| C1 | Alerts | 6 | 0 | 1 | 1 | 0 | 0 | 8 | 0 |
+| C1 | Right-click | 1 | 0 | 1 | 4 | 0 | 0 | 6 | 3 |
+| C1 | Settings door | 0 | 0 | 0 | 1 | 0 | 0 | 1 | 0 |
+| C1 | Drawing | 27 | 0 | 3 | 3 | 3 | 2 | 38 | 1 |
+| C1 | Boards | 0 | 0 | 0 | 4 | 0 | 0 | 4 | 0 |
+| C1 | Keyboard | 2 | 0 | 0 | 0 | 1 | 2 | 5 | 0 |
+| C2 | Picker | 0 | 0 | 2 | 1 | 0 | 0 | 3 | 0 |
+| C2 | Add | 3 | 0 | 3 | 2 | 0 | 2 | 10 | 0 |
+| C2 | Remove | 3 | 0 | 0 | 0 | 0 | 1 | 4 | 0 |
+| C2 | Visibility | 4 | 0 | 0 | 0 | 0 | 0 | 4 | 0 |
+| C2 | Read | 1 | 0 | 1 | 0 | 0 | 0 | 2 | 0 |
+| C2 | Inputs | 2 | 0 | 2 | 2 | 0 | 0 | 6 | 0 |
+| C2 | Style | 3 | 0 | 3 | 0 | 0 | 0 | 6 | 0 |
+| C2 | Placement | 1 | 0 | 1 | 0 | 0 | 0 | 2 | 0 |
+| C2 | Panes | 1 | 0 | 1 | 0 | 0 | 1 | 3 | 0 |
+| C2 | Legend | 0 | 0 | 3 | 2 | 2 | 0 | 7 | 0 |
+| C2 | Undo | 0 | 0 | 1 | 0 | 0 | 0 | 1 | 0 |
+| C2 | Copy | 1 | 0 | 0 | 1 | 0 | 0 | 2 | 0 |
+| C2 | Templates | 4 | 0 | 0 | 0 | 0 | 0 | 4 | 0 |
+| C2 | Create | 5 | 0 | 4 | 0 | 0 | 0 | 9 | 0 |
+| C2 | Builder | 1 | 0 | 9 | 2 | 0 | 0 | 12 | 0 |
+| C2 | Import | 0 | 0 | 0 | 4 | 0 | 0 | 4 | 0 |
+| C2 | Image | 0 | 0 | 0 | 2 | 0 | 0 | 2 | 0 |
+| C2 | Saved | 1 | 0 | 1 | 1 | 3 | 0 | 6 | 0 |
+| C2 | Alerts | 8 | 0 | 2 | 3 | 0 | 0 | 13 | 0 |
+| C2 | Mobile | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
+| C3 | Board | 4 | 0 | 0 | 1 | 0 | 0 | 5 | 0 |
+| C3 | Link | 1 | 0 | 0 | 1 | 0 | 0 | 2 | 0 |
+| C3 | Float | 0 | 0 | 0 | 3 | 1 | 0 | 4 | 0 |
+| C3 | Popout | 0 | 0 | 0 | 4 | 0 | 0 | 4 | 0 |
+| C3 | Widget tabs | 3 | 0 | 1 | 0 | 0 | 0 | 4 | 0 |
+| C3 | Chart tabs | 4 | 0 | 1 | 0 | 0 | 0 | 5 | 0 |
+| C3 | Layout Dock | 8 | 0 | 2 | 5 | 2 | 0 | 17 | 0 |
+| C3 | Multi Chart | 0 | 0 | 0 | 2 | 19 | 0 | 21 | 0 |
+| C3 | Watchlist | 15 | 0 | 4 | 15 | 5 | 1 | 40 | 4 |
+| C3 | Scanner | 8 | 0 | 0 | 4 | 2 | 0 | 14 | 0 |
+| C3 | Volume Surge | 1 | 0 | 2 | 3 | 0 | 0 | 6 | 0 |
+| C3 | Alerts | 4 | 0 | 0 | 2 | 0 | 0 | 6 | 0 |
+| C3 | News | 1 | 0 | 1 | 3 | 0 | 0 | 5 | 0 |
+| C3 | TE News | 1 | 1 | 2 | 6 | 0 | 0 | 10 | 0 |
+| C3 | Calendar | 5 | 0 | 1 | 3 | 0 | 0 | 9 | 0 |
+| C3 | Breadth | 3 | 0 | 0 | 4 | 0 | 0 | 7 | 0 |
+| C3 | Options Flow | 1 | 0 | 2 | 2 | 0 | 0 | 5 | 0 |
+| C3 | Themes | 5 | 1 | 0 | 3 | 0 | 0 | 9 | 0 |
+| C3 | Fundamentals | 2 | 0 | 0 | 1 | 0 | 0 | 3 | 0 |
+| C3 | Profile | 2 | 0 | 0 | 0 | 0 | 0 | 2 | 0 |
+| C3 | Indexes | 2 | 0 | 0 | 0 | 0 | 0 | 2 | 0 |
+| C3 | Market Context | 0 | 0 | 0 | 1 | 0 | 1 | 2 | 0 |
+| C3 | NH/NL | 3 | 0 | 0 | 1 | 0 | 0 | 4 | 0 |
+| C3 | H/L Pulse | 0 | 0 | 0 | 1 | 0 | 0 | 1 | 0 |
+| C3 | Market Map | 1 | 1 | 0 | 2 | 0 | 0 | 4 | 0 |
+| C3 | AI Search | 0 | 0 | 1 | 4 | 0 | 0 | 5 | 0 |
+| C3 | Notebook | 1 | 1 | 0 | 1 | 1 | 0 | 4 | 0 |
+| C3 | Period Sort | 0 | 0 | 0 | 4 | 0 | 0 | 4 | 0 |
+| C3 | Replay | 2 | 0 | 1 | 1 | 0 | 0 | 4 | 0 |
+| C3 | Review | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 3 |
+| C3 | Company dock | 3 | 0 | 2 | 0 | 0 | 0 | 5 | 0 |
+| C3 | Workspace | 0 | 0 | 0 | 1 | 1 | 1 | 3 | 0 |
+| C1 | **all** | 75 | 1 | 46 | 29 | 11 | 6 | 168 | 11 |
+| C2 | **all** | 38 | 0 | 33 | 20 | 5 | 4 | 100 | 1 |
+| C3 | **all** | 80 | 4 | 20 | 78 | 31 | 3 | 216 | 7 |
+| | **Total** | 193 | 5 | 99 | 127 | 47 | 13 | 484 | 19 |
 
 ## Raised to VERIFIED (47)
 
@@ -309,7 +322,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-008 | Timeframe | Add custom interval | VERIFIED | c:chart.addCustomTimeframe | pass 5/5 | panel, scripted model |
 | C1-009 | Timeframe | Delete custom interval | IMPLEMENTED / UNVERIFIED | agentChartsOperatorP1.test.jsx | pass 48/48 | runtime, no panel |
 | C1-010 | Timeframe | Star a favourite timeframe | IMPLEMENTED / UNVERIFIED | agentChartsOperatorP1.test.jsx | pass 48/48 | runtime, no panel |
-| C1-011 | Timeframe | Timeframe keys with repeat-press cycle | IMPLEMENTED / UNVERIFIED | none named | n/a | source only |
+| C1-011 | Timeframe | Timeframe keys with repeat-press cycle | VERIFIED (SIMULATED panel test, scripted model, jsdom) | agentExecRound5.test.jsx: "C1-011: one rung up or down the timeframe keys' order" (+ NEGATIVE at the end of the ladder); agentContracts.test.js: next/previous in the chart.setTimeframe enum; see docs/agent/program/EXEC-CITED-RERUN.md | pass 18/18 | panel, scripted model |
 | C1-012 | Timeframe | Change timeframe from right-click | NOT ON /CHARTS | none named | n/a | n/a |
 | C1-013 | Chart type | Choose chart type in settings | VERIFIED | c:charttype.line | pass 5/5 | panel, scripted model |
 | C1-014 | Chart type | Choose chart type from right-click | NOT ON /CHARTS | c:charttype.line | pass 5/5 | n/a |
@@ -317,10 +330,10 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-016 | Chart type | Heikin Ashi candles | UNMAPPED | none | n/a | none |
 | C1-017 | Chart type | Candle colour mode | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
 | C1-018 | Chart type | Thin bars | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
-| C1-019 | Session | Regular/extended on intraday | IMPLEMENTED / UNVERIFIED | c:session.extended | pass 5/5 | panel, partial |
+| C1-019 | Session | Regular/extended on intraday | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | boardArrangement.outcome.test.jsx: C1-019 (held-out phrasing) "a 5-minute chart shows the extended session; Undo turns it off"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 13/13 | panel, scripted model |
 | C1-020 | Session | Regular/extended on D/W/M | VERIFIED | c:session.extended | pass 5/5 | panel, scripted model |
 | C1-021 | Session | Extended hours from price-axis menu | NOT ON /CHARTS | c:session.extended | pass 5/5 | n/a |
-| C1-022 | Scale | Arithmetic/log/percent from menu | IMPLEMENTED / UNVERIFIED | c:scale.log; g:GW-01 | pass 7/7 | panel, partial |
+| C1-022 | Scale | Arithmetic/log/percent from menu | PARTIAL (SIMULATED) — covered: percent scale (chart.setScale, settings.percentScale read back, Undo back to arithmetic); not covered: log scale, and asking for arithmetic by name, are not driven by this test | boardArrangement.outcome.test.jsx: C1-022 (held-out phrasing) "the chart goes to the percent scale; Undo goes back"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 13/13 | panel, scripted model |
 | C1-023 | Scale | Toggle log (Shift+L) | VERIFIED | c:scale.log; g:GW-01 | pass 7/7 | production (E-01) and panel |
 | C1-024 | Scale | Invert scale (Alt+I) | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
 | C1-025 | Scale | Auto-scale | MISSING | none | n/a | none |
@@ -363,8 +376,8 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-062 | Settings | Title shows ticker/company/both | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
 | C1-063 | Settings | Day change beside title | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
 | C1-064 | Settings | Legend mode | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
-| C1-065 | Settings | Legend bar-info fields | MISSING | none | n/a | none |
-| C1-066 | Settings | Info-row fields | MISSING | none | n/a | none |
+| C1-065 | Settings | Legend bar-info fields | MISSING | none; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | n/a | none |
+| C1-066 | Settings | Info-row fields | MISSING | none; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | n/a | none |
 | C1-067 | Settings | Header colours | MISSING | none | n/a | none |
 | C1-068 | Settings | Swing labels on/off and sensitivity | IMPLEMENTED / UNVERIFIED | agentBatch6.test.jsx | pass 11/11 | runtime, no panel |
 | C1-069 | Settings | Swing label background, tint, colours | IMPLEMENTED / UNVERIFIED | agentBatch6.test.jsx | pass 11/11 | runtime, no panel |
@@ -565,7 +578,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C2-089 | Alerts | Create threshold alert | VERIFIED | c:indicatorAlert.threshold; agentIndicatorAlerts: "alert me when RSI goes above 70" | pass 6/6 | panel, scripted model |
 | C2-090 | Alerts | Create MA cross alert | VERIFIED | c:indicatorAlert.ma-cross | pass 5/5 | panel, scripted model |
 | C2-091 | Alerts | Choose plot on a multi-line indicator | IMPLEMENTED / UNVERIFIED | agentIndicatorAlerts.test.jsx:124 | pass 1/1 | runtime, no panel |
-| C2-092 | Alerts | Alert on a yes/no signal with trigger policy | MISSING | none | n/a | none |
+| C2-092 | Alerts | Alert on a yes/no signal with trigger policy | VERIFIED (SIMULATED panel test, scripted model, jsdom) | agentIndicatorAlertTruth.test.jsx: "C2-092 through the REAL panel: a yes/no signal alert with its trigger" (held-out phrasings); see docs/agent/program/EXEC-CITED-RERUN.md | pass 57/57 | panel, scripted model |
 | C2-093 | Alerts | Alert on another timeframe | VERIFIED | agentIndicatorAlertTruth: "alert on the weekly RSI": a card first | pass 1/1 | panel, scripted model |
 | C2-094 | Alerts | Limit alert to this chart | MISSING | none | n/a | none |
 | C2-095 | Alerts | Override alert inputs | MISSING | none | n/a | none |
@@ -576,11 +589,11 @@ Every file:line citation in the control column was checked against this tree: 33
 | C2-100 | Alerts | See why an alert cannot fire | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
 | C2-101 | Mobile | Edit an average or study on phone | NOT ON /CHARTS | none | n/a | n/a |
 | C3-001 | Board | Add a widget from Widgets ▾ | VERIFIED | c:widget.news | pass 5/5 | panel, scripted model |
-| C3-002 | Board | Drag a widget to move it, or nudge it | IMPLEMENTED / UNVERIFIED | agentBoard.test.jsx:117; agentBoard.test.jsx:129; agentBoard.test.jsx:231 | pass 3/3 | runtime, no panel |
-| C3-003 | Board | Drag a widget edge or merged seam to resize | IMPLEMENTED / UNVERIFIED | agentBatch6.test.jsx:192; agentBatch6.test.jsx:204 | pass 2/2 | runtime, no panel |
+| C3-002 | Board | Drag a widget to move it, or nudge it | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | boardArrangement.outcome.test.jsx: C3-002 (held-out phrasing) "the news widget moves to the right edge, the chart keeps its cell; Undo puts it back"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 13/13 | panel, scripted model |
+| C3-003 | Board | Drag a widget edge or merged seam to resize | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | boardArrangement.outcome.test.jsx: C3-003 (held-out phrasing) "the news widget's bottom edge moves down, the Terminal below gives up the rows; Undo puts both back"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 13/13 | panel, scripted model |
 | C3-004 | Board | Close a widget | VERIFIED | c:widget.remove; closeChart: "close the top-left chart" | pass 7/7 | panel, scripted model |
 | C3-005 | Board | Merge or unmerge widgets (lock board, drop borders) | MISSING | none | n/a | none |
-| C3-006 | Link | Cycle a widget's link colour | IMPLEMENTED / UNVERIFIED | agentBoard.test.jsx:138; agentBoard.test.jsx:145 | pass 2/2 | runtime, no panel |
+| C3-006 | Link | Cycle a widget's link colour | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | boardArrangement.outcome.test.jsx: C3-006 (held-out phrasing) "the widget joins link group B (green); Undo unlinks it again"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 13/13 | panel, scripted model |
 | C3-007 | Link | Change a tool panel's colour group | MISSING | none | n/a | none |
 | C3-008 | Float | Float a widget over another | MISSING | agentBoard.test.jsx:231 | pass 1/1 | none |
 | C3-009 | Float | Drag or resize a floating widget | BLOCKED | none | n/a | none |
@@ -590,10 +603,10 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-013 | Popout | Pop out the whole layout | MISSING | none | n/a | none |
 | C3-014 | Popout | Dock a popped widget or layout back | MISSING | none | n/a | none |
 | C3-015 | Popout | Close a popped widget | MISSING | none | n/a | none |
-| C3-016 | Widget tabs | Add a widget as a tab | IMPLEMENTED / UNVERIFIED | agentChartsOperatorP1.test.jsx:564 | pass 1/1 | runtime, no panel |
-| C3-017 | Widget tabs | Switch a widget tab | IMPLEMENTED / UNVERIFIED | agentBoard.test.jsx:259 | pass 1/1 | runtime, no panel |
+| C3-016 | Widget tabs | Add a widget as a tab | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | boardArrangement.outcome.test.jsx: "C3-016 / C3-017 / C3-019: add a Calendar as a tab on the news widget, switch to it, close it"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 13/13 | panel, scripted model |
+| C3-017 | Widget tabs | Switch a widget tab | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | boardArrangement.outcome.test.jsx: "C3-016 / C3-017 / C3-019: add a Calendar as a tab on the news widget, switch to it, close it"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 13/13 | panel, scripted model |
 | C3-018 | Widget tabs | Rename a widget tab | IMPLEMENTED / UNVERIFIED | agentBoard.test.jsx:268 | pass 1/1 | runtime, no panel |
-| C3-019 | Widget tabs | Close a widget tab | IMPLEMENTED / UNVERIFIED | agentBoard.test.jsx:268; agentBoard.test.jsx:280; agentBoard.test.jsx:301 | pass 3/3 | runtime, no panel |
+| C3-019 | Widget tabs | Close a widget tab | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | boardArrangement.outcome.test.jsx: "C3-016 / C3-017 / C3-019: add a Calendar as a tab on the news widget, switch to it, close it"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 13/13 | panel, scripted model |
 | C3-020 | Chart tabs | Add a chart tab | VERIFIED | c:chart.addTab; chartTabs: "add a tab to this chart" | pass 6/6 | panel, scripted model |
 | C3-021 | Chart tabs | Switch a chart tab | VERIFIED | chartTabs: add two, rename by position, select by name | pass 1/1 | panel, scripted model |
 | C3-022 | Chart tabs | Rename a chart tab | VERIFIED | c:chart.renameTab | pass 5/5 | panel, scripted model |
@@ -604,7 +617,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-027 | Layout Dock | Undo a layout switch from the toast | IMPLEMENTED / UNVERIFIED | agentLayouts.test.jsx:71 | pass 1/1 | runtime, no panel |
 | C3-028 | Layout Dock | Create a new layout from the dock | VERIFIED | c:layout.create | pass 4/4 | panel, scripted model |
 | C3-029 | Layout Dock | Start a new blank board from the Layouts menu | IMPLEMENTED / UNVERIFIED | agentLayouts.test.jsx:403 | pass 1/1 | runtime, no panel |
-| C3-030 | Layout Dock | Save the open layout | IMPLEMENTED / UNVERIFIED | agentBoard.test.jsx:200; agentBoard.test.jsx:212 | pass 2/2 | production (E-06b) only |
+| C3-030 | Layout Dock | Save the open layout | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | boardArrangement.outcome.test.jsx: C3-030 (held-out phrasing) "the open layout is saved with the board as it is now"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 13/13 | panel, scripted model |
 | C3-031 | Layout Dock | Save as a new layout | VERIFIED | c:layout.saveAs | pass 4/4 | production (E-06) and panel |
 | C3-032 | Layout Dock | Save a layout as a global template (admin) | BLOCKED | none | n/a | none |
 | C3-033 | Layout Dock | Rename a layout | VERIFIED | c:layout.rename | pass 4/4 | panel, scripted model |
@@ -681,10 +694,10 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-104 | Watchlist | Save or load a watchlist look | MISSING | none | n/a | none |
 | C3-105 | Watchlist | Track or freeze a linked scan or theme | BLOCKED | none | n/a | none |
 | C3-106 | Watchlist | Use a saved screen as a list | BLOCKED | none | n/a | none |
-| C3-107 | Scanner | Pick a preset scan | IMPLEMENTED / UNVERIFIED | agentBoard.test.jsx:171 | pass 1/1 | runtime, no panel |
+| C3-107 | Scanner | Pick a preset scan | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | boardArrangement.outcome.test.jsx: C3-107 (held-out phrasing) "the Scanner widget shows that preset; Undo goes back"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 13/13 | panel, scripted model |
 | C3-108 | Scanner | Leave a scan, back to the picker | MISSING | none | n/a | none |
 | C3-109 | Scanner | Search the preset list | MISSING | none | n/a | none |
-| C3-110 | Scanner | Read a scan's conditions | MISSING | none | n/a | none |
+| C3-110 | Scanner | Read a scan's conditions | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetDoorRows.outcome.test.jsx: C3-110 "what are the conditions on my scanner"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
 | C3-111 | Scanner | Read a scan's results | VERIFIED | listControl: a Scanner: sorts and reads the same way | pass 1/1 | panel, scripted model |
 | C3-112 | Scanner | Refresh a scan | MISSING | none | n/a | none |
 | C3-113 | Scanner | Sort a scan | VERIFIED | listControl: a Scanner: sorts and reads the same way | pass 1/1 | panel, scripted model |
@@ -694,12 +707,12 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-117 | Scanner | Open an AI Search scan in the builder and edit conditions | MISSING | none | n/a | none |
 | C3-118 | Scanner | Run or refine a screen from the workspace chat | VERIFIED | c:scan.near-high.sign; c:scan.refine.sector | pass 7/7 | panel, scripted model |
 | C3-119 | Scanner | Save a screen run from the workspace | VERIFIED | c:screener.saveAs | pass 4/4 | panel, scripted model |
-| C3-120 | Scanner | Send a scan to Journal | MISSING | none | n/a | none |
-| C3-121 | Volume Surge | Choose what the scanner watches | MISSING | none | n/a | none |
+| C3-120 | Scanner | Send a scan to Journal | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetDoorRows.outcome.test.jsx: C3-120 "send this scan to my journal"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
+| C3-121 | Volume Surge | Choose what the scanner watches | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetDoorRows.outcome.test.jsx: C3-121 "make the volume surge watch my Core list"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
 | C3-122 | Volume Surge | Create, rename or delete a scope list | MISSING | none | n/a | none |
 | C3-123 | Volume Surge | Add a ticker to a scope list | MISSING | none | n/a | none |
 | C3-124 | Volume Surge | Set thresholds (RVOL, burst, move, $ floor) | MISSING | none | n/a | none |
-| C3-125 | Volume Surge | Toggle logos | IMPLEMENTED / UNVERIFIED | agentWidgetOptions.test.jsx:49 | pass 1/1 | runtime, no panel |
+| C3-125 | Volume Surge | Toggle logos | IMPLEMENTED / UNVERIFIED | agentWidgetOptions.test.jsx:49; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | pass 1/1 | runtime, no panel |
 | C3-126 | Volume Surge | Click a row or remove it from the list | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
 | C3-127 | Alerts | See my alerts | VERIFIED | alerts.outcome: nothing reaches the server until Apply | pass 1/1 | panel, scripted model |
 | C3-128 | Alerts | Create a price alert | VERIFIED | c:alert.price-above; alerts.outcome: nothing reaches the server until Apply | pass 7/7 | panel, scripted model |
@@ -707,13 +720,13 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-130 | Alerts | Click an alert to load the symbol | VERIFIED | c:symbol.switch | pass 7/7 | panel, scripted model |
 | C3-131 | Alerts | Change Alerts widget appearance | MISSING | none | n/a | none |
 | C3-132 | Alerts | Send alerts to Journal | MISSING | none | n/a | none |
-| C3-133 | News | Filter catalysts up, down or all | IMPLEMENTED / UNVERIFIED | agentWidgetOptions.test.jsx:49 | pass 1/1 | runtime, no panel |
+| C3-133 | News | Filter catalysts up, down or all | IMPLEMENTED / UNVERIFIED | agentWidgetOptions.test.jsx:49; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | pass 1/1 | runtime, no panel |
 | C3-134 | News | Read stored headlines for a symbol | VERIFIED | c:news.latest; c:news.catalysts | pass 9/9 | panel, scripted model |
 | C3-135 | News | Place a headline on the chart | MISSING | none | n/a | none |
 | C3-136 | News | Change News widget appearance | MISSING | none | n/a | none |
 | C3-137 | News | Send the feed to Journal | MISSING | none | n/a | none |
-| C3-138 | TE News | Search headlines | MISSING | none | n/a | none |
-| C3-139 | TE News | Filter by category, linked symbol or watchlist | MISSING | none | n/a | none |
+| C3-138 | TE News | Search headlines | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | teNewsWatchlist.outcome.test.jsx: "C3-138: search the News widget through its own search box" (held-out phrasings, clear, NEGATIVE); agentExecReach.test.jsx: search held-out7 (routing reach only); see docs/agent/program/EXEC-CITED-RERUN.md | pass 9/9 | panel, scripted model |
+| C3-139 | TE News | Filter by category, linked symbol or watchlist | PARTIAL (SIMULATED) — covered: the watchlist filter (watchlistId and the shown headlines read back, Undo, NEGATIVE); not covered: the category filter and the linked-symbol filter | teNewsWatchlist.outcome.test.jsx: "C3-139: the News widget filtered to one of the member's watchlists, through its own select"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 9/9 | panel, scripted model |
 | C3-140 | TE News | Apply, rename or delete a filter preset | MISSING | none | n/a | none |
 | C3-141 | TE News | Save or unsave a headline | MISSING | none | n/a | none |
 | C3-142 | TE News | Add or edit a headline note | MISSING | none | n/a | none |
@@ -722,65 +735,65 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-145 | TE News | Explain a headline or ask about it | IMPLEMENTED / UNVERIFIED | agentNewsAsk.test.jsx; agentNewsContinue.test.jsx | pass 21/21 | panel, partial |
 | C3-146 | TE News | Jump to live or browse a past day | MISSING | none | n/a | none |
 | C3-147 | TE News | Send a headline to Notebook | MISSING | none | n/a | none |
-| C3-148 | Calendar | Step days in the widget | MISSING | agentMultiActionFollowups.test.jsx:927 | pass 1/1 | none |
+| C3-148 | Calendar | Step days in the widget | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetControls.outcome.test.jsx: "show tomorrow on the terminal" (UCT Terminal, C3-148); see docs/agent/program/EXEC-CITED-RERUN.md | pass 7/7 | panel, scripted model |
 | C3-149 | Calendar | Ask who reports on a day from Charts | MISSING | none | n/a | none |
-| C3-150 | Calendar | Ask when a stock reports from Charts | IMPLEMENTED / UNVERIFIED | c:earnings.date | pass 6/6 | panel, partial |
-| C3-151 | Calendar | Filter economic events by stars | IMPLEMENTED / UNVERIFIED | agentWidgetOptions.test.jsx:49 | pass 1/1 | runtime, no panel |
-| C3-152 | Calendar | Toggle the TBD section | MISSING | none | n/a | none |
+| C3-150 | Calendar | Ask when a stock reports from Charts | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | boardArrangement.outcome.test.jsx: C3-150 (held-out phrasings) "the earnings read answers with the date, no change to the board"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 13/13 | panel, scripted model |
+| C3-151 | Calendar | Filter economic events by stars | IMPLEMENTED / UNVERIFIED | agentWidgetOptions.test.jsx:49; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | pass 1/1 | runtime, no panel |
+| C3-152 | Calendar | Toggle the TBD section | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetControls.outcome.test.jsx: "expand the time tbd list on the terminal" (C3-152); see docs/agent/program/EXEC-CITED-RERUN.md | pass 7/7 | panel, scripted model |
 | C3-153 | Calendar | Sort earnings columns | MISSING | none | n/a | none |
 | C3-154 | Calendar | Show all earnings in a section | MISSING | none | n/a | none |
 | C3-155 | Calendar | Click an earnings row | VERIFIED | c:symbol.switch | pass 7/7 | panel, scripted model |
-| C3-156 | Calendar | Send a day to Journal | MISSING | none | n/a | none |
+| C3-156 | Calendar | Send a day to Journal | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetDoorRows.outcome.test.jsx: "Send to Journal over the real widgets' own capture doors", case C3-156; see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
 | C3-157 | Breadth | Read breadth tiles | VERIFIED | c:breadth.now; c:breadth.measure-now | pass 11/11 | panel, scripted model |
-| C3-158 | Breadth | Add or remove a reading | MISSING | agentWidgetOptions.test.jsx | pass 8/8 | none |
-| C3-159 | Breadth | Switch heatmap and ratio view | MISSING | none | n/a | none |
+| C3-158 | Breadth | Add or remove a reading | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetDoorRows.outcome.test.jsx: C3-158 "take the up 4% reading off the breadth widget"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
+| C3-159 | Breadth | Switch heatmap and ratio view | MISSING | none; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | n/a | none |
 | C3-160 | Breadth | Change tile style | MISSING | none | n/a | none |
 | C3-161 | Breadth | Change palette, intensity or background | MISSING | none | n/a | none |
 | C3-162 | Breadth | Drill into a reading | MISSING | none | n/a | none |
-| C3-163 | Breadth | Send a snapshot to Journal | MISSING | none | n/a | none |
-| C3-164 | Options Flow | Switch market or symbol scope | IMPLEMENTED / UNVERIFIED | agentWidgetOptions.test.jsx:49 | pass 1/1 | runtime, no panel |
-| C3-165 | Options Flow | Switch the lead view | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
-| C3-166 | Options Flow | Set filters (premium, call/put, type, direction) | MISSING | none | n/a | none |
+| C3-163 | Breadth | Send a snapshot to Journal | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetDoorRows.outcome.test.jsx: "Send to Journal over the real widgets' own capture doors", case C3-163; see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
+| C3-164 | Options Flow | Switch market or symbol scope | IMPLEMENTED / UNVERIFIED | agentWidgetOptions.test.jsx:49; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | pass 1/1 | runtime, no panel |
+| C3-165 | Options Flow | Switch the lead view | IMPLEMENTED / UNVERIFIED | none; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | n/a | source only |
+| C3-166 | Options Flow | Set filters (premium, call/put, type, direction) | MISSING | none; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | n/a | none |
 | C3-167 | Options Flow | Read the flow | MISSING | none | n/a | none |
 | C3-168 | Options Flow | Click a flow row | VERIFIED | c:symbol.switch | pass 7/7 | panel, scripted model |
-| C3-169 | Themes | Pick a period or ranking | MISSING | none | n/a | none |
-| C3-170 | Themes | Flip sort direction | MISSING | none | n/a | none |
-| C3-171 | Themes | Switch today basis | MISSING | none | n/a | none |
-| C3-172 | Themes | Open a theme or pick a holding | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
+| C3-169 | Themes | Pick a period or ranking | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | themeTracker.outcome.test.jsx: C3-169 "show the theme tracker for the past month"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
+| C3-170 | Themes | Flip sort direction | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | themeTracker.outcome.test.jsx: C3-170 "sort the theme tracker ascending"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
+| C3-171 | Themes | Switch today basis | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | themeTracker.outcome.test.jsx: C3-171 "theme tracker from the open"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
+| C3-172 | Themes | Open a theme or pick a holding | PARTIAL (SIMULATED) — covered: opening a theme by its name (door openTheme, its holdings drawn); not covered: picking a holding inside the open theme | themeTracker.outcome.test.jsx: C3-172 "open the software theme in the theme tracker"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
 | C3-173 | Themes | Search themes or tickers | MISSING | none | n/a | none |
-| C3-174 | Themes | Pick, rename or delete a theme set | MISSING | none | n/a | none |
+| C3-174 | Themes | Pick, rename or delete a theme set | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | themeTracker.outcome.test.jsx: C3-174 "switch the theme tracker to my Mine set" + "Theme Tracker theme sets: rename and delete" (held-out phrasings); see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
 | C3-175 | Themes | Edit a set (add, hide, reset, custom theme) | MISSING | none | n/a | none |
 | C3-176 | Themes | Add or remove a stock in a theme | MISSING | none | n/a | none |
-| C3-177 | Themes | Send the ranking to Journal | MISSING | none | n/a | none |
+| C3-177 | Themes | Send the ranking to Journal | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetDoorRows.outcome.test.jsx: "Send to Journal over the real widgets' own capture doors", case C3-177; see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
 | C3-178 | Fundamentals | Switch view | VERIFIED | agentWidgetOptions: "show annual on the fundamentals" | pass 1/1 | panel, scripted model |
 | C3-179 | Fundamentals | Read the numbers | VERIFIED | c:stock.profile; c:earnings.date | pass 10/10 | panel, scripted model |
 | C3-180 | Fundamentals | Change appearance or send to Journal | MISSING | none | n/a | none |
 | C3-181 | Profile | Read profile and earnings table | VERIFIED | c:stock.profile; c:earnings.date | pass 10/10 | panel, scripted model |
 | C3-182 | Profile | Click a peer ticker | VERIFIED | c:symbol.switch | pass 7/7 | panel, scripted model |
-| C3-183 | Indexes | Hide or restore an index | MISSING | none | n/a | none |
-| C3-184 | Indexes | Send levels to Journal | MISSING | none | n/a | none |
+| C3-183 | Indexes | Hide or restore an index | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetControls.outcome.test.jsx: "Indexes (C3-183): hide or restore an index" (hide + Undo, restore by name, NEGATIVE); see docs/agent/program/EXEC-CITED-RERUN.md | pass 7/7 | panel, scripted model |
+| C3-184 | Indexes | Send levels to Journal | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetDoorRows.outcome.test.jsx: "Send to Journal over the real widgets' own capture doors", case C3-184 (+ NEGATIVE Dismiss); see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
 | C3-185 | Market Context | Read market context | UNMAPPED | none | n/a | none |
 | C3-186 | Market Context | Send to Journal | MISSING | none | n/a | none |
-| C3-187 | NH/NL | Add or remove a universe | MISSING | none | n/a | none |
-| C3-188 | NH/NL | Switch universe tab | MISSING | none | n/a | none |
+| C3-187 | NH/NL | Add or remove a universe | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetControls.outcome.test.jsx: "New Highs / Lows (C3-187, C3-188)": add, switch, remove; see docs/agent/program/EXEC-CITED-RERUN.md | pass 7/7 | panel, scripted model |
+| C3-188 | NH/NL | Switch universe tab | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetControls.outcome.test.jsx: "New Highs / Lows (C3-187, C3-188)": add, switch, remove; see docs/agent/program/EXEC-CITED-RERUN.md | pass 7/7 | panel, scripted model |
 | C3-189 | NH/NL | Expand a row or pick a symbol | VERIFIED | c:symbol.switch | pass 7/7 | panel, scripted model |
 | C3-190 | NH/NL | Toggle logos, font, background | MISSING | none | n/a | none |
 | C3-191 | H/L Pulse | Change Pulse settings | MISSING | none | n/a | none |
-| C3-192 | Market Map | Pick or remove a universe | MISSING | none | n/a | none |
-| C3-193 | Market Map | Pick X, Y or size axis | MISSING | none | n/a | none |
-| C3-194 | Market Map | Follow the linked list | MISSING | none | n/a | none |
-| C3-195 | Market Map | Cycle labels or zoom | MISSING | none | n/a | none |
+| C3-192 | Market Map | Pick or remove a universe | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetDoorRows.outcome.test.jsx: "C3-192 / C3-193: add the Nasdaq 100 to the Market Map ... remove it again"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
+| C3-193 | Market Map | Pick X, Y or size axis | PARTIAL (SIMULATED) — covered: the Y axis and the size axis (yKey, sizeKey read back); not covered: picking an X axis (only the refusal of an axis the map lacks is tested) | widgetDoorRows.outcome.test.jsx: "C3-192 / C3-193: ... day change on Y and size by market cap" + NEGATIVE axis; see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
+| C3-194 | Market Map | Follow the linked list | MISSING | none; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | n/a | none |
+| C3-195 | Market Map | Cycle labels or zoom | MISSING | none; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | n/a | none |
 | C3-196 | AI Search | Ask a question or follow one up | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
 | C3-197 | AI Search | Change ask mode, stop or retry | MISSING | none | n/a | none |
 | C3-198 | AI Search | Save, reopen or remove an answer | MISSING | none | n/a | none |
 | C3-199 | AI Search | Copy or speak an answer | MISSING | none | n/a | none |
 | C3-200 | AI Search | Send the conversation to Journal | MISSING | none | n/a | none |
-| C3-201 | Notebook | Open or search a note | MISSING | none | n/a | none |
-| C3-202 | Notebook | Create a note | MISSING | none | n/a | none |
+| C3-201 | Notebook | Open or search a note | PARTIAL (SIMULATED) — covered: opening a note by its name (noteId read back, Undo; an ambiguous or unknown name is refused); not covered: the widget's own note search | widgetDoorRows.outcome.test.jsx: "the Notebook widget (C3-201 open a note by its name)" + NEGATIVE; see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
+| C3-202 | Notebook | Create a note | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetDoorRows.outcome.test.jsx: "the Notebook widget: create a note through its own New control (C3-202)" (held-out phrasings); see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
 | C3-203 | Notebook | Edit a note's title or body | BLOCKED | none | n/a | none |
 | C3-204 | Notebook | Browse folders | MISSING | none | n/a | none |
 | C3-205 | Period Sort | Start a custom-period sort | MISSING | none | n/a | none |
-| C3-206 | Period Sort | Choose grouping, replay and start mark | MISSING | none | n/a | none |
+| C3-206 | Period Sort | Choose grouping, replay and start mark | MISSING | none; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | n/a | none |
 | C3-207 | Period Sort | Dock the panel or add it as a tab | MISSING | none | n/a | none |
 | C3-208 | Period Sort | Refresh results | MISSING | none | n/a | none |
 | C3-209 | Replay | Start replay at a date | VERIFIED | c:chart.replay; agentChartReplay: replay from Oct 15 | pass 5/5 | panel, scripted model |
@@ -790,10 +803,10 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-213 | Review | Start Review Charts from a results list | NOT ON /CHARTS | none | n/a | n/a |
 | C3-214 | Review | Step next or previous in a review (mobile only at this commit) | NOT ON /CHARTS | none | n/a | n/a |
 | C3-215 | Review | Open the review feed card (mobile only) | NOT ON /CHARTS | none | n/a | n/a |
-| C3-216 | Company dock | Switch dock tab | MISSING | none | n/a | none |
-| C3-217 | Company dock | Open or collapse the dock | MISSING | none | n/a | none |
+| C3-216 | Company dock | Switch dock tab | VERIFIED (SIMULATED panel test, scripted model, jsdom) | agentExecRound5.test.jsx: C3-216 "show the ownership tab on the company panel"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 18/18 | panel, scripted model |
+| C3-217 | Company dock | Open or collapse the dock | VERIFIED (SIMULATED panel test, scripted model, jsdom) | agentExecRound5.test.jsx: C3-217 "collapse the company panel" / "open the company info panel" + NEGATIVE (no panel); see docs/agent/program/EXEC-CITED-RERUN.md | pass 18/18 | panel, scripted model |
 | C3-218 | Company dock | Search company info | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
-| C3-219 | Company dock | Open ETF holdings | MISSING | none | n/a | none |
+| C3-219 | Company dock | Open ETF holdings | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | etfHoldings.outcome.test.jsx: "C3-219: the chart's View Holdings button, through its door" (held-out phrasings, NEGATIVE on a stock); see docs/agent/program/EXEC-CITED-RERUN.md | pass 6/6 | panel, scripted model |
 | C3-220 | Company dock | Pick a leveraged or inverse ETF | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
 | C3-221 | Workspace | Open the Agent | BLOCKED | none | n/a | none |
 | C3-222 | Workspace | Change a widget's UCT theme section | MISSING | none | n/a | none |
