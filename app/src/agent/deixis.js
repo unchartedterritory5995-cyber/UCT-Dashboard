@@ -12,7 +12,7 @@
 import { addableRows } from './capabilities/indicatorEdits'
 import { resolvedTicker } from './nl/tickers'
 import { sanitizeChartTabs } from '../pages/charts/chartTabs'
-import { namedAnchorRelation, wholeLinesNamed, clickLineMatch, clickLineHits, activeText, relationAnchor } from './spatialCheck'
+import { namedAnchorRelation, wholeLinesNamed, clickLineMatch, clickLineHits, activeText, relationAnchor, blankStated } from './spatialCheck'
 
 // Words that point at "the chart in front of me". "it" counts only for a CHART-kind op ("make it
 // weekly"), never on its own ("put it in Momentum", "what is it" are not about a chart).
@@ -210,14 +210,16 @@ function walkMatch(s) {
 // alone AND PUT this chart on weekly" is no relation from the click: "left" belongs to the first clause, "this chart" to the second)
 const CROSS_CLAUSE = /(?:[,;]\s*|\s+)(?:and|then|but)\s+(?:put|make|set|switch|change|add|move|turn|show|hide|remove|give|apply|take|drop|flip)\b/i
 /** The relation match, or null when the words relate nothing to the clicked CHART. */
-export function relationMatch(text) {
+export function relationMatch(text0) {
+  // (H5, probe 19) a clause that says a chart already is so relates nothing (blanked: positions kept)
+  const text = blankStated(text0)
   const r0 = relationMatchIn(text)
   // pl-auto unseen12 (#988): the click's own line said as a relation ("the rest of this row", "same column, other row", "same row, far
   // end", "one column right from this chart", "this one, the first chart in its row") — read where the relation readers find
   // nothing they can place, or only an unordered corner pair (spatialCheck.clickLineMatch / clickLineHits)
   const cl0 = clickLineMatch(possessiveAnchor(text)) || clickLineMatch(text)
   const cl = cl0 && !(cl0.clickLine.kind === 'step' && MOVE_VERB.test(String(text || ''))) ? cl0 : null   // a move of the click names its destination
-  const r = cl && (!r0 || r0.unplaced || (cl.clickLine.kind === 'corner' && r0.corner) || cl.clickLine.kind === 'appos') ? cl : r0
+  const r = cl && (!r0 || r0.unplaced || (cl.clickLine.kind === 'corner' && r0.corner) || ['appos', 'counted', 'lineRel'].includes(cl.clickLine.kind) || (cl.clickLine.kind === 'rest' && cl.clickLine.n != null)) ? cl : r0
   if (!r) return null
   const x = CROSS_CLAUSE.exec(r[0])
   if (!x) return r
