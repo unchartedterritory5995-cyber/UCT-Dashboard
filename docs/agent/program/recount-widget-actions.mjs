@@ -57,7 +57,7 @@ const EV = 'panel, scripted model'
 const J = 'widgetJournal.outcome.test.jsx'; const JR = 'pass 7/7'
 const A = 'widgetActions.outcome.test.jsx'; const AR = 'pass 24/24'
 const W = 'watchlistLook.outcome.test.jsx'; const WR = 'pass 18/18'
-const LC = 'listControl.outcome.test.jsx'; const LR = 'pass 115/115 (1 known gap pinned both ways)'
+const LC = 'listControl.outcome.test.jsx'; const LR = 'pass 114/114 (1 known gap pinned both ways)'
 const S = 'agentWatchlistShow.test.jsx'; const SR = 'pass 35/35'
 const O = 'agentWatchlistOut.test.jsx + Watchlists.listout.test.jsx'; const OR = 'pass 29/29 + 7/7'
 const ROWS = {

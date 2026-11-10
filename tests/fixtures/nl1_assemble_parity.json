@@ -47,6 +47,7 @@
   "watchlist.setNote": "lists",
   "watchlist.sortColumn": "lists",
   "watchlist.setColumns": "lists",
+  "watchlist.arrangeColumns": "lists",
   "watchlist.step": "lists",
   "watchlist.readView": "lists",
   "watchlist.setFlag": "lists",
@@ -90,6 +91,7 @@
   "widget.sendToJournal": "boardEdit",
   "watchlist.open": "lists",
   "watchlist.showList": "watchlistShow",
+  "watchlist.exportList": "watchlistShow",
   "widget.showScan": "workspace",
   "chart.applyThemeAll": "charts",
   "widget.resize": "workspace",
@@ -253,7 +255,7 @@
   },
   {
    "id": "watchlistShow",
-   "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
+   "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel"
   },
   {
    "id": "guide",
@@ -396,7 +398,7 @@
      },
      {
       "id": "watchlistShow",
-      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel"
      },
      {
       "id": "guide",
@@ -557,7 +559,7 @@
      },
      {
       "id": "watchlistShow",
-      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel"
      },
      {
       "id": "guide",
@@ -634,6 +636,7 @@
     "watchlist.setNote",
     "watchlist.sortColumn",
     "watchlist.setColumns",
+    "watchlist.arrangeColumns",
     "watchlist.step",
     "watchlist.readView",
     "watchlist.setFlag",
@@ -732,7 +735,7 @@
      },
      {
       "id": "watchlistShow",
-      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel"
      },
      {
       "id": "guide",
@@ -917,7 +920,7 @@
      },
      {
       "id": "watchlistShow",
-      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel"
      },
      {
       "id": "guide",
@@ -1074,7 +1077,7 @@
      },
      {
       "id": "watchlistShow",
-      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel"
      },
      {
       "id": "guide",
@@ -1158,6 +1161,7 @@
     "watchlist.setNote",
     "watchlist.sortColumn",
     "watchlist.setColumns",
+    "watchlist.arrangeColumns",
     "watchlist.step",
     "watchlist.readView",
     "watchlist.setFlag",
@@ -1201,6 +1205,7 @@
     "widget.sendToJournal",
     "watchlist.open",
     "watchlist.showList",
+    "watchlist.exportList",
     "widget.showScan",
     "chart.applyThemeAll",
     "widget.resize",
