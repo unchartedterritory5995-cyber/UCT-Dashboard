@@ -15,6 +15,12 @@
 //             member asks, and the widget's own request is answered on its own route.
 //
 // An unknown given name is an error, never a silent plain board. Test-only (dev harness): never bundled.
+//
+// Two kinds, named so: a given via STORE/ROUTE SEED (widgets, prefs, routes, query, setup) and a given via REAL-INPUT PRELUDE.
+
+// a saved definition the authoring rails already use (tests/fixtures/authoring/batch2_definitions.json `styled_markers`)
+import AUTHORING from '../../../../../tests/fixtures/authoring/batch2_definitions.json' with { type: 'json' }
+const SAVED_DEF = AUTHORING.styled_markers
 
 const chart = (id, color, x, y, w, h, opts = {}) => ({ id, type: 'chart', color, x, y, w, h, opts: { tf: 'D', ...opts } })
 const watch = (extra = {}) => ({ id: 'w-watch', type: 'watchlist', color: 'A', x: 18, y: 0, w: 6, h: 20, opts: {}, ...extra })
@@ -60,6 +66,14 @@ export const GIVENS = {
       { match: '^GET /api/j2/notes([?]|$)', body: { notes: [NOTE], total: 1 } },
       { match: '^GET /api/j2/note-folders$', body: { folders: [] } },
     ],
+  },
+  // One of the member's own saved indicators (the library's "Your indicators" tab shows only when there is one). A ROUTE SEED: the
+  // definitions list the chart installs from (hooks/useUserDefinitions.js, GET /api/user-definitions) answers with one row in the
+  // store's own shape, { definitions: [{ def_id, version, rev, definition }] } (the fetcher refuses anything else). The harness's
+  // ?defs=1 in-page store is not used: the runner's live relay takes every /api/user-definitions call before it
+  savedIndicator: {
+    about: 'one saved indicator of the member’s own, on the definitions list route the chart installs from (a route seed)',
+    routes: () => [{ match: '^GET /api/user-definitions([?]|$)', body: { definitions: [{ def_id: SAVED_DEF.id, version: SAVED_DEF.version, rev: 1, definition: SAVED_DEF }] } }],
   },
   // Replay running on the board. The cutoff is session state in ChartsWorkspace (replayCutoff: no pref, no route holds it), so
   // the member starts it the way the product offers: Tools ▾ → Replay Mode → a date → Start replay (ReplayPanel's own controls)
