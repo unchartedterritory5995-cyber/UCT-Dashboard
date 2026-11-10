@@ -8,25 +8,44 @@ Built on `agent/pl/bar-time-coverage` from `agent/pl/integration-1` `b07a97d526`
 
 ## The number
 
-**187 of 484 actions, 38.6%, are VERIFIED at panel level with a scripted model** (158 in the 2026-11-05 run, plus 29 from the chart-settings outcome test on 2026-11-10). A further 3 are PARTIAL (SIMULATED): part of the action passes, part does not. See "Update 2026-11-10" below. That proves the Agent is given what it needs and that a correct plan reaches the right state. It does not prove the real model picks that plan, and it does not prove the real chart redraws.
+**190 of 484 actions, 39.3%, are VERIFIED at panel level with a scripted model** (158 in the 2026-11-05 run, plus 32 on 2026-11-10: 29 from the chart-settings outcome test, 3 from the Multi Chart outcome test). A further 4 are PARTIAL (SIMULATED): part of the action passes, part is not covered. See "Update 2026-11-10: combined execution packets (PR #1016)" below. That proves the Agent is given what it needs and that a correct plan reaches the right state. It does not prove the real model picks that plan, and it does not prove the real chart redraws.
 
 - Production evidence with the real planner covers 13 of those 158 rows, from the 2026-11-03 live run on the older build `463a4bcba5`, read by receipt and some server reads.
 - Real component in a browser, Agent executing: 0 rows. The browser runs in teach-status.md prove walkthroughs, where a person clicks. They never ran an Agent plan.
-- A further 36 rows have a passing runtime test (capability and writer, no panel). They are IMPLEMENTED / UNVERIFIED and are not in the 187. (It was 43; 7 of them were raised on 2026-11-10.)
+- A further 36 rows have a passing runtime test (capability and writer, no panel). They are IMPLEMENTED / UNVERIFIED and are not in the 190. (It was 43 on 2026-11-05; 7 of them were raised on 2026-11-10.)
 - P0 actions: 58 of 74 VERIFIED (as of 2026-11-05; this doc carries no per-row P0 tag, so the 2026-11-10 update did not recount it).
 
-## Update 2026-11-10: chart display settings (pl-auto)
+## Update 2026-11-10: combined execution packets (PR #1016)
 
-29 rows were raised to VERIFIED and 3 to PARTIAL (SIMULATED) by one table-driven outcome test, `app/src/agent/qa/chartsOutcome/chartSettings.outcome.test.jsx` (branch `agent/pl/exec-chart-settings`, commit `837eb55376`): vitest, scripted model (jsdom/panel), not a real browser. Current file total: 40 passed + 5 known-gap (pinned) + 7 todo (vitest raw count: `Tests 45 passed | 7 todo (52)`, because vitest counts an `it.fails` as passed). Each case reads the chart's stored settings back through `settingValue`, checks the other three charts are untouched, and checks Undo restores the chart. Rows cite the case by its row id; the state reads "VERIFIED (SIMULATED outcome test, scripted model, jsdom)".
+PR #1016 now carries two execution packets. Each row below keeps the state its own packet gave it; no row was changed by two packets (checked before writing). The counts were recounted from the "All actions" table after the union, never summed by hand. Evidence for every packet: vitest, scripted model, jsdom, fixture data; not a real browser and not the real model. One failing constituent holds the whole PR.
 
-- Was IMPLEMENTED / UNVERIFIED (30): C1-015, 017, 018, 024, 050, 051, 052, 053, 054, 055, 056, 057, 059, 062, 063, 064, 068, 069, 070, 071, 072, 073, 075, 076, 080, 087, 090, 091, 144, C2-013.
-- Was UNMAPPED (1): C1-016 (Heikin Ashi is a chart.setSetting row, `heikinAshi`).
-- Was MISSING (1): C1-061 (reset watermark to centre).
-- PARTIAL (SIMULATED), not VERIFIED (AUDIT, PR #1016); each row's status says what is covered and what is not: C1-055 (text size covered; colour refused as inert), C1-061 (the centred end state covered; the product's own Reset write `watermarkPos: null` is not), C1-144 (calculator inputs covered; placing the drawing is not).
-- The counts table now has a PARTIAL column. PARTIAL is in scope but not VERIFIED. VERIFIED is 158 → 187 (29 rows): 28 that were IMPLEMENTED / UNVERIFIED, plus C1-016 (was UNMAPPED). C1-061 (was MISSING) is one of the 3 PARTIAL.
-- Not counted as VERIFIED: the 7 gap rows (unchanged), and the 5 held-out routing nouns (axis, scale, crosshair, legend, watermark). The routing nouns are test cases, not rows in this doc.
-- Not raised, status unchanged, and the row now points to the gap list in `docs/agent/program/EXEC-CHART-SETTINGS.md`: C1-058, 067, 077, 078, 081, 092, 127.
-- How the counts were updated: by hand, with no generator (none exists in tools/ or app/src/testing/). A script recounted the "All actions" table, confirmed it reproduced every "Counts by area" row exactly before the edit, then rewrote the changed rows and the totals from the recount. The 2026-11-05 sections below (Raised, Dropped, Other state changes) are left as that run wrote them.
+### Chart display settings (agent/pl/exec-chart-settings, head `2c218074ac`)
+
+Test: `app/src/agent/qa/chartsOutcome/chartSettings.outcome.test.jsx`, one table-driven outcome test. Each case reads the chart's stored settings back through `settingValue`, checks the other three charts are untouched, and checks Undo. Ledger and gap list: `docs/agent/program/EXEC-CHART-SETTINGS.md`.
+
+- VERIFIED (29): C1-015, C1-016, C1-017, C1-018, C1-024, C1-050, C1-051, C1-052, C1-053, C1-054, C1-056, C1-057, C1-059, C1-062, C1-063, C1-064, C1-068, C1-069, C1-070, C1-071, C1-072, C1-073, C1-075, C1-076, C1-080, C1-087, C1-090, C1-091, C2-013; was IMPLEMENTED / UNVERIFIED (28): C1-015, C1-017, C1-018, C1-024, C1-050, C1-051, C1-052, C1-053, C1-054, C1-056, C1-057, C1-059, C1-062, C1-063, C1-064, C1-068, C1-069, C1-070, C1-071, C1-072, C1-073, C1-075, C1-076, C1-080, C1-087, C1-090, C1-091, C2-013; was UNMAPPED (1): C1-016.
+- PARTIAL (SIMULATED) (3): C1-055, C1-061, C1-144; was IMPLEMENTED / UNVERIFIED (2): C1-055, C1-144; was MISSING (1): C1-061. C1-055: text size covered, colour refused as inert. C1-061: the centred end state covered, the product's own Reset write `watermarkPos: null` not. C1-144: calculator inputs covered, placing the drawing not.
+- Unchanged, pointing to the gap list (7): C1-058, C1-067, C1-077, C1-078, C1-081, C1-092, C1-127.
+- Not rows: the 5 held-out routing nouns (axis, scale, crosshair, legend, watermark) are `it.fails` cases, each pinned by a KNOWN GAP sibling. pl-exec's NOT_A_TICKER fix PR flips them.
+
+### Multi Chart (agent/pl/exec-multichart, head `d9e4068388`)
+
+Test: `app/src/agent/qa/chartsOutcome/multiChart.outcome.test.jsx`. It mounts the real AgentPanel in gridMode over the real MultiChartGrid / GridChartCell / useMultiChartState, reads the outcome back from the grid state, the saved `multichart_state`, the cell's canvas props or the alert book, checks the other cells are byte-identical, and checks Undo. Method, per-row table and gap list: `docs/agent/program/EXEC-MULTICHART.md`.
+
+- VERIFIED (3): C3-056, C3-057, C3-062; was BLOCKED (3): C3-056, C3-057, C3-062. C3-062 is VERIFIED with a note, under AUDIT's conditions: the alert is on the NAMED cell's symbol at the asked level and direction, exactly one is added, Undo leaves the book byte-identical, and a CONTROL case and a negative control prove the cell resolution. The cell's right-click "Set alert @ price" entry point is not exercised, and the alert book is a stateful stub in the test file.
+- PARTIAL (SIMULATED) (1): C3-058; was BLOCKED (1): C3-058. The intraday half is a persisted per-cell fork, read back; the D/W/M half is cell-local by design (`GridChartCell.jsx:107`, never saved) and is read only as a canvas prop. (The multichart packet had counted PARTIAL inside IMPL / UNVERIFIED; it is in the PARTIAL column here.)
+- Unchanged, pointing to the gap list (17): C3-042, C3-043, C3-044, C3-045, C3-046, C3-047, C3-048, C3-049, C3-050, C3-051, C3-052, C3-053, C3-054, C3-055, C3-059, C3-060, C3-061. C3-054 is an owner decision (admin/global scope). The others are really GAP: `gridBoard` is read-only, there is no `multiChart.set` capability, and the layout source has no `kind:'multichart'` filter.
+- Stale note corrected: "the Agent refuses every request there (useAgent.js:1836)" is STALE since `cf981857a0` (`useAgent.js:637` scopes the host to the grid; only grid-level writes are refused, `gridMode.js:75`). It is struck through and corrected in place in 18 rows of "Other state changes" and in "Limits".
+
+### Combined counts
+
+| | VERIFIED | PARTIAL | IMPL / UNVERIFIED | MISSING | BLOCKED | UNMAPPED | In scope | Excluded |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 2026-11-05 | 158 | 0 | 112 | 154 | 47 | 13 | 484 | 19 |
+| after chart settings + multichart | 190 | 4 | 82 | 153 | 43 | 12 | 484 | 19 |
+
+- VERIFIED 190 of 484, 39.3%. PARTIAL is in scope but never VERIFIED (the PARTIAL column PR #1016 introduced).
+- How: no generator exists. A script took the base `origin/master` `dfc645ccb3`, applied the union of the packets' row changes (and the multichart packet's note corrections), checked that no row or line was changed by two packets, recounted the "All actions" table into "Counts by area", "The number" and the runtime-only bullet, and kept every line's line ending. The 2026-11-05 sections below are left as that run wrote them, apart from the stale-note correction.
 
 ## Rules used
 
@@ -154,7 +173,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3 | Widget tabs | 0 | 0 | 4 | 0 | 0 | 0 | 4 | 0 |
 | C3 | Chart tabs | 4 | 0 | 1 | 0 | 0 | 0 | 5 | 0 |
 | C3 | Layout Dock | 7 | 0 | 3 | 5 | 2 | 0 | 17 | 0 |
-| C3 | Multi Chart | 0 | 0 | 0 | 2 | 19 | 0 | 21 | 0 |
+| C3 | Multi Chart | 3 | 1 | 0 | 2 | 15 | 0 | 21 | 0 |
 | C3 | Watchlist | 15 | 0 | 4 | 15 | 5 | 1 | 40 | 4 |
 | C3 | Scanner | 5 | 0 | 1 | 6 | 2 | 0 | 14 | 0 |
 | C3 | Volume Surge | 0 | 0 | 2 | 4 | 0 | 0 | 6 | 0 |
@@ -181,8 +200,8 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3 | Workspace | 0 | 0 | 0 | 1 | 1 | 1 | 3 | 0 |
 | C1 | **all** | 101 | 3 | 20 | 28 | 11 | 5 | 168 | 11 |
 | C2 | **all** | 38 | 0 | 32 | 21 | 5 | 4 | 100 | 1 |
-| C3 | **all** | 48 | 0 | 30 | 104 | 31 | 3 | 216 | 7 |
-| | **Total** | 187 | 3 | 82 | 153 | 47 | 12 | 484 | 19 |
+| C3 | **all** | 51 | 1 | 30 | 104 | 27 | 3 | 216 | 7 |
+| | **Total** | 190 | 4 | 82 | 153 | 43 | 12 | 484 | 19 |
 
 ## Raised to VERIFIED (47)
 
@@ -278,24 +297,24 @@ Every file:line citation in the control column was checked against this tree: 33
 | ID | Action | Was | Now | Reason |
 |---|---|---|---|---|
 | C2-013 | Toggle Chart IQ pattern recognition | UNMAPPED | IMPLEMENTED / UNVERIFIED | showChartIq is a chart.setSetting option; no state test. Control seen on the phone sheet only. |
-| C3-044 | Exit Multi Chart | MISSING | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
-| C3-045 | Toggle crosshair sync | MISSING | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
-| C3-046 | Toggle time-range sync | MISSING | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
-| C3-047 | Turn on Groups mode | MISSING | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
-| C3-048 | Pick a group for the grid | MISSING | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
-| C3-049 | Step or switch group | MISSING | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
-| C3-050 | Refresh the group | MISSING | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
-| C3-051 | Exit Groups | MISSING | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
-| C3-052 | Apply a saved grid | MISSING | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
-| C3-053 | Save a grid | MISSING | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
-| C3-055 | Delete a saved grid | MISSING | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
-| C3-056 | Set a cell's timeframe | UNMAPPED | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
-| C3-057 | Set a cell's chart style | UNMAPPED | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
-| C3-058 | Toggle a cell's session | UNMAPPED | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
-| C3-059 | Reset a cell to my chart | MISSING | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
-| C3-060 | Maximize or restore a cell | MISSING | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
-| C3-061 | Open shared grid settings | MISSING | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
-| C3-062 | Set an alert from a cell | IMPLEMENTED / UNVERIFIED | BLOCKED | Only exists in Multi Chart mode, and the Agent refuses every request there (useAgent.js:1836). |
+| C3-044 | Exit Multi Chart | MISSING | BLOCKED | Only exists in Multi Chart mode. ~~The Agent refuses every request there (useAgent.js:1836).~~ Corrected 2026-11-10: STALE since cf981857a0; chart operations run on the cells and only grid-level writes are refused (gridMode.js:75). See "Update 2026-11-10: combined execution packets (PR #1016)", Multi Chart. |
+| C3-045 | Toggle crosshair sync | MISSING | BLOCKED | Only exists in Multi Chart mode. ~~The Agent refuses every request there (useAgent.js:1836).~~ Corrected 2026-11-10: STALE since cf981857a0; chart operations run on the cells and only grid-level writes are refused (gridMode.js:75). See "Update 2026-11-10: combined execution packets (PR #1016)", Multi Chart. |
+| C3-046 | Toggle time-range sync | MISSING | BLOCKED | Only exists in Multi Chart mode. ~~The Agent refuses every request there (useAgent.js:1836).~~ Corrected 2026-11-10: STALE since cf981857a0; chart operations run on the cells and only grid-level writes are refused (gridMode.js:75). See "Update 2026-11-10: combined execution packets (PR #1016)", Multi Chart. |
+| C3-047 | Turn on Groups mode | MISSING | BLOCKED | Only exists in Multi Chart mode. ~~The Agent refuses every request there (useAgent.js:1836).~~ Corrected 2026-11-10: STALE since cf981857a0; chart operations run on the cells and only grid-level writes are refused (gridMode.js:75). See "Update 2026-11-10: combined execution packets (PR #1016)", Multi Chart. |
+| C3-048 | Pick a group for the grid | MISSING | BLOCKED | Only exists in Multi Chart mode. ~~The Agent refuses every request there (useAgent.js:1836).~~ Corrected 2026-11-10: STALE since cf981857a0; chart operations run on the cells and only grid-level writes are refused (gridMode.js:75). See "Update 2026-11-10: combined execution packets (PR #1016)", Multi Chart. |
+| C3-049 | Step or switch group | MISSING | BLOCKED | Only exists in Multi Chart mode. ~~The Agent refuses every request there (useAgent.js:1836).~~ Corrected 2026-11-10: STALE since cf981857a0; chart operations run on the cells and only grid-level writes are refused (gridMode.js:75). See "Update 2026-11-10: combined execution packets (PR #1016)", Multi Chart. |
+| C3-050 | Refresh the group | MISSING | BLOCKED | Only exists in Multi Chart mode. ~~The Agent refuses every request there (useAgent.js:1836).~~ Corrected 2026-11-10: STALE since cf981857a0; chart operations run on the cells and only grid-level writes are refused (gridMode.js:75). See "Update 2026-11-10: combined execution packets (PR #1016)", Multi Chart. |
+| C3-051 | Exit Groups | MISSING | BLOCKED | Only exists in Multi Chart mode. ~~The Agent refuses every request there (useAgent.js:1836).~~ Corrected 2026-11-10: STALE since cf981857a0; chart operations run on the cells and only grid-level writes are refused (gridMode.js:75). See "Update 2026-11-10: combined execution packets (PR #1016)", Multi Chart. |
+| C3-052 | Apply a saved grid | MISSING | BLOCKED | Only exists in Multi Chart mode. ~~The Agent refuses every request there (useAgent.js:1836).~~ Corrected 2026-11-10: STALE since cf981857a0; chart operations run on the cells and only grid-level writes are refused (gridMode.js:75). See "Update 2026-11-10: combined execution packets (PR #1016)", Multi Chart. |
+| C3-053 | Save a grid | MISSING | BLOCKED | Only exists in Multi Chart mode. ~~The Agent refuses every request there (useAgent.js:1836).~~ Corrected 2026-11-10: STALE since cf981857a0; chart operations run on the cells and only grid-level writes are refused (gridMode.js:75). See "Update 2026-11-10: combined execution packets (PR #1016)", Multi Chart. |
+| C3-055 | Delete a saved grid | MISSING | BLOCKED | Only exists in Multi Chart mode. ~~The Agent refuses every request there (useAgent.js:1836).~~ Corrected 2026-11-10: STALE since cf981857a0; chart operations run on the cells and only grid-level writes are refused (gridMode.js:75). See "Update 2026-11-10: combined execution packets (PR #1016)", Multi Chart. |
+| C3-056 | Set a cell's timeframe | UNMAPPED | BLOCKED | Only exists in Multi Chart mode. ~~The Agent refuses every request there (useAgent.js:1836).~~ Corrected 2026-11-10: STALE since cf981857a0; chart operations run on the cells and only grid-level writes are refused (gridMode.js:75). See "Update 2026-11-10: combined execution packets (PR #1016)", Multi Chart. |
+| C3-057 | Set a cell's chart style | UNMAPPED | BLOCKED | Only exists in Multi Chart mode. ~~The Agent refuses every request there (useAgent.js:1836).~~ Corrected 2026-11-10: STALE since cf981857a0; chart operations run on the cells and only grid-level writes are refused (gridMode.js:75). See "Update 2026-11-10: combined execution packets (PR #1016)", Multi Chart. |
+| C3-058 | Toggle a cell's session | UNMAPPED | BLOCKED | Only exists in Multi Chart mode. ~~The Agent refuses every request there (useAgent.js:1836).~~ Corrected 2026-11-10: STALE since cf981857a0; chart operations run on the cells and only grid-level writes are refused (gridMode.js:75). See "Update 2026-11-10: combined execution packets (PR #1016)", Multi Chart. |
+| C3-059 | Reset a cell to my chart | MISSING | BLOCKED | Only exists in Multi Chart mode. ~~The Agent refuses every request there (useAgent.js:1836).~~ Corrected 2026-11-10: STALE since cf981857a0; chart operations run on the cells and only grid-level writes are refused (gridMode.js:75). See "Update 2026-11-10: combined execution packets (PR #1016)", Multi Chart. |
+| C3-060 | Maximize or restore a cell | MISSING | BLOCKED | Only exists in Multi Chart mode. ~~The Agent refuses every request there (useAgent.js:1836).~~ Corrected 2026-11-10: STALE since cf981857a0; chart operations run on the cells and only grid-level writes are refused (gridMode.js:75). See "Update 2026-11-10: combined execution packets (PR #1016)", Multi Chart. |
+| C3-061 | Open shared grid settings | MISSING | BLOCKED | Only exists in Multi Chart mode. ~~The Agent refuses every request there (useAgent.js:1836).~~ Corrected 2026-11-10: STALE since cf981857a0; chart operations run on the cells and only grid-level writes are refused (gridMode.js:75). See "Update 2026-11-10: combined execution packets (PR #1016)", Multi Chart. |
+| C3-062 | Set an alert from a cell | IMPLEMENTED / UNVERIFIED | BLOCKED | Only exists in Multi Chart mode. ~~The Agent refuses every request there (useAgent.js:1836).~~ Corrected 2026-11-10: STALE since cf981857a0; chart operations run on the cells and only grid-level writes are refused (gridMode.js:75). See "Update 2026-11-10: combined execution packets (PR #1016)", Multi Chart. |
 | C3-152 | Toggle the TBD section | IMPLEMENTED / UNVERIFIED | MISSING | The offer was withdrawn: widget.setOption no longer offers tbdOpen because the widget never read it (2469b8c548). |
 | C3-160 | Change tile style | IMPLEMENTED / UNVERIFIED | MISSING | The offer was withdrawn: the widget reads a global pref, not opts (2469b8c548). |
 | C3-169 | Pick a period or ranking | IMPLEMENTED / UNVERIFIED | MISSING | The offer was withdrawn: the widget ignores opts; agentWidgetOptions now proves it refuses and stores nothing. |
@@ -306,7 +325,7 @@ Every file:line citation in the control column was checked against this tree: 33
 - Some actions are rowed twice across the parts (for example C1-097 and C2-018, C1-102 and C2-014). The inventory did this and I left it, so the percentage counts both.
 - A chart setting row is one key of a shared generic path. Most have no test of their own and stay IMPLEMENTED / UNVERIFIED.
 - The four indicator template rows pass with the build flag set. Docs say `VITE_INDICATOR_TEMPLATES_ENABLED` is on in production; the teach harness build had it off, and I could not confirm the production value here.
-- The Multi Chart rows went to BLOCKED because the Agent refuses every request in that mode. That is one gate, not 19 separate problems.
+- ~~The Multi Chart rows went to BLOCKED because the Agent refuses every request in that mode. That is one gate, not 19 separate problems.~~ Corrected 2026-11-10: STALE. Since cf981857a0 the Agent runs chart operations on the grid's cells; the real gate is that the grid object it sees (gridBoard, MultiChartGrid.jsx:232-245) has no writers. See "Update 2026-11-10: combined execution packets (PR #1016)", Multi Chart.
 
 ## All actions
 
@@ -629,27 +648,27 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-039 | Layout Dock | Remove a layout from the bar | MISSING | none | n/a | none |
 | C3-040 | Layout Dock | View a layout's version history | MISSING | none | n/a | none |
 | C3-041 | Layout Dock | Restore a layout version | MISSING | none | n/a | none |
-| C3-042 | Multi Chart | Enter a preset grid | MISSING | none | n/a | none |
-| C3-043 | Multi Chart | Apply a custom rows × columns grid | MISSING | none | n/a | none |
-| C3-044 | Multi Chart | Exit Multi Chart | BLOCKED | none | n/a | none |
-| C3-045 | Multi Chart | Toggle crosshair sync | BLOCKED | none | n/a | none |
-| C3-046 | Multi Chart | Toggle time-range sync | BLOCKED | none | n/a | none |
-| C3-047 | Multi Chart | Turn on Groups mode | BLOCKED | none | n/a | none |
-| C3-048 | Multi Chart | Pick a group for the grid | BLOCKED | none | n/a | none |
-| C3-049 | Multi Chart | Step or switch group | BLOCKED | none | n/a | none |
-| C3-050 | Multi Chart | Refresh the group | BLOCKED | none | n/a | none |
-| C3-051 | Multi Chart | Exit Groups | BLOCKED | none | n/a | none |
-| C3-052 | Multi Chart | Apply a saved grid | BLOCKED | none | n/a | none |
-| C3-053 | Multi Chart | Save a grid | BLOCKED | none | n/a | none |
-| C3-054 | Multi Chart | Save a grid as global (admin) | BLOCKED | none | n/a | none |
-| C3-055 | Multi Chart | Delete a saved grid | BLOCKED | none | n/a | none |
-| C3-056 | Multi Chart | Set a cell's timeframe | BLOCKED | none | n/a | none |
-| C3-057 | Multi Chart | Set a cell's chart style | BLOCKED | none | n/a | none |
-| C3-058 | Multi Chart | Toggle a cell's session | BLOCKED | none | n/a | none |
-| C3-059 | Multi Chart | Reset a cell to my chart | BLOCKED | none | n/a | none |
-| C3-060 | Multi Chart | Maximize or restore a cell | BLOCKED | none | n/a | none |
-| C3-061 | Multi Chart | Open shared grid settings | BLOCKED | none | n/a | none |
-| C3-062 | Multi Chart | Set an alert from a cell | BLOCKED | none | n/a | none |
+| C3-042 | Multi Chart | Enter a preset grid | MISSING | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
+| C3-043 | Multi Chart | Apply a custom rows × columns grid | MISSING | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
+| C3-044 | Multi Chart | Exit Multi Chart | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
+| C3-045 | Multi Chart | Toggle crosshair sync | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
+| C3-046 | Multi Chart | Toggle time-range sync | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
+| C3-047 | Multi Chart | Turn on Groups mode | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
+| C3-048 | Multi Chart | Pick a group for the grid | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
+| C3-049 | Multi Chart | Step or switch group | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
+| C3-050 | Multi Chart | Refresh the group | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
+| C3-051 | Multi Chart | Exit Groups | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
+| C3-052 | Multi Chart | Apply a saved grid | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
+| C3-053 | Multi Chart | Save a grid | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
+| C3-054 | Multi Chart | Save a grid as global (admin) | BLOCKED | none; owner decision (admin/global scope): docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
+| C3-055 | Multi Chart | Delete a saved grid | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
+| C3-056 | Multi Chart | Set a cell's timeframe | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-056 "could you flip the top-right one over to a weekly view"; C3-056 (pre-model path) "make the top-right chart weekly" | pass 8/8 (17 todo) | panel, scripted model |
+| C3-057 | Multi Chart | Set a cell's chart style | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-057 "turn the bottom-left chart into plain bars" | pass 8/8 (17 todo) | panel, scripted model |
+| C3-058 | Multi Chart | Toggle a cell's session | PARTIAL (SIMULATED) — covered: intraday, the cell's own extendedHoursShading fork read back from the saved multichart_state, Undo drops it; not covered as persisted state: D/W/M, whose session view is cell-local by design (GridChartCell.jsx:107, never saved) and is read back only as the prop the real cell hands its stubbed canvas | multiChart.outcome.test.jsx: C3-058 (intraday) "regular hours only on the top-left chart"; C3-058 (D/W/M) "include extended hours on the top-left chart" | pass 8/8 (17 todo) | panel, scripted model |
+| C3-059 | Multi Chart | Reset a cell to my chart | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
+| C3-060 | Multi Chart | Maximize or restore a cell | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
+| C3-061 | Multi Chart | Open shared grid settings | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
+| C3-062 | Multi Chart | Set an alert from a cell | VERIFIED (SIMULATED outcome test, scripted model, jsdom) — note: the alert is on the NAMED cell's symbol, at the asked level (250) and direction (above), exactly one added and none on another cell's symbol, and Undo leaves the book byte-identical; a CONTROL case (the member clicked a cell holding a different symbol) and a negative control (a plan alerting the active cell is rejected by the same check) prove the cell resolution at scripted-model level. The cell's right-click "Set alert @ price" entry point (GridChartCell.jsx:353-360) is NOT exercised: this is the Agent's route to the same outcome. The alert book is a stateful /api/watchlist-alerts stub with the real routes (GET/POST/DELETE) | multiChart.outcome.test.jsx: C3-062 "alert me when the top-right chart goes above 250"; C3-062 CONTROL (clicked top-left NVDA, named top-right AMD); C3-062 CONTROL (the check has teeth: an active-cell plan fails it) | pass 8/8 (17 todo) | panel, scripted model |
 | C3-063 | Watchlist | Open a list in a widget (own) | IMPLEMENTED / UNVERIFIED | agentBoard.test.jsx:158 | pass 1/1 | runtime, no panel |
 | C3-064 | Watchlist | Open a prebuilt or community list | MISSING | none | n/a | none |
 | C3-065 | Watchlist | Open the Flagged list | MISSING | none | n/a | none |
