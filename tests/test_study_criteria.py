@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import copy
 import json
+import re
 import pathlib
 import shutil
 
@@ -60,7 +61,7 @@ def test_pilot_covers_the_brief():
     assert {s["kind"] for s in card["question_seeds"]} == set(crit.SEED_KINDS)
     assert len(card["question_seeds"]) >= 12
     pending = [c for c in card["criteria"] if c["status"] == "pending-owner"]
-    assert pending and all(c["owner_question"].startswith("Q-01-") for c in pending)
+    assert pending and all(re.fullmatch(r"D-\d{3}", c["owner_question"]) for c in pending)
     # the scan's three measured lines are on the card as evidence
     assert "39.2%" in _crit(card, "fb.breakout_volume")["evidence"]
     assert "NOT better" in _crit(card, "fb.depth")["evidence"]
@@ -128,7 +129,7 @@ def _bad_question_format(d):
 
 
 def _question_not_listed(d):
-    d["owner_decisions"].remove("Q-01-4")
+    d["owner_decisions"].remove("D-043")
 
 
 def _bad_id(d):
@@ -217,7 +218,7 @@ def _gate_not_bool(d):
     (_bad_status, "status must be one of"),
     (_pending_without_question, "pending-owner needs an owner_question"),
     (_bad_question_format, "must be D-NNN or a Q-NN-n placeholder"),
-    (_question_not_listed, "owner_question Q-01-4 is not listed in owner_decisions"),
+    (_question_not_listed, "owner_question D-043 is not listed in owner_decisions"),
     (_bad_id, "id must be <prefix>.<snake>"),
     (_second_prefix, "more than one id prefix"),
     (_duplicate_id, "duplicate id"),
@@ -282,18 +283,21 @@ def test_glossary_and_decisions_checks_run_only_when_the_registers_exist(tmp_pat
     probs = crit.validate_card(d, root)
     assert probs == ["fb.depth: glossary id 'no_such_term' is not in GLOSSARY.md"]
     assert crit.glossary_ids(root / crit.GLOSSARY_REL) == set(used)
-    _crit(d, "fb.depth")["glossary"] = "depth"
+    _crit(d, "fb.depth")["glossary"] = "base_depth"
     assert crit.validate_card(d, root) == []
     # the decisions register lands without D-004
-    (root / crit.DECISIONS_REL).write_text("# Decisions\n\n## D-001 The 21 EMA\n\nSee D-002.\n", encoding="utf-8")
+    real = sorted({c["owner_question"] for c in d["criteria"] if c.get("owner_question")} - {"D-004"})
+    body = "# Decisions\n\n## D-001 The 21 EMA\n\nSee D-002.\n" + "".join(f"## {x} A decision\n\n" for x in real)
+    (root / crit.DECISIONS_REL).write_text(body, encoding="utf-8")
     probs = crit.validate_card(d, root)
     assert any("owner_question 'D-004' is not in DECISIONS.md" in p for p in probs)
-    assert crit.decision_ids(root / crit.DECISIONS_REL) == {"D-001", "D-002"}
+    assert crit.decision_ids(root / crit.DECISIONS_REL) == {"D-001", "D-002", *real}
     _crit(d, "fb.depth")["owner_question"] = "D-001"
     d["owner_decisions"].append("D-001")
     assert crit.validate_card(d, root) == []
     # a placeholder is never checked against the register
     _crit(d, "fb.depth")["owner_question"] = "Q-01-4"
+    d["owner_decisions"].append("Q-01-4")
     assert crit.validate_card(d, root) == []
 
 
