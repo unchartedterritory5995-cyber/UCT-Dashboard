@@ -495,6 +495,22 @@ describe('C33 (8) — a guard with a term nothing reads, gated by an input', () 
     expect(c.withheldBy).toEqual({ 'objects:collector': ['line'] })
   })
 
+  it('⛔ W-C22-DEL r7 (N-j) — BOXES are the witnessed exception: a `var array<box>` past the cap beside maybe-boxes is judged PER OBJECT, never withheld whole', () => {
+    // cap 5. Every bar a gated box Pine MAY make, then a control box pushed into a
+    // `var` array (sonarlab's shape, objectPool.js C7: array-held boxes are collected).
+    // Control of bar b: 19 - b later controls + 19 - b maybe-boxes, no box register:
+    // bound 1 + 2 (19 - b) <= 5 ⇒ bars 17, 18, 19 drawn; the rest held back by name.
+    const t = host(['//@version=5', 'indicator("t", overlay=true, max_boxes_count=5)',
+      'gate = input.bool(true, "G")', 'var box[] keep = array.new_box()',
+      'if gate and dayofweek(time, "GMT+10") == dayofweek.monday',
+      '    box.new(bar_index, low, bar_index + 1, low - 1)',
+      'array.push(keep, box.new(bar_index, high + 1, bar_index + 1, high))'].join(LF))
+    expect((t.objects.colls || []).filter((c) => c.family === 'box')).toHaveLength(1)
+    const r = run(t, 20)
+    expect(r.live.filter((o) => o.family === 'box').map((o) => o.createdBar)).toEqual([17, 18, 19])
+    expect(r.withheldBy).toEqual({ 'objects:collector': ['box'] })
+  })
+
   it('⛔ a program whose EVERY create stands under such a guard is no program: the door keeps its own sentence', () => {
     const t = host(src(5, 'gate = input.bool(true, "G")',
       'if gate and dayofweek(time, "GMT+10") == dayofweek.monday',
