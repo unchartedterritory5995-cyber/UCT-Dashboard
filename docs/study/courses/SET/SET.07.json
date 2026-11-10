@@ -2009,19 +2009,19 @@
    "rung": 6,
    "format": "numeric",
    "criterion": "fb.stop",
-   "q": "Account 50,000. Risk 1%. Fill 59.40, stop 57.96. How many shares?",
-   "answer": 347,
+   "q": "Account 50,000. Risk 0.5%. Fill 59.40, stop 57.96. How many shares?",
+   "answer": 173,
    "calc": {
     "fn": "shares_from_risk",
     "args": {
      "account": 50000,
-     "risk_pct": 1,
+     "risk_pct": 0.5,
      "entry": 59.4,
      "stop": 57.96
     },
     "round": 0
    },
-   "why": "347. Account times risk percent, divided by the fill minus the stop, rounded down. The stop sets the size, never the other way round.",
+   "why": "173. Account times risk percent, divided by the fill minus the stop, rounded down. The stop sets the size, never the other way round.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h03",
@@ -2943,8 +2943,8 @@
   },
   "q45": {
    "status": "pass",
-   "notes": "calc re-derived: 50,000 x 1% = 500; 500 / (59.40 - 57.96 = 1.44) = 347.2, rounded down = 347. h03 (A5), h01 verbatim; d13 (LNG fill 59.40, stop 57.96).",
-   "fixed": false,
+   "notes": "calc re-derived: 50,000 x 1% = 500; 500 / (59.40 - 57.96 = 1.44) = 347.2, rounded down = 347. h03 (A5), h01 verbatim; d13 (LNG fill 59.40, stop 57.96). | 2026-11-10 follow-up: 1% gave 347 shares, 41.2% of the account, over the 40% position cap (A7); risk now 0.5%, 173 shares, 20.6%.",
+   "fixed": true,
    "by": "checker"
   },
   "q46": {
