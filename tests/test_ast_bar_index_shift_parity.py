@@ -170,3 +170,25 @@ def test_an_arm_an_input_switches_off_is_no_path():
     got = ai.interpret(gate(case["ast"]), doc["bars"], {"jz": 0}, opts=dict(case["opts"], chartClockSink=sink))
     assert [g is None for g in got] == [e is None for e in case["expected"]]
     assert sorted(sink) == []
+
+
+@pytest.mark.parametrize("bz", [0, 1])
+def test_an_or_is_not_an_and(bz):
+    """r3 (review VAR-OFF P4) -- ``interpret.js::prunedUpdate``'s ``||`` rule, this lane:
+    ``r == 1 || bz`` with ``bz`` off IS ``r == 1`` (a probe case, withheld as the plain
+    latch); with ``bz`` on it is true on every bar (``r`` is 1, served past the warm-up)."""
+    doc = _doc()
+    case = {c["name"]: c for c in doc["cases"]}["a latch read only in its test \u00b7 var origin \u00b7 off the listing"]
+    ast = case["ast"]
+    body = ast["args"][1]
+    gated = dict(ast, args=[ast["args"][0], dict(body, args=[
+        {"type": "op", "name": "||", "args": [body["args"][0], {"type": "series", "name": "bz"}]}] + body["args"][1:])]
+        + ast["args"][2:])
+    sink: dict = {}
+    got = ai.interpret(gated, doc["bars"], {"bz": bz}, opts=dict(case["opts"], chartClockSink=sink))
+    if bz == 0:
+        assert got == case["expected"]
+        assert sorted(sink) == ["var-origin:bars"]
+    else:
+        assert got[250:] == [1] * (len(got) - 250)
+        assert sorted(sink) == []

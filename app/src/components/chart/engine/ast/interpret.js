@@ -6042,6 +6042,17 @@ function prunedUpdate(body, bars, inputs, budget, scalars, opts) {
       return { type: 'num', value: 0 }
     }
     if (n.type === 'op' && n.name === '&&' && args.some((a) => isNum(a) && a.value === 0)) return { type: 'num', value: 0 }
+    // ⭐ r3 (review VAR-OFF P4) — an `||` is NOT an `&&`: a TRUE operand that is the same on
+    // every bar makes it true; a FALSE one is dropped and the OTHER side decides (`x || false`
+    // is `x`, and when `x` reads `self` it still decides the branch). Never false for one false.
+    if (n.type === 'op' && n.name === '||') {
+      const known = args.map((a) => (isNum(a) ? a.value : (!isNa(a) && seedBarInvariant(a, inputs) ? valueOf(a) : NaN)))
+      if (known.some((v) => Number.isFinite(v) && v !== 0)) return { type: 'num', value: 1 }
+      const live = args.filter((_, k) => !(Number.isFinite(known[k]) && known[k] === 0))
+      if (!live.length) return { type: 'num', value: 0 }
+      if (live.length === 1) return live[0]
+      return { ...n, args: live }
+    }
     if (n.type === 'op' && args.some(isNa) && ['+', '-', '*', '/'].includes(n.name)) return NA()
     return { ...n, args }
   }

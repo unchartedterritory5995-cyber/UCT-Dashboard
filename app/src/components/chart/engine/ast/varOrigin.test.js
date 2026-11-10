@@ -236,6 +236,31 @@ describe('⭐ r1 — the three shapes the first probe let through (review VAR-OF
     expect([...sink.keys()]).toEqual([])
   })
 
+  // ⭐ r3 (review VAR-OFF P4) — an `||` is NOT an `&&`. The translator folds `r == 1 or bz` with
+  // `bz` off to `r == 1` before this lane sees it, so the `||` a saved or bound document can
+  // carry is built here: the latch's test, `or` an input.
+  const orGate = (ast) => {
+    const body = ast.args[1]
+    return { ...ast, args: [ast.args[0], { ...body, args: [{ type: 'op', name: '||', args: [body.args[0],
+      { type: 'series', name: 'bz' }] }, ...body.args.slice(1)] }, ...ast.args.slice(2)] }
+  }
+  const runOr = (bz) => {
+    const sink = new Map()
+    const got = Array.from(interpret(orGate(kase('a latch read only in its test').ast), BARS, { bz }, undefined, undefined,
+      { ...VAR_DOC, chartClockSink: sink })).map((x) => (Number.isNaN(x) ? null : x))
+    return { got, codes: [...sink.keys()] }
+  }
+  it('⭐ r3 — `r == 1 || <an input that is off>` IS `r == 1`: still a probe case, withheld exactly as the plain latch', () => {
+    const { got, codes: named } = runOr(0)
+    expect(got).toEqual(col('a latch read only in its test'))
+    expect(named).toEqual(['var-origin:bars'])
+  })
+  it('…and `|| <an input that is on>` is TRUE on every bar: `r` is 1 everywhere, and served past the warm-up', () => {
+    const { got, codes: named } = runOr(1)
+    expect(got.slice(250)).toEqual(new Array(N - 250).fill(1))
+    expect(named).toEqual([])
+  })
+
   it('a state-gated hold is probed from far seeds as well, and is withheld where its state may lie outside', () => {
     expect(nulls('a state-gated hold')).toBe(N)
     expect(codes('a state-gated hold')).toEqual(['var-origin:bars'])

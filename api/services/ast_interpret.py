@@ -4963,6 +4963,19 @@ def _var_origin_pruned(body: Any, bars: List[dict], inputs, budget, scalars, opt
             return {"type": "num", "value": 0}
         if kind == "op" and name == "&&" and any(is_num(x) and x["value"] == 0 for x in args):
             return {"type": "num", "value": 0}
+        # r3 (review VAR-OFF P4) -- ``||`` is not ``&&``: a bar-invariant TRUE operand makes it
+        # true; a FALSE one is dropped and the other side decides (``x || false`` is ``x``)
+        if kind == "op" and name == "||":
+            known = [x["value"] if is_num(x) else (value_of(x) if not is_na(x) and _var_origin_seed_invariant(x, inputs)
+                                                   else math.nan) for x in args]
+            if any(isinstance(v, (int, float)) and math.isfinite(v) and v != 0 for v in known):
+                return {"type": "num", "value": 1}
+            live = [x for x, v in zip(args, known) if not (isinstance(v, (int, float)) and math.isfinite(v) and v == 0)]
+            if not live:
+                return {"type": "num", "value": 0}
+            if len(live) == 1:
+                return live[0]
+            return dict(n, args=live)
         if kind == "op" and name in ("+", "-", "*", "/") and any(is_na(x) for x in args):
             return na_node()
         return dict(n, args=args)
