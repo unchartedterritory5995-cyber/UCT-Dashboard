@@ -1198,9 +1198,52 @@
     "trigger": "2024-05-08",
     "criterion": "go.close_under_pc_warning",
     "note": "a gap-down open (-1.2%) that reclaimed the prior close in the first candle (90.98), then drifted between 89.5 and 90.5 all day, closed at 90.41 under the prior close (90.55), and was stopped the next day at 89.39 for -1R; best excursion 0.08R. A reclaim that does not follow through within the session is the warning in practice."
+   },
+   {
+    "ticker": "CRWD",
+    "date": "2023-12-29",
+    "criterion": "go.reclaim_close",
+    "why": "a gap-down open that reclaimed the prior close (64.03) by one cent at 64.04; the next candle fell through the stop (63.39, low 63.13) at 0.0R and the stock lost 6% in two sessions. A reclaim by a cent proves nothing."
+   },
+   {
+    "ticker": "GOOG",
+    "date": "2026-05-18",
+    "criterion": "go.close_under_pc_warning",
+    "why": "the first candle ran 392.12 to 404.44 (buy 402.05, 2.78% risk) and was the high of the day; the session closed 393.15 under the prior close 393.32 and the next open gapped through the stop (390.88). Best 0.04R."
    }
   ],
-  "limits": "A fixed stop with no trims or breakeven move; Yahoo's 9:30-anchored hourly bars, so some sessions pass or fail differently from a clock-aligned chart; the RS proxy is a rank among the scanned names, not IBD's rating; the tight-base qualifier let in many weak prior moves; about 3 years of hourly bars only, and the 1,000 most-traded names. The mechanical trigger alone showed no edge: the stock, the level and the market are what the examples were chosen on."
+  "limits": "A fixed stop with no trims or breakeven move; Yahoo's 9:30-anchored hourly bars, so some sessions pass or fail differently from a clock-aligned chart; the RS proxy is a rank among the scanned names, not IBD's rating; the tight-base qualifier let in many weak prior moves; about 3 years of hourly bars only, and the 1,000 most-traded names. The mechanical trigger alone showed no edge: the stock, the level and the market are what the examples were chosen on.",
+  "near_misses": [
+   {
+    "ticker": "AXON",
+    "date": "2024-09-11",
+    "criterion": "go.reclaim_window",
+    "why": "the close back above the prior close (359.35) came on the third hourly candle (361.39), after the two-candle window; everything else passes (a 25% five-day move, a 6.6% flag, RS 94, the 20-day EMA). A 30-minute pivot (setup 41), which went on to 47.8R."
+   },
+   {
+    "ticker": "SNOW",
+    "date": "2026-09-08",
+    "criterion": "go.hourly_flag",
+    "why": "the 3 sessions before span 26.5% (the rule needs 10% or less); a gap-down open reclaimed at the first candle at the 10-day EMA. A red to green inside a wild post-earnings range, no flag to buy against; 0.38R then the stop."
+   },
+   {
+    "ticker": "CF",
+    "date": "2026-03-19",
+    "criterion": "go.at_support",
+    "why": "the session low (126.55) sat 5.2% above the 10-day EMA, the nearest level (the rule allows 3% under to 1% over); a 23% five-day move, a 6.6% flag, RS 90. A red to green in mid-air; stopped the same session at 0.0R."
+   },
+   {
+    "ticker": "CRS",
+    "date": "2025-11-14",
+    "criterion": "go.stop_width",
+    "why": "after a 2.8% gap down the first candle ran 315.73 to 329.02, so the stop under its low is 4.96% from the entry (the rule says about 3%). A valid turn too big to buy at the candle close; size down (A5) or skip (A3)."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_41-30-minute-pivot.png"
+  }
  },
  "question_seeds": [
   {

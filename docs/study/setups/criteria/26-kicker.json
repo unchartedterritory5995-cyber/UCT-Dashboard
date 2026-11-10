@@ -1305,9 +1305,52 @@
     "trigger": "2020-02-03",
     "criterion": "kk.earnings_window",
     "note": "the report came after the Kicker's own close; it gapped down the next morning to 0R. AVGO 2024-03-07 did the same. B22 (no new buys in the 3 sessions before a report) removes both, and SMTC 2024-03-26 (a 29R replay) and FORM 2025-10-29 with them."
+   },
+   {
+    "ticker": "CDNS",
+    "date": "2021-12-02",
+    "criterion": "kk.after_entry_stop",
+    "why": "a textbook picture (an 8.1% base, a red day closing on its low, a 1.7% gap, +5.5% on 1.6x; buy 181.81, stop 177.50, 2.4%) whose next day fell through the stop at 0.0R; the Kicker's whole gain was given back in one day."
+   },
+   {
+    "ticker": "PGR",
+    "date": "2023-03-16",
+    "criterion": "kk.close_under_red_high_warning",
+    "why": "a -4.8% red day at the base lows, a 2.7% gap and +5.8% on 2.0x (buy 141.14, stop 137.35, 2.7%); day 2 opened 142.16 and closed 136.32 under the red high, and the stop traded that day at 0.0R."
    }
   ],
-  "limits": "RS 80+, the market reading, position size, the 30-minute stop raise at 10:00 and B20 are not in the scan. In-day triggers use the day's final low, which a live trader does not know. 128 of 530 stock hits (before 2005, or names with no dates) could not be checked for a report; CSCO 1999-11-10 was one and is excluded. The rulebook's 2R breakeven and 3R/5R trims would change the numbers."
+  "limits": "RS 80+, the market reading, position size, the 30-minute stop raise at 10:00 and B20 are not in the scan. In-day triggers use the day's final low, which a live trader does not know. 128 of 530 stock hits (before 2005, or names with no dates) could not be checked for a report; CSCO 1999-11-10 was one and is excluded. The rulebook's 2R breakeven and 3R/5R trims would change the numbers.",
+  "near_misses": [
+   {
+    "ticker": "LUV",
+    "date": "2026-01-29",
+    "criterion": "kk.not_earnings",
+    "why": "the gap day is the earnings reaction day (report 2026-01-28 after the close); red day -1.2%, gap 6.2%, +18.7% on 3.8x. An earnings gapper, graded as a PEG (setup 21)."
+   },
+   {
+    "ticker": "CEG",
+    "date": "2024-06-10",
+    "criterion": "kk.gap_open",
+    "why": "opened 0.8% over the red close (the rule needs 1.5%); red day -2.3% closing at 7% of its range, +8.4% on 2.0x. A plain breakout day with no gap."
+   },
+   {
+    "ticker": "GWW",
+    "date": "2024-10-11",
+    "criterion": "kk.red_day_size",
+    "why": "the red body is 0.04% and the drop 0.4% (the rule needs 1%); gap 2.2%, +5.8% on 2.5x out of a 4.8% base. A baby red candle (kk.red_day_red): nobody was trapped."
+   },
+   {
+    "ticker": "IDCC",
+    "date": "2011-08-03",
+    "criterion": "kk.structure",
+    "why": "the prior 20 closes span 44.1% (the rule needs 15% or less); red day -5.8%, gap 5.7%, +13.8% on 2.7x. No base, a stock mid-run; stopped the next session at 0.0R."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_21-power-earnings-gap.png"
+  }
  },
  "question_seeds": [
   {

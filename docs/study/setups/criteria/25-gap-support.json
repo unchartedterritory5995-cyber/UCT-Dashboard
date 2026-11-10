@@ -1304,9 +1304,52 @@
     "trigger": "2020-09-17",
     "criterion": "gs.market_reading",
     "note": "an 11.7% earnings gap on 2.2x volume tested 35 sessions later with a close at 97% of the range and 3.2% risk; the stop traded with no gain. The stock had already fallen hard from its post-gap high and the broad market was in its September 2020 pullback: the scan ignores the reading, which is the missing filter here."
+   },
+   {
+    "ticker": "AEHR",
+    "date": "2023-08-14",
+    "criterion": "gs.inv_fill",
+    "why": "a 7.5% earnings gap on 6.6x volume (2023-07-14) tested 21 sessions later with a hammer close at 0.93 of the range on the line; the stop traded the next session, the gap filled on a close two sessions later (08-17) and the stock halved by 10-30."
+   },
+   {
+    "ticker": "DKS",
+    "date": "2021-06-16",
+    "criterion": "gs.after_entry_stop",
+    "why": "a 10.5% earnings gap on 8.1x volume (2021-05-26) tested 14 sessions later (close 0.68, 1.9% risk); the stop traded the next session on a 2.4% undercut that closed back on the line (91.46), then the stock ran to 147.39 by 09-07. The stop is the exit; a re-entry needs a new trigger (B21)."
    }
   ],
-  "limits": "No RS rating, group strength or market reading in the scan: the base rate is for the chart pattern alone. First qualifying test per gap, daily bars only, so the owner's intraday entries are not measured; the 5% undercut and 1% close allowances make some hits looser than his 'slight breach'. Earnings classification from Yahoo and SEC 8-K dates, complete from about 2005. Survivors only."
+  "limits": "No RS rating, group strength or market reading in the scan: the base rate is for the chart pattern alone. First qualifying test per gap, daily bars only, so the owner's intraday entries are not measured; the 5% undercut and 1% close allowances make some hits looser than his 'slight breach'. Earnings classification from Yahoo and SEC 8-K dates, complete from about 2005. Survivors only.",
+  "near_misses": [
+   {
+    "ticker": "AMD",
+    "date": "2023-06-01",
+    "criterion": "gs.gap_volume",
+    "why": "gap 2023-05-25 opened +8.3% on only 1.6x the 50-day volume (the rule needs 2x); the test 4 sessions later held (low 0.7% above the line, close 0.61). A gap on ordinary volume; taken anyway, 0.73R then the stop."
+   },
+   {
+    "ticker": "DE",
+    "date": "2026-02-25",
+    "criterion": "gs.test_close_position",
+    "why": "gap 2026-02-19 opened +6.8% on 4.4x; the test 4 sessions later closed at 0.01 of its range, 0.8% under the line (the rule needs the upper half). Still falling into the close (gs.inv_still_falling); 0.0R if taken."
+   },
+   {
+    "ticker": "DOCU",
+    "date": "2025-03-31",
+    "criterion": "gs.not_downtrend",
+    "why": "gap 2025-03-14 opened +9.1% on 5.4x but closed 2.6% under a falling 50-day (3.2% lower than 10 sessions earlier); the test 11 sessions later looked fine (close 0.75, 0.8% undercut). A bounce in a downtrend; 0.0R if taken."
+   },
+   {
+    "ticker": "EVR",
+    "date": "2019-02-07",
+    "criterion": "gs.above_200",
+    "why": "gap 2019-01-30 opened +11.3% on 4.1x above a rising 50-day; the test 6 sessions later closed 6.9% under the 200-day (the rule needs a close above it). A downtrend bounce; 0.0R if taken."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_21-power-earnings-gap.png"
+  }
  },
  "question_seeds": [
   {

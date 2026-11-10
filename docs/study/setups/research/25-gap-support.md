@@ -1356,3 +1356,39 @@ first qualifying test per gap and only daily bars, so the owner's intraday entri
 measured, and the 5% undercut allowance plus the 1% close allowance mean some hits are looser than his "slight
 breach". Earnings classification uses the sandbox's Yahoo and SEC 8-K dates, complete from about 2005; the 2004 ADSK
 gap matched a date in that set, but an unmatched gap before 2005 would be unclassifiable rather than "news".
+
+## 13. Failures and near-misses (from our data)
+
+Added 2026-11-10 from the section 12 scan (`scan_gs.py`, `final/hits.json`) and a one-gate-relaxed copy
+(`near_scan.py`, `final/near_hits.json`: gap days loosened to a 2% open gap on 1.2x volume, the first session that
+reaches the gap-up low evaluated with every gate recorded; kept when exactly one gate fails). Charts in
+`_study-resume/scratchpad/setups/25-gap-support/final/`: `fail_1..4_*.png` and `fail_1-4.png`, `near_1..4_*.png` and
+`near_1-4.png`, and the confusable pair `pair_21-power-earnings-gap.png` (GPN above LULU, the tell from the card). Buy
+= the test day's close; stop = a few cents under the test day's low; "where it stopped" counts sessions after the test
+day. All four gap days are earnings reaction days in the sandbox's dates.
+
+**Failures: valid by every gate, stopped before 3R.** AVGO and AMD are the dossier's own named failures (section 12).
+
+| # | Ticker | Gap day, test day | Buy | Stop | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|---|
+| 1 | AVGO | gap 2025-09-05 (+16.2% open, 4.3x), test 2025-09-24, 13 sessions later | 339.31 | 333.47 (1.7%) | the next session (2025-09-25, low 327.30), 0.0R | A near perfect test (low 0.7% above the line 331.42, close at 0.88 of the range, 2.6 ATR off the high) that traded the stop the next morning. The gap never filled (no close under 308.78) and the stock made 414.61 by 12-10. Gaps of 15% or more reached 3R 26% of the time in the scan. | gs.gap_not_huge |
+| 2 | AEHR | gap 2023-07-14 (+7.5% open, 6.6x), test 2023-08-14, 21 sessions later | 45.77 | 44.45 (2.9%) | the next session (2023-08-15), 0.0R | A hammer close at 0.93 of the range on the line (44.42), then straight down: a close under the gap-fill spot (41.76) two sessions later (08-17) and 21.57 by 10-30. The true failure mode: the gap filled and the stock halved. | gs.inv_fill |
+| 3 | DKS | gap 2021-05-26 (+10.5% open, 8.1x), test 2021-06-16, 14 sessions later | 93.62 | 91.84 (1.9%) | the next session (2021-06-17, low 89.21), 0.0R | A 2.4% undercut of the line that closed back on it (91.46), then a run to 147.39 by 09-07. The stop was right by the rules and wrong in hindsight; a re-entry needs a new trigger (B21). | gs.after_entry_stop |
+| 4 | AMD | gap 2020-07-29 (+11.7% open, 2.2x), test 2020-09-17, 35 sessions later | 76.55 | 74.12 (3.2%) | the next session (2020-09-18, low 73.85, 27 cents under), 0.0R | A close at 0.97 of the range on the line (73.90), 4.4 ATR off the post-gap high, in the September 2020 market pullback; the stop traded by 27 cents and the stock chopped between 73.76 and 96.37 for the next 60 sessions. The scan does not read the market; the rulebook does. | gs.market_reading |
+
+**Near-misses: look like Gap Support, fail exactly one gate.**
+
+| # | Ticker | Gap day, test day | The one criterion that fails | The number | What it really is |
+|---|---|---|---|---|---|
+| 1 | AMD | gap 2023-05-25 (+8.3% open), test 2023-06-01, 4 sessions later | gs.gap_volume | gap-day volume 1.6x the 50-day average; the rule needs 2x. The test itself passes (low 0.7% above the line 115.80, close 0.61, 2.6 ATR off the high). | A gap on ordinary volume (the 2023-05-25 sympathy day, not an earnings day). Taken anyway: 0.73R, then the stop. |
+| 2 | DE | gap 2026-02-19 (+6.8% open, 4.4x), test 2026-02-25, 4 sessions later | gs.test_close_position | the test day closed at 0.01 of its range (623.61, 0.8% under the line 628.72); the rule needs the upper half. | A test still falling into the close (gs.inv_still_falling). No hold, nothing to buy; the stop under it would have traded at 0.0R. |
+| 3 | DOCU | gap 2025-03-14 (+9.1% open, 5.4x), test 2025-03-31, 11 sessions later | gs.not_downtrend | the gap day closed 2.6% under the 50-day SMA, and the 50-day was 3.2% lower than 10 sessions earlier; the rule needs a close above a flat or rising 50-day. The test (close 0.75, 0.8% undercut) passes. | An earnings gap inside a downtrend: a bounce, not Gap Support. Taken: 0.0R and a slide to 72. |
+| 4 | EVR | gap 2019-01-30 (+11.3% open, 4.1x), test 2019-02-07, 6 sessions later | gs.above_200 | the test day closed 6.9% under the 200-day SMA; the rule needs a close above it (gs.inv_under_200). The gap, the 50-day and the test all pass. | A downtrend bounce under the 200-day; the stop traded at 0.0R. |
+
+**What the failures have in common.** All four traded the stop on the very next session with no gain: the stop under
+the test day's low is 1.7% to 3.2% away and the session after the test decides. Three of the four (AVGO, DKS, AMD) then
+went up, two of them far, so the loss came from the stop's tightness, not from a wrong line; only AEHR failed the way
+the card describes, with the gap filling and the stock halving. The test days themselves were as clean as the winners
+(closes 0.68 to 0.97 of the range, undercuts of 0.2% to 0.7%), so the chart gives no warning; what separates them is
+context the scan does not read: a very large gap (AVGO), a market pullback (AMD), and the plain base rate (85% of hits
+touch the stop inside 60 sessions).

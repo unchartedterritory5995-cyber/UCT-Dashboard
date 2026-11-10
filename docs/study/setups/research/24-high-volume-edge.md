@@ -1334,3 +1334,40 @@ tighter where the low came first and wrong where it came after the reclaim; the 
 series, so a split inside the 252-session window would distort the record multiple (none of the ten had one). Earnings
 dates are complete from about 2005, so all ten are classed with confidence; news days are marked "no report on file" and
 the news itself is not identified from bars. The time budget was not exhausted: the scan completed.
+
+## 13. Failures and near-misses (from our data)
+
+Added 2026-11-10 from the same scan as section 12 (`scan_hve.py`, `final/hits.json`) and a one-gate-relaxed copy of it
+(`near_scan.py`, `final/near_hits.json`: every candidate day on at least 5x the 50-day volume or over half the old record,
+with each measurable gate recorded; kept when exactly one gate fails). Charts in
+`_study-resume/scratchpad/setups/24-high-volume-edge/final/`: `fail_1..4_*.png` and the phone sheet `fail_1-4.png`,
+`near_1..4_*.png` and `near_1-4.png`, and the confusable pair `pair_21-power-earnings-gap.png` (TVTX above LULU, the
+tell from the card). Every number below is read off the bars. Buy = the HVC plus one cent on day 2; stop = two cents
+under the day-2 low; "where it stopped" counts sessions after the buy day.
+
+**Failures: valid by every gate, traded by the rules, stopped before 3R.** The dossier's named failures (NAVN, MBX, KOD,
+PRTA) all carry day-2 stops wider than the card's 3% (hve.stop_width), so they are not shown here; these four pass it.
+
+| # | Ticker | HVE day, buy day | Buy | Stop | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|---|
+| 1 | QGEN | 2026-01-20, buy 2026-01-21 | 55.46 | 53.73 (3.1%) | 2 sessions after the buy (2026-01-23), 0.0R | +16.6% on 11.6x the 50-day, 2.8x the old record, close 0.80. Day 2 reclaimed the HVC but never cleared the HVE day's high (57.82); the stock slid to 38.80 inside 60 sessions, under the HVE day's low (46.07). The level turned into overhead. | hve.inv_level_fails |
+| 2 | SE | 2023-03-07, buy 2023-03-08 | 80.07 | 77.24 (3.5%) | the next session (2023-03-09), 0.0R | +21.8% on 11.6x, an all-time record at 1.2x, close 0.89. A shake-out: 71.08 within 3 sessions, then a run to 88.84 on 04-04 (3R was 88.56) without a new day-2 trigger, then a full collapse to 56.05. The stop is the exit; a re-entry needs a new trigger (B21). | hve.after_entry_stop |
+| 3 | YELP | 2018-08-09, buy 2018-08-10 | 48.34 | 47.52 (1.7%) | the next session (2018-08-13), 0.0R | An earnings HVE: +26.7% on 16.0x, 2.4x the old record, close 0.77. Day 2 closed 49.35 over the HVC; day 3 opened 49.56 and reversed to 46.94 through the stop; 43.77 by 08-22, just over the HVE day's low (43.51); 52.50 on 09-20, then the whole move was given back. | hve.after_entry_stop |
+| 4 | NKTR | 2017-03-20, buy 2017-03-21 | 331.66 | 323.98 (2.3%) | 4 sessions after the buy (2017-03-27), after 2.3R on 03-22 | +42.6% on 11.8x, 1.2x the old record, close 0.94. The stop traded by 2 cents (low 322.50) on a day that closed at 350.70; the stock made 373.20 two days later. The breakeven move at 2R (B19) turns this into a scratch. Prices are split-adjusted (the 2024 reverse split), so the scale looks high. | hve.breakeven |
+
+**Near-misses: look like an HVE, fail exactly one gate.**
+
+| # | Ticker | Record day, day 2 | The one criterion that fails | The number | What it really is |
+|---|---|---|---|---|---|
+| 1 | ROKU | 2019-05-09, day 2 2019-05-10 | hve.volume_multiple | 4.7x the 50-day and 1.17x the old record; the rule needs 10x or 2.5x. The rest passes: +28.1%, a one-year record, close 0.99, day 2 dipped 2.8% and reclaimed. | An earnings gap on big but ordinary volume in a well-owned ($773M a day) name: a Power Earnings Gap (setup 21). Taken as an HVE it was stopped at 0.0R. |
+| 2 | GNRC | 2020-02-12, day 2 2020-02-13 | hve.min_move | up 3.2% on the day; the rule needs 8% or more close to close. The volume was 22.6x the 50-day, 4.2x the old record, an all-time record, close 0.82. | Volume without a move: a record print that moved the stock 3%. Not a setup; the stock fell 25% in the next month (the March 2020 break). |
+| 3 | GPCR | 2025-12-08, day 2 2025-12-09 | hve.not_climax | the close before the record day was 72.5% over the lowest low of the prior 60 sessions; the rule says under 60%. +102.5% on 18.2x, 3.2x the old record, close 0.50. | A climax, not a start: day 2 opened 3% under the HVC, triggered, and the trade was stopped at 0.0R; the stock topped within two months. |
+| 4 | NRG | 2017-07-12, day 2 2017-07-13 | hve.day2_dip | day 2 opened 2.1% over the HVC and its low stayed 1.7% over it; the rule needs an open at or under the HVC and a trade under it. +29.4% on 10.6x, 2.65x the old record, an all-time record, close 0.98. | A valid HVE day with no day-2 trigger. The chart may give a later entry at the level (section 8.2, entry D); it is not the taught trade. |
+
+**What the failures have in common.** Three of the four were stopped within two sessions of the buy with no gain at
+all, and the fourth gave back a 2.3R gain inside four sessions. The HVE days themselves look like the winners (11.6x to
+16.0x the 50-day, closes 0.77 to 0.94, a day-2 dip and reclaim), so nothing on the record day told them apart; the stop
+under the day-2 low is tight (1.7% to 3.5%), and the one or two sessions after the reclaim decide the trade. In two of
+them (SE, NKTR) the stock went on to the 3R zone after the stop traded, which is the cost of a tight stop, not a reason
+to widen it: the rulebook's answer is a new trigger (B21) and the breakeven move at 2R (B19). Only QGEN failed the way
+the card's failure mode describes, with the HVC turning into overhead and the stock sliding under the HVE day's low.

@@ -1445,9 +1445,64 @@
     "trigger": "2026-09-29",
     "criterion": "hve.breakeven",
     "note": "+178% on 57x, an all-time record, close 0.83; triggered, reached 2.2R and came back through the 7.0% stop. PRTA 2022-09-28 (+88%, 27x, close 0.90) did the same at 2.4R with a 4.3% stop. No cue predicts these; the breakeven move at 2R makes them scratches."
+   },
+   {
+    "ticker": "QGEN",
+    "date": "2026-01-21",
+    "criterion": "hve.inv_level_fails",
+    "why": "HVE 2026-01-20 +16.6% on 11.6x, 2.8x the old record, close 0.80; day 2 reclaimed the HVC (buy 55.46, stop 53.73, 3.1%); the stop traded 2 sessions later at 0.0R, the stock never cleared the HVE high and slid to 38.80, under the HVE low 46.07. The HVC turned into overhead."
+   },
+   {
+    "ticker": "SE",
+    "date": "2023-03-08",
+    "criterion": "hve.after_entry_stop",
+    "why": "HVE 2023-03-07 +21.8% on 11.6x, an all-time record, close 0.89; buy 80.07, stop 77.24 (3.5%); the stop traded the next session at 0.0R (a shake-out to 71.08), then the stock ran to 88.84 by 04-04 with no new day-2 trigger. The stop is the exit; a re-entry needs a new trigger (B21)."
+   },
+   {
+    "ticker": "YELP",
+    "date": "2018-08-10",
+    "criterion": "hve.after_entry_stop",
+    "why": "an earnings HVE (2018-08-09, +26.7% on 16.0x, 2.4x the old record, close 0.77); buy 48.34, stop 47.52 (1.7%); day 2 closed 49.35 over the HVC and day 3 reversed from 49.56 to 46.94 through the stop (0.0R), then drifted to 43.77 by 08-22."
+   },
+   {
+    "ticker": "NKTR",
+    "date": "2017-03-21",
+    "criterion": "hve.breakeven",
+    "why": "HVE 2017-03-20 +42.6% on 11.8x, close 0.94; buy 331.66, stop 323.98 (2.3%); 2.3R on 03-22, then the stop traded by 2 cents on 03-27 (low 322.50) on a day that closed at 350.70. A 2R gain given back is a scratch under the breakeven rule (B19)."
    }
   ],
-  "limits": "Daily bars only: the day-2 low is used as the low before the reclaim. No RS rating, no market reading, no news text. Survivors only. Earnings dates complete from about 2005. Prices split-adjusted (AMRN's scale should be checked against the owner's platform). The finder's thresholds were tuned on his picks; nothing tests his eye for the story."
+  "limits": "Daily bars only: the day-2 low is used as the low before the reclaim. No RS rating, no market reading, no news text. Survivors only. Earnings dates complete from about 2005. Prices split-adjusted (AMRN's scale should be checked against the owner's platform). The finder's thresholds were tuned on his picks; nothing tests his eye for the story.",
+  "near_misses": [
+   {
+    "ticker": "ROKU",
+    "date": "2019-05-10",
+    "criterion": "hve.volume_multiple",
+    "why": "record day 2019-05-09: +28.1%, a one-year record, close 0.99, but only 4.7x the 50-day and 1.17x the old record (the rule needs 10x or 2.5x). An earnings gap on ordinary volume in a well-owned name: a PEG (setup 21). Taken as an HVE: 0.0R."
+   },
+   {
+    "ticker": "GNRC",
+    "date": "2020-02-13",
+    "criterion": "hve.min_move",
+    "why": "record day 2020-02-12: 22.6x the 50-day, 4.2x the old record, an all-time record, close 0.82, but up only 3.2% on the day (the rule needs 8%). Volume without a move; the stock fell 25% in the next month."
+   },
+   {
+    "ticker": "GPCR",
+    "date": "2025-12-09",
+    "criterion": "hve.not_climax",
+    "why": "record day 2025-12-08: +102.5% on 18.2x, 3.2x the old record, close 0.50, but the close before it was 72.5% over the 60-session low (the rule says under 60%). A climax, not a start: the day-2 trigger was stopped at 0.0R and the stock topped within two months."
+   },
+   {
+    "ticker": "NRG",
+    "date": "2017-07-13",
+    "criterion": "hve.day2_dip",
+    "why": "record day 2017-07-12: +29.4% on 10.6x, 2.65x the old record, an all-time record, close 0.98; day 2 opened 2.1% over the HVC and its low stayed 1.7% over it, so there was no red-to-green and no trigger. A later entry at the level (8.2, entry D) is a different trade."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_21-power-earnings-gap.png"
+  }
  },
  "question_seeds": [
   {

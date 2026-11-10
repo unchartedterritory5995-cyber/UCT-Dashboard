@@ -1065,3 +1065,42 @@ second-candle entry. Checked by eye on every chart: no ETFs, no reused tickers, 
   the day drifting between 89.5 and 90.5, closed at 90.41 (under the prior close 90.55), and was stopped the next
   day at 89.39 for -1R. Best excursion 0.08R: a reclaim that does not follow through within the session is the
   "warning" of section 8.5 in practice, and the 10-day rule (C33) would never have been reached.
+
+## 14. Failures and near-misses (from our data)
+
+Added 2026-11-10 from the section 13 scan (`final/scan_go.py`, `final/hits.json`) and a one-gate-relaxed copy
+(`final/near_scan.py`, `final/near_hits.json`: every session above the 200-day whose first hourly candle trades under
+the prior close and that closes back above it by the third candle, with each gate recorded; kept when exactly one gate
+fails; 963 of 963 names, 386 seconds). Same Yahoo hourly bars (9:30-anchored, so "candle 2" ends at 11:30). Charts in
+`_study-resume/scratchpad/setups/42-go-signal/final/`: `fail_1..4_*.png` and `fail_1-4.png`, `near_1..4_*.png` and
+`near_1-4.png` (daily context above the hourly turn, as in section 13), and the confusable pair
+`pair_41-30-minute-pivot.png` (META above FTNT, the tell from the card). Buy = the close of the reclaiming candle; stop
+= 3 cents under the session low so far; "where it stopped" is the hourly candle or the session.
+
+**Failures: valid by every gate, stopped before 3R.** TSLA and NVDA 2024-06-28 are the dossier's own named failures.
+A correction to section 13: on the hourly bars NVDA's stop (123.39) traded in the 12:30 candle of the signal day itself
+(low 122.89), not the next morning; the next morning's low (118.83) came after.
+
+| # | Ticker | Signal day | Buy (candle) | Stop | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|---|
+| 1 | TSLA | 2025-05-30 | 361.86 (1st) | 353.79 (2.23%) | the same session, 12:30 candle (low 345.29), best 0.23R | A 26% five-day move, a 5.9% flag, RS 96; a dip under the prior day's low (353.82 against a prior close of 358.43) and a green first candle. The third candle broke back under the prior close, the fourth fell through the stop; the day closed 346.46. | go.after_entry_stop |
+| 2 | NVDA | 2024-06-28 | 126.81 (1st) | 123.39 (2.69%) | the same session, 12:30 candle (low 122.89), best 0.11R | A 16% five-day move, a 7.4% flag, RS 99, the 10-day EMA; it opened above the prior close (123.99), dipped to 123.42 and the first candle closed at 126.81, 2.3% up. That candle was the high of the day; the session closed 123.54, under the prior close. | go.close_under_pc_warning |
+| 3 | CRWD | 2023-12-29 | 64.04 (1st) | 63.39 (1.03%) | the same session, 10:30 candle (low 63.13), 0.0R | A 13% five-day move, a 2.3% flag, RS 97, the 10-day EMA; a gap-down open that reclaimed the prior close (64.03) by one cent at the close of the first candle. The next candle fell straight through the stop; the day closed 63.83 and the stock lost 6% in the next two sessions. | go.reclaim_close |
+| 4 | GOOG | 2026-05-18 | 402.05 (1st) | 390.88 (2.78%) | the next session (2026-05-19, 9:30 candle, low 384.05), best 0.04R | A 14% five-day move, a 4.8% flag, RS 90; the first candle ran from 392.12 to 404.44, the high of the day, and every later candle closed lower; the day closed 393.15, under the prior close 393.32, and the open gapped through the stop. | go.close_under_pc_warning |
+
+**Near-misses: look like a Go Signal, fail exactly one gate.**
+
+| # | Ticker | Day | The one criterion that fails | The number | What it really is |
+|---|---|---|---|---|---|
+| 1 | AXON | 2024-09-11 | go.reclaim_window | the close back above the prior close (359.35) came on the third hourly candle (361.39), after the two-candle window. Everything else passes: a 25% five-day move, a 6.6% flag, RS 94, the 20-day EMA, 1.94% risk. | A 30-minute pivot (setup 41), bought over the pivot candle's high, not at a candle close. It went on to 47.8R, which is the pivot's result. |
+| 2 | SNOW | 2026-09-08 | go.hourly_flag | the 3 sessions before span 26.5%; the rule needs 10% or less. A gap-down open, a reclaim at the first candle at the 10-day EMA, 1.92% risk. | A red-to-green inside a wild post-earnings range, with no tight flag to buy against: a bare red to green (setup 43). Taken: 0.38R, then the stop. |
+| 3 | CF | 2026-03-19 | go.at_support | the session low (126.55) sat 5.2% above the 10-day EMA, the nearest level; the rule allows 3% under to 1% over. A 23% five-day move, a 6.6% flag, RS 90. | A red-to-green in mid-air: no level was tested, so there is nothing to defend. Taken: stopped the same session at 0.0R. |
+| 4 | CRS | 2025-11-14 | go.stop_width | the first candle ran from 315.73 to 329.02 after a 2.8% gap down, so the stop under its low is 4.96% from the entry; the rule says about 3%. The 10-day EMA, a 32% five-day move, RS 92. | A valid turn whose first candle was too big to buy at its close; size down from the stop (A5) or skip (A3). Taken: 0.53R, then the stop four sessions later. |
+
+**What the failures have in common.** Three of the four were stopped inside the signal session, the same-session stop
+that 23% of all hits take, and the fourth the next morning; none reached 0.25R. In three of them the reclaiming candle
+was the high of the day (NVDA, GOOG) or a one-cent reclaim (CRWD): a big first candle widens the risk to the 2.7% to 2.8%
+edge of the rule and leaves nothing to buy against, and a marginal one proves nothing. The context was as good as the
+winners' (13% to 26% prior moves, RS 90 to 99, flags of 2% to 7%), so the chart before the open does not separate them;
+what does is what the session did after the entry, which is why the card keeps a close back under the prior close as the
+warning and the session low as the only exit.

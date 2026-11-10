@@ -1218,3 +1218,39 @@ day), GFI 2005-11-16 (red body 6.8%, outside the typical 1% to 5.5%), HOG 2010-0
   (its earnings test only excluded a reaction on the red day or the Kicker day); both gapped down the next morning to
   0R. The second pass excludes any reaction day in the next 4 sessions (B22), which also removed SMTC and FORM above;
   it cut the hit count from 669 to 622 and left the base rate where it was (48.0% to 48.2% at 3R).
+
+## 13. Failures and near-misses (from our data)
+
+Added 2026-11-10 from the section 12 scan (`kicker_scan.py`, `final/hits.json`) and a one-gate-relaxed copy
+(`near_scan.py`, `final/near_hits.json`: any down day followed by an up day that closes over its high in the top 20% of
+the range on 1.5x volume, with every gate recorded; kept when exactly one gate fails). Charts in
+`_study-resume/scratchpad/setups/26-kicker/final/`: `fail_1..4_*.png` and `fail_1-4.png`, `near_1..4_*.png` and
+`near_1-4.png`, and the confusable pair `pair_21-power-earnings-gap.png` (BBY above LOGI, the tell from the card). Buy
+= one cent over the red high, or the open if it opened above it; stop = 3.5% under an open fill, else 5 cents under the
+Kicker day's low or 3.5%, whichever is closer; "where it stopped" counts sessions after the Kicker day.
+
+**Failures: valid by every gate the scan tests, stopped before 3R.** AVGO and LLY are the dossier's own named failures
+(section 12); the scan does not read the market or the red day's size against the pullback, so both pass its gates.
+
+| # | Ticker | Kicker day | Buy | Stop | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|---|
+| 1 | AVGO | 2025-10-13 | 352.77 (fill at the open, 0.6% over the red high 350.60) | 340.42 (3.5%) | the next session (2025-10-14, low 339.65), 0.0R | The red day (10-10) fell 5.9% with a 6.4% body and closed at 2% of its range; the Kicker gapped 8.7% and closed +9.9% on 2.0x. The next day gave it all back. A shock-day red bar is not an orderly pullback, and the 3 ATR cap did not catch it. The stock later made 414.61 (12-10). | kk.structure |
+| 2 | LLY | 2020-03-13 | 136.51 | 131.73 (3.5%) | the next session (2020-03-16, low 128.25), 0.0R | A -10.0% red day closing at 1% of its range, then a 5.5% gap and a +10.6% close on its high (1.6x). Monday opened under the stop; 143.20 the day after, then 117.06 on 03-23. A bounce in the March 2020 crash: no trade in a Red market (D46). | kk.market_reading |
+| 3 | CDNS | 2021-12-02 | 181.81 | 177.50 (2.4%) | the next session (2021-12-03, low 175.34), 0.0R | A textbook picture: an 8.1% base, a red day closing on its low, a 1.7% gap and a +5.5% close at 87% of the range on 1.6x. The next day fell to 177.87 through the stop. The Kicker's whole gain was given back in one day; the stock made 192.70 on 12-28 and 133.10 by 02-22. | kk.after_entry_stop |
+| 4 | PGR | 2023-03-16 | 141.14 | 137.35 (2.7%) | the next session (2023-03-17, low 135.86), 0.0R | A -4.8% red day at the base lows, a 2.7% gap and a +5.8% close on 2.0x. Day 2 opened 142.16 and closed 136.32, under the red high: the warning the card names, and the stop traded the same day. | kk.close_under_red_high_warning |
+
+**Near-misses: look like a Kicker, fail exactly one gate.**
+
+| # | Ticker | Day | The one criterion that fails | The number | What it really is |
+|---|---|---|---|---|---|
+| 1 | LUV | 2026-01-29 | kk.not_earnings | the gap day is the earnings reaction day (report 2026-01-28, after the close). The shape passes: red day -1.2% (body 2.5%, close 13%), gap 6.2%, +18.7% on 3.8x, an 8.2% base. | An earnings gapper: a Power Earnings Gap (setup 21), graded there. It ran 7.7R, which is the PEG's result, not the Kicker's. |
+| 2 | CEG | 2024-06-10 | kk.gap_open | opened 0.8% over the red close; the rule needs 1.5% or more. Red day -2.3% (body 2.1%, close 7%), +8.4% on 2.0x. | A plain breakout day with no gap: a strong green bar, not a Kicker. |
+| 3 | GWW | 2024-10-11 | kk.red_day_size | the red body is 0.04% of price and the drop 0.4%; the rule needs 1%. Gap 2.2%, +5.8% on 2.5x out of a 4.8% base. | A baby red candle before a breakout (kk.red_day_red); nobody was trapped, so there is no kick. |
+| 4 | IDCC | 2011-08-03 | kk.structure | the prior 20 closes span 44.1%; the rule needs 15% or less. Red day -5.8% (close 1%), gap 5.7%, +13.8% on 2.7x. | No base: a stock mid-run after a 60% burst. Taken anyway: stopped the next session at 0.0R. |
+
+**What the failures have in common.** All four traded the stop on the very next session with no gain: the Kicker day's
+gain was given back in one day. In three of the four the red day was large (-4.8%, -5.9%, -10.0%) and in two the whole
+tape was breaking (October 2025, March 2020), which is the dossier's own reading: a shock bar is not an orderly
+pullback, and the pattern alone is not enough in a Red market. The two fills at the 3.5% cap (AVGO, LLY) were the widest
+stops and still failed; the two tighter ones (CDNS, PGR) failed on day-2 closes back under the red high, the warning the
+card names.
