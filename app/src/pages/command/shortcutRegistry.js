@@ -481,7 +481,8 @@ export const SHORTCUTS = Object.freeze([
     id: 'charts.ctxMenuClose',
     chord: { keys: ['Escape'] },
     target: 'window', capture: true, inEditable: true, repeat: true,
-    why: 'Escape closes the /charts right-click menu. Bound while it is open; stands down under a modal layer.',
+    // bound only while the menu is open; it stands down under a modal layer and stops the press when it acts (ChartWidget)
+    why: 'Escape closes the /charts right-click menu.',
   }),
   decl({
     id: 'screener.gridMenuClose',
@@ -571,7 +572,7 @@ const SURFACE_WHAT = {
   'archive.lightboxClose': 'The archive lightbox closes on it while its image is open.',
   'screener.gridMenuClose': 'The screener layout menu closes on it while the menu is open.',
   'studyReview.card': 'The study review card leaves its fix or reject mode on it.',
-  'charts.ctxMenuClose': 'The /charts right-click menu closes on it while the menu is open.',
+  'charts.ctxMenuClose': 'The /charts right-click menu closes on it.',
 }
 
 export const ACKNOWLEDGED_OVERLAPS = Object.freeze([
@@ -663,14 +664,14 @@ export const ACKNOWLEDGED_OVERLAPS = Object.freeze([
     'Escape matches both. One is on the trader archive, the other on the admin pattern '
       + 'review; they are never mounted on the same page.'),
   ack(['archive.lightboxClose', 'charts.ctxMenuClose'], 'surface',
-    'Escape matches both. The chart menu is on /charts and the screener Charts view, never on the trader archive.'),
+    'Escape matches both. Never on one page.'),
   ack(['charts.ctxMenuClose', 'studyReview.card'], 'surface',
-    'Escape matches both. The chart menu is on /charts and the screener Charts view, never on the admin pattern review.'),
-  // both can be mounted on the screener Charts view (its chart cells are ChartWidgets): never both open, so never both live
+    'Escape matches both. Never on one page.'),
+  // both can be mounted on the screener Charts view (its chart cells are ChartWidgets). Never both open: the layout menu
+  // closes on any press outside it (a right-click on a chart), and the chart menu's backdrop takes the press that would
+  // open the layout menu. The other two are never mounted with a ChartWidget (/charts, screener Charts view only)
   ack(['charts.ctxMenuClose', 'screener.gridMenuClose'], 'layer',
-    'Escape matches both. Each is bound only while its own menu is open, and the two are never open together: the layout '
-      + 'menu closes on any press outside it (a right-click on a chart), and the chart menu’s backdrop takes the press that '
-      + 'would open the layout menu.'),
+    'Escape matches both. Each is bound only while its menu is open; the two are never open together.'),
   ack(['screener.gridMenuClose', 'studyReview.card'], 'surface',
     'Escape matches both. One is on the screener, the other on the admin pattern review; '
       + 'they are never mounted on the same page.'),
