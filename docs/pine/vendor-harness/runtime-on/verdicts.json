@@ -49710,10 +49710,10 @@
     "reason": "neither side draws an object"
    },
    "paints": {
-    "verdict": "DIVERGE",
-    "reason": "1 paint differs (first: barcolor plot_9 \"Bar Color\" withheld (`barcolor`'s colour is an expression this door cannot carry yet))",
-    "agreeing": 0,
-    "differing": 1,
+    "verdict": "MATCH",
+    "reason": "1 paint agree bar for bar",
+    "agreeing": 1,
+    "differing": 0,
     "undrawn": 0,
     "undecodable": 0,
     "unpaired": [],
@@ -49721,13 +49721,12 @@
      {
       "id": "plot_9",
       "kind": "barcolor",
-      "state": "withheld",
-      "reason": "`barcolor`'s colour is an expression this door cannot carry yet"
+      "state": "agree"
      }
     ]
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 9 compared items diverge",
+   "verdict": "INCONCLUSIVE",
+   "reason": "1 of 9 items could not be compared",
    "verdictWithoutPaints": "INCONCLUSIVE",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0",
@@ -50075,10 +50074,10 @@
     "reason": "neither side draws an object"
    },
    "paints": {
-    "verdict": "DIVERGE",
-    "reason": "1 paint differs (first: barcolor plot_9 \"Bar Color\" withheld (`barcolor`'s colour is an expression this door cannot carry yet))",
-    "agreeing": 0,
-    "differing": 1,
+    "verdict": "MATCH",
+    "reason": "1 paint agree bar for bar",
+    "agreeing": 1,
+    "differing": 0,
     "undrawn": 0,
     "undecodable": 0,
     "unpaired": [],
@@ -50086,13 +50085,12 @@
      {
       "id": "plot_9",
       "kind": "barcolor",
-      "state": "withheld",
-      "reason": "`barcolor`'s colour is an expression this door cannot carry yet"
+      "state": "agree"
      }
     ]
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 9 compared items diverge",
+   "verdict": "INCONCLUSIVE",
+   "reason": "1 of 9 items could not be compared",
    "verdictWithoutPaints": "INCONCLUSIVE",
    "ourNotes": [
     "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)",
@@ -57257,280 +57255,36 @@
      "title": "C01_var_n_plus_1",
      "ours": "out2",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "19802 steady-state bars disagree; first at bar 250 (na: vendor 251 vs ours na) — persistent, last at bar 20051",
-     "warmupBars": 250,
-     "warmupSource": "derived: our evaluator's maxLookback for this plot",
-     "derivedLookback": 250,
-     "color": "unresolvable on our side",
-     "stats": {
-      "bars": 20052,
-      "compared": 20052,
-      "oursUnread": 0,
-      "matching": 0,
-      "vendorRowsMissing": 0,
-      "naMismatches": 20052,
-      "valueMismatches": 0,
-      "colorMismatches": 0,
-      "colorCompared": 0,
-      "colorComparable": 20052,
-      "valued": 20052,
-      "maxAbs": 0,
-      "maxRel": 0,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1758547800,
-       "kind": "na",
-       "vendor": 1,
-       "ours": null
-      },
-      "warmup": {
-       "bars": 250,
-       "compared": 250,
-       "divergent": 250,
-       "first": {
-        "bar": 0,
-        "time": 1758547800,
-        "kind": "na",
-        "vendor": 1,
-        "ours": null
-       }
-      },
-      "steady": {
-       "bars": 19802,
-       "compared": 19802,
-       "divergent": 19802,
-       "first": {
-        "bar": 250,
-        "time": 1758811800,
-        "kind": "na",
-        "vendor": 251,
-        "ours": null
-       },
-       "last": {
-        "bar": 20051,
-        "time": 1790798100,
-        "kind": "na",
-        "vendor": 20052,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "persistent",
-        "lastDivergentBar": 20051
-       }
-      },
-      "vendorRowGapsAfterStart": 0
-     }
+     "verdict": "INCONCLUSIVE",
+     "withheld": "var-origin:window",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it"
     },
     {
      "id": "plot_2",
      "title": "C02_na_hist_seeded_counter",
      "ours": "out3",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "19802 steady-state bars disagree; first at bar 250 (na: vendor 250 vs ours na) — persistent, last at bar 20051",
-     "warmupBars": 250,
-     "warmupSource": "derived: our evaluator's maxLookback for this plot",
-     "derivedLookback": 250,
-     "color": "unresolvable on our side",
-     "stats": {
-      "bars": 20052,
-      "compared": 20052,
-      "oursUnread": 0,
-      "matching": 0,
-      "vendorRowsMissing": 0,
-      "naMismatches": 20052,
-      "valueMismatches": 0,
-      "colorMismatches": 0,
-      "colorCompared": 0,
-      "colorComparable": 20052,
-      "valued": 20052,
-      "maxAbs": 0,
-      "maxRel": 0,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1758547800,
-       "kind": "na",
-       "vendor": 0,
-       "ours": null
-      },
-      "warmup": {
-       "bars": 250,
-       "compared": 250,
-       "divergent": 250,
-       "first": {
-        "bar": 0,
-        "time": 1758547800,
-        "kind": "na",
-        "vendor": 0,
-        "ours": null
-       }
-      },
-      "steady": {
-       "bars": 19802,
-       "compared": 19802,
-       "divergent": 19802,
-       "first": {
-        "bar": 250,
-        "time": 1758811800,
-        "kind": "na",
-        "vendor": 250,
-        "ours": null
-       },
-       "last": {
-        "bar": 20051,
-        "time": 1790798100,
-        "kind": "na",
-        "vendor": 20051,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "persistent",
-        "lastDivergentBar": 20051
-       }
-      },
-      "vendorRowGapsAfterStart": 0
-     }
+     "verdict": "INCONCLUSIVE",
+     "withheld": "var-origin:window",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it"
     },
     {
      "id": "plot_3",
      "title": "C03_var_compound",
      "ours": "out4",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "19802 steady-state bars disagree; first at bar 250 (na: vendor 251 vs ours na) — persistent, last at bar 20051",
-     "warmupBars": 250,
-     "warmupSource": "derived: our evaluator's maxLookback for this plot",
-     "derivedLookback": 250,
-     "color": "unresolvable on our side",
-     "stats": {
-      "bars": 20052,
-      "compared": 20052,
-      "oursUnread": 0,
-      "matching": 0,
-      "vendorRowsMissing": 0,
-      "naMismatches": 20052,
-      "valueMismatches": 0,
-      "colorMismatches": 0,
-      "colorCompared": 0,
-      "colorComparable": 20052,
-      "valued": 20052,
-      "maxAbs": 0,
-      "maxRel": 0,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1758547800,
-       "kind": "na",
-       "vendor": 1,
-       "ours": null
-      },
-      "warmup": {
-       "bars": 250,
-       "compared": 250,
-       "divergent": 250,
-       "first": {
-        "bar": 0,
-        "time": 1758547800,
-        "kind": "na",
-        "vendor": 1,
-        "ours": null
-       }
-      },
-      "steady": {
-       "bars": 19802,
-       "compared": 19802,
-       "divergent": 19802,
-       "first": {
-        "bar": 250,
-        "time": 1758811800,
-        "kind": "na",
-        "vendor": 251,
-        "ours": null
-       },
-       "last": {
-        "bar": 20051,
-        "time": 1790798100,
-        "kind": "na",
-        "vendor": 20052,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "persistent",
-        "lastDivergentBar": 20051
-       }
-      },
-      "vendorRowGapsAfterStart": 0
-     }
+     "verdict": "INCONCLUSIVE",
+     "withheld": "var-origin:window",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it"
     },
     {
      "id": "plot_4",
      "title": "C04_var_na_seed_counter",
      "ours": "out5",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "19802 steady-state bars disagree; first at bar 250 (na: vendor 250 vs ours na) — persistent, last at bar 20051",
-     "warmupBars": 250,
-     "warmupSource": "derived: our evaluator's maxLookback for this plot",
-     "derivedLookback": 250,
-     "color": "unresolvable on our side",
-     "stats": {
-      "bars": 20052,
-      "compared": 20052,
-      "oursUnread": 0,
-      "matching": 0,
-      "vendorRowsMissing": 0,
-      "naMismatches": 20052,
-      "valueMismatches": 0,
-      "colorMismatches": 0,
-      "colorCompared": 0,
-      "colorComparable": 20052,
-      "valued": 20052,
-      "maxAbs": 0,
-      "maxRel": 0,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1758547800,
-       "kind": "na",
-       "vendor": 0,
-       "ours": null
-      },
-      "warmup": {
-       "bars": 250,
-       "compared": 250,
-       "divergent": 250,
-       "first": {
-        "bar": 0,
-        "time": 1758547800,
-        "kind": "na",
-        "vendor": 0,
-        "ours": null
-       }
-      },
-      "steady": {
-       "bars": 19802,
-       "compared": 19802,
-       "divergent": 19802,
-       "first": {
-        "bar": 250,
-        "time": 1758811800,
-        "kind": "na",
-        "vendor": 250,
-        "ours": null
-       },
-       "last": {
-        "bar": 20051,
-        "time": 1790798100,
-        "kind": "na",
-        "vendor": 20051,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "persistent",
-        "lastDivergentBar": 20051
-       }
-      },
-      "vendorRowGapsAfterStart": 0
-     }
+     "verdict": "INCONCLUSIVE",
+     "withheld": "var-origin:window",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it"
     },
     {
      "id": "plot_5",
@@ -57580,140 +57334,18 @@
      "title": "C06_n1_minus_bar_index",
      "ours": "out7",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "19802 steady-state bars disagree; first at bar 250 (na: vendor 1 vs ours na) — persistent, last at bar 20051",
-     "warmupBars": 250,
-     "warmupSource": "derived: our evaluator's maxLookback for this plot",
-     "derivedLookback": 250,
-     "color": "unresolvable on our side",
-     "stats": {
-      "bars": 20052,
-      "compared": 20052,
-      "oursUnread": 0,
-      "matching": 0,
-      "vendorRowsMissing": 0,
-      "naMismatches": 20052,
-      "valueMismatches": 0,
-      "colorMismatches": 0,
-      "colorCompared": 0,
-      "colorComparable": 20052,
-      "valued": 20052,
-      "maxAbs": 0,
-      "maxRel": 0,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1758547800,
-       "kind": "na",
-       "vendor": 1,
-       "ours": null
-      },
-      "warmup": {
-       "bars": 250,
-       "compared": 250,
-       "divergent": 250,
-       "first": {
-        "bar": 0,
-        "time": 1758547800,
-        "kind": "na",
-        "vendor": 1,
-        "ours": null
-       }
-      },
-      "steady": {
-       "bars": 19802,
-       "compared": 19802,
-       "divergent": 19802,
-       "first": {
-        "bar": 250,
-        "time": 1758811800,
-        "kind": "na",
-        "vendor": 1,
-        "ours": null
-       },
-       "last": {
-        "bar": 20051,
-        "time": 1790798100,
-        "kind": "na",
-        "vendor": 1,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "persistent",
-        "lastDivergentBar": 20051
-       }
-      },
-      "vendorRowGapsAfterStart": 0
-     }
+     "verdict": "INCONCLUSIVE",
+     "withheld": "var-origin:window",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it"
     },
     {
      "id": "plot_7",
      "title": "C07_n2_minus_bar_index",
      "ours": "out8",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "19802 steady-state bars disagree; first at bar 250 (na: vendor 0 vs ours na) — persistent, last at bar 20051",
-     "warmupBars": 250,
-     "warmupSource": "derived: our evaluator's maxLookback for this plot",
-     "derivedLookback": 250,
-     "color": "unresolvable on our side",
-     "stats": {
-      "bars": 20052,
-      "compared": 20052,
-      "oursUnread": 0,
-      "matching": 0,
-      "vendorRowsMissing": 0,
-      "naMismatches": 20052,
-      "valueMismatches": 0,
-      "colorMismatches": 0,
-      "colorCompared": 0,
-      "colorComparable": 20052,
-      "valued": 20052,
-      "maxAbs": 0,
-      "maxRel": 0,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1758547800,
-       "kind": "na",
-       "vendor": 0,
-       "ours": null
-      },
-      "warmup": {
-       "bars": 250,
-       "compared": 250,
-       "divergent": 250,
-       "first": {
-        "bar": 0,
-        "time": 1758547800,
-        "kind": "na",
-        "vendor": 0,
-        "ours": null
-       }
-      },
-      "steady": {
-       "bars": 19802,
-       "compared": 19802,
-       "divergent": 19802,
-       "first": {
-        "bar": 250,
-        "time": 1758811800,
-        "kind": "na",
-        "vendor": 0,
-        "ours": null
-       },
-       "last": {
-        "bar": 20051,
-        "time": 1790798100,
-        "kind": "na",
-        "vendor": 0,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "persistent",
-        "lastDivergentBar": 20051
-       }
-      },
-      "vendorRowGapsAfterStart": 0
-     }
+     "verdict": "INCONCLUSIVE",
+     "withheld": "var-origin:window",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it"
     }
    ],
    "notCompared": [],
@@ -57727,10 +57359,11 @@
     "verdict": "MATCH",
     "reason": "neither side draws an object"
    },
-   "verdict": "DIVERGE",
-   "reason": "6 of 9 compared items diverge",
+   "verdict": "INCONCLUSIVE",
+   "reason": "7 of 9 items could not be compared",
    "ourNotes": [
-    "plots/objects: bar0: the capture's own bar_index control reads 0 on its first bar; TradingView's history started there"
+    "plots/objects: bar0: the capture's own bar_index control reads 0 on its first bar; TradingView's history started there",
+    "`var` withheld (var-origin:window) on 6 plot(s) — A `var` is set once, on the first bar of the symbol's history on TradingView, and carried forward from there. This chart's loaded bars start later, so a `var` that keeps the value it was first given (`var first = time`, `var anchor = close`) or keeps counting (`var n = 0; n += 1`) holds a number this chart cannot know (measured: capture `vw-bar-origin-spy-1d-300-2026-10-02` reads `var first_time = time` as the listing day, 1993-01-29, where this chart would show a day 250 bars back). Everything this indicator draws from it is withheld on this chart rather than drawn wrong. A `var` seeded with a fixed number or an input is drawn. On a chart whose bars start at the symbol's listing it draws. What would settle it: nothing to capture — bars reaching the listing."
    ]
   },
   {
@@ -58125,280 +57758,36 @@
      "title": "C01_var_n_plus_1",
      "ours": "out2",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "9050 steady-state bars disagree; first at bar 250 (na: vendor 12011 vs ours na) — persistent, last at bar 9299",
-     "warmupBars": 250,
-     "warmupSource": "derived: our evaluator's maxLookback for this plot",
-     "derivedLookback": 250,
-     "color": "unresolvable on our side",
-     "stats": {
-      "bars": 9300,
-      "compared": 9300,
-      "oursUnread": 0,
-      "matching": 0,
-      "vendorRowsMissing": 0,
-      "naMismatches": 9300,
-      "valueMismatches": 0,
-      "colorMismatches": 0,
-      "colorCompared": 0,
-      "colorComparable": 9300,
-      "valued": 9300,
-      "maxAbs": 0,
-      "maxRel": 0,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1788186600,
-       "kind": "na",
-       "vendor": 11761,
-       "ours": null
-      },
-      "warmup": {
-       "bars": 250,
-       "compared": 250,
-       "divergent": 250,
-       "first": {
-        "bar": 0,
-        "time": 1788186600,
-        "kind": "na",
-        "vendor": 11761,
-        "ours": null
-       }
-      },
-      "steady": {
-       "bars": 9050,
-       "compared": 9050,
-       "divergent": 9050,
-       "first": {
-        "bar": 250,
-        "time": 1788201600,
-        "kind": "na",
-        "vendor": 12011,
-        "ours": null
-       },
-       "last": {
-        "bar": 9299,
-        "time": 1790971140,
-        "kind": "na",
-        "vendor": 21060,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "persistent",
-        "lastDivergentBar": 9299
-       }
-      },
-      "vendorRowGapsAfterStart": 0
-     }
+     "verdict": "INCONCLUSIVE",
+     "withheld": "var-origin:window",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it"
     },
     {
      "id": "plot_2",
      "title": "C02_na_hist_seeded_counter",
      "ours": "out3",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "9050 steady-state bars disagree; first at bar 250 (na: vendor 12010 vs ours na) — persistent, last at bar 9299",
-     "warmupBars": 250,
-     "warmupSource": "derived: our evaluator's maxLookback for this plot",
-     "derivedLookback": 250,
-     "color": "unresolvable on our side",
-     "stats": {
-      "bars": 9300,
-      "compared": 9300,
-      "oursUnread": 0,
-      "matching": 0,
-      "vendorRowsMissing": 0,
-      "naMismatches": 9300,
-      "valueMismatches": 0,
-      "colorMismatches": 0,
-      "colorCompared": 0,
-      "colorComparable": 9300,
-      "valued": 9300,
-      "maxAbs": 0,
-      "maxRel": 0,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1788186600,
-       "kind": "na",
-       "vendor": 11760,
-       "ours": null
-      },
-      "warmup": {
-       "bars": 250,
-       "compared": 250,
-       "divergent": 250,
-       "first": {
-        "bar": 0,
-        "time": 1788186600,
-        "kind": "na",
-        "vendor": 11760,
-        "ours": null
-       }
-      },
-      "steady": {
-       "bars": 9050,
-       "compared": 9050,
-       "divergent": 9050,
-       "first": {
-        "bar": 250,
-        "time": 1788201600,
-        "kind": "na",
-        "vendor": 12010,
-        "ours": null
-       },
-       "last": {
-        "bar": 9299,
-        "time": 1790971140,
-        "kind": "na",
-        "vendor": 21059,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "persistent",
-        "lastDivergentBar": 9299
-       }
-      },
-      "vendorRowGapsAfterStart": 0
-     }
+     "verdict": "INCONCLUSIVE",
+     "withheld": "var-origin:window",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it"
     },
     {
      "id": "plot_3",
      "title": "C03_var_compound",
      "ours": "out4",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "9050 steady-state bars disagree; first at bar 250 (na: vendor 12011 vs ours na) — persistent, last at bar 9299",
-     "warmupBars": 250,
-     "warmupSource": "derived: our evaluator's maxLookback for this plot",
-     "derivedLookback": 250,
-     "color": "unresolvable on our side",
-     "stats": {
-      "bars": 9300,
-      "compared": 9300,
-      "oursUnread": 0,
-      "matching": 0,
-      "vendorRowsMissing": 0,
-      "naMismatches": 9300,
-      "valueMismatches": 0,
-      "colorMismatches": 0,
-      "colorCompared": 0,
-      "colorComparable": 9300,
-      "valued": 9300,
-      "maxAbs": 0,
-      "maxRel": 0,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1788186600,
-       "kind": "na",
-       "vendor": 11761,
-       "ours": null
-      },
-      "warmup": {
-       "bars": 250,
-       "compared": 250,
-       "divergent": 250,
-       "first": {
-        "bar": 0,
-        "time": 1788186600,
-        "kind": "na",
-        "vendor": 11761,
-        "ours": null
-       }
-      },
-      "steady": {
-       "bars": 9050,
-       "compared": 9050,
-       "divergent": 9050,
-       "first": {
-        "bar": 250,
-        "time": 1788201600,
-        "kind": "na",
-        "vendor": 12011,
-        "ours": null
-       },
-       "last": {
-        "bar": 9299,
-        "time": 1790971140,
-        "kind": "na",
-        "vendor": 21060,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "persistent",
-        "lastDivergentBar": 9299
-       }
-      },
-      "vendorRowGapsAfterStart": 0
-     }
+     "verdict": "INCONCLUSIVE",
+     "withheld": "var-origin:window",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it"
     },
     {
      "id": "plot_4",
      "title": "C04_var_na_seed_counter",
      "ours": "out5",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "9050 steady-state bars disagree; first at bar 250 (na: vendor 12010 vs ours na) — persistent, last at bar 9299",
-     "warmupBars": 250,
-     "warmupSource": "derived: our evaluator's maxLookback for this plot",
-     "derivedLookback": 250,
-     "color": "unresolvable on our side",
-     "stats": {
-      "bars": 9300,
-      "compared": 9300,
-      "oursUnread": 0,
-      "matching": 0,
-      "vendorRowsMissing": 0,
-      "naMismatches": 9300,
-      "valueMismatches": 0,
-      "colorMismatches": 0,
-      "colorCompared": 0,
-      "colorComparable": 9300,
-      "valued": 9300,
-      "maxAbs": 0,
-      "maxRel": 0,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1788186600,
-       "kind": "na",
-       "vendor": 11760,
-       "ours": null
-      },
-      "warmup": {
-       "bars": 250,
-       "compared": 250,
-       "divergent": 250,
-       "first": {
-        "bar": 0,
-        "time": 1788186600,
-        "kind": "na",
-        "vendor": 11760,
-        "ours": null
-       }
-      },
-      "steady": {
-       "bars": 9050,
-       "compared": 9050,
-       "divergent": 9050,
-       "first": {
-        "bar": 250,
-        "time": 1788201600,
-        "kind": "na",
-        "vendor": 12010,
-        "ours": null
-       },
-       "last": {
-        "bar": 9299,
-        "time": 1790971140,
-        "kind": "na",
-        "vendor": 21059,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "persistent",
-        "lastDivergentBar": 9299
-       }
-      },
-      "vendorRowGapsAfterStart": 0
-     }
+     "verdict": "INCONCLUSIVE",
+     "withheld": "var-origin:window",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it"
     },
     {
      "id": "plot_5",
@@ -58439,11 +57828,12 @@
     "verdict": "MATCH",
     "reason": "neither side draws an object"
    },
-   "verdict": "DIVERGE",
-   "reason": "4 of 9 compared items diverge",
+   "verdict": "INCONCLUSIVE",
+   "reason": "8 of 9 items could not be compared",
    "ourNotes": [
     "plots/objects: cold: no committed capture of SPY|1 holds bars before 1788186600, cold replay",
     "`bar_index` withheld (bar-index:window) on 3 plot(s) — `bar_index` counts bars from the first bar of the symbol's history on TradingView. This chart's loaded bars start later, so its count is lower by a number of bars it cannot know (measured: capture `vw-offset-na-spy-1d-2026-09-30` reads 8175 on the bar a 300-bar window calls 0). A value that depends on the count itself — a plotted `bar_index`, `bar_index % n`, a test against one exact bar — would not be TradingView's, so everything this indicator draws from such a value is withheld on this chart rather than drawn wrong. What only measures a distance between bars (`bar_index - bar_index[5]`) or places a drawing on a bar is drawn. On a daily chart whose bars start at the symbol's listing it draws. What would settle it: nothing to capture — bars reaching the listing.",
+    "`var` withheld (var-origin:window) on 6 plot(s) — A `var` is set once, on the first bar of the symbol's history on TradingView, and carried forward from there. This chart's loaded bars start later, so a `var` that keeps the value it was first given (`var first = time`, `var anchor = close`) or keeps counting (`var n = 0; n += 1`) holds a number this chart cannot know (measured: capture `vw-bar-origin-spy-1d-300-2026-10-02` reads `var first_time = time` as the listing day, 1993-01-29, where this chart would show a day 250 bars back). Everything this indicator draws from it is withheld on this chart rather than drawn wrong. A `var` seeded with a fixed number or an input is drawn. On a chart whose bars start at the symbol's listing it draws. What would settle it: nothing to capture — bars reaching the listing.",
     "a running total withheld (running-total:window) on 1 plot(s) — A running total — `ta.cum`, and `ta.obv`, `ta.pvt`, `ta.wad`, `ta.accdist`, `ta.nvi` and `ta.pvi`, which are built from it — adds up every bar since the first bar of the symbol's history on TradingView. This chart's loaded bars start later, so the total here is missing everything before them (measured: capture `vw-bar-counters-spy-1-2026-10-02` reads `ta.cum(1)` as 11,761 on the bar this chart would show as 1). A value that depends on the total itself would not be TradingView's, so everything this indicator draws from it is withheld on this chart rather than drawn wrong. What compares the total with itself a few bars earlier, or with its own average, is drawn. On a chart whose bars start at the symbol's listing it draws. What would settle it: nothing to capture — bars reaching the listing."
    ]
   },
@@ -58469,280 +57859,36 @@
      "title": "C01_var_n_plus_1",
      "ours": "out2",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "8050 steady-state bars disagree; first at bar 250 (na: vendor 13952 vs ours na) — persistent, last at bar 8299",
-     "warmupBars": 250,
-     "warmupSource": "derived: our evaluator's maxLookback for this plot",
-     "derivedLookback": 250,
-     "color": "unresolvable on our side",
-     "stats": {
-      "bars": 8300,
-      "compared": 8300,
-      "oursUnread": 0,
-      "matching": 0,
-      "vendorRowsMissing": 0,
-      "naMismatches": 8300,
-      "valueMismatches": 0,
-      "colorMismatches": 0,
-      "colorCompared": 0,
-      "colorComparable": 8300,
-      "valued": 8300,
-      "maxAbs": 0,
-      "maxRel": 0,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1710354600,
-       "kind": "na",
-       "vendor": 13702,
-       "ours": null
-      },
-      "warmup": {
-       "bars": 250,
-       "compared": 250,
-       "divergent": 250,
-       "first": {
-        "bar": 0,
-        "time": 1710354600,
-        "kind": "na",
-        "vendor": 13702,
-        "ours": null
-       }
-      },
-      "steady": {
-       "bars": 8050,
-       "compared": 8050,
-       "divergent": 8050,
-       "first": {
-        "bar": 250,
-        "time": 1712842200,
-        "kind": "na",
-        "vendor": 13952,
-        "ours": null
-       },
-       "last": {
-        "bar": 8299,
-        "time": 1790969400,
-        "kind": "na",
-        "vendor": 22001,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "persistent",
-        "lastDivergentBar": 8299
-       }
-      },
-      "vendorRowGapsAfterStart": 0
-     }
+     "verdict": "INCONCLUSIVE",
+     "withheld": "var-origin:window",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it"
     },
     {
      "id": "plot_2",
      "title": "C02_na_hist_seeded_counter",
      "ours": "out3",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "8050 steady-state bars disagree; first at bar 250 (na: vendor 13951 vs ours na) — persistent, last at bar 8299",
-     "warmupBars": 250,
-     "warmupSource": "derived: our evaluator's maxLookback for this plot",
-     "derivedLookback": 250,
-     "color": "unresolvable on our side",
-     "stats": {
-      "bars": 8300,
-      "compared": 8300,
-      "oursUnread": 0,
-      "matching": 0,
-      "vendorRowsMissing": 0,
-      "naMismatches": 8300,
-      "valueMismatches": 0,
-      "colorMismatches": 0,
-      "colorCompared": 0,
-      "colorComparable": 8300,
-      "valued": 8300,
-      "maxAbs": 0,
-      "maxRel": 0,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1710354600,
-       "kind": "na",
-       "vendor": 13701,
-       "ours": null
-      },
-      "warmup": {
-       "bars": 250,
-       "compared": 250,
-       "divergent": 250,
-       "first": {
-        "bar": 0,
-        "time": 1710354600,
-        "kind": "na",
-        "vendor": 13701,
-        "ours": null
-       }
-      },
-      "steady": {
-       "bars": 8050,
-       "compared": 8050,
-       "divergent": 8050,
-       "first": {
-        "bar": 250,
-        "time": 1712842200,
-        "kind": "na",
-        "vendor": 13951,
-        "ours": null
-       },
-       "last": {
-        "bar": 8299,
-        "time": 1790969400,
-        "kind": "na",
-        "vendor": 22000,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "persistent",
-        "lastDivergentBar": 8299
-       }
-      },
-      "vendorRowGapsAfterStart": 0
-     }
+     "verdict": "INCONCLUSIVE",
+     "withheld": "var-origin:window",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it"
     },
     {
      "id": "plot_3",
      "title": "C03_var_compound",
      "ours": "out4",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "8050 steady-state bars disagree; first at bar 250 (na: vendor 13952 vs ours na) — persistent, last at bar 8299",
-     "warmupBars": 250,
-     "warmupSource": "derived: our evaluator's maxLookback for this plot",
-     "derivedLookback": 250,
-     "color": "unresolvable on our side",
-     "stats": {
-      "bars": 8300,
-      "compared": 8300,
-      "oursUnread": 0,
-      "matching": 0,
-      "vendorRowsMissing": 0,
-      "naMismatches": 8300,
-      "valueMismatches": 0,
-      "colorMismatches": 0,
-      "colorCompared": 0,
-      "colorComparable": 8300,
-      "valued": 8300,
-      "maxAbs": 0,
-      "maxRel": 0,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1710354600,
-       "kind": "na",
-       "vendor": 13702,
-       "ours": null
-      },
-      "warmup": {
-       "bars": 250,
-       "compared": 250,
-       "divergent": 250,
-       "first": {
-        "bar": 0,
-        "time": 1710354600,
-        "kind": "na",
-        "vendor": 13702,
-        "ours": null
-       }
-      },
-      "steady": {
-       "bars": 8050,
-       "compared": 8050,
-       "divergent": 8050,
-       "first": {
-        "bar": 250,
-        "time": 1712842200,
-        "kind": "na",
-        "vendor": 13952,
-        "ours": null
-       },
-       "last": {
-        "bar": 8299,
-        "time": 1790969400,
-        "kind": "na",
-        "vendor": 22001,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "persistent",
-        "lastDivergentBar": 8299
-       }
-      },
-      "vendorRowGapsAfterStart": 0
-     }
+     "verdict": "INCONCLUSIVE",
+     "withheld": "var-origin:window",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it"
     },
     {
      "id": "plot_4",
      "title": "C04_var_na_seed_counter",
      "ours": "out5",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "8050 steady-state bars disagree; first at bar 250 (na: vendor 13951 vs ours na) — persistent, last at bar 8299",
-     "warmupBars": 250,
-     "warmupSource": "derived: our evaluator's maxLookback for this plot",
-     "derivedLookback": 250,
-     "color": "unresolvable on our side",
-     "stats": {
-      "bars": 8300,
-      "compared": 8300,
-      "oursUnread": 0,
-      "matching": 0,
-      "vendorRowsMissing": 0,
-      "naMismatches": 8300,
-      "valueMismatches": 0,
-      "colorMismatches": 0,
-      "colorCompared": 0,
-      "colorComparable": 8300,
-      "valued": 8300,
-      "maxAbs": 0,
-      "maxRel": 0,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1710354600,
-       "kind": "na",
-       "vendor": 13701,
-       "ours": null
-      },
-      "warmup": {
-       "bars": 250,
-       "compared": 250,
-       "divergent": 250,
-       "first": {
-        "bar": 0,
-        "time": 1710354600,
-        "kind": "na",
-        "vendor": 13701,
-        "ours": null
-       }
-      },
-      "steady": {
-       "bars": 8050,
-       "compared": 8050,
-       "divergent": 8050,
-       "first": {
-        "bar": 250,
-        "time": 1712842200,
-        "kind": "na",
-        "vendor": 13951,
-        "ours": null
-       },
-       "last": {
-        "bar": 8299,
-        "time": 1790969400,
-        "kind": "na",
-        "vendor": 22000,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "persistent",
-        "lastDivergentBar": 8299
-       }
-      },
-      "vendorRowGapsAfterStart": 0
-     }
+     "verdict": "INCONCLUSIVE",
+     "withheld": "var-origin:window",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it"
     },
     {
      "id": "plot_5",
@@ -58783,11 +57929,12 @@
     "verdict": "MATCH",
     "reason": "neither side draws an object"
    },
-   "verdict": "DIVERGE",
-   "reason": "4 of 9 compared items diverge",
+   "verdict": "INCONCLUSIVE",
+   "reason": "8 of 9 items could not be compared",
    "ourNotes": [
     "plots/objects: cold: no committed capture of SPY|30 holds bars before 1710354600, cold replay",
     "`bar_index` withheld (bar-index:window) on 3 plot(s) — `bar_index` counts bars from the first bar of the symbol's history on TradingView. This chart's loaded bars start later, so its count is lower by a number of bars it cannot know (measured: capture `vw-offset-na-spy-1d-2026-09-30` reads 8175 on the bar a 300-bar window calls 0). A value that depends on the count itself — a plotted `bar_index`, `bar_index % n`, a test against one exact bar — would not be TradingView's, so everything this indicator draws from such a value is withheld on this chart rather than drawn wrong. What only measures a distance between bars (`bar_index - bar_index[5]`) or places a drawing on a bar is drawn. On a daily chart whose bars start at the symbol's listing it draws. What would settle it: nothing to capture — bars reaching the listing.",
+    "`var` withheld (var-origin:window) on 6 plot(s) — A `var` is set once, on the first bar of the symbol's history on TradingView, and carried forward from there. This chart's loaded bars start later, so a `var` that keeps the value it was first given (`var first = time`, `var anchor = close`) or keeps counting (`var n = 0; n += 1`) holds a number this chart cannot know (measured: capture `vw-bar-origin-spy-1d-300-2026-10-02` reads `var first_time = time` as the listing day, 1993-01-29, where this chart would show a day 250 bars back). Everything this indicator draws from it is withheld on this chart rather than drawn wrong. A `var` seeded with a fixed number or an input is drawn. On a chart whose bars start at the symbol's listing it draws. What would settle it: nothing to capture — bars reaching the listing.",
     "a running total withheld (running-total:window) on 1 plot(s) — A running total — `ta.cum`, and `ta.obv`, `ta.pvt`, `ta.wad`, `ta.accdist`, `ta.nvi` and `ta.pvi`, which are built from it — adds up every bar since the first bar of the symbol's history on TradingView. This chart's loaded bars start later, so the total here is missing everything before them (measured: capture `vw-bar-counters-spy-1-2026-10-02` reads `ta.cum(1)` as 11,761 on the bar this chart would show as 1). A value that depends on the total itself would not be TradingView's, so everything this indicator draws from it is withheld on this chart rather than drawn wrong. What compares the total with itself a few bars earlier, or with its own average, is drawn. On a chart whose bars start at the symbol's listing it draws. What would settle it: nothing to capture — bars reaching the listing."
    ]
   },
@@ -58933,210 +58080,27 @@
      "title": "O03_bars_seen_by_a_var_counter",
      "ours": "out4",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "19958 steady-state bars disagree; first at bar 250 (na: vendor 251 vs ours na) — persistent, last at bar 20207",
-     "warmupBars": 250,
-     "warmupSource": "derived: our evaluator's maxLookback for this plot",
-     "derivedLookback": 250,
-     "color": "unresolvable on our side",
-     "stats": {
-      "bars": 20208,
-      "compared": 20208,
-      "oursUnread": 0,
-      "matching": 0,
-      "vendorRowsMissing": 0,
-      "naMismatches": 20208,
-      "valueMismatches": 0,
-      "colorMismatches": 0,
-      "colorCompared": 0,
-      "colorComparable": 20208,
-      "valued": 20208,
-      "maxAbs": 0,
-      "maxRel": 0,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1758547800,
-       "kind": "na",
-       "vendor": 1,
-       "ours": null
-      },
-      "warmup": {
-       "bars": 250,
-       "compared": 250,
-       "divergent": 250,
-       "first": {
-        "bar": 0,
-        "time": 1758547800,
-        "kind": "na",
-        "vendor": 1,
-        "ours": null
-       }
-      },
-      "steady": {
-       "bars": 19958,
-       "compared": 19958,
-       "divergent": 19958,
-       "first": {
-        "bar": 250,
-        "time": 1758811800,
-        "kind": "na",
-        "vendor": 251,
-        "ours": null
-       },
-       "last": {
-        "bar": 20207,
-        "time": 1790970900,
-        "kind": "na",
-        "vendor": 20208,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "persistent",
-        "lastDivergentBar": 20207
-       }
-      },
-      "vendorRowGapsAfterStart": 0
-     }
+     "verdict": "INCONCLUSIVE",
+     "withheld": "var-origin:window",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it"
     },
     {
      "id": "plot_4",
      "title": "O04_bar_index_minus_counter_MUST_BE_MINUS_1",
      "ours": "out5",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "19958 steady-state bars disagree; first at bar 250 (na: vendor -1 vs ours na) — persistent, last at bar 20207",
-     "warmupBars": 250,
-     "warmupSource": "derived: our evaluator's maxLookback for this plot",
-     "derivedLookback": 250,
-     "color": "unresolvable on our side",
-     "stats": {
-      "bars": 20208,
-      "compared": 20208,
-      "oursUnread": 0,
-      "matching": 0,
-      "vendorRowsMissing": 0,
-      "naMismatches": 20208,
-      "valueMismatches": 0,
-      "colorMismatches": 0,
-      "colorCompared": 0,
-      "colorComparable": 20208,
-      "valued": 20208,
-      "maxAbs": 0,
-      "maxRel": 0,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1758547800,
-       "kind": "na",
-       "vendor": -1,
-       "ours": null
-      },
-      "warmup": {
-       "bars": 250,
-       "compared": 250,
-       "divergent": 250,
-       "first": {
-        "bar": 0,
-        "time": 1758547800,
-        "kind": "na",
-        "vendor": -1,
-        "ours": null
-       }
-      },
-      "steady": {
-       "bars": 19958,
-       "compared": 19958,
-       "divergent": 19958,
-       "first": {
-        "bar": 250,
-        "time": 1758811800,
-        "kind": "na",
-        "vendor": -1,
-        "ours": null
-       },
-       "last": {
-        "bar": 20207,
-        "time": 1790970900,
-        "kind": "na",
-        "vendor": -1,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "persistent",
-        "lastDivergentBar": 20207
-       }
-      },
-      "vendorRowGapsAfterStart": 0
-     }
+     "verdict": "INCONCLUSIVE",
+     "withheld": "var-origin:window",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it"
     },
     {
      "id": "plot_5",
      "title": "O05_bar_index_where_isfirst_was_true",
      "ours": "out6",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "19958 steady-state bars disagree; first at bar 250 (na: vendor 0 vs ours na) — persistent, last at bar 20207",
-     "warmupBars": 250,
-     "warmupSource": "derived: our evaluator's maxLookback for this plot",
-     "derivedLookback": 250,
-     "color": "unresolvable on our side",
-     "stats": {
-      "bars": 20208,
-      "compared": 20208,
-      "oursUnread": 0,
-      "matching": 0,
-      "vendorRowsMissing": 0,
-      "naMismatches": 20208,
-      "valueMismatches": 0,
-      "colorMismatches": 0,
-      "colorCompared": 0,
-      "colorComparable": 20208,
-      "valued": 20208,
-      "maxAbs": 0,
-      "maxRel": 0,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1758547800,
-       "kind": "na",
-       "vendor": 0,
-       "ours": null
-      },
-      "warmup": {
-       "bars": 250,
-       "compared": 250,
-       "divergent": 250,
-       "first": {
-        "bar": 0,
-        "time": 1758547800,
-        "kind": "na",
-        "vendor": 0,
-        "ours": null
-       }
-      },
-      "steady": {
-       "bars": 19958,
-       "compared": 19958,
-       "divergent": 19958,
-       "first": {
-        "bar": 250,
-        "time": 1758811800,
-        "kind": "na",
-        "vendor": 0,
-        "ours": null
-       },
-       "last": {
-        "bar": 20207,
-        "time": 1790970900,
-        "kind": "na",
-        "vendor": 0,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "persistent",
-        "lastDivergentBar": 20207
-       }
-      },
-      "vendorRowGapsAfterStart": 0
-     }
+     "verdict": "INCONCLUSIVE",
+     "withheld": "var-origin:bars",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:bars) — nothing is drawn for it"
     },
     {
      "id": "plot_6",
@@ -59186,70 +58150,9 @@
      "title": "O07_first_bar_time_in_days",
      "ours": "out8",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "19957 steady-state bars disagree; first at bar 251 (value: vendor 20353.5625 vs ours 20353.565972222223) — persistent, last at bar 20207",
-     "warmupBars": 250,
-     "warmupSource": "derived: our evaluator's maxLookback for this plot",
-     "derivedLookback": 250,
-     "color": "compared",
-     "stats": {
-      "bars": 20208,
-      "compared": 20208,
-      "oursUnread": 0,
-      "matching": 1,
-      "vendorRowsMissing": 0,
-      "naMismatches": 250,
-      "valueMismatches": 19957,
-      "colorMismatches": 0,
-      "colorCompared": 1,
-      "colorComparable": 20208,
-      "valued": 20208,
-      "maxAbs": 372.21180555555475,
-      "maxRel": 0.01828730501383012,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1758547800,
-       "kind": "na",
-       "vendor": 20353.5625,
-       "ours": null
-      },
-      "warmup": {
-       "bars": 250,
-       "compared": 250,
-       "divergent": 250,
-       "first": {
-        "bar": 0,
-        "time": 1758547800,
-        "kind": "na",
-        "vendor": 20353.5625,
-        "ours": null
-       }
-      },
-      "steady": {
-       "bars": 19958,
-       "compared": 19958,
-       "divergent": 19957,
-       "first": {
-        "bar": 251,
-        "time": 1758812100,
-        "kind": "value",
-        "vendor": 20353.5625,
-        "ours": 20353.565972222223
-       },
-       "last": {
-        "bar": 20207,
-        "time": 1790970900,
-        "kind": "value",
-        "vendor": 20353.5625,
-        "ours": 20725.774305555555
-       },
-       "pattern": {
-        "kind": "persistent",
-        "lastDivergentBar": 20207
-       }
-      },
-      "vendorRowGapsAfterStart": 0
-     }
+     "verdict": "INCONCLUSIVE",
+     "withheld": "var-origin:window",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (var-origin:window) — nothing is drawn for it"
     },
     {
      "id": "plot_8",
@@ -59392,10 +58295,12 @@
     "verdict": "MATCH",
     "reason": "neither side draws an object"
    },
-   "verdict": "DIVERGE",
-   "reason": "4 of 12 compared items diverge",
+   "verdict": "INCONCLUSIVE",
+   "reason": "4 of 12 items could not be compared",
    "ourNotes": [
-    "plots/objects: bar0: the capture's own bar_index control reads 0 on its first bar; TradingView's history started there"
+    "plots/objects: bar0: the capture's own bar_index control reads 0 on its first bar; TradingView's history started there",
+    "`var` withheld (var-origin:window) on 3 plot(s) — A `var` is set once, on the first bar of the symbol's history on TradingView, and carried forward from there. This chart's loaded bars start later, so a `var` that keeps the value it was first given (`var first = time`, `var anchor = close`) or keeps counting (`var n = 0; n += 1`) holds a number this chart cannot know (measured: capture `vw-bar-origin-spy-1d-300-2026-10-02` reads `var first_time = time` as the listing day, 1993-01-29, where this chart would show a day 250 bars back). Everything this indicator draws from it is withheld on this chart rather than drawn wrong. A `var` seeded with a fixed number or an input is drawn. On a chart whose bars start at the symbol's listing it draws. What would settle it: nothing to capture — bars reaching the listing.",
+    "`var` withheld (var-origin:bars) on 1 plot(s) — A `var` is carried forward from the first bar of the symbol's history on TradingView. This chart reads it from its own loaded bars, which start later: on a bar where the `var` was last set (or reset) inside those bars it is TradingView's value and is drawn; on a bar where it still holds what it held before them (`if close > open * 1.03` / `level := high`, on a stretch with no such bar; a count that has not reset yet) it is not known here, and what this indicator draws from it is withheld on those bars rather than drawn wrong. On a chart whose bars start at the symbol's listing it draws. What would settle it: nothing to capture — bars reaching the listing."
    ]
   },
   {
@@ -61586,7 +60491,7 @@
    },
    "paints": {
     "verdict": "DIVERGE",
-    "reason": "1 paint differs (first: barcolor plot_3 \"O4\" withheld (an `offset` that is not a whole-number literal on `barcolor` has no capture (tools/visual_conformance/probes/vw-bgcolor-barcolor.pine)))",
+    "reason": "1 paint differs (first: barcolor plot_3 \"O4\" withheld (`offset = na` on `barcolor`: where TradingView draws such a paint is not captured (O4 of tools/visual_conformance/probes/vw-bgcolor-barcolor.pine is painted over on every bar by a later `barcolor`)))",
     "agreeing": 6,
     "differing": 1,
     "undrawn": 0,
@@ -61617,7 +60522,7 @@
       "id": "plot_3",
       "kind": "barcolor",
       "state": "withheld",
-      "reason": "an `offset` that is not a whole-number literal on `barcolor` has no capture (tools/visual_conformance/probes/vw-bgcolor-barcolor.pine)"
+      "reason": "`offset = na` on `barcolor`: where TradingView draws such a paint is not captured (O4 of tools/visual_conformance/probes/vw-bgcolor-barcolor.pine is painted over on every bar by a later `barcolor`)"
      },
      {
       "id": "plot_5",
@@ -80133,10 +79038,10 @@
     "reason": "neither side draws an object"
    },
    "paints": {
-    "verdict": "DIVERGE",
-    "reason": "1 paint differs (first: barcolor plot_12 \"B01_var_barcolor\" withheld (`barcolor`'s colour is an expression this door cannot carry yet))",
-    "agreeing": 1,
-    "differing": 1,
+    "verdict": "MATCH",
+    "reason": "2 paints agree bar for bar",
+    "agreeing": 2,
+    "differing": 0,
     "undrawn": 0,
     "undecodable": 0,
     "unpaired": [],
@@ -80149,13 +79054,12 @@
      {
       "id": "plot_12",
       "kind": "barcolor",
-      "state": "withheld",
-      "reason": "`barcolor`'s colour is an expression this door cannot carry yet"
+      "state": "agree"
      }
     ]
    },
    "verdict": "DIVERGE",
-   "reason": "6 of 9 compared items diverge",
+   "reason": "5 of 9 compared items diverge",
    "verdictWithoutPaints": "DIVERGE",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0",
@@ -80632,10 +79536,10 @@
     "reason": "neither side draws an object"
    },
    "paints": {
-    "verdict": "DIVERGE",
-    "reason": "1 paint differs (first: barcolor plot_12 \"B01_var_barcolor\" withheld (`barcolor`'s colour is an expression this door cannot carry yet))",
-    "agreeing": 1,
-    "differing": 1,
+    "verdict": "MATCH",
+    "reason": "2 paints agree bar for bar",
+    "agreeing": 2,
+    "differing": 0,
     "undrawn": 0,
     "undecodable": 0,
     "unpaired": [],
@@ -80648,13 +79552,12 @@
      {
       "id": "plot_12",
       "kind": "barcolor",
-      "state": "withheld",
-      "reason": "`barcolor`'s colour is an expression this door cannot carry yet"
+      "state": "agree"
      }
     ]
    },
    "verdict": "DIVERGE",
-   "reason": "6 of 9 compared items diverge",
+   "reason": "5 of 9 compared items diverge",
    "verdictWithoutPaints": "DIVERGE",
    "ourNotes": [
     "plots/objects: replayed: 6677 bars of prehistory from vw-clock-close-tfchange-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)",
