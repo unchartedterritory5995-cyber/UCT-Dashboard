@@ -184,20 +184,50 @@ jobs:
       - name: Resolve the candidate
         id: cand
         env:
+          GH_TOKEN: ${{ github.token }}
           EVENT: ${{ github.event_name }}
           TRIGGER_SHA: ${{ github.event.workflow_run.head_sha }}
           TRIGGER_CONC: ${{ github.event.workflow_run.conclusion }}
           INPUT_SHA: ${{ inputs.sha }}
+          RESUME: ${{ inputs.resume }}
+          ACTOR: ${{ github.triggering_actor || github.actor }}
         run: |
           set -euo pipefail
+          # (A) the operator's manual fallback needs the tip's OWN gate verdict. It is looked up ONLY for a human blank
+          # dispatch with nothing pending (resolve() re-checks every guard: no sha, no resume, no dry run, not the bot).
+          TIP=""; TIP_OK=no; TIP_RUN=""
+          PEND_SHA=$(python -c 'import json,sys; p=json.load(open(sys.argv[1])); print((p or {}).get("sha") or "")' "$RUNNER_TEMP/pending.json")
+          if [ "$EVENT" = "workflow_dispatch" ] && [ -z "$INPUT_SHA" ] && [ -z "$PEND_SHA" ] && [ "$RESUME" != "yes" ] \
+             && [ "$DRY_RUN" != "yes" ] && [ "$ACTOR" != "github-actions[bot]" ]; then
+            git fetch --no-tags --quiet origin master
+            TIP=$(git rev-parse origin/master)
+            gh api "repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${TIP}&branch=master&event=push&per_page=100" > tip-runs.json
+            TIP_RUN=$(python -c 'import json; r=[x for x in json.load(open("tip-runs.json"))["workflow_runs"] if x.get("name")=="master deploy gate" and x.get("conclusion")=="success"]; print(max(r,key=lambda x:x["id"])["id"] if r else "")')
+            if [ -n "$TIP_RUN" ]; then gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${TIP_RUN}/jobs?per_page=100" > tip-jobs.json; else echo '{"jobs":[]}' > tip-jobs.json; fi
+            G=$(python tools/promote_decision.py gate --runs tip-runs.json --jobs tip-jobs.json --workflow .github/workflows/master-deploy-gate.yml --sha "$TIP")
+            echo "tip own gate: $G"
+            TIP_OK=$(printf '%s' "$G" | python -c 'import json,sys; print("yes" if json.load(sys.stdin)["gate_ok"] else "no")')
+          fi
+          export TIP TIP_OK TIP_RUN
           python - "$RUNNER_TEMP/pending.json" > "$RUNNER_TEMP/resolve-facts.json" <<'PY'
           import json, os, sys
           print(json.dumps({"event": os.environ["EVENT"], "trigger_sha": os.environ.get("TRIGGER_SHA") or None,
                             "trigger_conclusion": os.environ.get("TRIGGER_CONC") or None,
-                            "input_sha": os.environ.get("INPUT_SHA") or None, "pending": json.load(open(sys.argv[1]))}))
+                            "input_sha": os.environ.get("INPUT_SHA") or None, "pending": json.load(open(sys.argv[1])),
+                            "resume": os.environ.get("RESUME") == "yes", "dry_run": os.environ.get("DRY_RUN") == "yes",
+                            "actor": os.environ.get("ACTOR") or None, "master_tip": os.environ.get("TIP") or None,
+                            "tip_gate_ok": os.environ.get("TIP_OK") == "yes", "tip_gate_run": os.environ.get("TIP_RUN") or None}))
           PY
           R=$(python tools/promote_decision.py resolve --facts "$RUNNER_TEMP/resolve-facts.json")
           echo "resolve: $R"
+          printf '%s' "$R" > "$RUNNER_TEMP/resolve.json"
+          python - "$RUNNER_TEMP/resolve.json" >> "$GITHUB_OUTPUT" <<'PY'
+          import json, sys
+          r = json.load(open(sys.argv[1]))
+          print(f"gate_green={'yes' if r.get('gate_green') else 'no'}")
+          print(f"source={(r.get('source') or '').replace(chr(10), ' ')}")
+          print(f"stop={(r.get('stop') or '').replace(chr(10), ' ')}")
+          PY
           SHA=$(printf '%s' "$R" | python -c 'import json,sys; print(json.load(sys.stdin)["candidate"] or "")')
           if [ -z "$SHA" ]; then
             echo "none=yes" >> "$GITHUB_OUTPUT"
@@ -257,12 +287,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           BLOB: ${{ steps.pend.outputs.blob }}
           GATE_RUN_ID: ${{ github.event.workflow_run.id }}
+          GATE_GREEN: ${{ steps.cand.outputs.gate_green }}
         run: |
           set -uo pipefail
           python - "$RUNNER_TEMP/facts0.json" > "$RUNNER_TEMP/hold-facts.json" <<'PY'
           import json, os, sys, datetime as dt
           f = json.load(open(sys.argv[1]))
           f.update(frozen=True, gate_ok=True, gate_run_id=os.environ.get("GATE_RUN_ID") or None,
+                   cand_gate_green=os.environ.get("GATE_GREEN") == "yes",
                    held_at=dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z"))
           print(json.dumps(f))
           PY
@@ -343,9 +375,11 @@ jobs:
             esac
           done
           # ⛔ AND the candidate's OWN master deploy gate run: success, with every expected job successful.
-          RUN=$(python -c 'import json; r=[x for x in json.load(open("runs.json"))["workflow_runs"] if x.get("name")=="master deploy gate" and x.get("conclusion")=="success"]; print(max(r,key=lambda x:x["id"])["id"] if r else "")')
+          # fetched with head_sha=<SHA>, branch=master, event=push; gate_ok re-checks all three on every run it counts
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${SHA}&branch=master&event=push&per_page=100" > own-runs.json
+          RUN=$(python -c 'import json; r=[x for x in json.load(open("own-runs.json"))["workflow_runs"] if x.get("name")=="master deploy gate" and x.get("conclusion")=="success"]; print(max(r,key=lambda x:x["id"])["id"] if r else "")')
           if [ -n "$RUN" ]; then gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN}/jobs?per_page=100" > jobs.json; else echo '{"jobs":[]}' > jobs.json; fi
-          OWN=$(python tools/promote_decision.py gate --runs runs.json --jobs jobs.json --workflow .github/workflows/master-deploy-gate.yml --sha "$SHA")
+          OWN=$(python tools/promote_decision.py gate --runs own-runs.json --jobs jobs.json --workflow .github/workflows/master-deploy-gate.yml --sha "$SHA")
           echo "own gate: $OWN"
           echo "own=$(printf '%s' "$OWN" | python -c 'import json,sys; print("yes" if json.load(sys.stdin)["gate_ok"] else "no")')" >> "$GITHUB_OUTPUT"
           grep -q '^verdict=' "$GITHUB_OUTPUT" || echo "verdict=TIMEOUT" >> "$GITHUB_OUTPUT"
@@ -375,6 +409,7 @@ jobs:
           VERDICT: ${{ steps.gate.outputs.verdict }}
           OWN: ${{ steps.gate.outputs.own }}
           GATE_RUN_ID: ${{ github.event.workflow_run.id }}
+          GATE_GREEN: ${{ steps.cand.outputs.gate_green }}
         run: |
           set -euo pipefail
           bash tools/promote_facts.sh "$SHA" "$RUNNER_TEMP/pending.json" > "$RUNNER_TEMP/facts.json"
@@ -384,6 +419,7 @@ jobs:
           frozen = os.environ.get("FROZEN") == "yes"
           f.update(frozen=frozen, gate_run_id=os.environ.get("GATE_RUN_ID") or None,
                    gate_unknown=os.environ.get("VERDICT") == "TIMEOUT",
+                   cand_gate_green=os.environ.get("GATE_GREEN") == "yes" or (os.environ.get("VERDICT") == "PROMOTE" and os.environ.get("OWN") == "yes"),
                    # held: the gate is re-verified when the hold ends; a gate that was not polled is NOT ok
                    gate_ok=True if frozen else (os.environ.get("VERDICT") == "PROMOTE" and os.environ.get("OWN") == "yes"))
           print(json.dumps(f))
@@ -582,6 +618,7 @@ jobs:
             echo ""
             echo "- candidate: \`${{ steps.cand.outputs.sha || 'none' }}\`"
             echo "- dry run: **${DRY_RUN}**"
+            echo "- chosen: ${{ steps.cand.outputs.source || 'nothing' }}${{ steps.cand.outputs.stop && ' — ' || '' }}${{ steps.cand.outputs.stop }}"
             echo "- freeze before / after the wait: **${{ steps.freeze0.outputs.frozen0 || 'n/a' }}** / **${{ steps.freeze.outputs.frozen || 'n/a' }}** (planned wait ${{ steps.freeze0.outputs.wait_s || '0' }}s)"
             echo "- decision: **${{ steps.dec.outputs.action || 'none' }}** → \`${{ steps.dec.outputs.target || '-' }}\`"
             if [ -f "$RUNNER_TEMP/decision.json" ]; then echo "- reason: $(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["reason"])' "$RUNNER_TEMP/decision.json")"; fi

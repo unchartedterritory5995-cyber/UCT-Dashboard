@@ -237,6 +237,19 @@ gate runs, reports, and no-ops.
 
 ---
 
+## 5.2a Held promotions and the manual door (2026-11-10, docs/agent/program/PROMOTE-CATCHUP-DESIGN.md)
+
+- **A promotion inside a freeze** (the weekday rushes, the Wednesday window) is HELD. The held run records the exact
+  gated SHA as PENDING (`deploy-gate-state/pending-promotion.json`) and waits in-job until the window closes (bounded,
+  ≤ 126 min). It then re-checks the freeze, the gating checks, the SHA's own gate run and the ancestry, and fast-forwards
+  production to EXACTLY that SHA, never to master's tip. A capped self re-dispatch (≤ 2 per SHA) and the crons back it up.
+- **Manual "Run workflow" (promote to production):**
+  - `sha=<commit>` promotes that commit, through every check.
+  - Blank promotes the PENDING SHA. If nothing is pending, it promotes master's tip ONLY when the tip's own master
+    deploy gate run is green with every job (the manual fallback, humans only). Otherwise it does nothing, and the
+    summary says "pass sha=<commit>".
+  - `dry_run=yes` (+ `now=<ISO>`) decides and reports only.
+
 ## 5.3 Test design (replaces A.5) — DESIGN ONLY, run authorised separately
 
 **Precondition:** the workflow is on master; `production` exists on origin; **Railway

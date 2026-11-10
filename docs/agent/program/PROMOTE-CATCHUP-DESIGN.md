@@ -74,6 +74,37 @@ Kept exactly:
 - the Railway wait;
 - every freeze, with fail-open on a broken freeze reader.
 
+## Operator: a manual dispatch
+- **`sha=<commit>`** promotes that commit through every fire-time check.
+- **Blank** (no `sha`):
+  - With something pending, it promotes the **pending** SHA.
+  - With nothing pending, it promotes **master's tip ONLY IF** that tip's own `master deploy gate` run is success with
+    every expected job (the fire-time check: runs fetched with `head_sha=<tip>&branch=master&event=push`).
+  - Otherwise it promotes nothing.
+  - The summary always names the choice: "pending X", "tip (manual fallback, own gate verified): tip Y with green gate
+    run N", or "nothing pending and tip Y has no green gate; pass sha=<commit>".
+- **The fallback is for a human only:** a `workflow_dispatch` with no `sha`, no `resume` and no `dry_run`, and an actor
+  other than `github-actions[bot]`. `schedule`, `workflow_run` and the `resume` job's re-dispatch can never reach it
+  (decision cases A4).
+- **A fallback candidate gets every check:** freeze (HOLD, with the tip recorded PENDING), production ⊑ tip, and
+  fast-forward only.
+- **The tests' strict never-master's-tip control** still covers every other source. The fallback has its own case and
+  control (A1–A3).
+
+## Why one pending run per group is safe (GitHub cancels an older PENDING run when a newer one queues)
+- Suppose A is held and waiting. B's run queues; then C's run queues, and GitHub cancels B's pending run.
+- C's run promotes C, its own gated SHA. C descends from A and B on master, and its gate's range scan covers everything
+  since `production`.
+- So production ends at C, and B's gate result is never needed: no decision ever reads a fact about B.
+- Decision case `B` pins this.
+
+## Liveness: a newcomer never displaces a verified pending SHA
+- A candidate that arrives inside a freeze replaces the PENDING SHA only if it descends from it AND its OWN gate is
+  already known green. That covers a `workflow_run` (its gate just succeeded) and the manual fallback (gate verified).
+- A dispatch `sha` or a resume of unknown gate state does not replace it.
+- So with A verified and pending, an unverified B that arrives and whose gate later fails leaves A pending, and A is
+  promoted on the next run (cases C1–C4).
+
 ## Failure modes
 | Case | What happens |
 |---|---|

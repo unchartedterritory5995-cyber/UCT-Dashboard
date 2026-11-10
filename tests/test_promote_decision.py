@@ -78,7 +78,7 @@ def test_5_recovery_after_an_interrupted_run_resumes_the_pending_sha():
 def test_6_master_moving_during_the_wait():
     assert run(candidate=A, master_tip=B)["target"] == A                          # descendant tip: still A
     assert run(candidate=A, on_master=False, master_tip=B)["action"] == pd.REFUSE_OFF_MASTER
-    rep = run(candidate=B, frozen=True, pending={"sha": A, "redispatches": 1}, pending_in_cand=True)
+    rep = run(candidate=B, frozen=True, pending={"sha": A, "redispatches": 1}, pending_in_cand=True, cand_gate_green=True)
     assert rep["action"] == pd.HOLD and rep["pending"] == {"sha": B, "redispatches": 0}   # replaced: B descends from A
     keep = run(candidate=C, frozen=True, pending={"sha": A, "redispatches": 0}, pending_in_cand=False)
     assert keep["pending"] == {"sha": A, "redispatches": 0}                                # not a descendant: A stays
@@ -143,3 +143,60 @@ def test_a_pull_request_reaches_only_the_read_only_dry_run():
 def test_the_master_gate_runs_these_tests():
     gate = (ROOT / ".github" / "workflows" / "master-deploy-gate.yml").read_text(encoding="utf-8")
     assert "tests/test_ci_cost_rails.py tests/test_promote_decision.py" in gate
+
+
+def test_B_one_pending_run_per_group_a_cancelled_middle_run_is_never_needed():
+    """A held and waiting; B queued, then cancelled by C's arrival (its run never happens); C's run promotes C."""
+    d = run(candidate=C, pending={"sha": A, "redispatches": 0}, pending_in_cand=True)
+    assert (d["action"], d["target"], d["pending"]) == (pd.PROMOTE, C, None)       # production ends at C; A cleared
+    # B's gate result is not an input anywhere in C's decision (no fact about B exists)
+
+
+def test_C_liveness_an_unverified_newcomer_never_displaces_a_verified_pending_sha():
+    held = run(candidate=B, frozen=True, pending={"sha": A, "redispatches": 0}, pending_in_cand=True, cand_gate_green=False)
+    assert held["action"] == pd.HOLD and held["pending"] == {"sha": A, "redispatches": 0}
+    failed = run(candidate=B, gate_ok=False, pending={"sha": A, "redispatches": 0}, pending_in_cand=True)
+    assert failed["action"] == pd.REFUSE_GATE and failed["pending"] == {"sha": A, "redispatches": 0}
+    r = pd.resolve(event="workflow_dispatch", resume=True, actor=pd.BOT_ACTOR, pending=failed["pending"])
+    assert run(candidate=r["candidate"], pending=failed["pending"])["target"] == A   # A is still promoted
+
+
+def _gate_run(**kw):
+    r = {"id": 1, "name": pd.GATE_WORKFLOW_NAME, "head_sha": A, "head_branch": "master", "event": "push",
+         "status": "completed", "conclusion": "success"}
+    r.update(kw)
+    return [r]
+
+
+def test_D_the_own_gate_check_rejects_another_sha_another_event_another_branch():
+    jobs = [{"run_id": 1, "conclusion": "success"}]
+    assert pd.gate_ok(_gate_run(), jobs, 1, A)[0]
+    assert not pd.gate_ok(_gate_run(head_sha=B), jobs, 1, A)[0]
+    assert not pd.gate_ok(_gate_run(event="workflow_dispatch"), jobs, 1, A)[0]
+    assert not pd.gate_ok(_gate_run(head_branch="feature"), jobs, 1, A)[0]
+    wf = (ROOT / ".github" / "workflows" / "promote-production.yml").read_text(encoding="utf-8")
+    assert "actions/runs?head_sha=${SHA}&branch=master&event=push" in wf
+
+
+def test_A_the_manual_fallback_and_its_own_control():
+    fb = pd.resolve(event="workflow_dispatch", actor="owner", master_tip=TIP, tip_gate_ok=True, tip_gate_run="9")
+    assert fb["fallback"] and fb["candidate"] == TIP and fb["source"].startswith(pd.FALLBACK_SOURCE)
+    d = pd.decide(dict(BASE, candidate=fb["candidate"], master_tip=TIP))
+    assert (d["action"], d["target"]) == (pd.PROMOTE, TIP)         # the fallback's own control: the tip, ONLY via fallback
+    held = pd.decide(dict(BASE, candidate=TIP, master_tip=TIP, frozen=True, cand_gate_green=fb["gate_green"]))
+    assert held["action"] == pd.HOLD and held["pending"]["sha"] == TIP   # frozen: HOLD, the tip recorded PENDING
+    assert pd.decide(dict(BASE, candidate=TIP, master_tip=TIP, prod_in_cand=False))["action"] == pd.REFUSE_DIVERGED
+    none = pd.resolve(event="workflow_dispatch", actor="owner", master_tip=TIP)
+    assert none["candidate"] is None and "pass sha=" in none["stop"]
+
+
+def test_A_the_fallback_is_unreachable_from_schedule_workflow_run_and_the_resume_redispatch():
+    for r in (pd.resolve(event="schedule", master_tip=TIP, tip_gate_ok=True),
+              pd.resolve(event="workflow_run", trigger_conclusion="failure", master_tip=TIP, tip_gate_ok=True),
+              pd.resolve(event="workflow_dispatch", resume=True, actor=pd.BOT_ACTOR, master_tip=TIP, tip_gate_ok=True),
+              pd.resolve(event="workflow_dispatch", actor=pd.BOT_ACTOR, master_tip=TIP, tip_gate_ok=True),
+              pd.resolve(event="workflow_dispatch", dry_run=True, actor="owner", master_tip=TIP, tip_gate_ok=True)):
+        assert r["candidate"] is None and not r["fallback"]
+    # a pending SHA always wins over the fallback
+    assert pd.resolve(event="workflow_dispatch", actor="owner", master_tip=TIP, tip_gate_ok=True,
+                      pending={"sha": A})["candidate"] == A

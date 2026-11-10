@@ -31,7 +31,7 @@ import yaml
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 COPY = ["tools/promote_decision.py", "tools/deploy_freeze.py", "tools/promote_facts.sh", "tools/promote_state.sh",
         "tools/promotion_gate.py", ".github/workflows/master-deploy-gate.yml", "api/services/measurement_window.py"]
-STEPS = ["freeze0", "facts0", "Record the SHA as PENDING (before waiting)", "wait", "freeze", "dec",
+STEPS = ["cand", "freeze0", "facts0", "Record the SHA as PENDING (before waiting)", "wait", "freeze", "dec",
          "Update the pending record", "Fast-forward `production`", "Already promoted, or refused", "Summary"]
 
 
@@ -75,11 +75,11 @@ def main(argv=None) -> int:
     env = dict(os.environ, RUNNER_TEMP=str(runner), GITHUB_STEP_SUMMARY=str(summary), GITHUB_ENV=str(runner / "env"),
                GITHUB_REPOSITORY="dryrun/dryrun", DRY_RUN="yes", PYTHONIOENCODING="utf-8", GH_TOKEN="",
                PATH=str(shim) + os.pathsep + os.environ["PATH"])
-    ctx = {"inputs.dry_run": "yes", "inputs.now": a.now, "inputs.freeze_override": "", "inputs.sha": "",
+    ctx = {"inputs.dry_run": "yes", "inputs.now": a.now, "inputs.freeze_override": "", "inputs.sha": "", "inputs.resume": "",
            "github.event_name": "workflow_run", "github.event.workflow_run.id": "dry-run",
            "github.event.workflow_run.head_sha": cand, "github.event.workflow_run.conclusion": "success",
            "github.token": "", "secrets.GITHUB_TOKEN": ""}
-    out = {"cand": {"sha": cand, "none": "no"}, "gate": {"verdict": "PROMOTE", "own": "yes"}, "exists": {"exists": "yes"}}
+    out = {"gate": {"verdict": "PROMOTE", "own": "yes"}, "exists": {"exists": "yes"}}
 
     def ev(expr: str) -> str:
         expr = expr.strip()
@@ -127,11 +127,13 @@ def main(argv=None) -> int:
     ok = dec.get("target") == cand and dec.get("target") != tip and prod_after == prod
     control = (f"CONTROL: target {str(dec.get('target'))[:10]} == gated candidate {cand[:10]}: {dec.get('target') == cand}; "
                f"!= ungated master tip {tip[:10]}: {dec.get('target') != tip}; production unchanged: {prod_after == prod}")
-    text = "\n".join(log) + "\n\n===== JOB SUMMARY =====\n" + summary.read_text() + "\n" + control
+    shas = (f"SHAS: target={dec.get('target')} gated={cand} ungated_tip={tip} "
+            f"production_before={prod} production_after={prod_after}")
+    text = "\n".join(log) + "\n\n===== JOB SUMMARY =====\n" + summary.read_text() + "\n" + shas + "\n" + control
     print(text)
     if a.summary:
         with open(a.summary, "a", encoding="utf-8") as f:
-            f.write(f"### Dry run, simulated clock `{a.now}`\n\n" + summary.read_text() + f"\n- {control}\n\n")
+            f.write(f"### Dry run, simulated clock `{a.now}`\n\n" + summary.read_text() + f"\n- `{shas}`\n- {control}\n\n")
     return 0 if ok else 1
 
 

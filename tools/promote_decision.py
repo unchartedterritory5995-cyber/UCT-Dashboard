@@ -43,18 +43,38 @@ HOLD = "HOLD"
 PROMOTE = "PROMOTE"
 
 
+FALLBACK_SOURCE = "tip (manual fallback, own gate verified)"
+BOT_ACTOR = "github-actions[bot]"
+
+
 def resolve(*, event: str, trigger_sha: str | None = None, trigger_conclusion: str | None = None,
-            input_sha: str | None = None, pending: dict | None = None) -> dict:
-    """{candidate, source, stop}. Master's tip is deliberately not a parameter."""
+            input_sha: str | None = None, pending: dict | None = None, resume: bool = False, dry_run: bool = False,
+            actor: str | None = None, master_tip: str | None = None, tip_gate_ok: bool = False,
+            tip_gate_run: str | None = None) -> dict:
+    """{candidate, source, stop, gate_green, fallback}. `gate_green`: the candidate's OWN gate is already known green.
+
+    Master's tip is a candidate in ONE case only, the operator's manual fallback: a HUMAN workflow_dispatch (no `sha`,
+    no `resume`, no `dry_run`, actor not github-actions[bot]) with nothing pending, and only when the tip's own master
+    deploy gate run is success with every expected job (`tip_gate_ok`, the fire-time check). schedule, workflow_run and
+    the resume job's re-dispatch never reach it. The fallback then goes through every fire-time check like any other."""
     if event == "workflow_run":
         if trigger_conclusion != "success":
-            return {"candidate": None, "source": "workflow_run", "stop": f"the triggering gate concluded {trigger_conclusion!r}"}
-        return {"candidate": trigger_sha, "source": "workflow_run", "stop": None}
+            return {"candidate": None, "source": "workflow_run", "stop": f"the triggering gate concluded {trigger_conclusion!r}",
+                    "gate_green": False, "fallback": False}
+        return {"candidate": trigger_sha, "source": f"the gate run that just succeeded for {trigger_sha}", "stop": None,
+                "gate_green": True, "fallback": False}
     if input_sha:
-        return {"candidate": input_sha, "source": "dispatch input", "stop": None}
+        return {"candidate": input_sha, "source": f"dispatch input sha={input_sha}", "stop": None, "gate_green": False, "fallback": False}
     if pending and pending.get("sha"):
-        return {"candidate": pending["sha"], "source": "pending record", "stop": None}
-    return {"candidate": None, "source": event, "stop": "nothing is pending"}
+        return {"candidate": pending["sha"], "source": f"pending {pending['sha']}", "stop": None, "gate_green": False, "fallback": False}
+    human_blank = event == "workflow_dispatch" and not resume and not dry_run and (actor or "") not in ("", BOT_ACTOR)
+    if human_blank and master_tip:
+        if tip_gate_ok:
+            return {"candidate": master_tip, "source": f"{FALLBACK_SOURCE}: tip {master_tip} with green gate run {tip_gate_run}",
+                    "stop": None, "gate_green": True, "fallback": True}
+        return {"candidate": None, "source": "blank dispatch", "gate_green": False, "fallback": False,
+                "stop": f"nothing pending and tip {master_tip} has no green gate; pass sha=<commit>"}
+    return {"candidate": None, "source": event, "stop": "nothing is pending", "gate_green": False, "fallback": False}
 
 
 def decide(f: dict) -> dict:
@@ -87,6 +107,11 @@ def decide(f: dict) -> dict:
         if pend and not same and not f.get("pending_in_cand"):
             return {"action": HOLD, "target": None, "reason": f"held; {c} does not descend from the pending "
                     f"{pend.get('sha')}, which stays pending", "pending": pend}
+        # liveness: a newcomer replaces a pending SHA only when its OWN gate is already known green; otherwise a
+        # newcomer whose gate later fails would have displaced a promotable SHA
+        if pend and not same and not f.get("cand_gate_green"):
+            return {"action": HOLD, "target": None, "reason": f"held; {c}'s own gate is not yet known green, so the "
+                    f"pending {pend.get('sha')} stays pending", "pending": pend}
         rec = dict(pend) if same else {"sha": c, "redispatches": 0}
         for k in ("gate_run_id", "held_at", "freeze_ends_at"):
             if f.get(k) is not None:
@@ -180,7 +205,8 @@ def _cases():
     case("6a master moved (descendant): the candidate promotes", dict(base, candidate=A, master_tip=B), PROMOTE, A, None)
     case("6b master rewritten (candidate gone): refused", dict(base, candidate=A, on_master=False, master_tip=B), REFUSE_OFF_MASTER)
     case("6c a newer gated SHA that descends from the pending one replaces it",
-         dict(base, candidate=B, frozen=True, pending={"sha": A, "redispatches": 1}, pending_in_cand=True, master_tip=TIP), HOLD, None, {"sha": B, "redispatches": 0})
+         dict(base, candidate=B, frozen=True, pending={"sha": A, "redispatches": 1}, pending_in_cand=True, cand_gate_green=True,
+              master_tip=TIP), HOLD, None, {"sha": B, "redispatches": 0})
     case("6d a newer SHA that does NOT descend from the pending one leaves it pending",
          dict(base, candidate=C, frozen=True, pending={"sha": A, "redispatches": 0}, pending_in_cand=False, master_tip=TIP), HOLD, None, {"sha": A, "redispatches": 0})
     # 7 the gate failing (at fire time) refuses, and drops that pending record
@@ -188,6 +214,21 @@ def _cases():
     case("7b gating poll timed out: refused now, the SHA stays pending",
          dict(base, candidate=A, gate_ok=False, gate_unknown=True, pending={"sha": A, "redispatches": 1}, master_tip=TIP),
          REFUSE_GATE, None, {"sha": A, "redispatches": 1})
+    # (B) one pending run per concurrency group: A held and waiting; B queued, then CANCELLED by C's arrival (B's run never
+    # happens); C's run promotes C, a descendant of A. Production ends at C; B's gate result is never consulted.
+    case("B A held, B cancelled in the queue, C promotes C (A cleared)",
+         dict(base, candidate=C, pending={"sha": A, "redispatches": 0}, pending_in_cand=True, master_tip=TIP), PROMOTE, C, None)
+    # (C) liveness: A verified pending; an unverified dispatch B arrives in a freeze -> A stays; B's gate fails -> A stays
+    case("C1 an unverified newcomer in a freeze does not replace the pending SHA",
+         dict(base, candidate=B, frozen=True, pending={"sha": A, "redispatches": 0}, pending_in_cand=True,
+              cand_gate_green=False, master_tip=TIP), HOLD, None, {"sha": A, "redispatches": 0})
+    case("C2 the newcomer's gate fails at fire time: refused, A still pending",
+         dict(base, candidate=B, gate_ok=False, pending={"sha": A, "redispatches": 0}, pending_in_cand=True, master_tip=TIP),
+         REFUSE_GATE, None, {"sha": A, "redispatches": 0})
+    case("C3 the resume then promotes A", dict(base, candidate=A, pending={"sha": A, "redispatches": 0}, master_tip=TIP), PROMOTE, A, None)
+    case("C4 a newcomer whose own gate IS known green replaces it",
+         dict(base, candidate=B, frozen=True, pending={"sha": A, "redispatches": 0}, pending_in_cand=True,
+              cand_gate_green=True, master_tip=TIP), HOLD, None, {"sha": B, "redispatches": 0})
     # 8 stale SHA: production is ahead of the candidate -> Already (never backwards); diverged -> refused, never forced
     case("8a stale SHA: production already past it", dict(base, candidate=A, cand_in_prod=True, prod_in_cand=False, master_tip=TIP), ALREADY)
     case("8b production not an ancestor: refused", dict(base, candidate=A, prod_in_cand=False, master_tip=TIP), REFUSE_DIVERGED)
@@ -199,10 +240,50 @@ def self_check() -> int:
     for name, facts, act, target, pend in _cases():
         d = decide(facts)
         ok = d["action"] == act and d["target"] == target and (pend == "any" or d["pending"] == pend)
-        # ⛔ the control: the fast-forward target is never master's tip unless the tip IS the candidate
-        ok = ok and not (d["target"] is not None and d["target"] == facts.get("master_tip") and facts["master_tip"] != facts["candidate"])
-        ok = ok and (d["target"] is None or d["target"] == facts["candidate"])
+        # ⛔ the STRICT control, for every source but the manual fallback: the target is the candidate, never master's tip
+        ok = ok and (d["target"] is None or (d["target"] == facts["candidate"] and d["target"] != facts.get("master_tip")))
         print(f"  {'ok  ' if ok else 'FAIL'} {name}: {d['action']} -> {d['target']}")
+        bad += 0 if ok else 1
+    # (A) the manual fallback: its own case and its own control (target == the tip ONLY via a verified fallback)
+    T = "f" * 40
+    fb = resolve(event="workflow_dispatch", actor="owner", master_tip=T, tip_gate_ok=True, tip_gate_run="9")
+    d = decide(dict(gate_ok=True, cand_in_prod=False, on_master=True, prod_in_cand=True, frozen=False, pending=None,
+                    candidate=fb["candidate"], master_tip=T))
+    held = decide(dict(gate_ok=True, cand_in_prod=False, on_master=True, prod_in_cand=True, frozen=True, pending=None,
+                       candidate=fb["candidate"], master_tip=T, cand_gate_green=fb["gate_green"]))
+    offff = decide(dict(gate_ok=True, cand_in_prod=False, on_master=True, prod_in_cand=False, frozen=False, pending=None,
+                        candidate=fb["candidate"], master_tip=T))
+    for name, ok in (
+            ("A1 fallback: a human blank dispatch, tip gate verified -> the tip, source says so",
+             fb["fallback"] and fb["candidate"] == T and fb["source"].startswith(FALLBACK_SOURCE)),
+            ("A1 control: the fallback's target is the tip only through the fire-time checks (PROMOTE, FF)",
+             d["action"] == PROMOTE and d["target"] == T),
+            ("A2 a frozen fallback HOLDs and records the tip PENDING", held["action"] == HOLD and held["pending"]["sha"] == T),
+            ("A2 a fallback whose tip production is not under is refused (FF only)", offff["action"] == REFUSE_DIVERGED),
+            ("A3 tip gate NOT green: no candidate, and the stop says pass sha=",
+             (lambda r: r["candidate"] is None and "pass sha=" in r["stop"])(resolve(event="workflow_dispatch", actor="owner", master_tip=T))),
+            ("A4 schedule + tip available + nothing pending -> NO candidate",
+             resolve(event="schedule", actor="owner", master_tip=T, tip_gate_ok=True)["candidate"] is None),
+            ("A4 workflow_run (failed) + tip available + nothing pending -> NO candidate",
+             resolve(event="workflow_run", trigger_conclusion="failure", master_tip=T, tip_gate_ok=True)["candidate"] is None),
+            ("A4 the resume job's re-dispatch (resume, github-actions[bot]) + tip available -> NO candidate",
+             resolve(event="workflow_dispatch", resume=True, actor=BOT_ACTOR, master_tip=T, tip_gate_ok=True)["candidate"] is None),
+            ("A4 a bot dispatch without resume -> NO candidate",
+             resolve(event="workflow_dispatch", actor=BOT_ACTOR, master_tip=T, tip_gate_ok=True)["candidate"] is None),
+            ("A4 a dry-run dispatch -> NO candidate",
+             resolve(event="workflow_dispatch", dry_run=True, actor="owner", master_tip=T, tip_gate_ok=True)["candidate"] is None),
+            ("A4 a pending SHA wins over the fallback",
+             resolve(event="workflow_dispatch", actor="owner", master_tip=T, tip_gate_ok=True, pending={"sha": "a" * 40})["candidate"] == "a" * 40),
+            ("D the gate check rejects a success run for ANOTHER head_sha",
+             not gate_ok([{"id": 1, "name": GATE_WORKFLOW_NAME, "head_sha": "b", "head_branch": "master", "event": "push",
+                           "status": "completed", "conclusion": "success"}], [{"run_id": 1, "conclusion": "success"}], 1, "a")[0]),
+            ("D the gate check rejects a run whose event is not push",
+             not gate_ok([{"id": 1, "name": GATE_WORKFLOW_NAME, "head_sha": "a", "head_branch": "master", "event": "workflow_dispatch",
+                           "status": "completed", "conclusion": "success"}], [{"run_id": 1, "conclusion": "success"}], 1, "a")[0]),
+            ("D the gate check rejects a run off master",
+             not gate_ok([{"id": 1, "name": GATE_WORKFLOW_NAME, "head_sha": "a", "head_branch": "feature", "event": "push",
+                           "status": "completed", "conclusion": "success"}], [{"run_id": 1, "conclusion": "success"}], 1, "a")[0])):
+        print(f"  {'ok  ' if ok else 'FAIL'} {name}")
         bad += 0 if ok else 1
     # the re-dispatch cap and the resolver
     d0, r0, _ = may_redispatch({"sha": "a" * 40, "redispatches": MAX_REDISPATCH - 1})
@@ -241,7 +322,9 @@ def main(argv=None) -> int:
     if a.cmd == "resolve":
         f = load(a.facts)
         out = resolve(event=f.get("event"), trigger_sha=f.get("trigger_sha"), trigger_conclusion=f.get("trigger_conclusion"),
-                      input_sha=f.get("input_sha"), pending=f.get("pending"))
+                      input_sha=f.get("input_sha"), pending=f.get("pending"), resume=bool(f.get("resume")),
+                      dry_run=bool(f.get("dry_run")), actor=f.get("actor"), master_tip=f.get("master_tip"),
+                      tip_gate_ok=bool(f.get("tip_gate_ok")), tip_gate_run=f.get("tip_gate_run"))
     elif a.cmd == "decide":
         out = decide(load(a.facts))
     elif a.cmd == "gate":
