@@ -432,7 +432,12 @@ describe('defSchema — `plots[].activeWhen` (a guide\'s condition)', () => {
 
 describe('⛔ CONTROL — no other definition changes', () => {
   it('no non-RS definition carries detailOf, an axis mode, a restyle opt-out or a guide condition, and every one still validates', () => {
-    const others = listDefinitions().filter((d) => d.id !== 'rsLine')
+    // ⭐ RS split F1 (2026-11-10): the RS FAMILY is four definitions now — the three
+    // split out of rsLine carry its axis mode / guide conditions by design (their
+    // own def tests pin them). Named, so a fifth RS definition is a decision here.
+    const RS_FAMILY = ['rsLine', 'rsRating', 'rsPhases', 'rsVsEma']
+    expect(RS_FAMILY.map((id) => !!getDefinition(id))).toEqual([true, true, true, true])
+    const others = listDefinitions().filter((d) => !RS_FAMILY.includes(d.id))
     expect(others.length).toBeGreaterThan(10)
     for (const d of others) {
       expect(d.placement && d.placement.axis, d.id).toBeUndefined()
