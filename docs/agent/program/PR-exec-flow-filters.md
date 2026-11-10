@@ -42,6 +42,43 @@ F-16 is widened to EVERY existing Options Flow widget filter chip: Calls, Puts, 
 
   `tests/test_uct_agent_w11_repair_b.py` also exercises turn.py's F-16 path (unchanged).
 
+## The server relaxation, exactly (AUDIT #1029 item 2)
+
+`turn.py` refuses, AFTER the model answers, any turn whose message names a hidden field and that plans a screen or is screen-shaped (`hidden_why and (plans_screen or hidden_screen_request(msg))`). The F-16 exception is the one `and not ...` on that line. Before: `plans_only_flow_calls_chip` (#872, `626d7c8798`, never on master). After: `plans_only_flow_chips` (the old name is an alias of it). Both run on the RAW planned ops, before validation, and both return True only when every one of these holds:
+
+| check | before: `plans_only_flow_calls_chip` | after: `plans_only_flow_chips` |
+|---|---|---|
+| the hidden phrase the message names | the widget's name, "options flow" (also "option flow", "options-flow") | same, unchanged |
+| a chip word in the message | `\bcalls?\b` | `_FLOW_CHIP_WORD`: calls, puts, sweeps, blocks, bull(ish), bear(ish), premium, million, 250k, 500k, 1m |
+| no universe of stocks in the message (stocks, names, tickers, equities, companies) | required | same, unchanged |
+| the plan has at least one op | required | same, unchanged |
+| the turn's own board carries an `optionsflow` widget | required | same, unchanged |
+| EVERY op's action | `widget.setOption` | same, unchanged |
+| EVERY op's widget | an `optionsflow` widget on this turn's board | same, unchanged |
+| EVERY op's key | `callPut` only | one of `minPremium`, `callPut`, `printType`, `direction` |
+| EVERY op's value (case-insensitive) | `calls` or `c` | a chip of THAT key in `_FLOW_CHIPS`: its stored value or the word on it (`0 / all / 250000 / $250k / 500000 / $500k / 1000000 / $1m`; `all / c / calls / p / puts`; `all / any / sweep / block`; `all / bull / bear`) |
+
+Plan shapes, for "only sweeps in the options flow" (or the matching chip message), on a board with an Options Flow widget `of` and a News widget `nw`:
+
+| planned ops | before | after | test |
+|---|---|---|---|
+| `setOption(of, callPut, Calls)` | served | served | f16_calls_control `test_the_calls_chip...` |
+| `setOption(of, callPut, Puts)` | refused | served | f16_flow_chips `test_every_chip...` |
+| `setOption(of, printType, Sweep)`, `direction Bear`, `minPremium $1M / 500000` | refused | served | f16_flow_chips `test_every_chip...` |
+| two or three chip ops on `of` (calls + sweep + bull) | refused | served | f16_flow_chips `test_every_chip...`, `test_two_chip_ops_alone...` |
+| a reset chip (`callPut All`) | refused | served | f16_flow_chips `test_every_chip...` |
+| a value no chip has (`ML`, `2000000`, `Straddles`) | refused | refused | f16_flow_chips / f16_calls_control |
+| a key no chip group has (`darkPool`, `lead`, `filters`) | refused | refused | same |
+| a chip op on another widget, or on a widget not on this board, or no flow widget on the board | refused | refused | same |
+| prose (no ops) | refused | refused | f16_calls_control |
+| any screen (`screener.run`, public or hidden field) | refused | refused | both files |
+| **a chip op MIXED with any other op**: each of the 156 other capability names in the golden manifest, an unknown action, an empty action, a non-chip `setOption`, an op with no args or non-object args, a non-object op; the other op first or last | refused | refused | f16_flow_chips `test_a_chip_op_mixed_with_any_other_action...` (316 cases: 158 actions × 2 positions), `test_a_chip_op_mixed_with_a_set_option_that_is_no_chip...` (14 cases) |
+| any plan, when the message names a universe of stocks, names "dark pool", or has no chip word | refused | refused | both files |
+
+What the relaxation does NOT check, as before: that the chip value matches the chip WORD in the message ("only calls..." planned as `callPut Puts` is served). It is the widget's own visible control, undoable, with no data read; the browser's which-widget and same-group guards run after it. Nothing else is opened: no field, no route, no data.
+
+Python files (CI's server-tests job; pytest was NOT run here, by rule): `tests/test_uct_agent_f16_flow_chips.py` (new, the mixed-plan cases added for this AUDIT), `tests/test_uct_agent_f16_calls_control.py` (#872's, amended), and `tests/test_uct_agent_w11_repair_b.py` (unchanged, also exercises this path). The new test file was parse-checked only (`ast.parse`).
+
 ## Tests (LOCAL, SIMULATED: vitest + jsdom, scripted model, invented fixture prints; not a browser, not the real model)
 
 Held-out families were committed FIRST (`860b438521`): `agentFlowFiltersHeldOut.test.js`, covering:
