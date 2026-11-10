@@ -156,6 +156,7 @@ export async function runProduction({ authorization, list, dir, known }) {
     finish(dir, MODE, rows, { target: 'production', restored, protectedChanged: diff, violation, budgetStart, budgetEnd })
     say(MODE, `restore: ${restored}; protected state changed: ${diff.length ? diff.join(', ') : 'none'}`)
     if (diff.length) gate(['stop', '--why', `production protected state changed: ${diff.join(',')}`])
+    if (violation) gate(['stop', '--why', 'production: a write outside the allow list was blocked'])
     await b.close()
   }
   return 0
