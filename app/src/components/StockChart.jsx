@@ -119,7 +119,7 @@ import {
 } from './chart/engine/paneLayout'
 import { resolvePaneOrder, PRICE_PANE, VOLUME_PANE } from './chart/engine/paneOrder'
 import { orderPaneRows } from './chart/engine/paneSeriesOrder'
-import { storedPaneSizes, setPaneSizes, sizesFromStretch } from './chart/engine/paneSizes'
+import { storedPaneSizes, setPaneSizes, sizesFromStretch, clearPaneSize } from './chart/engine/paneSizes'
 import { nativeVolumeOwnsPane, volumePaneRequired, volumeResidentKeys } from './chart/engine/volumePresentation'
 import { prepareArrangement, settleArrangement } from './chart/engine/paneRealization'
 // ⭐ chart-UX-walls TASK 4 — `setInstanceHidden` / `removeInstance` join the two
@@ -1517,6 +1517,10 @@ import {
   // host is. That is what tells `SMA 50 of Volume` (shares, formatted like
   // volume) apart from an RSI a member happened to park on the volume pane.
   derivedTargetOf,
+  // ⭐ RS split U3 — which pane an instance's series lives in (its own, or the
+  // host it joined), so the chip menu can offer "Reset pane height" for THAT pane
+  // and only when that pane carries a stored member size.
+  paneOwnerOf,
 } from './chart/engine/displayTarget'
 import { parsePaneOfTarget, parseSource, sourceInputsOf } from './chart/engine/sourceRef'
 import { chromePlan, capturedPriceRange, viewLockFractions, lookbackPlacementSettled, LOOKBACK_REVEAL_MAX_MS } from './chart/chromeGeometry'
@@ -6127,6 +6131,19 @@ export default function StockChart({
   const handleChipMove = useCallback((instanceId, target) => {
     const next = setInstanceDisplayTarget(cs, instanceId, target, engineRegistry)
     if (next !== cs) writeInstance(next)
+  }, [cs, writeInstance])
+
+  // ⭐ RS split U3 — "Reset pane height": forget the member's stored size for the
+  // pane this instance draws in. `clearPaneSize` is "return to automatic"
+  // (absent = the layout's computed default), so the next `computePaneLayout`
+  // reads the blob without that entry and the binder re-lays the stack out.
+  // Through the same one writer as every other chip action; a pane with no
+  // stored size comes back by identity and persists nothing.
+  const handleChipResetPaneSize = useCallback((instanceId) => {
+    const inst = findInstance(cs, instanceId)
+    const key = inst ? paneOwnerOf(inst, cs) : null
+    if (!key) return
+    writeInstance(clearPaneSize(cs, key))
   }, [cs, writeInstance])
 
   // ⭐ Phase 2a (A6) — PRESET ▸ IN THE CHIP MENU. The same writer the dialog's
@@ -20136,6 +20153,7 @@ export default function StockChart({
           onSettings: (id) => { close(); handleChipSettings(id) },
           onToggleHidden: (id) => { close(); handleChipHidden(id) },
           onMove: (id, t) => { close(); handleChipMove(id, t) },
+          onResetPaneSize: (id) => { close(); handleChipResetPaneSize(id) },
           onDuplicate: (id) => { close(); handleChipDuplicate(id) },
           onAlerts: (id) => { close(); handleChipAlerts(id, c.plotKey) },
           onAbout: () => { close(); setChipAbout({ chip: c, anchor: chipMenu.anchor }) },
@@ -20153,6 +20171,12 @@ export default function StockChart({
           alertsRefusal: chipAlertsRefusal,
           displayOptions,
           displayCurrent,
+          // ⭐ RS split U3 — the row exists only when there is something to reset:
+          // the pane this instance draws in has an entry in the member's sizes.
+          paneSizeStored: (() => {
+            const key = inst ? paneOwnerOf(inst, cs) : null
+            return !!key && storedPaneSizes(cs)[key] !== undefined
+          })(),
           definitionKind: defKind,
           canModify: (() => { try { return !!toolbarRef.current?.canModifyWithIntelligence?.() } catch { return false } })(),
           copyRefusal: copyCheck && !copyCheck.ok ? copyCheck.reason : undefined,
