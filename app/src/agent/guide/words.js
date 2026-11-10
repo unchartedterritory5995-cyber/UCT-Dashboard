@@ -70,8 +70,9 @@ const C = {
   // isn't responding" stay out: no AI in the words (pattern pieces: no literal spaces; no lookbehind, iOS 16 floor: "ai" before
   // "respons" is the lookahead on "ai")
   answer: ['answer', 'reply', 'respons\\w*(?=.*\\bai\\b)', 'ai\\b(?=.*\\brespons)', 'what\\s+(?:the\\s+)?(?:ai(?:\\s+search)?|it|search)\\s+(?:said|wrote|told\\s+me|gave\\s+me|came\\s+back\\s+with)'],
-  // "on screen", "off screen" and "full screen" name the screen, not a screener (pl-grid's "back on screen after maximizing")
-  scan: ['scan', 'screen(?<!\\b(?:on|off|full)\\s+screen)'],
+  // "on screen", "off screen" and "full screen" name the screen, not a screener (pl-grid's "back on screen after maximizing"):
+  // the 'screen' piece does not count right after those words (NOT_AFTER, below)
+  scan: ['scan', 'screen'],
   index: ['index', 'indexes', 'indices', '=dow', 'nasdaq', 's&p'],
   journal: ['journal'],
   theme: ['theme'],
@@ -102,8 +103,48 @@ const STOP = new Set('a an the this that these those my your our its it me i to 
 
 const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const pieceRe = (p) => (p.startsWith('=') ? `\\b${p.slice(1)}\\b` : /\s/.test(p) ? `\\b${p.split(/\s+/).map(w => (/[?*]/.test(w) ? w : escape(w))).join('\\s+')}\\b` : `\\b${/[?*]/.test(p) ? p : escape(p)}\\w*`)
-const CONCEPTS = Object.entries(C).map(([id, pieces]) => ({ id, re: new RegExp(pieces.map(pieceRe).join('|'), 'i') }))
-const KNOWN = new RegExp(Object.values(C).flat().map(pieceRe).join('|'), 'gi')
+// A piece that does not count right after some words: the text BEFORE the match is tested, never a regex lookbehind (Safari
+// < 16.4 cannot parse one: agentNoLookbehindStrings). Exactly the old `screen(?<!\b(?:on|off|full)\s+screen)`: a concept
+// counts the piece only at an occurrence its veto does not hold for, and the leftover-word strip lets a vetoed match fall
+// through to the pieces after it, as the alternation did (agentGuideScanNoLookbehind holds old and new equal).
+const NOT_AFTER = [{ id: 'scan', piece: 'screen', before: /\b(?:on|off|full)\s+$/ }]
+const guardOf = (id, p) => NOT_AFTER.find(g => g.id === id && g.piece === p)
+const vetoed = (g, q, at) => g.before.test(q.slice(0, at))
+const ALL = Object.entries(C).flatMap(([id, pieces]) => pieces.map(p => ({ re: pieceRe(p), g: guardOf(id, p) })))
+const CONCEPTS = Object.entries(C).map(([id, pieces]) => {
+  const free = pieces.filter(p => !guardOf(id, p))
+  const re = free.length ? new RegExp(free.map(pieceRe).join('|'), 'i') : null
+  const guarded = pieces.filter(p => guardOf(id, p)).map(p => ({ g: guardOf(id, p), re: new RegExp(pieceRe(p), 'gi') }))
+  const hit = (q, { g, re: gr }) => { for (const m of q.matchAll(gr)) if (!vetoed(g, q, m.index)) return true; return false }
+  return { id, re: { test: (q) => (re ? re.test(q) : false) || guarded.some(x => hit(q, x)) } }
+})
+const KNOWN = new RegExp(ALL.map((a, i) => (a.g ? `(?<g${i}>${a.re})` : a.re)).join('|'), 'gi')
+const STICKY = ALL.map(a => new RegExp(a.re, 'iy'))
+// the alternation from piece k+1 on, at `at`: the length the first piece that matches there (and is not vetoed) takes, or 0
+function fallThrough(k, q, at) {
+  for (let i = k + 1; i < ALL.length; i++) {
+    STICKY[i].lastIndex = at
+    const m = STICKY[i].exec(q)
+    if (m && !(ALL[i].g && vetoed(ALL[i].g, q, at))) return m[0].length
+  }
+  return 0
+}
+/** q with every known piece blanked (`q.replace(KNOWN, ' ')`, with NOT_AFTER's vetoes). */
+function stripKnown(q) {
+  let out = '', i = 0, m
+  KNOWN.lastIndex = 0
+  while ((m = KNOWN.exec(q))) {
+    const at = m.index
+    let len = m[0].length
+    const k = m.groups && Object.keys(m.groups).find(n => m.groups[n] !== undefined)
+    if (k && vetoed(ALL[+k.slice(1)].g, q, at)) len = fallThrough(+k.slice(1), q, at)
+    if (!len) { KNOWN.lastIndex = at + 1; continue }
+    out += q.slice(i, at) + ' '
+    i = at + len
+    KNOWN.lastIndex = i
+  }
+  return out + q.slice(i)
+}
 
 // a plural first, then a tense: "settings" and "setting" are one word, "notes" and "note" too
 const stem = (w) => w.replace(/ies$/, 'y').replace(/([^s])s$/, '$1').replace(/(ing|ed)$/, '').replace(/(.)\1$/, '$1')
@@ -115,7 +156,7 @@ export function conceptsOf(text) {
   const out = new Set()
   for (const c of CONCEPTS) if (c.re.test(q)) out.add(c.id)
   // the words no concept took: the product's own names ("heikin", "watermark") match only themselves
-  for (const w of q.replace(KNOWN, ' ').split(/[^a-z0-9&]+/)) {
+  for (const w of stripKnown(q).split(/[^a-z0-9&]+/)) {
     if (w.length < 3 || STOP.has(w) || /^\d+$/.test(w)) continue
     out.add(`~${stem(w)}`)
   }

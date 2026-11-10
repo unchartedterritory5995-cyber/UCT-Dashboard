@@ -1,0 +1,3 @@
+BEFORE rows 792, AFTER rows 822; shared 792 (held-out 432); missing from AFTER 0
+shared rows whose fast-route digest changed (any surface): 0; surface rows whose feature or step targets changed: 0; rows whose concepts changed: 0
+AFTER-only rows (literals of the new agentGuideScanNoLookbehind.test.js, no BEFORE): 30
