@@ -178,7 +178,8 @@ const TO_PICKER = [
   { target: { widgetType: WL, guide: 'watchlist.lists' }, name: '‹ Lists', text: 'Click ‹ Lists on this widget: new lists start in the list picker.', optional: true, waitFor: PICKER },
   ...onBoard(WL, 'Watchlist', PICKER),
 ]
-// ⭐ the list's own menu, from its TITLE (pages/Watchlists.jsx, #1005, live): right-click the title, or ⋯ List actions beside it
+// ⭐ the list's own menu, from its TITLE (pages/Watchlists.jsx, #1005, live): ⋯ List actions beside the title. (The title's own
+// right-click is not taught yet: .pickTitle is pointer-events: none, so a real right-click never reaches it — reported 2026-11-09.)
 // (watchlist.title, watchlist.listMenu). The menu is the list menu (watchlist.rowMenu), its rows found by their own labels.
 // absent: a row offered only on some lists or for some members (your own lists, a community list, the version store) says so
 // and ends, rather than waiting on a row that will not come. Teaching only: the member clicks every control.
@@ -189,7 +190,7 @@ const titleMenu = (rows, name, say, absent = null) => {
   const t = [].concat(rows)
   return [
     ...OPEN_LIST,
-    { target: [LIST_MENU_BTN, LIST_TITLE], name: '⋯ List actions', text: 'Right-click the list’s title, or click ⋯ (List actions) beside it.', waitFor: t.length === 1 ? t[0] : t, ...(absent ? { absent } : {}) },
+    { target: [LIST_MENU_BTN, LIST_TITLE], name: '⋯ List actions', text: 'Click ⋯ (List actions), beside the list’s title.', waitFor: t.length === 1 ? t[0] : t, ...(absent ? { absent } : {}) },
     { target: t, name, text: say, endsOnClick: true },
   ]
 }
