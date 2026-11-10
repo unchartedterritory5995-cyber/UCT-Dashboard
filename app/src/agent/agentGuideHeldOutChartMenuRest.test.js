@@ -48,10 +48,30 @@ describe('nothing else moves', () => {
     ['how do I add a widget by right-click', row('add-widget'), true],
     ['how do I change the candle colours', 'chart.contextMenu', false],
     ['how do I move the watermark', 'chart.contextMenu', false],
+    // added after mutation M3 survived (the ask-ai row without its chart-word lookahead): an AI ask that names no chart,
+    // bar or menu is not the chart menu's row
+    ['how do I ask the AI about a stock', 'ask-ai', false],
+    ['show me how to ask AI a question', 'ask-ai', false],
   ])('"%s"', (q, needle, has) => {
     const w = walk(q)
-    expect(w, 'no walkthrough').toBeTruthy()
-    if (has) expect(w.last).toBe(needle)
-    else expect(w.last).not.toContain(needle)
+    if (has) { expect(w, 'no walkthrough').toBeTruthy(); expect(w.last).toBe(needle) } else expect(w?.last ?? '').not.toContain(needle)
+  })
+})
+
+// Found while running the above (2026-11-10): "right-click" was read as the word "right", so the watermark's
+// Alignment control (any: right) took a right-click ask. Written before the words.js change.
+describe('"right-click" is not the word "right"', () => {
+  it('a right-click ask carries no "right" concept; the word alone still does', async () => {
+    const { conceptsOf } = await import('./guide/words')
+    for (const q of ['how do i right-click the watermark', 'right click the chart', 'by right-clicking it', 'i right-clicked the candle',
+      'right clicking the axis', 'a rightclick menu', 'the right-click menu', 'two right clicks']) expect(conceptsOf(q).has('~right'), q).toBe(false)
+    // "right" as a direction stays: the word, not a click
+    for (const q of ['how do i align the watermark to the right', 'put it on the right', 'the right side of the chart', 'move the label right',
+      'right of the candles', 'the right edge', 'right-align the text']) expect(conceptsOf(q).has('~right'), q).toBe(true)
+    // the click survives the rewrite (a "click" control still reads its word)
+    expect([...conceptsOf('right-click the chart')].some(c => /click/.test(c))).toBe(true)
+  })
+  it('aligning the watermark to the right still walks to Alignment', () => {
+    expect(walk('how do I align the watermark to the right').last).toContain('Alignment')
   })
 })
