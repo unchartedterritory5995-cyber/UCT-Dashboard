@@ -29,7 +29,7 @@ const OTHER = scr('starter_other', 'Other screen', 50)
 let countsByMin
 let starters
 let savedDelay
-let metaDelay
+let metaGate
 let fail
 const minOf = spec => (spec.filters || []).find(f => f.key === 'rs_rank')?.min
 beforeEach(() => {
@@ -40,13 +40,13 @@ beforeEach(() => {
   uid = 'member-a'
   starters = [THIN, WIDE]
   savedDelay = 0
-  metaDelay = 0
+  metaGate = null
   fail = false
   globalThis.fetch = vi.fn(async (u, o) => {
     const url = String(u)
     if (url.startsWith('/api/screener/meta')) {
       const body = { ok: true, json: async () => META }
-      return metaDelay ? new Promise(r => setTimeout(() => r(body), metaDelay)) : body
+      return metaGate ? metaGate.then(() => body) : body
     }
     if (url === '/api/screener/scan') return { ok: true, json: async () => ({ rows, total: rows.length, page: 1 }) }
     if (url === '/api/screener/count') return { ok: true, json: async () => ({ count: rows.length }) }
@@ -241,9 +241,11 @@ test('Minor 3: a kept seeded screen the server still has unchanged is not marked
 // (2 of 3 runs measured on production, ~2.5 s of server time each).
 test('the screen is asked for once when the filter registry answers after the landing scan', async () => {
   pin([WIDE.id])
-  metaDelay = 120
+  let answerMeta
+  metaGate = new Promise(r => { answerMeta = r })
   mount()
   await waitFor(() => expect(scanMins()).toEqual([70]))
+  answerMeta()
   await new Promise(r => setTimeout(r, 800))
   expect(scanMins()).toEqual([70])
 }, 10000)
