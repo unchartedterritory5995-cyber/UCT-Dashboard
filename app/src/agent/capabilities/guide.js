@@ -23,7 +23,6 @@ import { catalogRows } from '../../components/chart/indicatorCatalog'
 import { namedChart } from '../guide/namedChart'
 import { releasedOnly } from '../guide/releases'
 import { splitParts, carried } from '../guide/sequence'
-import { pageAskText, PAGE_CHOICES, pageReady } from '../guide/pageWalk'
 import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
 
 /** The first few studies of the chart's own quick set (its right-click "Indicators" toggles: `meta.quickMenu` not
@@ -136,24 +135,6 @@ export function showFeature(f, host, words = '') {
  * { ops } — the feature's EXISTING capability, aimed at the chart the walkthrough was on (if it is still there).
  */
 const DO_IT = /^(?:(?:ok|okay|now|then|great|cool|alright|actually|no|nah)[,!.]?\s+)*(?:(?:can|could|would|will) you |please |just |go ahead and |i'?d rather you |i want you to )*(?:do it|do that|do this|change it|set it|you do it|do that one|handle it)(?: for me| instead| please| then| yourself)*[.!?]*$/i
-/**
- * ⭐ cov-4 (8): a how-to whose control lives only on ANOTHER page (the Watchlists page's list header and list menu, which pick
- * mode hides in the Charts widget) → { ask: { text, choices }, walk: { surface, feature, detail } } | null. CHARTS FIRST: a
- * walkthrough Charts has (anything but the catalog's own question) is never sent away. Only offered where the host can change
- * page; nothing changes until the member says Yes (useAgent → guide/pageWalk.js goToPageWalk). Teaching only.
- */
-export function pageWalkOffer(text, host, here = 'charts') {
-  const q = String(text || '').trim()
-  if (here !== 'charts' || !SHOW.test(q) || typeof host?.navigate !== 'function' || !pageReady('watchlists')) return null
-  const page = guideFeature('watchlistPage')
-  if (!page || !page.match?.(q.toLowerCase())) return null
-  // Charts first: the catalog of controls Charts shows (guide/controls.js, which holds what the Charts Watchlist widget offers in
-  // pick mode, such as its picker's bin) has this control → it is taught on Charts. The page's rows are the list controls pick
-  // mode hides there (rename, copy, export, import, history, remove starred, share), so no other Charts walkthrough teaches them
-  if (readControl(q)?.row) return null
-  return { ask: { text: pageAskText('watchlists'), choices: PAGE_CHOICES }, walk: { surface: 'watchlists', feature: page.id, detail: q } }
-}
-
 export function doItForMe(text, host) {
   if (!DO_IT.test(String(text || '').trim())) return null
   // while a walkthrough is on screen it is the one meant, however long the member has been at it

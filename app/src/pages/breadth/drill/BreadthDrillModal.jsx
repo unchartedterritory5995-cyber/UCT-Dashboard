@@ -430,6 +430,9 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
                 // Clicking a card selects it (and points Focus at it) without leaving the grid.
                 onSelect={(sym) => setSym('A', sym)}
                 chartSettings={board.widgets.find(w => w.id === CHART_WIDGET_ID)?.opts?.settings || null}
+                // The enlarged chart's settings gear (and its legend edits) write the
+                // Focus chart's look, which every card draws with.
+                onChartSettingsChange={(next) => onBoardChange(b => ({ ...b, widgets: b.widgets.map(x => (x.id === CHART_WIDGET_ID ? { ...x, opts: { ...x.opts, settings: next } } : x)) }))}
                 toolbarStart={(
                   <>
                     <FilterButton filters={deck.filters} total={total} shown={deck.shownRows.length} />
