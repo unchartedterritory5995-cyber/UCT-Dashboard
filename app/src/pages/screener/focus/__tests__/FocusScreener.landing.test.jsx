@@ -135,6 +135,37 @@ test('owner decision: the screen count still arrives after the page has landed',
   await waitFor(() => expect(screen.getByTestId('screen-count')).toHaveTextContent('2'))
 })
 
+const GONE = { id: 99, name: 'Deleted screen', kind: 'saved', spec: { filters: [{ key: 'rs_rank', op: 'gte', min: 50 }] } }
+test('review: a deleted last-used screen stops being named once a member scrolled before the answer', async () => {
+  localStorage.setItem(lastScreenKey('member-a'), JSON.stringify(GONE))
+  pin([THIN.id])
+  savedDelay = 700
+  mount()
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  fireEvent.wheel(screen.getByRole('listbox'), { deltaY: 120 })
+  await waitFor(() => expect(screen.getByRole('button', { name: /Custom screen/ })).toBeInTheDocument(), { timeout: 2500 })
+  expect(scanMins()).toEqual([50])
+}, 8000)
+test('review: a deleted last-used screen answered past the cap stops being named', async () => {
+  localStorage.setItem(lastScreenKey('member-a'), JSON.stringify(GONE))
+  pin([THIN.id])
+  savedDelay = 3400
+  mount()
+  await waitFor(() => expect(scanMins()).toEqual([50]))
+  await waitFor(() => expect(screen.getByRole('button', { name: /Custom screen/ })).toBeInTheDocument(), { timeout: 6000 })
+  expect(scanMins()).toEqual([50])
+}, 12000)
+test('review: a last-used screen whose server copy changed reads as edited once past the cap', async () => {
+  localStorage.setItem(lastScreenKey('member-a'), JSON.stringify({ ...WIDE, kind: 'starter' }))
+  starters = [scr(WIDE.id, 'Wide screen', 75)]
+  pin([WIDE.id])
+  savedDelay = 3400
+  mount()
+  await waitFor(() => expect(scanMins()).toEqual([70]))
+  await waitFor(() => expect(screen.getByRole('button', { name: /Wide screen \(edited\)/ })).toBeInTheDocument(), { timeout: 6000 })
+  expect(scanMins()).toEqual([70])
+}, 12000)
+
 test('Perf 3: with last-known pins, the scan starts before the saved screens answer', async () => {
   seed([WIDE])
   pin([WIDE.id])

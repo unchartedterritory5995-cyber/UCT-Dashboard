@@ -590,6 +590,7 @@ function FocusList({ mode, onMode }) {
         applyScreen(lastUsed.spec || { filters: [] }, lastUsed)
         landedOn.current = lastUsed
         landedFromLast.current = true
+        seedKept.current = true
         setLandPhase('reconcile')
         return
       }
@@ -608,6 +609,7 @@ function FocusList({ mode, onMode }) {
     if (!serverAnswered) return
     setLandPhase('final')
     if (landedFromLast.current) {
+      seedKept.current = false
       const srv = [...starters, ...saved].find(it => String(it.id) === String(was.id))
       if (!srv) {
         const hit = defaultLanding(serverItems)
@@ -632,11 +634,16 @@ function FocusList({ mode, onMode }) {
     if (landPhase !== 'final' || !seedKept.current || !serverAnswered) return
     seedKept.current = false
     const was = landedOn.current
-    const srv = serverItems.find(it => String(it.id) === String(was?.id))
-    if (srv && !sameScreen(srv, was)) {
+    const srv = [...starters, ...saved].find(it => String(it.id) === String(was?.id))
+    if (!srv) {
+      // The screen is gone: the list stays, but nothing may keep pointing Save or Rename at it.
+      setCurrent(c => (c && String(c.id) === String(was?.id) ? null : c))
+      return
+    }
+    if (!sameScreen(srv, was)) {
       setCurrent(c => (c && String(c.id) === String(srv.id) ? { ...c, name: srv.name, spec: srv.spec || { filters: [] } } : c))
     }
-  }, [landPhase, serverAnswered, serverItems])
+  }, [landPhase, serverAnswered, starters, saved])
   const markTouched = () => { touched.current = true }
   const myScans = useMemo(() => ((meta?.filters || []).find(f => f.key === 'scan')?.scans || [])
     .filter(x => x?.def_hash).map(x => ({ hash: x.def_hash, name: x.name || 'Untitled scan' })), [meta])
