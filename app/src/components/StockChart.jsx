@@ -1557,6 +1557,7 @@ import { observationReadout, economicStatusLine } from './chart/economic/econUi'
 import { runtimePaneEnabled } from './chart/engine/runtimePaneGate'
 import { readSuccessBody } from '../lib/responseBody'
 import { archiveHref } from '../utils/traderArchive'
+import { createAdaptiveFrameLoop } from './chart/adaptiveFrameLoop'
 
 // ⭐ RT1 — HOW A SAVED RUNTIME-LANE DOCUMENT GETS ITS LANE on a chart that never
 // opened the member door. The registry asks this loader only when it meets a
@@ -16019,8 +16020,9 @@ export default function StockChart({
   // price, so this loop must stay off.
   useEffect(() => {
     if (!sessionTagsIntraday || !showExtended) return
-    let raf = 0
     let lastPx = null
+    // Adaptive, not every frame forever (see createAdaptiveFrameLoop): the candle's own
+    // data-change event wakes it, so the chip still moves on the frame the candle does.
     const tick = () => {
       const line = sessionTagRefs.current?.[0]
       const px = liveBarRef.current?.close
@@ -16028,10 +16030,15 @@ export default function StockChart({
         lastPx = px
         try { line.applyOptions({ price: px }) } catch { /* series gone */ }
       }
-      raf = requestAnimationFrame(tick)
+      return String(px)
     }
-    raf = requestAnimationFrame(tick)
-    return () => { if (raf) cancelAnimationFrame(raf) }
+    const loop = createAdaptiveFrameLoop({ tick })
+    loop.start()
+    const wake = () => loop.wake()
+    const s = candleSeriesRef.current
+    let unsub = null
+    try { if (s && typeof s.subscribeDataChanged === 'function') { s.subscribeDataChanged(wake); unsub = () => s.unsubscribeDataChanged(wake) } } catch { /* the safety pass covers it */ }
+    return () => { loop.stop(); try { unsub?.() } catch { /* already gone */ } }
   }, [sessionTagsIntraday, showExtended])
 
   // ── The "Pre"/"Post" word, stacked ABOVE the orange price label, ON the scale ──
@@ -16051,15 +16058,15 @@ export default function StockChart({
   const sessionExtChipOn = chartReady && sessionExtTagIdx >= 0 && !extTagInline
   useEffect(() => {
     if (!sessionExtChipOn) return undefined
-    let raf = 0
     let last = ''
+    // Adaptive, not every frame forever (see createAdaptiveFrameLoop): returns the chip's
+    // placement key; crosshair, range, resize and candle-data events wake it.
     const tick = () => {
-      raf = requestAnimationFrame(tick)
       const el = sessionExtChipRef.current
       const chart = chartRef.current
       const series = candleSeriesRef.current
       const line = sessionTagRefs.current?.[sessionExtTagIdx]
-      if (!el || !chart || !series || !line) return
+      if (!el || !chart || !series || !line) return null
       let key = 'hide'
       let style = null
       try {
@@ -16113,18 +16120,40 @@ export default function StockChart({
           key = `${style.top}|${style.left}|${style.width}|${style.height}`
         }
       } catch { /* chart mid-swap */ }
-      if (key === last) return
+      if (key === last) return key
       last = key
-      if (!style) { el.style.display = 'none'; return }
+      if (!style) { el.style.display = 'none'; return key }
       el.style.display = 'block'
       el.style.top = `${style.top}px`
       el.style.left = `${style.left}px`
       el.style.width = `${style.width}px`
       el.style.height = `${style.height}px`
       el.style.lineHeight = `${style.height}px`
+      return key
     }
-    raf = requestAnimationFrame(tick)
-    return () => { if (raf) cancelAnimationFrame(raf) }
+    const loop = createAdaptiveFrameLoop({ tick })
+    loop.start()
+    const wake = () => loop.wake()
+    const chart = chartRef.current
+    const container = containerRef.current
+    const unsub = []
+    const sub = (fn) => { try { fn() } catch { /* API missing: the safety pass covers it */ } }
+    // No crosshair subscription (the chart keeps exactly two; see the chrome-placement loop):
+    // the chip's place depends on the price line and the scale, not the crosshair.
+    if (chart) {
+      sub(() => { const ts = chart.timeScale(); ts.subscribeVisibleLogicalRangeChange(wake); unsub.push(() => ts.unsubscribeVisibleLogicalRangeChange(wake)) })
+    }
+    sub(() => { const s = candleSeriesRef.current; if (s && typeof s.subscribeDataChanged === 'function') { s.subscribeDataChanged(wake); unsub.push(() => s.unsubscribeDataChanged(wake)) } })
+    let ro = null
+    if (container) {
+      sub(() => { ro = new ResizeObserver(wake); ro.observe(container) })
+      for (const ev of ['pointerdown', 'pointermove', 'wheel']) { container.addEventListener(ev, wake, { passive: true }); unsub.push(() => container.removeEventListener(ev, wake)) }
+    }
+    return () => {
+      loop.stop()
+      if (ro) ro.disconnect()
+      for (const u of unsub) { try { u() } catch { /* already gone */ } }
+    }
   }, [sessionExtChipOn, sessionExtTagIdx, overlayBounds, cs.textSize])
 
   // ── Writer F of the single-writer invariant (index @ barsPushActiveRef decl):
@@ -18872,13 +18901,31 @@ export default function StockChart({
     // falls back to the CSS default and lands INSIDE the volume pane). A value-only
     // guard would skip re-writing the new node because the computed value didn't
     // change; keying on the element as well re-pins it immediately after a remount.
-    let raf = null, lastBottom = -1, lastTop = -1, lastRb = null, lastVl = null
+    let lastBottom = -1, lastTop = -1, lastRb = null, lastVl = null
     // The lookback bar is hidden (CSS: `.rangeBar:not([data-placed])`) until it sits at the anchor it
     // will keep -- see `lookbackPlacementSettled`. `rbSeen*` times each bar NODE, so a remount (a
     // symbol flip) waits again, and the time limit can never leave it hidden.
     let rbSeenNode = null, rbSeenAt = 0
     const revealRangeBar = (rb) => { if (!rb.hasAttribute('data-placed')) rb.setAttribute('data-placed', '') }
+    // ⭐ ADAPTIVE, NOT EVERY FRAME FOREVER (2026-11-10, measured). This loop used to re-arm
+    // requestAnimationFrame unconditionally: ~44 runs a second per chart, each forcing style and
+    // layout reads, on a chart nobody had touched for an hour. `tick` now returns a SIGNATURE of what
+    // it measured (or null while something is still settling); `createAdaptiveFrameLoop` keeps it
+    // every frame while the signature changes and drops to a 250 ms safety pass once it holds still.
+    // Pointer, wheel, resize, crosshair, visible-range and data events wake it back to every frame,
+    // so a divider drag still tracks the pointer frame by frame. Element identity is part of the
+    // signature: a remounted legend node (a symbol flip) counts as a change.
+    const nodeIds = new WeakMap()
+    let nextNodeId = 1
+    const idOf = (node) => {
+      if (!node) return 0
+      let i = nodeIds.get(node)
+      if (!i) { i = nextNodeId++; nodeIds.set(node, i) }
+      return i
+    }
     const tick = () => {
+      let settled = true
+      let sig = ''
       try {
         const rbNow = rangeBarRef.current
         if (rbNow && rbNow !== rbSeenNode) { rbSeenNode = rbNow; rbSeenAt = performance.now() }
@@ -18927,6 +18974,16 @@ export default function StockChart({
           separatorPx: SEPARATOR_PX,
         })
         const priceH = plan.priceHeight
+        // Everything this pass reads that can move a surface: sizes, the plan's edges, and which
+        // DOM nodes are mounted (a remount must be re-pinned). Price-chrome widths are covered by
+        // the data-change wake and the safety pass.
+        sig = [
+          H, axisH, paneHeights.join(','), plan.lookbackBottom, plan.volumeLegendTop, plan.collapseThresholdPx,
+          idOf(rbNow), idOf(volLegendRef.current), idOf(wrapperRef.current), idOf(studyStackRef.current),
+          idOf(legendRef.current), paneLegendRefs.current.size, compactLegendRef.current ? 1 : 0,
+          container.clientWidth || 0,
+        ].join('|')
+        if (rbNow && !rbNow.hasAttribute('data-placed')) settled = false // waiting to reveal: keep measuring
         if (priceH > 0 && H > 0) {
           const rb = rangeBarRef.current
           if (rb) {
@@ -19034,13 +19091,39 @@ export default function StockChart({
             const nextCompact = nextCompactLegend(compactLegendRef.current, lastFullBottomRef.current,
               plan.collapseThresholdPx, foldSettled)
             if (nextCompact !== null) setCompactLegend(nextCompact)
+            // A budget or compact state just changed: the next frames must measure the result.
+            if (!foldSettled || nextCompact !== null) settled = false
           }
         }
-      } catch { /* pane API missing → CSS fallback */ }
-      raf = requestAnimationFrame(tick)
+      } catch { return null /* pane API missing → CSS fallback; keep measuring */ }
+      return settled ? sig : null
     }
-    tick()
-    return () => { if (raf) cancelAnimationFrame(raf) }
+    const loop = createAdaptiveFrameLoop({ tick })
+    loop.start()
+    const wake = () => loop.wake()
+    // Anything that can move a surface wakes the loop back to every frame.
+    const pointerEvents = ['pointerdown', 'pointermove', 'pointerup', 'wheel']
+    for (const ev of pointerEvents) container.addEventListener(ev, wake, { passive: true })
+    window.addEventListener('resize', wake)
+    let ro = null
+    try { ro = new ResizeObserver(wake); ro.observe(container) } catch { /* no ResizeObserver: the safety pass covers it */ }
+    const unsub = []
+    const sub = (fn) => { try { fn() } catch { /* API missing: the safety pass covers it */ } }
+    // ⛔ NO crosshair subscription here: the chart has exactly TWO crosshair subscribers (the
+    // legend's and the hovered-bar recorder's) and legendFromDefinitions.test.jsx pins that count.
+    // A hand-moved crosshair arrives as pointer movement on the container, which wakes this loop.
+    sub(() => { const ts = chart.timeScale(); ts.subscribeVisibleLogicalRangeChange(wake); unsub.push(() => ts.unsubscribeVisibleLogicalRangeChange(wake)) })
+    sub(() => {
+      const s = candleSeriesRef.current
+      if (s && typeof s.subscribeDataChanged === 'function') { s.subscribeDataChanged(wake); unsub.push(() => s.unsubscribeDataChanged(wake)) }
+    })
+    return () => {
+      loop.stop()
+      for (const ev of pointerEvents) container.removeEventListener(ev, wake)
+      window.removeEventListener('resize', wake)
+      if (ro) ro.disconnect()
+      for (const u of unsub) { try { u() } catch { /* already gone */ } }
+    }
   }, [showRangeSelector, showVolLegend, verticalLegend, paneLegendKeys, pinPaneLegend, pinPriceChrome, chartReady])
 
   useEffect(() => {
