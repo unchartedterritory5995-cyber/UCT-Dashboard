@@ -1,0 +1,336 @@
+{
+ "mode": "BROWSER-MOCK-MODEL",
+ "evidence": "LOCAL agent harness, scripted model, synthetic bars and fixtures: not production, not gate evidence",
+ "at": "2026-11-10T07:44:11.882Z",
+ "base": "http://127.0.0.1:5302",
+ "results": [
+  {
+   "id": "HG-12",
+   "say": "how do I pick which line my alert watches",
+   "feature": "alertAction",
+   "title": "Which line an alert watches",
+   "given": [
+    "iaCatalog",
+    "declared"
+   ],
+   "pass": false,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Right-click a drawing on the chart. If this chart has none yet, draw one first.",
+     "onPrimary": true,
+     "pr": [
+      13,
+      168,
+      785,
+      741
+     ],
+     "rr": [
+      9,
+      164,
+      793,
+      749
+     ]
+    }
+   ],
+   "tried": [
+    []
+   ],
+   "why": "step 1: no point of the region it names opened the menu row it needs",
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-22",
+   "say": "how do I put a dot above the bar when my formula is true",
+   "feature": "builderAction",
+   "title": "Signal markers and colours",
+   "note": "written before the 2026-11-10 walkthrough-gap fixes",
+   "given": [],
+   "pass": false,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the chart, then press Alt+Shift+A to open the indicator library.",
+     "onPrimary": true,
+     "pr": [
+      13,
+      168,
+      785,
+      741
+     ],
+     "rr": [
+      9,
+      164,
+      793,
+      749
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click New formula.",
+     "onPrimary": true,
+     "pr": [
+      497,
+      195,
+      601,
+      81
+     ],
+     "rr": [
+      493,
+      191,
+      609,
+      89
+     ]
+    },
+    {
+     "i": 2,
+     "text": "These show once the formula gives a yes or no, such as close > open. Type one, then set it as a Signal.",
+     "onPrimary": false,
+     "pr": null,
+     "rr": [
+      590,
+      814,
+      141,
+      52
+     ]
+    }
+   ],
+   "why": "last step shows its fallback: These show once the formula gives a yes or no, such as close > open. Type one, then set it as a Signal.",
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-23",
+   "say": "how do I shade the background when the formula is true",
+   "feature": "builderAction",
+   "title": "Signal markers and colours",
+   "note": "written before the 2026-11-10 walkthrough-gap fixes",
+   "given": [],
+   "pass": false,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the chart, then press Alt+Shift+A to open the indicator library.",
+     "onPrimary": true,
+     "pr": [
+      13,
+      168,
+      785,
+      741
+     ],
+     "rr": [
+      9,
+      164,
+      793,
+      749
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click New formula.",
+     "onPrimary": true,
+     "pr": [
+      497,
+      195,
+      601,
+      81
+     ],
+     "rr": [
+      493,
+      191,
+      609,
+      89
+     ]
+    },
+    {
+     "i": 2,
+     "text": "These show once the formula gives a yes or no, such as close > open. Type one, then set it as a Signal.",
+     "onPrimary": false,
+     "pr": null,
+     "rr": [
+      590,
+      835,
+      141,
+      52
+     ]
+    }
+   ],
+   "why": "last step shows its fallback: These show once the formula gives a yes or no, such as close > open. Type one, then set it as a Signal.",
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-24",
+   "say": "how do I rename a Volume Surge list",
+   "feature": "control",
+   "title": "Renaming a Volume Surge list",
+   "note": "written before the 2026-11-10 walkthrough-gap fixes",
+   "given": [
+    "board",
+    "prefs"
+   ],
+   "pass": false,
+   "steps": [
+    {
+     "i": 3,
+     "text": "You have no lists of your own here yet.",
+     "onPrimary": false,
+     "pr": null,
+     "rr": [
+      901,
+      68,
+      300,
+      846
+     ]
+    }
+   ],
+   "why": "last step shows its fallback: You have no lists of your own here yet.",
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-25",
+   "say": "how do I delete one of my Volume Surge lists",
+   "feature": "control",
+   "title": "Deleting a Volume Surge list",
+   "note": "written before the 2026-11-10 walkthrough-gap fixes",
+   "given": [
+    "board",
+    "prefs"
+   ],
+   "pass": false,
+   "steps": [
+    {
+     "i": 3,
+     "text": "You have no lists of your own here yet.",
+     "onPrimary": false,
+     "pr": null,
+     "rr": [
+      901,
+      68,
+      300,
+      846
+     ]
+    }
+   ],
+   "why": "last step shows its fallback: You have no lists of your own here yet.",
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-26",
+   "say": "how do I choose which line an alert follows",
+   "feature": "alertAction",
+   "title": "Which line an alert watches",
+   "given": [
+    "iaCatalog",
+    "declared"
+   ],
+   "note": "written before the 2026-11-10 walkthrough-gap fixes",
+   "pass": false,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Right-click a drawing on the chart. If this chart has none yet, draw one first.",
+     "onPrimary": true,
+     "pr": [
+      13,
+      168,
+      785,
+      741
+     ],
+     "rr": [
+      9,
+      164,
+      793,
+      749
+     ]
+    }
+   ],
+   "tried": [
+    []
+   ],
+   "why": "step 1: no point of the region it names opened the menu row it needs",
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-27",
+   "say": "how do I change which series my alert tracks",
+   "feature": "alertAction",
+   "title": "Which line an alert watches",
+   "given": [
+    "iaCatalog",
+    "declared"
+   ],
+   "note": "written before the 2026-11-10 walkthrough-gap fixes",
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the bell to open Indicator alerts.",
+     "onPrimary": true,
+     "pr": [
+      482,
+      174,
+      24,
+      22
+     ],
+     "rr": [
+      478,
+      170,
+      32,
+      30
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Choose the indicator to watch.",
+     "onPrimary": true,
+     "pr": [
+      267,
+      258,
+      218,
+      28
+     ],
+     "rr": [
+      263,
+      254,
+      226,
+      36
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Choose the condition: crossing a value, or a line crossing another.",
+     "onPrimary": true,
+     "pr": [
+      267,
+      422,
+      218,
+      28
+     ],
+     "rr": [
+      263,
+      418,
+      226,
+      36
+     ]
+    },
+    {
+     "i": 3,
+     "text": "Click Add Alert. Your alert is listed below the form, where you can pause or delete it.",
+     "onPrimary": true,
+     "pr": [
+      191,
+      549,
+      294,
+      26
+     ],
+     "rr": [
+      187,
+      545,
+      302,
+      34
+     ]
+    }
+   ],
+   "consoleErrors": []
+  }
+ ]
+}
