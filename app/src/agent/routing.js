@@ -46,7 +46,10 @@ export const GROUPS = [
       // execution family L (pl-exec): the strips Chart Settings → Header names, whose fields chart.setSetting picks
       /\b(?:info row|bar info|header)\b/,
       // CG-25 (corpus #774): "theme" is the CHART's look — never the app's ("light / dark / app / UCT theme")
-      /\b(?<!(?:light|dark|app|uct|site) )themes?\b/,
+      // ⛔ no lookbehind (iOS 16 floor, src/noRegexLookbehind.test.js): the 0–5 characters before the space are consumed and
+      // checked by lookahead instead — the same answer as `\b` + not-after-"light |dark |app |uct |site " + `themes?\b`
+      // (agentNoLookbehindEquivalence.test.js runs the old pattern against this one)
+      /(?:^|[^ ])\bthemes?\b|(?:^[^]{0,2}|^(?!app|uct)[^]{3}|^(?!dark|site|[^](?:app|uct))[^]{4}|(?!light|[^](?:dark|site)|[^]{2}(?:app|uct))[^]{5}) themes?\b/,
       // "defaults" — a chart's own defaults ("restore the chart defaults"), never a default for NEW charts (settings)
       /^(?!.*\b(?:new charts?|by default|always open)\b).*\bdefaults?\b/,
       // CG-20 (corpus #774): "swing" (swing labels) — not a layout's / list's NAME ("open my Swing layout")
@@ -120,7 +123,8 @@ export const GROUPS = [
       /\bwhat'?s on (this|the|my) chart\b|\b(have|got) the \d+ on\b|\b\d+ (line|ma|average)\b/,
       // CG-28 (corpus #774): the words traders use for a chart's indicators — "which studies do I have on here", "my
       // oscillators", "the averages", "what overlays are on", "which lines (MAs) are on here" — and "on here" = this chart
-      /\b(?<!case )stud(?:y|ies)\b|\boscillators\b|\bmas\b/,
+      // ⛔ no lookbehind (iOS 16 floor): "case study" is excluded by checking the 4 characters before the space by lookahead
+      /(?:^|[^ ])\bstud(?:y|ies)\b|(?:^[^]{0,3}|(?!case)[^]{4}) stud(?:y|ies)\b|\boscillators\b|\bmas\b/,
       /^(?:(?=.*\bcharts?\b)|(?!.*\b(?:the market|market'?s|s ?& ?p|spx|nyse|nasdaq|breadth|stocks)\b)).*\b(?:moving |the |my |which |what |all (?:the |my )?)averages\b/,
       /\b(?:what|which|any|my|the) (?:[a-z-]+ ){0,2}(?:overlays|lines)\b.*\b(?:on|in) (?:here|this chart|the chart|my chart|it)\b/,
       /\b(?:what|which)\b.*\b(?:have|got|is|are)\b.*\b(?:on|in) here\b/,

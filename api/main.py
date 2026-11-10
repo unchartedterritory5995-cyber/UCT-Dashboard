@@ -195,6 +195,9 @@ from api.routers import admin_twitter as admin_twitter_router
 from api.routers import admin_purge as admin_purge_router
 from api.routers import desk as desk_router
 from api.routers import admin_api_health as admin_api_health_router
+from api.routers import admin_llm_usage as admin_llm_usage_router  # /admin/ai-spend: every Claude call, by feature
+from api.services import llm_usage as _llm_usage
+_llm_usage.install()  # hook the Anthropic SDK once: every model call lands in the AI-spend ledger
 from api.routers import provider_coverage as provider_coverage_router
 from api.routers import fmp_adapter_status as fmp_adapter_status_router
 from api.routers import massive_adapter_status as massive_adapter_status_router
@@ -1191,6 +1194,18 @@ def _buzz_poll() -> None:
         discord_buzz_digest.catch_up()
     except Exception as e:  # noqa: BLE001
         log.warning("[buzz] digest catch-up error: %s", e)
+
+
+def _llm_budget_watch() -> None:
+    """AI-spend watchdog (api/services/llm_budget.py): posts to the ops channel once per
+    (day, budget, level) at 80% / 100% / projected-over. Never raises."""
+    try:
+        from api.services import llm_budget
+        sent = llm_budget.watch()
+        if sent:
+            logging.getLogger(__name__).warning("[llm-budget] alerts sent: %s", [s["door"] for s in sent])
+    except Exception:  # noqa: BLE001
+        logging.getLogger(__name__).warning("[llm-budget] watch failed", exc_info=True)
 
 
 def _tsdr_lessons_tick() -> None:
@@ -8164,6 +8179,13 @@ async def lifespan(app: FastAPI):
                 misfire_grace_time=300, max_instances=1, coalesce=True,
             )
             print("[startup] tsdr video lessons scheduled (every 15 min)")
+            _scheduler.add_job(
+                _llm_budget_watch,
+                trigger=CronTrigger(minute="2,17,32,47", timezone=_ET),
+                id="llm_budget_watch", replace_existing=True,
+                misfire_grace_time=300, max_instances=1, coalesce=True,
+            )
+            print("[startup] AI-spend budget watchdog scheduled (every 15 min)")
         except Exception as e:
             print(f"[scheduler] tsdr lessons registration error: {e}")
         if os.environ.get("THEME_INDEX_PREWARM_ENABLED", "1") != "0":
@@ -11044,6 +11066,8 @@ app.include_router(admin_twitter_router.router)
 app.include_router(admin_purge_router.router)
 app.include_router(desk_router.router)
 app.include_router(admin_api_health_router.router)
+app.include_router(admin_llm_usage_router.router)
+app.include_router(admin_llm_usage_router.internal_router)  # PUSH_SECRET ingest from other services / sibling repos
 app.include_router(provider_coverage_router.router, dependencies=_OPEN_READS)  # /api/admin/provider-coverage — Task 22/23
 app.include_router(fmp_adapter_status_router.router, dependencies=_OPEN_READS)  # /api/admin/fmp-adapter-status — D1 §7.3
 app.include_router(massive_adapter_status_router.router, dependencies=_OPEN_READS)  # /api/admin/massive-adapter-status — D1 §7.3
@@ -13336,14 +13360,7 @@ def serve_indexes_csv():
     return _csv_response(os.path.join(PUBLIC, "Indexes-data.csv"), "Indexes-data.csv")
 
 # --- Serve React build (JS/CSS assets + SPA fallback) ------------------------
-class _ImmutableStaticFiles(StaticFiles):
-    async def get_response(self, path, scope):
-        response = await super().get_response(path, scope)
-        if response.status_code == 200:
-            response.headers["Cache-Control"] = (
-                "public, max-age=31536000, immutable, no-transform"
-            )
-        return response
+from api.services.static_assets import ImmutableStaticFiles as _ImmutableStaticFiles  # noqa: E402
 
 DIST = os.path.join(os.path.dirname(__file__), "..", "app", "dist")
 

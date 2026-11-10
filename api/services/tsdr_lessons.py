@@ -2652,9 +2652,22 @@ def tick() -> dict:
                 out["reopened"] = reopened
         except Exception as e:  # noqa: BLE001
             log.warning("[tsdr-lessons] could not reopen skipped clips: %s", e)
+        # The daily AI budget (api/services/llm_budget.py, /admin/ai-spend): once this
+        # feature's block-mode budget is spent, the model-calling stages skip the
+        # tick instead of failing calls and burning each video's MAX_ATTEMPTS.
         try:
-            out["lessons"] = run_lessons(limit=_int_env("TSDR_LESSONS_PER_TICK", 3),
-                                         deadline=deadline)
+            from api.services import llm_budget
+            ai_ok = llm_budget.allows("api/services/tsdr_lessons.py")
+        except Exception:  # noqa: BLE001 -- a metering fault never stops the job
+            ai_ok = True
+        if not ai_ok:
+            out["lessons"] = {"skipped": "daily AI budget reached"}
+            out["ai_budget"] = "reached"
+            deadline = time.time()  # the remaining model-calling stages see an expired deadline
+        try:
+            if ai_ok:
+                out["lessons"] = run_lessons(limit=_int_env("TSDR_LESSONS_PER_TICK", 3),
+                                             deadline=deadline)
         except Exception as e:  # noqa: BLE001 — e.g. the channel could not be created
             log.warning("[tsdr-lessons] lesson stage failed: %s", e)
             out["lessons"] = {"error": str(e)[:200]}

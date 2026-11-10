@@ -134,7 +134,7 @@ class TestTailStatus:
 
 class TestVerificationIsEarnedNotInferred:
     def _ok_delta(self, rows):
-        def _fn(ticker, tf, last_ts, status=None):
+        def _fn(ticker, tf, last_ts, status=None, **_kw):
             if status is not None:
                 status["ok"] = True
             return rows
@@ -150,7 +150,7 @@ class TestVerificationIsEarnedNotInferred:
     def test_a_failed_provider_verifies_nothing(self, monkeypatch):
         # The real `_delta_intraday` swallows provider errors into [] — identical to
         # "nothing newer". Only the explicit status flag separates them.
-        monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None: [])
+        monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None, **_kw: [])
         bars_fetch._heal_intraday_tail("AVGO", "5", FRI_1955)
         assert bars_fetch.tail_verified_through("AVGO", "5") is None
 
@@ -267,7 +267,7 @@ def _body(resp):
 
 class TestServeContract:
     def test_AVGO_REGRESSION_shed_repair_is_UNVERIFIED_not_silent(self, avgo, monkeypatch):
-        monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None: _monday_delta(status))
+        monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None, **_kw: _monday_delta(status))
         n_bg = _saturate(bars_fetch._bg_delta_sem)
         n_ia = _saturate(bars_fetch._interactive_heal_sem)
         try:
@@ -283,7 +283,7 @@ class TestServeContract:
         assert resp.headers.get("Retry-After") == "3"
 
     def test_since_path_shed_is_also_UNVERIFIED(self, avgo, monkeypatch):
-        monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None: _monday_delta(status))
+        monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None, **_kw: _monday_delta(status))
         n_bg = _saturate(bars_fetch._bg_delta_sem)
         n_ia = _saturate(bars_fetch._interactive_heal_sem)
         try:
@@ -297,7 +297,7 @@ class TestServeContract:
         assert resp.headers.get("Retry-After") == "3"
 
     def test_INTERACTIVE_RESERVE_repairs_while_background_holds_every_shared_slot(self, avgo, monkeypatch):
-        monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None: _monday_delta(status))
+        monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None, **_kw: _monday_delta(status))
         n_bg = _saturate(bars_fetch._bg_delta_sem)
         try:
             resp = bars_router.serve_bars("AVGO", "5", 50)          # warm=0 → interactive
@@ -312,7 +312,7 @@ class TestServeContract:
     def test_CONTROL_a_warm_request_cannot_take_the_reserve(self, avgo, monkeypatch):
         called = {"n": 0}
 
-        def _d(t, tf, lt, status=None):
+        def _d(t, tf, lt, status=None, **_kw):
             called["n"] += 1
             return _monday_delta(status)
         monkeypatch.setattr(bars_fetch, "_delta_intraday", _d)
@@ -326,17 +326,17 @@ class TestServeContract:
             assert _body(resp)["tail_status"] == "unverified"
 
     def test_the_interactive_mark_never_leaks_to_the_next_request_on_the_thread(self, avgo, monkeypatch):
-        monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None: _monday_delta(status))
+        monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None, **_kw: _monday_delta(status))
         bars_router.serve_bars("AVGO", "5", 50)
         assert bars_fetch._request_is_interactive() is False
 
     def test_a_healthy_repair_reads_current(self, avgo, monkeypatch):
-        monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None: _monday_delta(status))
+        monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None, **_kw: _monday_delta(status))
         body = _body(bars_router.serve_bars("AVGO", "5", 50))
         assert body["tail_status"] == "current"
 
     def test_a_failed_provider_stays_unverified(self, avgo, monkeypatch):
-        monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None: [])
+        monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None, **_kw: [])
         resp = bars_router.serve_bars("AVGO", "5", 50)
         assert _body(resp)["tail_status"] == "unverified"
         assert resp.headers.get("Retry-After") == "3"
@@ -355,7 +355,7 @@ class TestWarmCacheAuthority:
         assert "bars_AVGO_5_50" in avgo["mem"]
 
     def test_after_a_stale_warm_the_click_still_repairs(self, avgo, monkeypatch):
-        monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None: _monday_delta(status))
+        monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None, **_kw: _monday_delta(status))
         bars_fetch.serve_warm_from_cache("AVGO", "5", 50)
         body = _body(bars_router.serve_bars("AVGO", "5", 50))
         assert body["bars"][-1]["t"] == et(2026, 9, 28, 11, 30)
@@ -381,7 +381,7 @@ class TestSdDoBounded:
         monkeypatch.setattr(bars_fetch, "_inflight", {})
         monkeypatch.setattr(bars_fetch, "_REQUEST_DEADLINE_SECONDS", 0.3)
 
-        def _slow(t, tf, lt, status=None):
+        def _slow(t, tf, lt, status=None, **_kw):
             time.sleep(2.0)
             return []
         monkeypatch.setattr(bars_fetch, "_delta_intraday", _slow)

@@ -223,6 +223,14 @@ def reap(surface: str, handle: Callable[[str, Any, dict], None]) -> dict[str, An
                 out["errored"] += 1
             else:
                 out["succeeded"] += 1
+                # The one AI-spend ledger (llm_usage): batch results never pass the SDK's
+                # response hook as a Message, so they are recorded here, at the batch rate.
+                try:
+                    from api.services import llm_usage
+                    llm_usage.record_message(message, door="api/services/llm_batch.py",
+                                             func=str(surface), kind="batch")
+                except Exception:  # noqa: BLE001 -- metering never drops a result
+                    pass
             try:
                 handle(cid, message, meta.get(cid) or {})
             except Exception as exc:    # one bad result never drops the rest
