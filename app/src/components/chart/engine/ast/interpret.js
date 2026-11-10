@@ -764,6 +764,37 @@ const isZeroOverZero = (n) => !!n && n.type === 'op' && n.name === '/'
 export const isAmbiguousVarSeed = (n) => !!n && n.type === 'op' && n.name === 'u-'
   && Array.isArray(n.args) && n.args.length === 1 && isZeroOverZero(n.args[0])
 
+/** ⭐⭐ LANE B0 (2026-11-09) — AN UNMARKED `na` SEED IS A HISTORY SEED: bar 0 RUNS
+ *  THE UPDATE. The listing pass used to keep two bar-0 candidates for every
+ *  unmarked seed — "bar 0 IS the seed" (the self-reference spelling) and "bar 0
+ *  runs the update from it" — and withheld bar 0 wherever they disagreed. For a
+ *  seed that is exactly Pine's `na` literal (`0 / 0`, `pine.js::historySeed`) the
+ *  first candidate is never Pine's reading, because every Pine spelling that
+ *  writes that seed runs its update on bar 0:
+ *    - the PLAIN form `x = init` + `x := … x[1] …` (`historySeed()`, always):
+ *      `x = init` re-runs on every bar and bar 0 runs the reassignment with
+ *      `x[1]` = `na` (the Pine reference's `na` entry: "`nz()` also tests
+ *      `close[1]` for `na`" — the history read before the first bar is `na`);
+ *    - a `var` seeded `na` by `varSeedOf` (a history read, or an `na`
+ *      initializer): `var` runs its initializer once and the reassignment on
+ *      every bar, bar 0 included;
+ *    - `x = f(nz(x[1], na))`: bar 0 is `f(na)`, the update.
+ *  The one spelling whose bar 0 IS its seed — `x = na(x[k]) ? na : U` — is `na`
+ *  on EVERY bar in Pine and is translated as the constant `na`
+ *  (`pine.js::naSeededSelfReference`), so it never reaches here.
+ *  WITNESSED from the listing, NYSE:RDDT 1D (2026-10-02): `vw-ratchet-stops`
+ *  R03 (`trend = 1`, `trend := nz(trend[1], trend)`, then a `?:` on it) reads 1
+ *  on bar 0, and `optimized-keltner-channels-sltp-strategy-for-btc`'s
+ *  `bprice := cross ? … : nz(bprice[1])` reads 0 there; both were withheld
+ *  (`na`). ⛔ A MARKED seed (`ambiguousVarSeed`, a switched or spelled mark) and
+ *  a seed that merely EVALUATES to `na` on bar 0 (`close[1]`, a warm-up) keep
+ *  every candidate they had: only the literal shape says which spelling wrote it.
+ *  ⛔ Only the listing pass reads this (`opts.historyFromListing`), and only where
+ *  bar 0's history is PINNED: for v1/v2 (`listingSeedIsUnpinned`, `opts.listingSeedUnpinned`)
+ *  Pine's `x[1]` on bar 0 may be `na` or `0` and the `na(x[k]) ? na : U` spelling is not
+ *  rewritten (`pine.js` gates it the same way), so every base candidate is kept there. */
+export const historySeedReading = (seedNode) => isZeroOverZero(seedNode)
+
 // --------------------------------------------------------------------------- //
 // C12s — a SWITCHED recurrence: published only where the window forgot its seed
 // --------------------------------------------------------------------------- //
@@ -1344,12 +1375,28 @@ function rolling(series, n, reduce, policy = NA.PROPAGATE, naCurrent) {
       src[i] = carry
     }
   }
+  // ⭐⭐ LANE B0 (2026-11-09) — `wma`'s WARM-UP COUNTS FINITE OBSERVATIONS, NOT BARS.
+  // WITNESSED from the listing (`trend-targets-algoalpha-rddt-1d-2026-10-02`,
+  // NYSE:RDDT 1D): `ta.wma(src, 40)` over a source that is finite on bar 0, `na` on
+  // bars 1..88 and finite from 89 first answers on bar 127 — the bar holding its
+  // 40th finite value — and `ta.ema` of it is TradingView's to 6e-16 on every bar
+  // from 140. Gated by bar count, the forward fill answered from bar 89 (a window
+  // of carried bar-0 values TradingView never draws); without the fill, from 128.
+  // A series with no finite value before its gap (every warm-up a window reads,
+  // `hma`'s inner difference) holds exactly as many finite values as bars, so the
+  // count changes nothing there. Off the listing a count can only be LOW (the
+  // window's earlier observations are not here), so it withholds, never invents.
+  // The runtime lane reads the same rule (`runtime/vm.js`, policy `ffill`).
+  let finiteSeen = 0
+  if (policy === NA.FFILL) for (let i = 0; i < n - 1 && i < series.length; i++) if (Number.isFinite(series[i])) finiteSeen += 1
   for (let i = n - 1; i < series.length; i++) {
+    if (policy === NA.FFILL && Number.isFinite(series[i])) finiteSeen += 1
     // ⛔ THE CURRENT BAR IS CHECKED AGAINST THE ORIGINAL SERIES, NOT THE FILLED
     // ONE. `wma` answers `na` when the bar it is being asked about is `na`; it
     // fills only what it LOOKS BACK at. Reading `src[i]` here would answer on
     // every hole and lose the half of the rule that says otherwise.
     if (policy === NA.FFILL && !Number.isFinite(series[i])) continue
+    if (policy === NA.FFILL && finiteSeen < n) continue
     const w = windowOperands(src, n, i, policy === NA.FFILL ? NA.PROPAGATE : policy)
     if (w) out[i] = reduce(w.buf, w.lo, w.hi)
     else if (naCurrent !== undefined && !Number.isFinite(series[i])) out[i] = naCurrent
@@ -7676,7 +7723,10 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         prefixProbe: opts && typeof opts.prefixProbe === 'number' ? opts.prefixProbe : null,
         stepT: (j, history, read) => stepListing(body, j, history, read),
         ...(switched ? { windowFrom: 0 } : {}),
-        ...(spelled ? { reading: spelled.reading } : {}),
+        // ⭐⭐ LANE B0 r1 — only where bar 0's history IS pinned (v3+): v1/v2 keep every
+        // candidate they had (`listingSeedIsUnpinned`, W34-I4b), so their bar 0 stays withheld.
+        ...(spelled ? { reading: spelled.reading }
+          : historySeedReading(seedNode) && opts.listingSeedUnpinned !== true ? { reading: 'update' } : {}),
         // ⭐⭐ W34-I4b — the caller states the script's version leaves bar 0's
         // history unpinned (`listingSeedIsUnpinned`); never inferred here.
         ...(opts.listingSeedUnpinned === true ? { zeroBeforeListing: true } : {}),

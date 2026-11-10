@@ -43,7 +43,12 @@ const pine = (lines) => ['//@version=5', 'indicator("c12w")', ...lines].join('\n
  *  tell a `var` from the self-reference spelling `x = na(x[1]) ? S : U`, whose
  *  bar-0 value is the seed with no update run; where the two readings differ on
  *  bar 0 that bar is withheld (never guessed) and the next bar settles it. */
-const WITHHELD_AT_START = { guarded: 1 }
+// ⭐⭐ LANE B0 (2026-11-09) — EMPTY NOW. `guarded` (`var g = 7.0` + `nz(g[1], 3.0)`)
+// folds to an `na` history seed (`varSeedOf`), and an unmarked `na` seed is a history
+// seed whose bar 0 runs the update (`interpret.js::historySeedReading`): bar 0 is
+// Pine's 3, served, where it was withheld. The self-reference spelling whose bar 0
+// IS an `na` seed is translated as the constant `na` (`pine.js::naSeededSelfReference`).
+const WITHHELD_AT_START = {}
 
 const REFERENCE = {
   bareOnly: () => {

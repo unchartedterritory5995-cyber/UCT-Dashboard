@@ -789,11 +789,21 @@ def _rolling(series: Sequence[float], n: int,
     # (`len` first: a series shorter than the window has no bar to reach, so nothing may read it, a None included.)
     if inner == NA_SKIP and len(series) >= n and all(map(math.isfinite, src)):
         inner = NA_PROPAGATE
+    # ⭐⭐ LANE B0 (2026-11-09) -- ``wma``'s warm-up counts FINITE OBSERVATIONS, not
+    # bars (witnessed from the listing: ``trend-targets-algoalpha-rddt-1d-2026-10-02``).
+    # The JS twin, ``interpret.js::rolling``, carries the measurement.
+    finite_seen = 0
+    if policy == NA_FFILL:
+        finite_seen = sum(1 for v in series[: max(0, n - 1)] if math.isfinite(v))
     for i in range(n - 1, len(series)):
+        if policy == NA_FFILL and math.isfinite(series[i]):
+            finite_seen += 1
         # ⛔ THE CURRENT BAR IS CHECKED AGAINST THE ORIGINAL SERIES, NOT THE
         # FILLED ONE -- ``wma`` fills what it LOOKS BACK at, never the bar it is
         # being asked about.
         if policy == NA_FFILL and not math.isfinite(series[i]):
+            continue
+        if policy == NA_FFILL and finite_seen < n:
             continue
         w = _window_operands(src, n, i, inner)
         if w is not None:

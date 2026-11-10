@@ -172,16 +172,20 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   }, T)
 
   // optimized-keltner-channels-sltp-strategy-for-btc -----------------------------
-  it.fails('optimized-keltner-channels-sltp-strategy RDDT: MATCH', () => {
+  // ⭐⭐ LANE B0 (2026-11-09) — FLIPPED. `bprice := cross ? … : nz(bprice[1])` (the plain
+  // spelling, `accum(na, …)`) read `na` on bar 0 where TradingView reads 0: the listing
+  // pass kept "bar 0 IS the `na` seed" as a candidate. It now runs the update there
+  // (`interpret.js::historySeedReading`). SPY stays a window, not the listing.
+  it('optimized-keltner-channels-sltp-strategy RDDT: MATCH', () => {
     expect(grade('optimized-keltner-channels-sltp-strategy-for-btc-rddt-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
-  it('control: RDDT the two untitled plots are na on bar 0 only (TradingView 0); SPY MATCHES once replayed from the listing (DIV-1)', () => {
+  it('control: RDDT the two untitled plots agree on every bar, bar 0 included; SPY MATCHES once replayed from the listing (DIV-1)', () => {
     const r = grade('optimized-keltner-channels-sltp-strategy-for-btc-rddt-1d-2026-10-02').v
     const plots = items(r, 'Plot')
     expect(plots.length).toBe(2)
     for (const p of plots) {
-      expect(first(p)).toMatchObject({ bar: 0, kind: 'na' })
-      expect(p.stats.steady.divergent).toBe(1)
+      expect(p.verdict, p.reason).toBe('MATCH')
+      expect(p.stats.steady.divergent).toBe(0)
     }
     // ⭐ DIV-1 RE-PIN (2026-11-09): SPY Upper/Basis/Lower were converging prefixes (a window
     // not from the listing). Replayed from SPY's listing (DIV-1), the SPY capture MATCHES.
@@ -294,19 +298,28 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   }, T)
 
   // twin-range-filter (RDDT only — SPY is a MATCH above) --------------------------
-  it.fails('twin-range-filter RDDT: MATCH', () => {
+  // ⭐⭐ LANE B0 (2026-11-09) — FLIPPED. Long/Short read `na` on 5 bars from 177 and 6 from
+  // 171 where TradingView reads 1: a plain-spelled state seeded `na` (`accum(na, …)`) kept
+  // "bar 0 IS the `na` seed" as a listing candidate beside the update, so the two
+  // trajectories disagreed and the bars downstream of them were withheld. From the listing
+  // bar 0 now runs the update (`interpret.js::historySeedReading`).
+  it('twin-range-filter RDDT: MATCH', () => {
     expect(grade('twin-range-filter-rddt-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
-  it('control: RDDT (from the listing) Long na on 5 bars from 177, Short on 6 from 171 (TradingView 1); the filter line agrees', () => {
+  it('control: RDDT (from the listing) Long and Short agree with TradingView on every bar', () => {
     const v = grade('twin-range-filter-rddt-1d-2026-10-02').v
-    expect(first(item(v, 'Long'))).toMatchObject({ bar: 177, kind: 'na' })
-    expect(item(v, 'Long').stats.steady.divergent).toBe(5)
-    expect(first(item(v, 'Short'))).toMatchObject({ bar: 171, kind: 'na' })
-    expect(item(v, 'Short').stats.steady.divergent).toBe(6)
+    for (const t of ['Long', 'Short']) {
+      expect(item(v, t).verdict, t).toBe('MATCH')
+      expect(item(v, t).stats.steady.divergent, t).toBe(0)
+    }
   }, T)
 
   // runtime-only attaches ----------------------------------------------------------
-  it.fails('trend-targets-algoalpha RDDT (runtime pane): MATCH', () => {
+  // ⭐⭐ LANE B0 (2026-11-09) — FLIPPED. `ta.wma`'s warm-up counts FINITE observations
+  // (`interpret.js::rolling`, `runtime/vm.js` policy `ffill`); the runtime lane read the
+  // forward-filled `wma` as `propagate`, so `ta.ema(ta.wma(supertrend))` started one bar
+  // late (141, not 140) and its sma seed sat on a different window for 82 bars.
+  it('trend-targets-algoalpha RDDT (runtime pane): MATCH', () => {
     expect(grade('trend-targets-algoalpha-rddt-1d-2026-10-02', 'runtime').v.verdict).toBe('MATCH')
   }, T)
   it('control: RDDT objects now MATCH (label texts rounded to the tick, "TP1 ▸ 177.53"); the barcolor is drawn and agrees (RT6); plots agree', () => {
@@ -321,18 +334,15 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
     expect(v.paints.reason).toMatch(/agree/)
     expect(v.paints.rows.map((r) => r.state)).toEqual(['agree'])
     // ⭐ RT6 — `Baseline` (`plot(tL, color = trend == 1 ? … : …)`) was withheld for its
-    // per-bar colour and is now drawn: its COLOUR agrees on every compared bar, and what
-    // diverges is its VALUE's seed — na on bar 140 where TradingView has the first value,
-    // then a prefix converging to 1e-9 by bar 221 (a run value defect RT6 exposed, not
-    // a colour one). Pinned so a fix to the seed flips this line.
+    // per-bar colour and is now drawn: its COLOUR agrees on every compared bar.
+    // ⭐⭐ LANE B0 — and its VALUE now agrees too, from bar 140 (it was na on 140 and a
+    // prefix converging to 1e-9 by bar 221: the `wma` warm-up above).
     const base = item(v, 'Baseline')
     expect(base.stats.colorMismatches).toBe(0)
     expect(base.stats.colorCompared).toBeGreaterThan(400)
-    expect(base.stats.naMismatches).toBe(1)
-    expect(base.stats.firstDivergence).toMatchObject({ bar: 140, kind: 'na' })
-    expect(base.stats.steady.last.bar).toBeLessThanOrEqual(221)
-    expect(base.stats.maxRel).toBeLessThan(1e-3)
-    expect(v.plots.filter((p) => p.verdict === 'DIVERGE').map((p) => p.title)).toEqual(['Baseline'])
+    expect(base.stats.naMismatches).toBe(0)
+    expect(base.verdict, base.reason).toBe('MATCH')
+    expect(v.plots.filter((p) => p.verdict === 'DIVERGE').map((p) => p.title)).toEqual([])
     expect(item(v, 'Bullish Rejection').verdict).toBe('MATCH')
   }, T)
 
