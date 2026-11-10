@@ -25,11 +25,12 @@
    // ── WHICH WIDGET (owner rule: ASK when the target widget is unclear). One guard for every widget op of the shared layer: when the
    // op's widget is one of 2+ of its type on the board and the member's words name none of them — by position ("the left one"), by
    // what it shows (a list or scan name, its linked ticker) — the op is not run on the planner's pick: the member is asked, with
-@@ -17,18 +38,107 @@
+@@ -17,19 +38,112 @@
    // was named, or picked), and its ops carry that widget. (#988's stored original words replace this on rebase.)
    function whichWidget(args, host, member, { approved = false } = {}) {
      if (approved) return null
 +    const how = arguments[3] || {}                                      // (added) type / can, below
++    member = notAPlace(member)                                          // (added) "right after" is no place, below
      let s = null
      try { s = host?.widgets?.snapshot?.() } catch { s = null }
      // the widgets ON the board (the visible ones: a floating or popped-out widget is no candidate), whole (geometry, opts)
@@ -52,8 +53,11 @@
      const lbl = (x) => `${label(x.type)}${positionWord(x, same) ? ` (${positionWord(x, same)})` : ''}`
      return { ask: { arg: 'widget', text: `Which ${label(w.type)} — ${same.map(lbl).join(' or ')}?`, choices: same.map(x => ({ ref: String(x.id), label: lbl(x) })) } }
    }
-+
+ 
 +// ── additions (AUDIT #1027 F1 / F2) ──
++// "right" that only means "immediately" ("move volume right after symbol", "right before price", "right now") is not a place, so it
++// never names the widgets on the right (u18-cols-06: the static count's one over-ask). "the right one" / "right watchlist" still do.
++const notAPlace = (m) => (typeof m === 'string' ? m.replace(/\bright(?=\s+(?:after|before|next to|beside|below|above|under|over|now|away|then)\b)/gi, ' ') : m)
 +// a negation, then (optionally) the verb it denies; the widget named right after it is set aside
 +const NEGATION = / (?:not|never|except|besides|without|other than|instead of|anything but|everything but|all but|don t|dont|do not)(?: (?:touch|touching|change|changing|refresh|refreshing|reload|reloading|rerun|update|run|move|edit|alter|mess with))? /g
 +const FILLER = new Set(['the', 'my', 'that', 'this', 'these', 'those', 'in', 'on', 'to', 'for', 'a', 'an', 'of', 'any', 'from', 'with', 'at'])
@@ -133,3 +137,4 @@
 +  if (r.ask) return { ask: { ...r.ask, choices: r.ask.choices.filter(c => refOf(c.ref)) }, refOf }
 +  return null
 +}
++

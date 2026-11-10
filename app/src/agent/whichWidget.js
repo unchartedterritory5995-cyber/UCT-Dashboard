@@ -39,6 +39,7 @@ const label = (t) => LABEL[t] || t
   function whichWidget(args, host, member, { approved = false } = {}) {
     if (approved) return null
     const how = arguments[3] || {}                                      // (added) type / can, below
+    member = notAPlace(member)                                          // (added) "right after" is no place, below
     let s = null
     try { s = host?.widgets?.snapshot?.() } catch { s = null }
     // the widgets ON the board (the visible ones: a floating or popped-out widget is no candidate), whole (geometry, opts)
@@ -63,6 +64,9 @@ const label = (t) => LABEL[t] || t
   }
 
 // ── additions (AUDIT #1027 F1 / F2) ──
+// "right" that only means "immediately" ("move volume right after symbol", "right before price", "right now") is not a place, so it
+// never names the widgets on the right (u18-cols-06: the static count's one over-ask). "the right one" / "right watchlist" still do.
+const notAPlace = (m) => (typeof m === 'string' ? m.replace(/\bright(?=\s+(?:after|before|next to|beside|below|above|under|over|now|away|then)\b)/gi, ' ') : m)
 // a negation, then (optionally) the verb it denies; the widget named right after it is set aside
 const NEGATION = / (?:not|never|except|besides|without|other than|instead of|anything but|everything but|all but|don t|dont|do not)(?: (?:touch|touching|change|changing|refresh|refreshing|reload|reloading|rerun|update|run|move|edit|alter|mess with))? /g
 const FILLER = new Set(['the', 'my', 'that', 'this', 'these', 'those', 'in', 'on', 'to', 'for', 'a', 'an', 'of', 'any', 'from', 'with', 'at'])
