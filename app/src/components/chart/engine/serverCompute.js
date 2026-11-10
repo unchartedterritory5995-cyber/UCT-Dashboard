@@ -33,7 +33,7 @@ import { withDerivedColumns } from './derivedColumns'
 // ⭐ U2b — the forming bar's live value for a `plots[].liveTail` (`liveTail.js`):
 // the one cell of a cached envelope that moves with price, recomputed where the
 // envelope is aligned. The module imports nothing of this one.
-import { withLiveTail, benchmarkTailFor, subscribeBenchmarkTails } from './liveTail'
+import { withLiveTail, benchmarkTailFor, subscribeBenchmarkTails, registerBenchmarkTailRequest } from './liveTail'
 
 /** The ONE path every server-lane definition is fetched through. */
 export const SERVER_COLUMNS_PATH = '/api/signature/columns'
@@ -314,6 +314,15 @@ function _notify(key) {
 // repaints and the binder's memo (which carries the tail's version, see
 // `nativeRegistry.computeSignature`) recomputes the forming bar.
 subscribeBenchmarkTails((key) => _notify(`liveTail:${key}`))
+
+// ⭐ F2 (2026-11-10) — and THIS module is the benchmark tail's door: the store
+// (`liveTail.js`) holds no request of its own, so the browser's — the same
+// `fetch` the envelopes above use — is registered here, on import, by the one
+// module that already owns the lane's network (H4). A host that never imports
+// this door (the runtime worker, the server bundle, a test file before it arms
+// its own) asks for no tail at all. `test-setup.js` takes it away before every
+// test; `liveTail.test.js` proves both the registration and the refusal.
+registerBenchmarkTailRequest(_defaultFetch)
 
 /** ⭐ RT1 — another lane whose columns arrive AFTER the paint that asked (the
  *  runtime pane's off-thread run, `runtime/runtimeAsync.js`) says so through the

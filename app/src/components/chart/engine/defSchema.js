@@ -157,9 +157,12 @@ import { validateEndLabel } from './endLabel'
 // ⭐ The client-derived column (`plots[].derive`, same round): grammar beside its
 // one reader, `derivedColumns.js`, which imports nothing of this module.
 import { DERIVE_FIELDS } from './derivedColumns'
-// ⭐ The live forming-bar tail (`plots[].liveTail`, RS split U2b): grammar beside
-// its one reader, `liveTail.js`, which imports only `readoutSchema`.
-import { LIVE_TAIL_KINDS, LIVE_TAIL_FIELDS, LIVE_TAIL_MA_TYPES } from './liveTail'
+// ⭐ The live forming-bar tail (`plots[].liveTail`, RS split U2b): its grammar is
+// a leaf of its own, `liveTailSchema.js`, NOT the reader `liveTail.js` — the
+// reader is also the benchmark tail store (the door's request, wall clocks), and
+// this module is in the runtime lane's compute closure, which may hold neither
+// (`tools/pine_runtime_closure.mjs`; fix lane F2, 2026-11-10).
+import { LIVE_TAIL_KINDS, LIVE_TAIL_FIELDS, LIVE_TAIL_MA_TYPES } from './liveTailSchema'
 
 /** Schema major. A definition MUST declare exactly this to register. */
 export const SCHEMA_VERSION = 1
