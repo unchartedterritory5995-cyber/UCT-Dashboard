@@ -29609,6 +29609,54 @@ function plainColourExpr(n, depth = 0) {
   return false
 }
 
+/** ⭐⭐ DIV-4 — the non-enumerable key a withheld `barcolor` record carries its
+ *  colour under for the runtime lane: `{line, column, node}` (`resolvePaint`). */
+export const PAINT_RUNTIME_COLOUR = Symbol.for('uct.pine.paintRuntimeColour')
+
+/** A parse node copied for a runtime `objectTreesAt` spec: tokens reduced to their
+ *  position and text, functions dropped — the shape the object pass hands over
+ *  (`buildObjectProgram`'s `rtSanitize`). */
+function runtimeSpecNode(n, depth = 0) {
+  if (n === null || typeof n !== 'object') return n
+  if (depth > 200) throw new Error('a colour nests deeper than a document carries')
+  if (Array.isArray(n)) return n.map((x) => runtimeSpecNode(x, depth + 1))
+  const out = {}
+  for (const [k, v] of Object.entries(n)) {
+    if (k === 'tok') {
+      if (v && typeof v === 'object') out.tok = { kind: v.kind, value: v.value, line: v.line, column: v.column }
+      continue
+    }
+    if (typeof v === 'function' || v === undefined) continue
+    out[k] = runtimeSpecNode(v, depth + 1)
+  }
+  return out
+}
+
+/** ⭐ DIV-4 — a paint's non-literal `offset` folded to the whole number Pine
+ *  shifts by, or null. The ONE fold a plot's `offset` uses (`foldDisplacement`):
+ *  the resolver, then `constantValueOf` (a declared input folds to its default,
+ *  which is the member's value when one overrode it). Resolved with no mint, and
+ *  every input it reads is recorded displacement-bound, so it is never also a
+ *  knob that would move nothing (`resolvePaints` stamps it on `_colourInputs`). */
+function paintFoldedOffset(node, ctx) {
+  const r = ctx && ctx.resolver
+  if (!r || !node || isNaColourLeaf(node)) return null
+  const minted = r.paramMint
+  r.paramMint = null
+  let folded
+  try {
+    folded = r.resolve(node)
+  } catch {
+    return null
+  } finally {
+    r.paramMint = minted
+  }
+  const v = constantValueOf(folded)
+  if (v === null || !Number.isInteger(v)) return null
+  for (const n of declaredInputNames(folded)) r.displacementBoundInputs.add(n)
+  return v
+}
+
 function resolvePaint(p, ctx) {
   const at = locate(p.tok)
   const rec = { kind: p.kind, line: at ? at.line : null }
@@ -29662,9 +29710,21 @@ function resolvePaint(p, ctx) {
     rec.showLast = sl
   }
   if (named.has('offset')) {
-    const off = paintIntLiteral(named.get('offset'))
+    const node = named.get('offset')
+    // ⭐ DIV-4 — `offset` is a `simple int` (Pine v5/v6 reference, `barcolor` /
+    // `bgcolor`: "offset (simple int) Shifts the color series to the left or to the
+    // right on the given number of bars. Default is 0."). A simple value is fixed
+    // before bar 0, so an offset that FOLDS to a whole number (an input at its
+    // default, arithmetic on literals and inputs) is the number Pine shifts by;
+    // `paintFoldedOffset` folds it as a plot's `offset` is folded
+    // (`foldDisplacement`). ⛔ `na`, and anything that reads a bar, stay withheld.
+    const off = paintIntLiteral(node) ?? paintFoldedOffset(node, ctx)
     if (off === null) {
-      return withhold('paint:offset', `an \`offset\` that is not a whole-number literal on \`${p.kind}\` has no capture (${PAINT_PROBE})`)
+      if (isNaColourLeaf(node)) {
+        return withhold('paint:offset', `\`offset = na\` on \`${p.kind}\`: where TradingView draws such a paint is not captured `
+          + `(O4 of ${PAINT_PROBE} is painted over on every bar by a later \`barcolor\`)`)
+      }
+      return withhold('paint:offset', `an \`offset\` that does not fold to a whole number on \`${p.kind}\` has no capture (${PAINT_PROBE})`)
     }
     if (off !== 0) rec.offset = off
   }
@@ -29698,7 +29758,23 @@ function resolvePaint(p, ctx) {
   }
   const carried = typeof pres.color === 'string' || !!pres.colorCondition || !!pres.colorIndex || !!pres.colorGradient
   if (!carried || pres.colorDynamic) {
-    return withhold('paint:colour', `\`${p.kind}\`'s colour is an expression this door cannot carry yet`)
+    const out = withhold('paint:colour', `\`${p.kind}\`'s colour is an expression this door cannot carry yet`)
+    // ⭐⭐ DIV-4 — WHERE THE PER-BAR RUN CAN READ IT: the colour's parse node and the
+    // statement it stands at, for a door that reads the colour from the runtime lane
+    // (`memberPaneDefinition::runtimeReadPaints`). NON-ENUMERABLE, so the translation
+    // every other reader sees (and serialises) is byte-identical; the record stays
+    // WITHHELD here, and only a door that can read it exactly lifts it.
+    // ⛔ `barcolor` only: it has no style transparency, so the run's packed colour is
+    // the whole answer. A `bgcolor`'s `transp` / v4 default is not read from a run here.
+    if (p.kind === 'barcolor' && p.tok && Number.isInteger(p.tok.line) && Number.isInteger(p.tok.column)) {
+      try {
+        Object.defineProperty(out, PAINT_RUNTIME_COLOUR, {
+          value: Object.freeze({ line: p.tok.line, column: p.tok.column, node: runtimeSpecNode(colour) }),
+          enumerable: false,
+        })
+      } catch { /* a node too deep to copy stays withheld */ }
+    }
+    return out
   }
   // `na` (and a colour whose default settles on `na`) arrives as TradingView's
   // `rgba(0,0,0,0)`: for a paint that is NO paint — no shading, the candle's own
@@ -29835,7 +29911,8 @@ function resolvePaints(paints, ctx) {
   const r = ctx && ctx.resolver
   if (r && r.usedInputs && r.usedInputs.size) {
     const stamped = [...r.usedInputs.values()]
-      .map((e) => (e.name && r.windowBoundInputs.has(e.name) ? { ...e, windowBound: true } : e))
+      .map((e) => (e.name && (r.windowBoundInputs.has(e.name) || r.displacementBoundInputs.has(e.name))
+        ? { ...e, windowBound: true } : e))
     Object.defineProperty(out, '_colourInputs', { value: stamped, enumerable: false })
   }
   return out
