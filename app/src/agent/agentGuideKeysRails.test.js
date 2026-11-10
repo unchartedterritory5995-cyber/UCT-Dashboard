@@ -42,6 +42,8 @@ describe('chart keys: reached only by words about a key', () => {
     ['which key opens chart settings', 'Open chart settings (Alt+,)'],
     ['what does ? do', 'Show this help overlay (?)'],
     ['how do I use the Alt+T shortcut', 'Trendline (Alt+T)'],
+    ['what does Alt+J do', 'Horizontal ray (Alt+J)'],
+    ['what does Alt + Shift + E do', 'Eraser (click to delete) (Alt+Shift+E)'],
   ])('%s → %s', (q, title) => {
     const g = route(q)
     expect(g?.feature).toBe('chartKey')
@@ -53,8 +55,19 @@ describe('chart keys: reached only by words about a key', () => {
     'is there a press release for AAPL',
     'what does RSI mean',
     'what is the daily chart',
+    // a chord the chart does not declare is no row, not the declared chord inside it (C3-223's Ctrl+Alt+J is not Alt+J)
+    'what does Ctrl+Alt+J do',
+    'how do I toggle the journal shortcut (Ctrl+Alt+J)',
   ])('not a key question: %s', (q) => {
     expect(route(q)?.feature).not.toBe('chartKey')
+  })
+})
+
+describe('chart keys: several keys at once are not one key card', () => {
+  it('the indicator chords asked together stay with the chart row that lists them all (C2-010)', () => {
+    const g = route('how do I keyboard chord toggles RSI, MACD, BB, VWAP')
+    expect(g?.feature).not.toBe('chartKey')
+    expect(route('what is the keyboard shortcut for RSI')?.feature).toBe('chartKey')
   })
 })
 

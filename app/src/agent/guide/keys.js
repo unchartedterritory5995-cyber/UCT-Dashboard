@@ -32,7 +32,8 @@ function chordRe(keys) {
   if (k === 'esc') return /\b(esc|escape)\b/
   if (!k.includes('+')) return null
   const parts = k.split('+').map(p => (p === 'ctrl' ? '(ctrl|control|cmd|⌘)' : p === 'alt' ? '(alt|option|⌥)' : esc(p)))
-  return new RegExp(`(^|[^a-z0-9])${parts.join('\\s*\\+\\s*')}($|[^a-z0-9])`)
+  // the WHOLE chord: "Ctrl+Alt+J" is not Alt+J, and "Alt+Shift+A" is not Alt+Shift
+  return new RegExp(`(?<![a-z0-9])(?<!\\+\\s*)${parts.join('\\s*\\+\\s*')}(?![a-z0-9])(?!\\s*\\+)`)
 }
 // what it does, in its own words: every content word of one alternative ("Cursor / cancel" is either)
 function wordsRe(description) {
@@ -61,3 +62,11 @@ export const CHART_KEY_ACTIONS = SHORTCUTS.filter(s => s.keys && s.description &
     steps: [{ target: 'chart.plot', name: 'the chart', text: `Click the chart, then press ${said}: ${s.description.replace(/^./, c => c.toLowerCase())}.${WHEN[s.command] || ''}` }],
   }
 })
+const NEED = new Map(SHORTCUTS.map(s => [`key.${s.command}`, need(s.description) % 99]))
+/** The words name ONE key: of the rows they reach, one asks for more words than the rest ("price alert at cursor" over
+ *  "cursor"). Several keys asked about at once ("the keys for RSI, MACD and VWAP") are not one card: the family steps aside. */
+export function oneKey(text) {
+  const q = String(text || '').toLowerCase()
+  const hits = CHART_KEY_ACTIONS.filter(r => r.re.test(q)).map(r => NEED.get(r.id))
+  return hits.length > 0 && hits.filter(n => n === Math.max(...hits)).length === 1
+}
