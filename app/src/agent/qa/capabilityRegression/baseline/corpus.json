@@ -12105,6 +12105,66 @@
           }
         }
       ]
+    },
+    {
+      "id": "refuse.exportList-no-menu",
+      "source": "pl-widget (watchlist group D, carried from pl-exec): a Watchlist widget with no list menu mounted (no door) has nothing to copy or export; nothing is downloaded, no receipt (agentWatchlistOut.test.jsx has the door)",
+      "capabilities": [
+        "watchlist.exportList"
+      ],
+      "board": "WLW",
+      "steps": [
+        {
+          "say": "export my watchlist as a csv",
+          "model": {
+            "ops": [
+              {
+                "action": "watchlist.exportList",
+                "target": "$board",
+                "args": {
+                  "widget": "wl1",
+                  "format": "csv"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "unchanged": true,
+            "receipt": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.arrangeColumns-standin",
+      "source": "pl-widget (C3-085 / C3-086): a list widget that publishes no column-drag results (the stand-in view) is refused, never written; listControl.outcome.test.jsx moves and resizes on the real widget",
+      "capabilities": [
+        "watchlist.arrangeColumns"
+      ],
+      "board": "LISTVIEW",
+      "steps": [
+        {
+          "say": "move % change before price",
+          "model": {
+            "ops": [
+              {
+                "action": "watchlist.arrangeColumns",
+                "target": "$listViews[0]",
+                "args": {
+                  "column": "% change",
+                  "before": "price",
+                  "after": null,
+                  "width": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "unchanged": true,
+            "receipt": false
+          }
+        }
+      ]
     }
   ]
 }

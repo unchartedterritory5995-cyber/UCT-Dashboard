@@ -756,8 +756,8 @@ describe('3. move a column, set its width (the header drag and the gridline)', (
   })
   it.each(WIDTH_HELD_OUT.map(c => [c.text, c]))('held-out "%s": the stored width is that; Undo restores the columns exactly', async (text, c) => {
     const m = board()
-    await m.say(text, (ctx) => [op('watchlist.arrangeColumns', only(ctx), c.args)])
-    await waitFor(() => expect(cols()?.widths?.[c.key]).toBe(c.px))
+    const out = await m.say(text, (ctx) => [op('watchlist.arrangeColumns', only(ctx), c.args)])
+    await waitFor(() => expect(cols()?.widths?.[c.key], out).toBe(c.px))
     expect(m.lastReceipt().textContent).toMatch(new RegExp(`to ${c.px} px wide`))
     await m.say('undo')
     await waitFor(() => expect(cols() ?? {}).toEqual({}))
