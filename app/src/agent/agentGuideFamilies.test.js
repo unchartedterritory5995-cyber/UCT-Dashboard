@@ -107,3 +107,22 @@ describe('a row walks its own steps', () => {
     expect(item.endsOnClick).toBe(true)
   })
 })
+
+// C3-033/040/041: Rename and Version history are on the member's OWN layouts only — never the first layout on the bar
+import { mineOnly } from './capabilities/guide'
+describe('a layout row only your own layouts have', () => {
+  const host = (entries) => ({ layouts: { snapshot: () => ({ entries }) } })
+  const BUILT = [{ id: 'uct', name: 'UCT Default', scope: 'global' }, { id: 'g1', name: 'Breakouts', scope: 'global' }]
+  it.each(['how do I rename a layout', 'how do I see a layout’s version history'])('%s rings one of yours, by its name', (q) => {
+    const steps = mineOnly(stepsFor(guideFeature('layoutAction'), q), host([...BUILT, { id: 7, name: 'Swing', scope: 'user' }]))
+    expect(steps[0].target).toEqual([{ within: 'workspace.layouts', attr: 'title', value: 'Swing' }])
+    expect(steps[0].text).toMatch(/Swing/)
+  })
+  it('with none of your own, it says so instead of ringing a built-in', () => {
+    expect(mineOnly(stepsFor(guideFeature('layoutAction'), 'how do I rename a layout'), host(BUILT))).toMatch(/you have none yet/)
+  })
+  it('a row every layout has (duplicate) is left alone', () => {
+    const steps = stepsFor(guideFeature('layoutAction'), 'how do I duplicate a layout')
+    expect(mineOnly(steps, host(BUILT))).toBe(steps)
+  })
+})

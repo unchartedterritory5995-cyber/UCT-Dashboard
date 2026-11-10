@@ -179,15 +179,17 @@ export const WATCHLIST_ACTIONS = [
 // ── the layout bar (pages/charts/LayoutDock.jsx) ──
 const LAYOUT_TAB = { within: 'workspace.layouts', attr: 'data-layout-pin' }
 const layoutItem = (id) => ({ within: 'workspace.layoutMenu', attr: 'data-menu-id', value: id })
-const layoutMenu = (id, name, say, more = []) => [
-  { target: LAYOUT_TAB, name: 'a layout on the bar', text: 'Right-click one of your own layouts on the bar.', waitFor: layoutItem(id) },
+// `mine`: the row is only on the member's OWN layouts (UCT Default and the prebuilt ones have no Rename or Version history), so
+// capabilities/guide.js rings one of theirs on the bar by name, or says they have none (`mine: 'layout'`)
+const layoutMenu = (id, name, say, more = [], mine = false) => [
+  { target: LAYOUT_TAB, name: 'a layout on the bar', text: 'Right-click one of your own layouts on the bar.', waitFor: layoutItem(id), ...(mine ? { mine: 'layout' } : {}) },
   { target: layoutItem(id), name, text: say, endsOnClick: !more.length },
   ...more,
 ]
 export const LAYOUT_ACTIONS = [
-  { id: 'rename', label: 'Renaming a layout', re: /\brenam\w*\b/, steps: layoutMenu('rename', 'Rename layout', 'Click Rename layout, type the new name and press Enter.') },
+  { id: 'rename', label: 'Renaming a layout', re: /\brenam\w*\b/, steps: layoutMenu('rename', 'Rename layout', 'Click Rename layout, type the new name and press Enter.', [], true) },
   { id: 'duplicate', label: 'Duplicating a layout', re: /\b(duplicate|copy)\b/, steps: layoutMenu('duplicate', 'Duplicate layout', 'Click Duplicate layout to make a copy.') },
-  { id: 'history', label: 'A layout’s version history', re: /\b(version|history|restore|older|previous version|go back to)\b/, steps: layoutMenu('history', 'Version history', 'Click Version history. Pick a version, and Restore brings it back.') },
+  { id: 'history', label: 'A layout’s version history', re: /\b(version|history|restore|older|previous version|go back to)\b/, steps: layoutMenu('history', 'Version history', 'Click Version history. Pick a version, and Restore brings it back.', [], true) },
   { id: 'close', label: 'Taking a layout off the bar', re: /\b(close|remove|take)\b.*\b(bar|tab)\b/, steps: layoutMenu('close', 'Close', 'Click Close to take it off the bar. The layout stays in your library.') },
   { id: 'undoSwitch', label: 'Undoing a layout switch', re: /\bundo\b.*\b(switch|layout)\b/, steps: [{ target: LAYOUT_TAB, name: 'a layout on the bar', text: 'Click another layout on the bar. A note appears with Undo for a few seconds.', waitFor: 'workspace.layoutUndo' }, { target: 'workspace.layoutUndo', name: 'Undo', text: 'Click Undo to go back to the board you were on.', endsOnClick: true }] },
   { id: 'active', label: 'Seeing which layout is open', re: /\bwhich\b.*\blayouts?\b|\b(open|current|active) layout\b/, steps: [{ target: { within: 'workspace.layouts', attr: 'aria-current', value: 'true' }, name: 'the open layout', text: 'The highlighted layout on the bar is the one you have open.' }] },
