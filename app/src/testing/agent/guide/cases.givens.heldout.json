@@ -8,5 +8,10 @@
  {"id":"HG-07","say":"how do I leave replay mode","feature":"panelAction","title":"Leaving replay","given":["replayRunning"]},
  {"id":"HG-08","say":"how do I stop the replay and go back to live","feature":"panelAction","title":"Leaving replay","given":["replayRunning"]},
  {"id":"HG-09","say":"how do I add one of my own indicators to the chart","feature":"indicatorManage","title":"Adding your own indicator","given":["savedIndicator"]},
- {"id":"HG-10","say":"how do I put my saved indicator on this chart","feature":"indicatorManage","title":"Adding your own indicator","given":["savedIndicator"]}
+ {"id":"HG-10","say":"how do I put my saved indicator on this chart","feature":"indicatorManage","title":"Adding your own indicator","given":["savedIndicator"]},
+ {"id":"HG-11","say":"how do I set an alert on the MACD histogram","feature":"alertAction","title":"Which line an alert watches","given":["alertFormMultiLine"]},
+ {"id":"HG-12","say":"how do I pick which line my alert watches","feature":"alertAction","title":"Which line an alert watches","given":["alertFormMultiLine"]},
+ {"id":"HG-13","say":"how do I make an alert on a yes/no signal fire only once","feature":"alertAction","title":"When a signal alert fires","given":["alertFormSignal"]},
+ {"id":"HG-14","say":"why won't my alert fire","feature":"alertAction","title":"Why an alert can’t fire","given":["blockedAlert"]},
+ {"id":"HG-15","say":"why is my indicator alert never going off","feature":"alertAction","title":"Why an alert can’t fire","given":["blockedAlert"]}
 ]
