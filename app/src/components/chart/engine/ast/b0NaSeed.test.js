@@ -26,7 +26,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { translatePine } from './pine.js'
-import { interpret, historySeedReading } from './interpret.js'
+import { interpret, historySeedReading, listingSeedIsUnpinned } from './interpret.js'
 import { buildRuntimeIr } from './pineRuntimeFrontend.js'
 import { lowerIrProgram } from '../runtime/lowerIr.js'
 import { execute } from '../runtime/vm.js'
@@ -44,7 +44,10 @@ const treeOf = (src) => {
 }
 const listing = { historyFromListing: true, naConditionFalse: true }
 const host = (src, opts) => Array.from(interpret(treeOf(src), BARS, {}, undefined, undefined, opts))
-const pine = (v, lines) => [`//@version=${v}`, 'indicator("b0")', ...lines].join('\n')
+const pine = (v, lines) => [`//@version=${v}`, v >= 5 ? 'indicator("b0")' : 'study("b0")', ...lines].join('\n')
+/** The opts the member door passes for a document of version `v` (`nativeRegistry.listingOptsFor`). */
+const listingFor = (v) => ({ historyFromListing: true, naConditionFalse: v >= 4,
+  ...(listingSeedIsUnpinned(v) ? { listingSeedUnpinned: true } : {}) })
 
 function runtime(src) {
   const built = buildRuntimeIr(src, { bars: BARS, inputs: {} })
@@ -90,6 +93,27 @@ describe('⭐⭐ rule 1 — an unmarked `na` seed runs its update on bar 0 (from
     // control: a stated seed keeps the recurrence (bar 0 IS the seed, then the update)
     const seeded = host(pine(5, ['y = na(y[1]) ? 7.0 : close > 3000 ? close : y[1]', 'plot(y)']), listing)
     expect(seeded.slice(0, 3)).toEqual([7, 7, 7])
+  })
+})
+
+describe('⭐⭐ r1 — pinned versions only, and only a BARE `na(x[k])` test', () => {
+  const NA_SELF = ['x = na(x[1]) ? na : close < 3000 ? close : x[1]', 'plot(x)']
+  const PLAIN = ['b = 0.0', 'b := close > 3000 ? close : nz(b[1])', 'plot(b)']
+  it.each([3, 4, 5, 6])('v%i (bar-0 history pinned): `na(x[1]) ? na : U` is the constant na; the plain form serves bar 0', (v) => {
+    expect(host(pine(v, NA_SELF), listingFor(v)).every(Number.isNaN)).toBe(true)
+    expect(host(pine(v, PLAIN), listingFor(v))[0]).toBe(0)
+  })
+  it.each([2])('v%i (bar-0 history UNPINNED, W34-I4b): neither rule applies; bar 0 stays withheld as at base', (v) => {
+    const ns = host(pine(v, NA_SELF), listingFor(v))
+    expect(Number.isNaN(ns[0])).toBe(true)
+    // not rewritten to the constant: the recurrence still answers on later bars
+    expect(ns.some((x) => !Number.isNaN(x))).toBe(true)
+    expect(Number.isNaN(host(pine(v, PLAIN), listingFor(v))[0])).toBe(true)
+  })
+  it('a test that is NOT a bare `x[k]` read (`na(nz(x[1]))`, never true) is not the constant: bar 0 runs U', () => {
+    const got = host(pine(5, ['x = na(nz(x[1])) ? na : close < 3000 ? close : x[1]', 'plot(x)']), listing)
+    expect(got[0]).toBe(CLOSE[0])
+    expect(got.some((x) => !Number.isNaN(x))).toBe(true)
   })
 })
 

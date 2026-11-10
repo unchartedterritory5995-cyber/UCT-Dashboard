@@ -789,8 +789,10 @@ export const isAmbiguousVarSeed = (n) => !!n && n.type === 'op' && n.name === 'u
  *  (`na`). ⛔ A MARKED seed (`ambiguousVarSeed`, a switched or spelled mark) and
  *  a seed that merely EVALUATES to `na` on bar 0 (`close[1]`, a warm-up) keep
  *  every candidate they had: only the literal shape says which spelling wrote it.
- *  ⛔ Only the listing pass reads this (`opts.historyFromListing`); v1/v2 keep
- *  their extra "history is 0" candidate (`listingSeedIsUnpinned`). */
+ *  ⛔ Only the listing pass reads this (`opts.historyFromListing`), and only where
+ *  bar 0's history is PINNED: for v1/v2 (`listingSeedIsUnpinned`, `opts.listingSeedUnpinned`)
+ *  Pine's `x[1]` on bar 0 may be `na` or `0` and the `na(x[k]) ? na : U` spelling is not
+ *  rewritten (`pine.js` gates it the same way), so every base candidate is kept there. */
 export const historySeedReading = (seedNode) => isZeroOverZero(seedNode)
 
 // --------------------------------------------------------------------------- //
@@ -7335,7 +7337,10 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         prefixProbe: opts && typeof opts.prefixProbe === 'number' ? opts.prefixProbe : null,
         stepT: (j, history, read) => stepListing(body, j, history, read),
         ...(switched ? { windowFrom: 0 } : {}),
-        ...(spelled ? { reading: spelled.reading } : historySeedReading(seedNode) ? { reading: 'update' } : {}),
+        // ⭐⭐ LANE B0 r1 — only where bar 0's history IS pinned (v3+): v1/v2 keep every
+        // candidate they had (`listingSeedIsUnpinned`, W34-I4b), so their bar 0 stays withheld.
+        ...(spelled ? { reading: spelled.reading }
+          : historySeedReading(seedNode) && opts.listingSeedUnpinned !== true ? { reading: 'update' } : {}),
         // ⭐⭐ W34-I4b — the caller states the script's version leaves bar 0's
         // history unpinned (`listingSeedIsUnpinned`); never inferred here.
         ...(opts.listingSeedUnpinned === true ? { zeroBeforeListing: true } : {}),

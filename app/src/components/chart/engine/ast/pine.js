@@ -100,7 +100,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // 4 that would drift the day the interpreter moves. A translated body that
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
-import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf } from './interpret.js'
+import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf, listingSeedIsUnpinned } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL } from '../lowerTf.js'
 import { memberNumber } from './memberValue.js'
 import { timeInputDefaultOf, isTimeInputCall } from '../runtime/runtimeInputs.js'
@@ -8465,7 +8465,9 @@ export class Resolver {
         // reads (`interpret.js::historySeedReading`: an unmarked `na` seed is a
         // history seed whose bar 0 runs the update) true of every `accum` this
         // translator writes.
-        if (naSeededSelfReference(body, parts, this.table)) return parts.seed
+        // ⛔ r1 — only where bar 0's history is pinned (v3+, `listingSeedIsUnpinned`): for v1/v2
+        // (and no pragma) Pine's `x[1]` on bar 0 may be `0`, which is unwitnessed (W34-I4b).
+        if (!listingSeedIsUnpinned(this.pineVersion) && naSeededSelfReference(body, parts, this.table)) return parts.seed
         // 🔴🔴 THE SAME CONVERGENCE GATE AS THE MUTABLE FORM, asked of the UPDATE
         // ARM ALONE — the seed arm is what the accumulator re-seeds WITH, so
         // asking it to forget itself is asking the wrong question. Routing around
