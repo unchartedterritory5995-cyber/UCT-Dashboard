@@ -343,6 +343,20 @@
   "hint": "Tier 1 only, CURRENT pages: FINRA margin pages and Rule 4210, FINRA pattern day trader page (FINRA has been changing this rule: read the current page, phrase as 'under FINRA's rule as of <date>'), SEC T+1 settlement (effective May 28, 2024, check the SEC page), Investor.gov on cash vs margin accounts and good-faith violations."
  },
  {
+  "id": "F9.08",
+  "track": "F9",
+  "title": "Our account rules: size, caps and grades",
+  "skill": "risk.our_rules",
+  "hint": "Tier 3: docs/study/sizing_rule.md section 9 (the owner's account rulebook, 2026-11-09): A5, A7, A13, D38, E49, C37, B23, D42, B24, F60, E54, E56, D43, A2. Outside: Investor.gov (margin, liquidity, leveraged ETFs), FINRA stop orders."
+ },
+ {
+  "id": "F9.09",
+  "track": "F9",
+  "title": "Our account rules: the market and the trade",
+  "skill": "risk.trade_rules",
+  "hint": "Tier 3: sizing_rule.md section 9: B18, F65, A10, B26 (the 200-day hard rule, the parabolic exception from Bracco's 'The Parabolic Short'), C28, C29, C31, B22, C33, B20, B21, D41, E57, E58, D39, F64, D44, D45, F66, F67, F68, B27, E59. Outside: FINRA, NYSE hours, StockCharts ChartSchool, Fidelity, IBD."
+ },
+ {
   "id": "F10.01",
   "track": "F10",
   "title": "Market and limit orders",

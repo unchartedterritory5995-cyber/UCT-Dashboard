@@ -2,7 +2,7 @@
  "unit": "F9.04",
  "track": "F9",
  "title": "Drawdown arithmetic and the protocol",
- "teaches": "A drawdown is the fall from your account's high to the low after it; every loss needs a bigger gain to repair (down 25% needs about 33%, down 50% needs 100%), so you cut size as the drawdown deepens, on our ladder, and add it back slowly as results return.",
+ "teaches": "A drawdown is how far the account is below its highest value, open trades included, checked at least weekly; every loss needs a bigger gain to repair (down 25% needs about 33%, down 50% needs 100%); our ladder cuts the max position as the drawdown deepens (normal cap 40%, then 10% at 6% down, 8% at 8%, 5% at 10%, no new trades at 15%), size comes back one rung each time half the drawdown is won back and the normal cap returns within 5% of the peak, and a monthly loss of 8% closes the month to new trades, with no daily or weekly limit.",
  "skills": [
   {
    "id": "risk.drawdown",
@@ -139,6 +139,22 @@
    "publisher": "UCT house rule",
    "title": "The house sizing rule, section 4: the owner's drawdown ladder (owner quoted, Sunday Scans 2026-07-19)",
    "url": "repo:docs/study/sizing_rule.md#4-ceilings-and-the-drawdown-ladder",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "h1",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s17",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Stop Orders: Factors to Consider During Volatile Markets",
+   "url": "https://www.finra.org/investors/insights/stop-orders-factors-consider-during-volatile-markets",
    "accessed": "2026-11-09"
   }
  ],
@@ -400,6 +416,66 @@
    "source": "s16",
    "quote": "After a 6% drawdown I immediately reduce to 10% max. After an 8% drawdown I reduce to 8% max. And after 10% drawdown I reduce to 5% max.",
    "claim": "Our ladder: after a 6% drawdown the max position is 10%; after 8%, 8%; after 10%, 5%."
+  },
+  {
+   "id": "h03",
+   "source": "h1",
+   "quote": "A drawdown is how far the account is below its highest value, open trades included, checked at least weekly.",
+   "claim": "Our definition: a drawdown is how far the account sits below its highest value, open trades counted, checked at least weekly."
+  },
+  {
+   "id": "h04",
+   "source": "h1",
+   "quote": "On the way down: under 6% down, the normal cap (A7); 6% down, max position 10%; 8% down, 8%; 10% down, 5%; 15% down, no new trades (B13).",
+   "claim": "Our ladder down: under 6% the normal cap; at 6% down a 10% max position; at 8%, 8%; at 10%, 5%; at 15%, no new trades."
+  },
+  {
+   "id": "h05",
+   "source": "h1",
+   "quote": "At a 15% drawdown, stop opening new trades and review before trading again.",
+   "claim": "At a 15% drawdown we stop opening new trades and review before trading again."
+  },
+  {
+   "id": "h06",
+   "source": "h1",
+   "quote": "Size comes back one rung of the ladder each time the account recovers half of the drawdown; full size again once the account is back within 5% of its peak.",
+   "claim": "The way back: one rung up each time the account wins back half of the drawdown, and the normal cap once the account is within 5% of its peak."
+  },
+  {
+   "id": "h07",
+   "source": "h1",
+   "quote": "A7. Max position 40% of the account (raised from 20-25% on 2026-11-09: \"RAISE THE CAP TO 40% ACTUALLY. ESPECIALLY WITH EARLY TRIMS AT 3-5R THAT IS FINE.\").",
+   "claim": "Our normal cap is 40% of the account, raised on 2026-11-09 from the old 20% to 25%."
+  },
+  {
+   "id": "h08",
+   "source": "h1",
+   "quote": "B15. No daily loss limit. (\"15, no.\")",
+   "claim": "We have no daily loss limit."
+  },
+  {
+   "id": "h09",
+   "source": "h1",
+   "quote": "No weekly loss limit; a monthly loss limit of 8%: at 8% down in a calendar month (from the month's starting value), no new trades for the rest of the month.",
+   "claim": "No weekly loss limit; at 8% down from the month's starting value, no new trades for the rest of the calendar month."
+  },
+  {
+   "id": "h10",
+   "source": "h1",
+   "quote": "No losing-streak rule: size is cut only by the drawdown ladder, in percent (A8, B13, B14).",
+   "claim": "We have no losing-streak rule; only the drawdown ladder, in percent, cuts size."
+  },
+  {
+   "id": "h11",
+   "source": "h1",
+   "quote": "A tight stop never justifies a bigger position than that: a gap can jump the stop.",
+   "claim": "A tight stop never earns a position above the cap, because a gap can jump the stop."
+  },
+  {
+   "id": "f43",
+   "source": "s17",
+   "quote": "A stop order becomes a market order once the stop price is reached. The price you receive upon execution, though, could be markedly different than your stop price.",
+   "claim": "Once triggered, a stop is a market order and can fill far from the stop price."
   }
  ],
  "walkthroughs": [
@@ -433,16 +509,20 @@
   },
   {
    "key": "w3",
-   "title": "Our drawdown ladder",
+   "title": "Our drawdown ladder, down and back up",
    "steps": [
-    "As a drawdown gets deeper, we cut the max position size. Here's our ladder.",
-    "After a 6% drawdown, the max is 10% of the account. After 8%, it's 8%. After 10%, it's 5%.",
-    "Trade smaller while you find what's wrong. Add size back as your results come back."
+    "A drawdown is how far the account sits below its highest value, open trades included. We check it at least weekly.",
+    "Under 6% down, the normal cap of 40%. At 6% down, a 10% max position. At 8%, 8%. At 10%, 5%.",
+    "At 15% down, no new trades. Review before you trade again.",
+    "Back up: one rung each time you win back half the drawdown. The normal cap returns within 5% of the peak."
    ],
    "facts": [
+    "h03",
+    "h04",
+    "h07",
     "h02",
-    "h01",
-    "f29"
+    "h05",
+    "h06"
    ]
   }
  ],
@@ -612,10 +692,12 @@
    "lesson_line": "The deeper the drawdown, the smaller the max position.",
    "facts": [
     "h02",
-    "h01"
+    "h04",
+    "h01",
+    "h07"
    ],
    "wrong": {
-    "20% of the account": "That's the max before the ladder kicks in. The 6% step cuts it to 10%.",
+    "20% of the account": "That was our old normal max. Today the cap is 40%, and either way the 6% step cuts it to 10%.",
     "5% of the account": "That's the cap after a 10% drawdown. At 6%, the cap is 10%.",
     "6% of the account": "That mixes up the drawdown and the size. A 6% drawdown sets a 10% max."
    },
@@ -769,10 +851,12 @@
    "lesson_line": "The ladder reads your drawdown, not how much you like the setup.",
    "facts": [
     "h02",
-    "h01"
+    "h04",
+    "h01",
+    "h07"
    ],
    "wrong": {
-    "20% of the account": "That's the max before the ladder kicks in. The 6% step already cut it to 10%.",
+    "20% of the account": "That was our old normal max. Today the cap is 40%, and the 6% step already cut it to 10%.",
     "8% of the account": "That cap starts at an 8% drawdown. You're at 7%, so the most is still 10%.",
     "5% of the account": "That's the cap after a 10% drawdown. You can go smaller, but the most here is 10%."
    },
@@ -1004,6 +1088,249 @@
     "10% of the account": "10% is the cap from the 6% step. At an 8% drawdown the cap is 8%."
    },
    "skill": "risk.drawdown"
+  },
+  {
+   "key": "q24",
+   "skill": "risk.drawdown",
+   "rung": 2,
+   "format": "tf",
+   "house": true,
+   "q": "Under our rule, a drawdown counts only closed trades; open positions don't move it.",
+   "answer": "False",
+   "why": "False. A drawdown is how far the account is below its highest value, open trades included. An open loser is part of the hole, whether or not you've sold it.",
+   "lesson_line": "Drawdown is measured on the whole account, open trades included.",
+   "facts": [
+    "h03",
+    "f12"
+   ]
+  },
+  {
+   "key": "q25",
+   "skill": "risk.drawdown",
+   "rung": 3,
+   "format": "mcq",
+   "house": true,
+   "q": "How often, at least, do we check the account's drawdown?",
+   "choices": [
+    "At least weekly",
+    "Only at month end",
+    "After every trade",
+    "Only after a losing streak"
+   ],
+   "answer": "At least weekly",
+   "why": "At least weekly. The ladder reads the drawdown, so the drawdown has to be read on a schedule. Weekly is the minimum; more often is fine.",
+   "lesson_line": "Check the drawdown at least weekly. The ladder can only work on a number you've looked at.",
+   "facts": [
+    "h03",
+    "h10",
+    "h04"
+   ],
+   "wrong": {
+    "Only at month end": "Too slow. A 6% step can arrive and pass inside a month. Weekly at least.",
+    "After every trade": "You can, but the rule asks for weekly at least. A schedule beats a reaction.",
+    "Only after a losing streak": "We have no losing-streak rule. The ladder runs on the drawdown percent, checked weekly whatever the streak."
+   }
+  },
+  {
+   "key": "q26",
+   "skill": "risk.drawdown",
+   "rung": 3,
+   "format": "fill",
+   "house": true,
+   "q": "Fill in our rule.",
+   "sentence": "At a ___ drawdown we stop opening new trades and review.",
+   "bank": [
+    "15%",
+    "10%",
+    "8%",
+    "20%",
+    "6%"
+   ],
+   "answer": "15%",
+   "why": "15%. At 10% down the max position is 5%. At 15% down, no new trades at all, and a review before trading again.",
+   "lesson_line": "At 15% down the ladder ends in a stop: no new trades, review first.",
+   "facts": [
+    "h05",
+    "h04"
+   ]
+  },
+  {
+   "key": "q27",
+   "skill": "risk.drawdown",
+   "rung": 4,
+   "format": "tf",
+   "house": true,
+   "q": "Our rules include a daily loss limit: lose a set amount in a day and you're done for the day.",
+   "answer": "False",
+   "why": "False. We have no daily and no weekly loss limit. Our limits are the drawdown ladder, read from the account's high, and a monthly loss limit of 8% from the month's starting value.",
+   "lesson_line": "No daily or weekly limit. The ladder and the 8% monthly limit do the job.",
+   "facts": [
+    "h08",
+    "h09",
+    "h10"
+   ]
+  },
+  {
+   "key": "q28",
+   "skill": "risk.drawdown",
+   "rung": 5,
+   "format": "numeric",
+   "house": true,
+   "q": "You started the month at $60,000. At what account value does our monthly loss limit stop new trades for the month?",
+   "answer": 55200,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "start * (100 - limit) / 100",
+     "start": 60000,
+     "limit": 8
+    }
+   },
+   "prefix": "$",
+   "why": "$55,200. That's 8% below the month's starting value of $60,000. From there, no new trades until the calendar month ends. Once you have a limit, obey it.",
+   "lesson_line": "Monthly limit: 8% down from where the month started, and the month is closed to new trades.",
+   "facts": [
+    "h09",
+    "f39"
+   ]
+  },
+  {
+   "key": "q29",
+   "skill": "risk.drawdown",
+   "rung": 5,
+   "format": "scenario",
+   "house": true,
+   "story": "Your account peaked at $100,000 and sank to $88,000, a 12% drawdown, so your max position fell to 5%. It has climbed back to $94,000.",
+   "q": "Under our ladder, what's your max position now?",
+   "choices": [
+    "8% of the account",
+    "5% of the account",
+    "10% of the account",
+    "40% of the account"
+   ],
+   "answer": "8% of the account",
+   "why": "8% of the account. At $94,000 you've won back half of the fall from $100,000 to $88,000. Half back earns one rung up, from the 5% rung to the 8% rung.",
+   "lesson_line": "The way back is one rung at a time: half the drawdown won back, one rung up.",
+   "facts": [
+    "h06",
+    "h04"
+   ],
+   "wrong": {
+    "5% of the account": "That was the cap at the low. Winning back half of the drawdown earns one rung back.",
+    "10% of the account": "That's two rungs up. Half of the drawdown won back earns one rung, not two.",
+    "40% of the account": "The normal cap returns once the account is within 5% of its peak. At $94,000 you're still more than 5% below $100,000."
+   }
+  },
+  {
+   "key": "q30",
+   "skill": "risk.drawdown",
+   "rung": 6,
+   "format": "numeric",
+   "house": true,
+   "q": "Your account peaked at $80,000 and fell 10%. Under our rule, at what value does the normal cap come back?",
+   "answer": 76000,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "peak * (100 - back) / 100",
+     "peak": 80000,
+     "back": 5
+    }
+   },
+   "prefix": "$",
+   "why": "$76,000. The normal cap returns once the account is back within 5% of its peak, and 5% under $80,000 is $76,000. Until then you climb the rungs: 5%, then 8%, then 10%.",
+   "lesson_line": "Full size again within 5% of the peak. Not at the peak, not at the first green week.",
+   "facts": [
+    "h06",
+    "h04"
+   ]
+  },
+  {
+   "key": "q31",
+   "skill": "risk.drawdown",
+   "rung": 7,
+   "format": "scenario",
+   "house": true,
+   "story": "Your account sits at its high. You risk 1% a trade. A setup you love has a tight stop 1% under entry, so the risk math says a 100% position.",
+   "q": "Under our rules, what's the most you can put in it?",
+   "choices": [
+    "40% of the account",
+    "100% of the account",
+    "20% of the account",
+    "10% of the account"
+   ],
+   "answer": "40% of the account",
+   "why": "40% of the account. That's our normal cap, and a tight stop never justifies more. A triggered stop is a market order, and a gap can fill you far past it.",
+   "lesson_line": "The cap is 40%. A tight stop shrinks the risk math, never the cap.",
+   "facts": [
+    "h07",
+    "h11",
+    "f43",
+    "h04"
+   ],
+   "wrong": {
+    "100% of the account": "That's the risk math with no cap. A 1% stop can be gapped through, and 100% of the account in one stock is how a gap ruins a year.",
+    "20% of the account": "That was our old normal max. The cap is 40% now.",
+    "10% of the account": "That's the cap after a 6% drawdown. At the high, the normal cap applies."
+   }
+  },
+  {
+   "key": "q32",
+   "skill": "risk.drawdown",
+   "rung": 8,
+   "format": "scenario",
+   "house": true,
+   "story": "A brutal quarter. Your account is 15% below its high, open positions included. A clean setup triggers today.",
+   "q": "What does our rule say?",
+   "choices": [
+    "No new trades, review first",
+    "Take it at 5% max",
+    "Take it at half your usual risk",
+    "Take it, the ladder only caps size"
+   ],
+   "answer": "No new trades, review first",
+   "why": "No new trades, review first. At 15% down the ladder stops opening trades. A streak can be bad luck or a broken strategy; the review is where you find out which.",
+   "lesson_line": "At 15% down, the answer to any setup is no. Review, then earn the way back.",
+   "facts": [
+    "h05",
+    "h04",
+    "f29",
+    "f30"
+   ],
+   "wrong": {
+    "Take it at 5% max": "5% is the rung for 10% down. At 15% the ladder stops new trades altogether.",
+    "Take it at half your usual risk": "Smaller risk is still a new trade. At 15% down there are none until you've reviewed.",
+    "Take it, the ladder only caps size": "The ladder caps size down to 10% down. At 15% it stops you."
+   }
+  },
+  {
+   "key": "q33",
+   "skill": "risk.drawdown",
+   "rung": 9,
+   "format": "scenario",
+   "house": true,
+   "story": "Your account peaked at $100,000 in the summer. It started this month at $95,000 and sits at $87,000 today, 13% below the peak.",
+   "q": "What stops you from opening new trades today?",
+   "choices": [
+    "The monthly loss limit",
+    "The 15% drawdown stop",
+    "Nothing, the ladder just caps size",
+    "The daily loss limit"
+   ],
+   "answer": "The monthly loss limit",
+   "why": "The monthly loss limit. From $95,000 to $87,000 is more than 8% down this month, so no new trades until the month ends. The 13% drawdown caps a position at 5% but doesn't stop you.",
+   "lesson_line": "Two clocks run at once: the ladder from the peak, the 8% limit from the month's start. Either can stop you.",
+   "facts": [
+    "h09",
+    "h04",
+    "h05",
+    "h08"
+   ],
+   "wrong": {
+    "The 15% drawdown stop": "You're 13% below the peak, short of the 15% stop. Here the ladder caps size at 5%; it's the month that stops you.",
+    "Nothing, the ladder just caps size": "The ladder alone would let you trade at a 5% max. But the month's loss has passed 8%, and that closes the month.",
+    "The daily loss limit": "We have no daily loss limit. The monthly limit is the one that bites here."
+   }
   }
  ],
  "conflicts": [
@@ -1017,7 +1344,14 @@
   "Schwab, \"How to Recover From a Big Trading Loss\" (Joe Mazzola, 2026-03-09, schwab.com/learn/story/how-to-recover-from-big-trading-loss): suggests cutting from risking \"5%\" of the portfolio per trade to \"2% or 3%\" after a big loss, and adding to a new position \"anytime the price dips\". Both clash with our 2% ceiling (F9.01) and with not averaging down, and the page leans on tax write-offs (no taxes in Study). Not cited; the two other Schwab articles carry the \"trade smaller, size back up gradually\" point.",
   "Fidelity's drawdown video (s14) also calls a trader's intraday unrealized loss their \"daily drawdown\", a looser use than peak to trough. Only its daily-loss-limit lines are cited (q17).",
   "Losing streak math (q13, q21): the calc assumes each loss is 2% of the account's value at that moment (risk sized from the current account, as the story says), so the losses compound. Real stops can fill worse than planned (gaps; F9.02), so ten real losses could dig deeper than 18%. The questions say \"full losers\" / \"2% losses\" to make the assumption plain.",
-  "Track audit 2026-11-09: q20 is cut as a duplicate of F9.01#q15 (see verify). q13's '20%' note and q21's wording now match F9.01, which states the flat case (ten losses of $2,000 on $100,000 = 20%). q19 states the Federal Reserve's 57% and keys about 133%; F7.08 q17 computes 131% from the S&P 500's closing high and low (a 56.8% fall). Both follow from their stated inputs; no change. The '20%' notes on q08 and q14 ('the max before the ladder kicks in') rest on h01 ('down from 20%'); the owner's 2026-11-09 line in sizing_rule.md section 4 puts the normal max at 20% to 25%, so 20% is its low end and the notes stay right."
+  "Track audit 2026-11-09: q20 is cut as a duplicate of F9.01#q15 (see verify). q13's '20%' note and q21's wording now match F9.01, which states the flat case (ten losses of $2,000 on $100,000 = 20%). q19 states the Federal Reserve's 57% and keys about 133%; F7.08 q17 computes 131% from the S&P 500's closing high and low (a 56.8% fall). Both follow from their stated inputs; no change. The '20%' notes on q08 and q14 ('the max before the ladder kicks in') rest on h01 ('down from 20%'); the owner's 2026-11-09 line in sizing_rule.md section 4 puts the normal max at 20% to 25%, so 20% is its low end and the notes stay right.",
+  "Rulebook update 2026-11-09 (sizing_rule.md section 9): the ladder is now settled as ours (A8, with the owner's 'A is good'), so the 'section 8 item 1 is still open' notes in the checker's verify entries for w3, q08, q14, q15 and q23 are stale; the rule is confirmed. The new house source h1 quotes section 9 verbatim; s16 (section 4, his Sunday Scans words) stays for h01 and h02.",
+  "The normal cap: section 4's 'normal max 20%' and the 2026-11-09 '20-25%' line are superseded by A7, 40% of the account, in the owner's words: 'RAISE THE CAP TO 40% ACTUALLY. ESPECIALLY WITH EARLY TRIMS AT 3-5R THAT IS FINE.' The two wrong-choice notes that called 20% 'the max before the ladder kicks in' (q08, q14) now call it his old normal max and name the 40% cap (h07); the previous conflicts line that defended those notes from the 20-25% line no longer applies. h01 ('down from 20%') stays as his history.",
+  "A8 definition: 'open trades included' is read as the account's total value with open positions marked to market, which matches IBKR's 'Net Asset Value of your portfolio' (f12); q24 keys it. 'Checked at least weekly' is read as a minimum (q25: more often is allowed).",
+  "B14, the way back: 'one rung each time the account recovers half of the drawdown' is read with the drawdown measured from the peak to the low, so a 12% fall ($100,000 to $88,000) earns its first rung back at $94,000 (q29). Whether the second rung needs half of the ORIGINAL drawdown again or half of what is LEFT is not stated; q29 keys only the first rung and its '10%' wrong note says only 'one rung, not two'. 'Within 5% of its peak' includes exactly 5% down ('full size okat at 5% drawdown again on the way up'), so q30 keys the 5%-below value itself. Owner to confirm both readings.",
+  "B15 vs q17: our rules have no daily loss limit (h08), and q27 keys that. q17 (Fidelity and Schwab, general) is kept as written: it is about a trader who SET a daily limit and then obeys it, which breaks no rule of ours and teaches the discipline the monthly limit also needs (q28 cites the same Fidelity line). It is not asked as ours.",
+  "B16 arithmetic: the monthly limit is measured from the month's starting value, not the peak (q28, q33). In q33 the month's loss, $95,000 to $87,000, is 8.4%, stated as 'more than 8%'; the drawdown from the $100,000 peak is 13%, under the 15% stop, so the ladder only caps size (5%) while the month stops new trades. The question states the 13% so no number in the reveal is uncited.",
+  "Cold check 2026-11-09 (w3, q08, q14, q24-q33): all 11 section-9 quotes verbatim (script check); every calc recomputed. Changes: the three '20%' wrong notes (q08, q14, q31) and the h07 claim no longer name the owner or misread 'raised from 20-25%'. q17 kept as passed: it asks what a trader who SET a daily limit does, never that we have one; the owner may still want it out of this track now that B15 is a house rule. Open for the owner: B14's second rung (half of the original drawdown again, or half of what is left)."
  ],
  "verify": {
   "w1": {
@@ -1034,9 +1368,9 @@
   },
   "w3": {
    "status": "pass",
-   "notes": "h01, h02 match the owner's quote in sizing_rule.md section 4 word for word; f29 (Schwab, Horner) confirmed live. Changed 'I cut my max ... Here's my ladder' to 'we cut the max ... our ladder' so it matches the questions' 'our drawdown ladder' (the same call F8.04's checker made); step 3 now reads as Schwab's general advice, not as a ladder step (the ladder says nothing about adding size back). Owner: sizing_rule.md section 8 item 1 (confirm the ladder steps as the house protocol) is still open.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "All six house quotes verbatim in section 9 (h03-h07 are A7, A8, B13, B14; h02 is the owner's Sunday Scans ladder in section 4). The four rungs, the 15% stop and the way back match A8 and B14. Steps 22 words or fewer. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A7, A8, B13, B14); awaiting cold check. Rewritten: the old w3 named three rungs and ended on Schwab's general 'add size back as results come back'; it now names the definition, all four rungs, the 15% stop and the B14 way back"
   },
   "q01": {
    "status": "pass",
@@ -1082,9 +1416,9 @@
   },
   "q08": {
    "status": "pass",
-   "notes": "House item: h02 matches sizing_rule.md section 4 word for word (after 6%, 10% max). Changed the why from 'I cut my max position' to 'our max position drops', and the 20% note from 'where my max sat' to 'the max before the ladder kicks in' (h01: 'down from 20%'), so the reveal matches the question's 'our drawdown ladder'. Owner: sizing_rule.md section 8 item 1 (confirm the ladder steps as the house protocol) is still open.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key unchanged (6% down, 10% max; h02, h04). Reworded the '20%' note: it named the owner ('the owner's old normal max'); member-facing text never names him. Now 'our old normal max'. h07 claim corrected: 'raised from 20% to 25%' misread 'raised from 20-25%'; it now reads 'raised on 2026-11-09 from the old 20% to 25%'. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A7, A8); awaiting cold check. Only the '20% of the account' wrong note changed: it called 20% 'the max before the ladder kicks in', which the rulebook's 40% cap (A7) contradicts; key and other notes as the checker passed them. h04 added (the ladder is now confirmed as ours in A8)"
   },
   "q09": {
    "status": "pass",
@@ -1118,9 +1452,9 @@
   },
   "q14": {
    "status": "pass",
-   "notes": "House item: 7% sits between h02's 6% and 8% steps, so the cap is 10%; every wrong note checks. Changed 'so my max is 10%' to 'so your max is 10%' (the member's position) and the 20% note to 'the max before the ladder kicks in'. Owner: sizing_rule.md section 8 item 1 (confirm the ladder steps as the house protocol) is still open.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Key unchanged (7% sits on the 6% rung, 10% max). Same '20%' note fix as q08: 'the owner's old normal max' is now 'our old normal max'. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A7, A8); awaiting cold check. Only the '20% of the account' wrong note changed, for the same reason as q08; key and other notes as the checker passed them"
   },
   "q15": {
    "status": "pass",
@@ -1136,7 +1470,7 @@
   },
   "q17": {
    "status": "pass",
-   "notes": "f38, f39 (Fidelity drawdown page) and f27, f28 (Schwab, Hoenig) confirmed live: two publishers agree you stop at the limit and keep to it. Each wrong choice is a real way to break a limit.",
+   "notes": "f38, f39 (Fidelity drawdown page) and f27, f28 (Schwab, Hoenig) confirmed live: two publishers agree you stop at the limit and keep to it. Each wrong choice is a real way to break a limit. Cold check 2026-11-09: kept as passed beside new q27 (B15, no daily loss limit). q17 asks what a trader who SET a daily limit does; it never says we have one. Owner: keep it in this track, or drop it?",
    "fixed": false,
    "by": "checker"
   },
@@ -1175,6 +1509,66 @@
    "notes": "House item: 1% / 5% = 20% from the stop (F9.02's formula; f40 Investopedia confirmed live); at exactly 8%, h02 caps it at 8%; 8% x 5% = 0.4% risk, so 'less than 1%' holds. Changed 'my max' to 'our max' in the why and to 'the max' in the 20% note. Owner: sizing_rule.md section 8 item 1 (confirm the ladder steps as the house protocol) is still open.",
    "fixed": true,
    "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. 'Open trades included' (A8) keyed as False to 'only closed trades'; IBKR's NAV definition (f12) agrees. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A8); awaiting cold check"
+  },
+  "q25": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. 'Checked at least weekly' read as a minimum; the question asks 'at least', so 'after every trade' is not the minimum and 'only after a losing streak' fails B17. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A8, B17); awaiting cold check"
+  },
+  "q26": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. 15% is B13 word for word; the bank's 6/8/10% are the other rungs, 20% a plausible miss. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A8, B13); awaiting cold check"
+  },
+  "q27": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. B15 'No daily loss limit' and B16 'No weekly loss limit' keyed False. q17 (a trader who set a daily limit, Fidelity and Schwab) is a general item about obeying a limit you set, not asked as ours; it does not contradict q27, but the owner may prefer it out of a track whose house rule is no daily limit (see q17's note). Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B15, B16, B17); awaiting cold check"
+  },
+  "q28": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "B16's own text says 'from the month's starting value', so the base is not a reading but the rule; 60,000 x 0.92 = 55,200 recomputes (calc arith). f39 (Fidelity) confirmed by the quote checker. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B16); awaiting cold check"
+  },
+  "q29": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "First rung back: half of the $12,000 fall is $6,000, so $94,000 earns one rung, 5% to 8% (B14, A8). Both readings of 'half of the drawdown' (half the original, half of what is left) agree on the FIRST rung, so the key is safe; the '10%' note says 'one rung, not two' and claims nothing about the second rung. Owner: for the second rung, is it half of the original drawdown again or half of what remains? Not keyed anywhere yet. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A8, B14); awaiting cold check"
+  },
+  "q30": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "80,000 x 0.95 = 76,000 (calc). 'Within 5% of its peak' includes exactly 5% down on the owner's own words in B14 ('full size okat at 5% drawdown again on the way up'), so the 5%-below value is the right key. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, B14); awaiting cold check"
+  },
+  "q31": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key: 1% risk / 1% stop = 100% by the math, capped at 40% (A7, h11, FINRA f43 confirmed by the quote checker). Reworded the '20%' note, which named the owner and the date; now 'our old normal max'. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A7); awaiting cold check"
+  },
+  "q32": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "house quote verbatim in sizing_rule.md section 9 (checked by script, 40 words or fewer), claim matches, key follows, every wrong choice is really wrong, voice limits hold. 15% down and 'open positions included' are both in A8/B13; Schwab f29/f30 (confirmed earlier) back the review line. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A8, B13); awaiting cold check"
+  },
+  "q33": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "95,000 to 87,000 is 8.4%, past B16's 8% from the month's starting value (the rule's own base), so the month is closed; 13% off the $100,000 peak is below B13's 15%, so the ladder only caps size at 5%. The 13% is given in the story. Every wrong note checks. Writer: written 2026-11-09 from the account rulebook (sizing_rule.md section 9, A8, B13, B15, B16); awaiting cold check"
   }
  }
 }
