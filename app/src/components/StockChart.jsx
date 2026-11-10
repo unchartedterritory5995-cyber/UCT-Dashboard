@@ -1,5 +1,6 @@
 // app/src/components/StockChart.jsx — TradingView Lightweight Charts v5 wrapper
 // Optimized: chart instance reuse, O(n) HVC, memoized data transforms
+import { withoutGuardIds } from './chart/engine/ast/guardIdText'
 import { formatCompact } from '../lib/presentation/presentationPrimitives'
 import { markChartLayoutPresentational } from '../utils/chartLayoutTable'
 import { Fragment, useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo, useId, useSyncExternalStore } from 'react'
@@ -37,6 +38,8 @@ import { createWatermarkPrimitive, composeWatermarkLines, DEFAULT_BOX_W } from '
 import { clusterDarkPoolPrints } from './chart/darkPoolCluster'
 import useTickerMeta from '../hooks/useTickerMeta'
 import useTickerIpo from '../hooks/useTickerIpo'
+import useStrategyHistoryWindow from '../hooks/useStrategyHistoryWindow'
+import { isStrategyWindowDefinition } from './chart/engine/strategyWindow'
 import { historyFromListingOf, listingReferenceDate } from './chart/engine/listingSeed'
 import { definitionWithholdsOffListing, wantsListingDeepen, listingDeepenGate } from './chart/engine/listingDeepen'
 import useWatermarkDrag from '../hooks/useWatermarkDrag'
@@ -3287,6 +3290,11 @@ export default function StockChart({
   // explicit user choice always wins over this. The phone shell passes true so
   // the canvas opens clean; the chevron (and the toolbarApiRef doors) remain.
   toolbarDefaultCollapsed = false,
+  legendFlush = false,       // a card with no drawing toolbar (breadth drill grid): the crosshair legend sits flush at the pane's top instead of under the toolbar's reserved band.
+  // A small card (breadth drill grid): axis text one size down, the price axis
+  // only as wide as its labels (hugging the right edge, no 76px floor; the
+  // width ratchet still stops it oscillating), and small A/L/% chips.
+  compactAxes = false,
   // Phone chart shell (wave 8): present the drawing tools as MobileDrawBar —
   // a labeled bottom strip sharing THIS chart's activeTool/undo/magnet state —
   // and hide the desktop ChartToolbar entirely (its dialogs still portal, its
@@ -8009,6 +8017,13 @@ export default function StockChart({
       return (_storedInstances() || []).some((i) => definitionWithholdsOffListing(_defOf(i && i.defId)))
     } catch { return false }
   }, [_storedInstances, _defOf, userDefsGeneration])
+  // ⭐ W9-T11-F1 r1 (review N1) — does this chart hold a strategy document? Only then is the
+  // strategy window asked for (`useStrategyHistoryWindow` below): a chart of indicators never asks.
+  const _holdsStrategyWindow = useMemo(() => {
+    try {
+      return (_storedInstances() || []).some((i) => isStrategyWindowDefinition(_defOf(i && i.defId)))
+    } catch { return false }
+  }, [_storedInstances, _defOf, userDefsGeneration])
   // ⛔ A DEPENDENCY OF `updateChart`, NOT A REF. Secondary bars land
   // asynchronously; a ref would leave the chart painted with the empty map until
   // something unrelated triggered another paint. The hook keeps the map's
@@ -9943,6 +9958,10 @@ export default function StockChart({
   const historyFromListing = useMemo(() => historyFromListingOf({
     bars: filteredBars, tf: resolvedTf, listDate: listingReferenceDate(ipoInfo),
   }), [filteredBars, resolvedTf, ipoInfo?.list_date, ipoInfo?.first_trade_date])
+  // ⭐⭐ W9-T11-F1 — the window a strategy run takes (design 3.4, "The chart"), from the server's
+  // `bars_window` (`strategyWindow.js`). null with the broker gate off: nothing is fetched and the
+  // binder hands no document a window. Fixed for the tab once it lands.
+  const { bars: strategyHistoryWindow, pending: strategyWindowPending } = useStrategyHistoryWindow(_holdsStrategyWindow)
 
   // ── Countdown to bar close — last bar start time + tf-seconds ──
   const currentBarStart = useMemo(() => {
@@ -9994,7 +10013,7 @@ export default function StockChart({
       // and settings toggles fire N duplicate pref POSTs). Read via latest-ref
       // so the callback form costs zero re-subscribes and zero re-renders.
       const ha = hotkeysActiveRef.current
-      if (typeof ha === 'function' ? !ha() : ha === false) return
+      if (typeof ha === 'function' ? !ha(e) : ha === false) return
       // ⛔⛔ A MODAL IS OPEN => THE CHART DOES NOT GET THE KEY.
       //
       // This listener is on `document`, so it fires wherever focus happens to be —
@@ -12200,7 +12219,7 @@ export default function StockChart({
     try { _measuredAxis = chartRef.current?.priceScale('right')?.width() || 0 } catch { /* no chart yet */ }
     if (_measuredAxis > axisWidthRatchetRef.current) axisWidthRatchetRef.current = _measuredAxis
     const _axisMinWidth = Math.max(
-      Math.ceil(76 * Math.max(1, (cs.textSize ?? 11) / 11)),
+      compactAxes ? 0 : Math.ceil(76 * Math.max(1, (cs.textSize ?? 11) / 11)),
       axisWidthRatchetRef.current,
     )
     const chartOpts = {
@@ -12217,7 +12236,7 @@ export default function StockChart({
         // last-value chips) are equal-width and their boxes line up; falls back to
         // the proportional face for any non-latin glyph. See index.html @font-face.
         fontFamily: "'Instrument Sans Tab', 'Instrument Sans', sans-serif",
-        fontSize: cs.textSize ?? 11,
+        fontSize: compactAxes ? Math.min(cs.textSize ?? 11, 10) : (cs.textSize ?? 11),
         attributionLogo: false,  // hide built-in TradingView logo; we overlay the UCT mark instead
         // Model Book: subtle (not bold gray) pane divider; still draggable.
         //
@@ -14309,6 +14328,11 @@ export default function StockChart({
         // engine also asks the DOCUMENT (`historyFromListingFor`), so a script from
         // another translator keeps its bounded window whatever this says.
         historyFromListing,
+        // ⭐⭐ W9-T11-F1 — the strategy window (see `strategyHistoryWindow` above). The binder hands it
+        // to strategy documents only; every other document's ctx is unchanged.
+        historyWindowBars: strategyHistoryWindow,
+        // r1 (N3): asked, not answered yet — the binder holds a strategy run instead of refusing it
+        historyWindowPending: strategyWindowPending,
         adjustTime,
         applyData: _applyData,
         // ⭐⭐ B1 — Pine `bgcolor` on an overlay script that binds no series of its
@@ -15397,7 +15421,7 @@ export default function StockChart({
     // (mutation M3 SURVIVED): something else in this list is already unstable per
     // render. Kept as the one declaration that names this dependency; the full
     // reasoning is at the `useInstalledUserDefinitions` call site above.
-  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration])
+  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, strategyHistoryWindow, strategyWindowPending, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, compactAxes])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
@@ -20430,7 +20454,7 @@ export default function StockChart({
                   }}
                 >
                   <strong>{n.label} — {String(n.mode).replace(/-/g, ' ')}</strong>
-                  <div style={{ opacity: 0.85 }}>{n.sentence}</div>
+                  <div style={{ opacity: 0.85 }}>{withoutGuardIds(n.sentence)}</div>
                 </div>
               ))}
             </div>
@@ -20860,7 +20884,7 @@ export default function StockChart({
           26px allows for the time axis below the price-pane drawing area. */}
       {!showFatalError && chartReady && !hideScaleToggle && (
         <div
-          className={styles.scaleToggle}
+          className={`${styles.scaleToggle}${compactAxes ? ' ' + styles.scaleToggleCompact : ''}`}
           /* Docked at the very bottom, lined up with the date axis (right: 6px keeps
              it just clear of the SE corner resize handle).
              ⭐ MASTER'S `ee1de33e` DECIDED THIS AND THE MERGE KEEPS IT. Phase B's
@@ -21175,7 +21199,7 @@ export default function StockChart({
         return (
         <div
           ref={legendRef}
-          className={`${styles.legend}${legendV2 ? ' ' + styles.legendV2 : ''}${compactLegend && legendV2 ? ' ' + styles.legendCompact : ''}${toolbarCollapsed ? ' ' + styles.legendToolbarHidden : ''}`}
+          className={`${styles.legend}${legendV2 ? ' ' + styles.legendV2 : ''}${compactLegend && legendV2 ? ' ' + styles.legendCompact : ''}${legendFlush ? ' ' + styles.legendFlush : toolbarCollapsed ? ' ' + styles.legendToolbarHidden : ''}`}
           /* Drop below the index pane so the legend never covers it; reserve the
              right price-axis width so the BAR INFO strip wraps before it. */
           style={{

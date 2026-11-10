@@ -1,0 +1,284 @@
+/* Scan Deck — the breadth drill's scanning window. Built on the app tokens so it
+   follows the theme like every other surface; the charts-workspace widgets
+   inside keep their own canvas.
+
+   Geometry rule: every bar is a fixed height on one grid — the masthead (60px),
+   then a 40px band that runs across BOTH columns (filters over the list,
+   template + layout over the chart). Equal heights are what make the two panes
+   read as one surface instead of two widgets parked side by side. */
+
+/* ── Masthead ───────────────────────────────────────────────────────────── */
+/* One 48px line on the window's canvas. Typography and the view toggle are
+   borrowed from the chart header so the window and the chart read as one. */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  height: 64px;
+  padding: 0 8px 0 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  flex-shrink: 0;
+  min-width: 0;
+  background: var(--drill-canvas, var(--bg));
+}
+.identity {
+  display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 5px;
+  align-self: stretch; padding: 0 18px; min-width: 230px; flex-shrink: 0;
+  border-right: 1px solid var(--border);
+}
+.idTop { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.metric {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ut-gold);
+  background: transparent;
+  border: 0;
+  padding: 0 16px 0 0;
+  margin: 0;
+  cursor: pointer;
+  max-width: 200px;
+  field-sizing: content;
+  line-height: 1.1;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-muted) 50%), linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
+  background-position: calc(100% - 7px) 55%, calc(100% - 3px) 55%;
+  background-size: 4px 4px;
+  background-repeat: no-repeat;
+}
+.metric:focus-visible { outline: 1px solid var(--ut-gold); outline-offset: 3px; border-radius: 2px; }
+.metric option { background: var(--bg-elevated); color: var(--text); font-size: var(--text-base); }
+span.metric { background-image: none; padding-right: 0; cursor: default; }
+/* The shared date box sits in its own slot here, not pushed to an edge. */
+.dateWrap { display: flex; align-items: center; }
+.dateWrap > * { margin-left: 0 !important; }
+.live { display: inline-flex; align-items: center; gap: 6px; color: var(--gain); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 11px; }
+.live i { width: 6px; height: 6px; border-radius: 50%; background: var(--gain); }
+
+/* The readouts: label on top, value (with its picture) under it. */
+.tile {
+  display: flex; flex-direction: column; justify-content: center; gap: 5px;
+  align-self: stretch; padding: 0 18px; min-width: 0; flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+}
+.tileLbl { font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--text-muted); }
+.tileVal { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.tileVal b { font-size: 18px; font-weight: 700; color: var(--text-bright); font-variant-numeric: tabular-nums; line-height: 1; }
+.tileVal small { font-size: 11.5px; font-weight: 600; }
+.muted { color: var(--text-muted); }
+.tileCount { flex: 0 1 500px; width: 500px; min-width: 400px; }
+.tileCount .tileLbl { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.tileCount .tileVal b { min-width: 3.2ch; }
+.tileHead { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.rangeSeg { display: inline-flex; gap: 1px; padding: 1px; border: 1px solid var(--border); border-radius: 4px; }
+.rangeSeg button {
+  background: transparent; border: 0; border-radius: 3px; cursor: pointer;
+  padding: 1px 6px; font-family: var(--font-sans); font-size: 9.5px; font-weight: 700; color: var(--text-muted);
+}
+.rangeSeg button:hover { color: var(--text); }
+.rangeSeg button[aria-pressed='true'] { background: color-mix(in srgb, var(--ut-gold) 16%, transparent); color: var(--ut-gold); }
+.countDay { color: var(--text-muted); min-width: 78px; }
+.countDay[data-past] { color: var(--text); }
+.spark { flex: 1 1 auto; width: 0; min-width: 0; height: 24px; display: block; }
+.spark rect + rect { fill: color-mix(in srgb, var(--text-muted) 45%, transparent); }
+.spark rect[data-now] { fill: var(--ut-gold); }
+.spark rect[data-hover] { fill: var(--text-bright); }
+.tileMix { flex: 1 1 auto; max-width: 820px; min-width: 300px; flex-shrink: 1; }
+.mixGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 18px; row-gap: 7px; }
+.mixRow { display: grid; grid-template-columns: minmax(0, auto) minmax(14px, 1fr) 24px; align-items: center; gap: 7px; font-size: 12px; cursor: default; }
+.mixName { display: flex; align-items: center; gap: 6px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+.mixName i { width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0; }
+.mixTrack { height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--text-muted) 18%, transparent); overflow: hidden; }
+.mixTrack b { display: block; height: 100%; border-radius: 3px; }
+.mixCount { text-align: right; color: var(--text-bright); font-weight: 700; font-variant-numeric: tabular-nums; }
+.up { color: var(--gain); }
+.dn { color: var(--loss); }
+
+.viewBtn { padding: 5px 12px; font-size: 10.5px; }
+
+.headEnd { display: flex; align-items: center; gap: 10px; padding: 0 12px 0 16px; margin-left: auto; flex-shrink: 0; }
+.closeBtn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px;
+  border-radius: var(--radius-sm);
+  background: transparent; border: 1px solid transparent; color: var(--text-muted); cursor: pointer;
+}
+.closeBtn:hover { background: var(--bg-hover); color: var(--text); border-color: var(--border); }
+
+.spacer { flex: 1; }
+.seg {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+.seg button {
+  background: transparent;
+  border: 0;
+  border-radius: 3px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.seg button:hover { color: var(--text); }
+.seg button[aria-pressed='true'] { background: color-mix(in srgb, var(--ut-gold) 16%, transparent); color: var(--ut-gold); }
+.segSm button { font-size: 11px; padding: 3px 9px; }
+
+/* ── The 40px band (both columns) ─────────────────────────────────────────── */
+.bandRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+/* List column */
+.rail { display: flex; flex-direction: column; flex-shrink: 0; min-width: 0; }
+.chips {
+  display: flex;
+  gap: 5px;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 18px), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 18px), transparent);
+  padding-right: 14px;
+}
+.chips::-webkit-scrollbar { display: none; }
+.chip {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 999px;
+  padding: 3px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.chip:hover { color: var(--text); border-color: var(--text-muted); }
+.chip[aria-pressed='true'] { color: var(--ut-gold); border-color: color-mix(in srgb, var(--ut-gold) 70%, transparent); background: color-mix(in srgb, var(--ut-gold) 12%, transparent); }
+.bandCount { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; }
+.bandCount b { color: var(--text); font-weight: 600; }
+/* The sector mix as a 3px rule under the band — the composition at a glance
+   without spending a row on it. */
+.mixBar { display: flex; height: 3px; gap: 1px; flex-shrink: 0; }
+.mixBar span { display: block; height: 100%; opacity: .85; }
+
+.up { color: var(--gain); }
+.dn { color: var(--loss); }
+
+/* Chart column */
+.stage { flex: 1 1 auto; min-height: 0; min-width: 0; display: flex; flex-direction: column; }
+.tbLabel { font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .09em; }
+.tbSep { width: 1px; height: 18px; background: var(--border); }
+.select {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 6px;
+  max-width: 220px;
+}
+.charts { flex: 1 1 auto; min-height: 0; display: grid; gap: 1px; background: var(--border); }
+.charts[data-layout='1'] { grid-template-columns: 1fr; }
+.charts[data-layout='dw'] { grid-template-columns: 1fr 1fr; }
+.charts[data-layout='4'] { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.cell { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--bg); }
+.cell > * { flex: 1 1 auto; min-height: 0; }
+
+.linkBtn { background: none; border: 0; padding: 0; color: var(--ut-gold); font: inherit; cursor: pointer; }
+.linkBtn:hover { text-decoration: underline; }
+
+/* ── Grid view ──────────────────────────────────────────────────────────── */
+.gridView { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; background: var(--drill-canvas, var(--bg)); overflow: hidden; }
+.gridView > .bandRow .chips { flex: 0 1 auto; }
+.gridBody { flex: 1 1 auto; min-height: 0; position: relative; display: flex; flex-direction: column; }
+/* Only the rows near the screen exist; the sheet's top/bottom padding stands in
+   for the rest (ScanGrid sets columns, row height and padding inline). */
+.gridScroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.gridSheet { display: grid; gap: 10px; padding-left: 10px; padding-right: 10px; background: transparent; }
+/* Each card on its own compositing layer: scrolling moves the chart canvases
+   instead of repainting them (measured: 30 → 60 fps on a 970-name grid). */
+.cardSlot { min-width: 0; min-height: 0; display: flex; contain: layout paint; will-change: transform; }
+.cardSlot > .card { flex: 1 1 auto; }
+.card { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--drill-canvas, var(--bg)); position: relative; }
+.card[data-selected]::after { content: ''; position: absolute; inset: 0; box-shadow: inset 0 0 0 1px var(--ut-gold); pointer-events: none; z-index: 4; }
+.cardSym { font-size: 13.5px; font-weight: 700; color: var(--text-bright); }
+.cardPct { font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.cardMeta { font-size: 11.5px; color: var(--text-muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; }
+.cardChart { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.cardChart > * { flex: 1 1 auto; min-height: 0; }
+.cardEmpty { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 12px; }
+/* Floating cards (owner pick, style B): spaced, rounded, on the window's canvas.
+   Gold = the card that owns the mouse (clicked); the others pass the wheel on. */
+.cardFloat { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.cardFloat[data-selected] { border-color: var(--ut-gold); }
+.cardFloat[data-selected]::after { border-radius: 8px; box-shadow: inset 0 0 0 1px var(--ut-gold); }
+.cardFloat:not([data-selected]):hover { border-color: color-mix(in srgb, var(--ut-gold) 35%, var(--border)); }
+.floatHead {
+  display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 4px 0 10px; flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+}
+.floatIdBtn {
+  display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 auto; height: 100%; padding: 0;
+  background: transparent; border: 0; color: var(--text); font-family: var(--font-sans); text-align: left; cursor: pointer;
+}
+.floatIdBtn:hover .cardSym { color: var(--ut-gold); }
+.floatIdBtn:focus-visible { outline: 1px solid var(--ut-gold); outline-offset: -2px; border-radius: 4px; }
+.floatId { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
+.floatLine { display: flex; align-items: baseline; gap: 8px; min-width: 0; flex: 1 1 auto; overflow: hidden; white-space: nowrap; }
+.floatLine > :not(.cardMeta) { flex-shrink: 0; }
+.metaDash { margin-right: 6px; opacity: 0.6; }
+.floatPx { font-size: 12.5px; color: var(--text); font-variant-numeric: tabular-nums; }
+.expandBtn, .expandClose {
+  flex-shrink: 0; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--text-muted); cursor: pointer;
+}
+.expandBtn:hover, .expandClose:hover { color: var(--ut-gold); border-color: var(--border); background: var(--bg-hover); }
+.expandBtn:focus-visible, .expandClose:focus-visible { outline: 1px solid var(--ut-gold); outline-offset: 1px; }
+.floatHead .expandBtn { width: 24px; height: 24px; }
+/* Enlarged chart: fills the grid area, the classic always-on UCT legend. */
+.expanded {
+  position: absolute; inset: 0; z-index: 6; display: flex; flex-direction: column;
+  background: var(--drill-canvas, var(--bg)); border: 1px solid var(--ut-gold); border-radius: 8px; overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+.expandedHead { display: flex; align-items: center; gap: 10px; height: 52px; padding: 0 8px 0 14px; flex-shrink: 0; border-bottom: 1px solid var(--border); }
+.expandedSym { font-size: 16px; font-weight: 700; color: var(--text-bright); }
+.expandedChart { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.expandedChart > * { flex: 1 1 auto; min-height: 0; }
+
+.gridEmpty { padding: 40px; text-align: center; color: var(--text-muted); }
+
+/* Narrower windows shed the least-needed pieces rather than wrap. */
+@media (max-width: 1100px) { .tileMix { display: none; } }
+
+/* Phone: the list + date on one line, the reading under it. */
+@media (max-width: 640px) {
+  .header { height: auto; flex-wrap: wrap; padding: 6px 8px; row-gap: 6px; border-radius: 0; border-width: 0 0 1px; }
+  .identity { flex-direction: row; align-items: center; gap: 8px; min-width: 0; padding: 0; border-right: 0; }
+  .tile { order: 3; flex-basis: 100%; padding: 0; border-right: 0; }
+  .tileLbl { display: none; }
+  .headEnd { padding: 0; gap: 6px; }
+  .closeBtn { width: var(--tap-min); height: var(--tap-min); }
+}

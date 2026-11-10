@@ -33,6 +33,8 @@ NOTEBOOK_KEYS = [
     "notebook_onboarding_enabled",
     # Wave 11 lane 11A: voice and meeting notes — an enablement gate.
     "notebook_voice_notes_enabled",
+    # Import a tweet: X posts into a note — an enablement gate.
+    "notebook_tweet_import_enabled",
     # Wave 11 lane 11C: "Ask Notebook to do something" — an enablement gate.
     "notebook_ai_actions_enabled",
     # Wave 11 lane 11B: formula and rollup properties — an enablement gate.

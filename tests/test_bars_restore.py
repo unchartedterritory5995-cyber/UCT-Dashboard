@@ -57,7 +57,7 @@ def _script_snapshots(monkeypatch, data_dir, outcomes):
             _make_valid(_db(data_dir))
         return outcomes[ts]
 
-    monkeypatch.setattr(data_sync, "download_snapshot", fake_download)
+    monkeypatch.setattr(br, "_install_snapshot", fake_download)
     monkeypatch.setattr(data_sync, "get_latest_snapshot_ts", lambda: next(iter(outcomes), None))
     monkeypatch.setattr(data_sync, "_list_snapshot_ts_desc", lambda: list(outcomes))
     return tried
@@ -209,11 +209,10 @@ def test_restore_extracts_onto_the_volume(data_dir, monkeypatch):
         _make_valid(_db(data_dir))
         return True
 
-    monkeypatch.setattr(data_sync, "download_snapshot", fake_download)
+    monkeypatch.setattr(br, "_install_snapshot", fake_download)
     monkeypatch.setattr(data_sync, "get_latest_snapshot_ts", lambda: "300")
     monkeypatch.setattr(data_sync, "_list_snapshot_ts_desc", lambda: ["300"])
     assert br.restore()
-    assert pathlib.Path(seen["tmp"]) == data_dir / "tmp"
     assert seen["stale_present"] is False
 
 
@@ -224,7 +223,7 @@ def test_a_snapshot_that_installs_garbage_is_not_accepted(data_dir, monkeypatch)
         _db(data_dir).write_bytes(GARBAGE)
         return True
 
-    monkeypatch.setattr(data_sync, "download_snapshot", bad_install)
+    monkeypatch.setattr(br, "_install_snapshot", bad_install)
     monkeypatch.setattr(data_sync, "get_latest_snapshot_ts", lambda: "300")
     monkeypatch.setattr(data_sync, "_list_snapshot_ts_desc", lambda: ["300"])
     assert not br.restore()

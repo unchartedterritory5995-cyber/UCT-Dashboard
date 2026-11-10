@@ -17,8 +17,11 @@ import { explainTopic, explainWords } from '../guide/explain'
 import { startGuide, lastShownGuide, forgetLastShown, endGuide, guideState } from '../guide/guideStore'
 import { findTarget, exists, startIndex, unclip } from '../guide/targets'
 import { stepsFor, titleFor } from '../guide/slots'
+import { readControl, askWhich } from '../guide/controls'
 import { catalogRows } from '../../components/chart/indicatorCatalog'
-import { namedChart, namesAChart } from '../guide/namedChart'
+import { namedChart } from '../guide/namedChart'
+import { releasedOnly } from '../guide/releases'
+import { splitParts, carried } from '../guide/sequence'
 import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
 
 /** The first few studies of the chart's own quick set (its right-click "Indicators" toggles: `meta.quickMenu` not
@@ -46,15 +49,58 @@ function guideChart(host) {
   try { sel = host?.charts?.selected?.() || null } catch { sel = null }
   return charts.find(c => c.ref === sel) || charts[0]
 }
-const scoped = (t) => (Array.isArray(t) ? t.some(scoped) : typeof t === 'string' ? t.startsWith('chart.') || t.startsWith('widget.') : !!t?.id && scoped(t.id))
+// '@chart': a control looked for on the chart talked about itself (guide/targets.js)
+const scoped = (t) => (Array.isArray(t) ? t.some(scoped) : typeof t === 'string' ? t.startsWith('chart.') || t.startsWith('widget.') : t?.within === '@chart' || (!!t?.id && scoped(t.id)))
+
+/** ⭐ A step only the member's OWN layouts have (Rename, Version history): its target becomes one of theirs on the bar, by its
+ *  name (host.layouts: scope 'user'), never the first layout there (UCT Default has neither). None of their own → said. */
+export function mineOnly(steps, host) {
+  if (!steps.some(s => s.mine === 'layout')) return steps
+  let entries = null
+  try { entries = host?.layouts?.snapshot?.()?.entries || null } catch { entries = null }
+  if (!entries) return steps   // no list to read: the step stays as it was
+  const own = entries.filter(e => e.scope === 'user' && e.name)
+  if (!own.length) return 'Rename and Version history are on your own layouts only, and you have none yet: UCT Default and the prebuilt layouts have neither. Save this board as a layout first (Layouts ▾ → Save Layout), then ask me again.'
+  return steps.map(s => (s.mine === 'layout' ? { ...s, target: own.map(e => ({ within: 'workspace.layouts', attr: 'title', value: e.name })), text: `Right-click one of your own layouts on the bar, such as “${own[0].name}”.` } : s))
+}
+
+/** The walkthrough these words get from one feature: its steps and its title. */
+export function guideSteps(f, words = '') {
+  // ⭐ a two-part ask (guide/sequence.js): the first part's steps, then the second's, as one walkthrough. The first part's
+  // controls no longer end it, so the member is walked on into the second
+  const two = f && twoParts(words, surfaceOf(f))
+  if (two && two.first.id === f.id) {
+    const a = stepsFor(f, two.words[0]).map(s => ({ ...s, endsOnClick: false }))
+    const b = stepsFor(two.second, two.words[1]).map(s => ({ ...s, part: 2 }))
+    const t2 = titleFor(two.second, two.words[1])
+    return { steps: [...a, ...b], title: `${titleFor(f, two.words[0])}, then ${t2.charAt(0).toLowerCase()}${t2.slice(1)}` }
+  }
+  return { steps: stepsFor(f, words), title: titleFor(f, words) }
+}
+/** Both parts of "X then Y" reach a walkthrough → { first, second, words: [x, y carrying x's thing] }, else null. */
+function twoParts(words, surface) {
+  const parts = splitParts(words)
+  if (!parts) return null
+  const first = matchFeature(parts[0], null, surface)
+  const said = carried(parts[1], parts[0])
+  const second = first && matchFeature(said, null, surface)
+  return first && second ? { first, second, words: [parts[0], said] } : null
+}
 
 /** Start the walkthrough for one feature → the sentence the member reads (never claims what is not on screen). */
 export function showFeature(f, host, words = '') {
   if (!f) return 'I don’t have a walkthrough for that yet — ask me what it does instead.'
-  const steps = stepsFor(f, words)
+  // a control behind a release switch that is off is said, never rung (guide/releases.js)
+  const walk = guideSteps(f, words)
+  const released = releasedOnly(walk.steps, words)
+  if (typeof released === 'string') return released
+  const steps = mineOnly(released, host)
+  if (typeof steps === 'string') return steps
   const needsChart = steps.some(s => scoped(s.target))
   // the chart the words name wins over the clicked one; a chart they name that is not here is said, never swapped for another
-  const asked = needsChart ? namedChart(words, chartsOf(host)) : null
+  let sel = null
+  try { sel = host?.charts?.selected?.() || null } catch { sel = null }
+  const asked = needsChart ? namedChart(words, chartsOf(host), sel) : null
   if (asked?.say) return asked.say
   const chart = needsChart ? asked?.chart || guideChart(host) : null
   if (needsChart && !chart) return `There’s no chart on this board to show that on. Add one from Widgets ▾ → Chart first.`
@@ -66,7 +112,9 @@ export function showFeature(f, host, words = '') {
   // ⭐ CONTEXT-AWARE: where the member already is. A step whose control is on screen BECAUSE the step before it was
   // done (Chart settings is open → its Indicators tab; the Indicators tab is open → its search box) is where the
   // walkthrough starts — never "open the gear" when the settings are already open. The steps before it stay in the list.
-  const from = startIndex(all, { chartRef })
+  // a two-part walkthrough starts within its first part: the second part's controls being on screen skip none of the first
+  const second = all.findIndex(s => s.part === 2)
+  const from = startIndex(second > 0 ? all.slice(0, second) : all, { chartRef })
   const first = all[from]
   if (!first || !(findTarget(first.target, { chartRef }) || unclip(first.target, { chartRef }))) {
     // ⭐ Multi Chart: a cell carries its ticker and timeframe controls only; the rest of a chart's header is not on it
@@ -74,7 +122,7 @@ export function showFeature(f, host, words = '') {
     return `I can’t see ${f.control || 'that control'} on your screen right now — ${chart ? `${chart.label} may be scrolled out of view or covered by a panel` : 'a panel may be covering it'}. ${f.explain}`
   }
   if (guideState()) endGuide('replaced')
-  startGuide({ ...f, title: titleFor(f, words) }, { chartRef, chartLabel: chart?.label || null, steps: all, index: from })
+  startGuide({ ...f, title: walk.title }, { chartRef, chartLabel: chart?.label || null, steps: all, index: from })
   const where = chart && chartsOf(host).length > 1 ? ` on ${chart.label}` : ''
   const already = from > 0 ? ' You’re already part of the way there, so I started from where you are.' : ''
   const note = asked?.note ? `${asked.note} ` : ''
@@ -174,16 +222,22 @@ export function registerGuideCapabilities() {
     ...common,
     name: 'guide.show',
     summary: 'SHOW the member where a control is (on Charts, the Screener, Breadth, the Calendar or the Journal): highlight the real control on their screen with a short step-by-step card (Next / Back / Exit). Changes nothing — use it for "where do I…", "show me how to…", "how do I…" questions, never to do the thing.',
-    hints: `target = the guide entry. feature = the walkthrough that teaches it: an id from the enum, each named for what it teaches (indicators, indicatorColor, drawing, multiChart, widgetResize, layoutSave, alertPrice, chartSetting…); ${GUIDE_FEATURES.filter(f => f.surface).length} ids belong to other pages and work only there. detail = the member's own words for which one ("the RSI", "a rectangle", "2x2") or for the chart they named ("the NVDA chart", "the left chart"), when they named one. A request to DO it ("change my chart to weekly") is a command, not this.`,
+    hints: `target = the guide entry. feature = the walkthrough that teaches it: an id from the enum, each named for what it teaches (indicators, indicatorColor, drawing, multiChart, widgetResize, layoutSave, alertPrice, chartSetting…), and control for any other named control (a widget's button, a list's or a drawing's menu row: detail = the member's words); ${GUIDE_FEATURES.filter(f => f.surface).length} ids belong to other pages and work only there. detail = the member's own words for which one ("the RSI", "a rectangle", "2x2") or for the chart they named ("the NVDA chart", "the left chart"), when they named one. A request to DO it ("change my chart to weekly") is a command, not this.`,
     args: { type: 'object', properties: { feature: { type: 'string', enum: GUIDE_IDS }, detail: { type: ['string', 'null'] } }, required: ['feature', 'detail'], additionalProperties: false },
     absentAsNull: ['detail'],
     fast: ({ raw, host }) => {
       const q = String(raw || '').trim()
       if (!SHOW.test(q)) return null
       const here = host?.surface || 'charts'
+      // a two-part ask ("X, then Y") starts at its first part's walkthrough, when both parts reach one
+      const two = twoParts(q, here)
+      if (two) return { feature: two.first.id, detail: q }
       const f = matchFeature(q, null, here)
-      // the words travel when they choose something: a family's row, or the chart they name
-      if (f) return f.slots || namesAChart(q, chartsOf(host)) ? { feature: f.id, detail: q } : { feature: f.id }
+      // ⭐ words only a control in a place they did not name fits: never shown straight away, asked about (answer)
+      if (!f && here === 'charts' && (readControl(q)?.say || readControl(q, { weak: true }))) return { feature: 'control', detail: q }
+      // the words ALWAYS travel: `answer` reads the chart they name against the real board (the fast path may not see its charts,
+      // and a named chart dropped here would be walked on the clicked one). A bare "this" names none, so the click stands there.
+      if (f) return { feature: f.id, detail: q }
       // a Charts feature marked `everyPage`, asked elsewhere: `answer` says where it lives (no model turn, nothing highlighted)
       const charts = here === 'charts' ? null : matchFeature(q, null, 'charts')
       return charts?.everyPage ? { feature: charts.id } : null
@@ -194,6 +248,13 @@ export function registerGuideCapabilities() {
       const here = host?.surface || ctx?.surface || 'charts'
       if (f && surfaceOf(f) !== here) return surfaceOf(f) === 'charts' ? `${f.title} is on the Charts page — open Charts and ask me again there.` : `${f.title} is on the ${surfaceOf(f).replace(/^./, ch => ch.toUpperCase())} page — open it and ask me again there.`
       if (f && ctx && !guideFeatures(ctx).includes(f)) return `${f.title} isn’t available on your account here.`
+      // ⭐ the named-control catalog: several controls fit → ask which; a drawing that has no such control → say so
+      if (f?.id === 'control') {
+        const r = readControl(detail) || readControl(detail, { weak: true })
+        if (r?.say) return r.say
+        if (!r?.row) return r?.ask ? askWhich(r.ask) : 'Which control do you mean? Tell me its name, or the widget it’s in.'
+        return showFeature({ ...f, control: r.row.name }, host, detail)
+      }
       return showFeature(f, host, detail)
     },
   })

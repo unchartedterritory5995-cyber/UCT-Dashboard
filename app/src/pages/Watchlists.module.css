@@ -122,6 +122,9 @@
   scrollbar-color: var(--widget-divider-strong, var(--wl-divider-strong, var(--border-accent))) transparent;
 }
 .listBody::-webkit-scrollbar { width: 10px; height: 10px; }
+/* Hosts that size their columns to the pane (the breadth drill) reserve the
+   scrollbar's room always, so the columns fit whether or not the list scrolls. */
+.stableGutter { scrollbar-gutter: stable; }
 .listBody::-webkit-scrollbar-track { background: transparent; }
 .listBody::-webkit-scrollbar-thumb {
   background: var(--widget-divider-strong, var(--wl-divider-strong, var(--border-accent)));
@@ -690,11 +693,16 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* the title's own TEXT takes a right-click or a long-press (the list menu); the full-width label around it stays
+   pointer-events: none, so ‹ Lists and the buttons beside it keep their presses */
+.pickTitleHit { pointer-events: auto; }
 
 /* Single-list pick mode: the pick header already names the list, so hide the
    group's own accordion header (the redundant second row); drop the group indent
    so the star hugs the left edge; and don't box the items separately. */
 .pickMode .wlHeader { display: none; }
+/* Rename from the title's list menu: the list's own name field, shown only while it is being edited */
+.pickMode .wlHeader.wlHeaderRenaming { display: flex; }
 .pickMode .wlRow { padding-left: 8px; }   /* keep aligned with the header gridlines */
 .pickMode .wlItems { background: transparent; border-top: none; }
 
@@ -1685,3 +1693,7 @@
   }
   .listRow { min-height: var(--tap-min, 44px); }
 }
+
+/* A host-coloured left edge on a group member row (the breadth drill sections). */
+.accentRow { position: relative; }
+.accentRow::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--accent); pointer-events: none; }

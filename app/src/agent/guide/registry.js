@@ -47,8 +47,9 @@
 // capabilities' argument enum, the fast phrases and the walkthrough all read this list.
 
 import { manifestFor } from '../capabilities'
-import { readIndicator, readWidget, readSetting } from './slots'
+import { readIndicator, readWidget, readSetting, SLOTS } from './slots'
 import { GEAR, TOOLS_MENU, actionFeatures } from './actions'
+import { CONTROL_FEATURE } from './controls'
 
 // ── shared openings ──
 const INDICATORS_TAB = { target: 'chartSettings.tab.indicators', name: 'the Indicators tab', text: 'Open the Indicators tab.', waitFor: { id: 'chartSettings.tab.indicators', on: true } }
@@ -76,17 +77,35 @@ const rowStep = (result) => [
 ]
 const SWATCH = { within: 'chartSettings', attr: 'data-color-swatch' }
 const FIELD_ROW = { within: 'chartSettings', attr: 'data-field' }
+// ⭐ cov-2: a drawing tool by its own name, which nothing else on Charts is called (components/chart/ChartToolbar.jsx TOOLS)
+export const TOOL_NAMED = /\b(pitch ?forks?|parallel channels?|anchored vwaps?|avwap|vertical lines?|horizontal rays?|extended lines?|position calculator|price move|bars (&|and) time|text notes?|cup curve|fibonacci( retracements?| extensions?)?|circles?|ellipses?)\b|\barrows?\b(?!\s*(keys?|buttons?))|\banchor\w*\b.*\bvwap\b|\bcount\w*\b.*\bbars\b.*\b(between|from|since)\b|\bhow many bars\b/
+// a tool named with a verb that places it on the chart ("put an arrow on the chart", "use the measure")
+const PLACED_TOOL = /\b(add|put|place|draw|use|mark|stick|drop)\b.*\b(arrows?|circles?|ellipses?|channels?|measure|ruler)\b/
+// ⭐ cov-1: what else says "change this indicator's settings or look", once the words name an indicator (readIndicator)
+// a colour by its name ("make the RSI purple")
+export const COLOUR_NAME = /\b(red|green|blue|purple|violet|orange|yellow|gold|white|black|gr[ae]y|pink|teal|cyan|aqua|magenta|brown|lime|navy)\b/
+// a value it is set to or uses ("set my RSI to 21", "so it uses 9 bars")
+export const SETS_A_VALUE = /\b(set|make|change|switch|put|turn)\b.*\b(to|at)\s+\d+\b|\b(uses?|using)\s+\d+(\s+(bars?|periods?|days?))?\b|\b(make|set)\s+(the |my |this |that )?[a-z]+ \d+\b(?!\s*(m|h|d|w|mins?|minutes?|hours?|hrs?|days?|weeks?|months?|bars?)\b)/
+// where it is worked out ("calculate this RSI on the weekly")
+export const CALC_ON = /\b(calculat|calc|comput|run|work)\w*\b.*\bon\s+(the\s+|a\s+)?(weekly|daily|monthly|hourly|higher|lower|other|another|different|\d+\s*(m|h|min\w*|hour\w*))\b/
+// one part of it by its own name ("the signal line on the MACD", "the upper band"): its settings, not the whole indicator
+export const INDICATOR_PART = /\b(signal|upper|lower|middle|basis|zero|center|centre|overbought|oversold)\s+(lines?|bands?|levels?)\b/
+// how it is drawn ("as a histogram instead of a line")
+export const DRAWN_AS = /\b(as|into)\s+(an?\s+)?(histogram|columns?|area|line|dots?|circles?|steps?)\b|\binstead of\s+(an?\s+)?(histogram|columns?|area|line|bars?)\b/
 
 export const GUIDE_FEATURES = [
+  // ⭐ the named-control catalog (guide/controls.js): a control the words fully describe, in a place they name, wins over
+  // every broader walkthrough that shares one of its words
+  CONTROL_FEATURE,
   // ⭐ the action families (guide/actions.js): one row per small action, ahead of the features whose words they share
-  ...actionFeatures({ legendChip: { also: readIndicator }, indicatorManage: { also: readIndicator }, drawingEdit: { guard: (q) => !readIndicator(q) } }),
+  ...actionFeatures({ legendChip: { also: readIndicator, guard: (q) => !INDICATOR_PART.test(q) }, indicatorManage: { also: (q) => readIndicator(q) || /\bplot style\b/.test(q) }, drawingEdit: { guard: (q) => !readIndicator(q) } }),
   // ⭐ PHASE 3 — more specific features sit BEFORE the general ones whose words they share (matchFeature takes the first)
   // ── ⭐ GUIDE SYSTEM: the nested, multi-step Charts families ──
   {
     // the Inspector of one indicator (components/chart/ChartSettingsIndicators.jsx), and its colour panel (ChartSettingsModal)
     id: 'indicatorColor', slots: ['ind'], except: /\b(prev|prior|previous)[- ]?day\b|\b(crosshair|grid|watermark|background)\b/, terms: ['indicator colour', 'indicator color'], control: 'the chart’s settings gear', title: 'Changing the colour of {ind.label}', titleAny: 'Changing an indicator’s colour', topic: 'indicators',
     words: [/\bindicators?\b.*\bcolou?rs?\b|\bcolou?rs?\b.*\bindicators?\b/, /\b(line|plot|moving average|average)\b.*\bcolou?rs?\b|\bcolou?rs?\b.*\b(line|plot|moving average|average)\b/],
-    match: (q) => /\b(re)?colou?r\w*\b/.test(q) && !!readIndicator(q),
+    match: (q) => (/\b(re)?colou?r\w*\b/.test(q) || COLOUR_NAME.test(q)) && !!readIndicator(q),
     caps: ['indicatorStyle.set'],
     explain: 'An indicator’s colour is in its own settings: the gear on the chart, the Indicators tab, click the indicator, then click the colour swatch under Appearance.',
     steps: [
@@ -102,7 +121,7 @@ export const GUIDE_FEATURES = [
     // the same Inspector, one field of it
     id: 'indicatorEdit', slots: ['ind', 'field'], terms: ['indicator settings'], control: 'the chart’s settings gear', title: 'Changing {ind.label}’s settings', titleAny: 'Changing an indicator’s settings', topic: 'indicators',
     words: [/\b(change|edit|set|adjust|configure|modify|tweak)\w*\b.*\bindicators?\b/, /\bindicators?\b.*\b(settings?|period|length|style|width|source|inputs?)\b/],
-    match: (q) => /\b(period|length|lookback|source|type|time ?frame|width|thick\w*|style|settings?|inputs?|offset|pane|panel|visib\w+|dash\w*|dott?ed)\b/.test(q) && !!readIndicator(q),
+    match: (q) => (/\b(period|length|lookback|source|type|time ?frame|width|thick\w*|style|settings?|inputs?|offset|pane|panel|visib\w+|dash\w*|dott?ed)\b/.test(q) || SETS_A_VALUE.test(q) || CALC_ON.test(q) || INDICATOR_PART.test(q) || DRAWN_AS.test(q)) && (!!readIndicator(q) || INDICATOR_PART.test(q)) && !/\balert\w*\b/.test(q),
     caps: ['indicator.update'],
     explain: 'Every indicator’s own settings are in the chart’s settings: the gear, the Indicators tab, then click the indicator. Its period, source, type, timeframe, pane, visibility and line style are all there.',
     steps: [
@@ -133,7 +152,7 @@ export const GUIDE_FEATURES = [
   {
     // pages/charts/widgets/AlertsWidget.jsx — the widget's quick-add row; the widget comes off Widgets ▾ when it isn't on the board
     id: 'alertPrice', except: /\bwidget\b.*\b(settings?|gear|appearance|look)\b/, terms: ['price alert', 'price alerts', 'alerts widget'], control: 'the Alerts widget', title: 'Setting a price alert', topic: 'alerts',
-    words: [/\balerts?\b/, /\bnotify me\b/],
+    words: [/\balerts?\b/, /\bnotify me\b/, /\b(get|be) alerted\b/],
     caps: ['alert.create'],
     explain: 'The Alerts widget sets a price alert on any ticker: type the ticker, choose Above or Below, type the price, click Set. Add the widget from Widgets ▾ → Alerts. On a chart, Alt+N sets one at the cursor.',
     steps: [
@@ -272,7 +291,7 @@ export const GUIDE_FEATURES = [
   },
   {
     id: 'goToDate', terms: ['go to date', 'time navigator'], control: 'the date box on the chart', title: 'Going to a date', topic: 'charts',
-    words: [/\b(go|jump|scroll|navigate|get) (back )?to (a |an |the |this |that )?(specific |particular |certain )?(date|day)\b/, /\bgo back to\b.*\b\d{4}\b/, /\btime navigator\b/],
+    words: [/\b(go|jump|scroll|navigate|get) (back )?to (a |an |the |this |that )?(specific |particular |certain )?(date|day|year)\b/, /\b(go|jump|scroll|navigate|get) (back )?to (a year like )?(19|20)\d\d\b/, /\bgo back to\b.*\b\d{4}\b/, /\btime navigator\b/],
     caps: ['chart.goToDate'],
     explain: 'The date box on the chart’s header jumps the chart to a date: type it and press Enter. Its arrows step one bar at a time, and the calendar picks a date or a year.',
     steps: [
@@ -341,7 +360,8 @@ export const GUIDE_FEATURES = [
   {
     // pages/Watchlists.jsx — the + in a list's header
     id: 'watchlistAddSymbol', terms: ['add to a watchlist'], control: 'the + on the list', title: 'Adding a ticker to a watchlist', topic: 'watchlists',
-    words: [/\badd\b.*\b(tickers?|symbols?|stocks?|names?)\b.*\b(watch ?lists?|lists?)\b/, /\b(watch ?lists?|lists?)\b.*\badd\b.*\b(tickers?|symbols?|stocks?)\b/],
+    // ⭐ cov-1: a ticker by its own name counts too ("put NVDA on my watchlist"): one word between the verb and its list
+    words: [/\badd\b.*\b(tickers?|symbols?|stocks?|names?)\b.*\b(watch ?lists?|lists?)\b/, /\b(add|put|stick|throw|save)\s+(?!(an?|the|this|that|another|columns?)\b)[a-z][a-z.]{0,5}\s+(on|to|into|in)\s+(my|a|the|this|that|one of my)\s+((?!(surge|scope|volume)\b)\w+\s+)?(watch ?lists?|lists?)\b/,/\b(watch ?lists?|lists?)\b.*\badd\b.*\b(tickers?|symbols?|stocks?)\b/],
     caps: ['watchlist.show'],
     explain: 'Open a list in a Watchlist widget, click the + in its header and type the ticker. Alt+Q adds the chart’s ticker to a list.',
     steps: [
@@ -360,7 +380,7 @@ export const GUIDE_FEATURES = [
     steps: [
       GEAR,
       { target: 'chartSettings.tab.{setting.tab}', name: 'the {setting.tabLabel} tab', text: 'Open {setting.tabLabel}.', waitFor: { id: 'chartSettings.tab.{setting.tab}', on: true } },
-      { target: [{ within: 'chartSettings', label: '{setting.where}' }, 'chartSettings.tab.{setting.tab}'], name: '{setting.label}', text: '{setting.label} is here, under {setting.where}.{setting.note}', altText: 'It’s on this tab: scroll down for {setting.label}.' },
+      { target: [{ within: 'chartSettings', label: '{setting.where}' }, 'chartSettings.tab.{setting.tab}'], name: '{setting.label}', text: '{setting.label} is here, under {setting.where}.{setting.note}', altText: '{setting.alt}' },
     ],
     doIt: { say: 'Tell me the change — for example “hide the grid” or “make the crosshair dashed”.' },
   },
@@ -437,7 +457,7 @@ export const GUIDE_FEATURES = [
   },
   {
     id: 'timeframe', terms: ['timeframe', 'timeframes', 'time frame', 'chart timeframe'], control: 'the timeframe control', title: 'Changing the timeframe', topic: 'charts',
-    words: [/\btime ?frames?\b/, /\b(interval|daily|weekly|monthly|hourly|intraday|minute) (chart|view|bars?)\b/, /\b(daily|weekly|monthly) to (daily|weekly|monthly)\b/],
+    words: [/\btime ?frames?\b/, /\b(interval|daily|weekly|monthly|hourly|intraday|minute) (chart|view|bars?)\b/, /\b(daily|weekly|monthly) to (daily|weekly|monthly)\b/, /\b(switch|change|set|put|turn|make)\b.*\bcharts?\b.*\b(to|on|into) (a |the )?(daily|weekly|monthly|hourly|\d+[- ]?(m|min|mins|minutes?|h|hours?))\b/],
     caps: ['chart.setTimeframe'],
     explain: 'The timeframe is how much time each bar covers — 5 minutes, a day, a week. Your favourite timeframes are the buttons along the top of each chart; the arrow beside them opens every timeframe, including custom ones like 45 minutes or 2 days.',
     steps: [
@@ -450,7 +470,7 @@ export const GUIDE_FEATURES = [
     },
   },
   {
-    id: 'indicators', slots: ['ind'], except: /\banchored vwap\b/, terms: ['chart settings indicators'], control: 'the chart’s settings gear', title: 'Adding {ind.say}', titleAny: 'Adding and configuring an indicator', topic: 'indicators',
+    id: 'indicators', slots: ['ind'], except: /\banchored vwap\b|\banchor\w*\b.*\bvwap\b/, terms: ['chart settings indicators'], control: 'the chart’s settings gear', title: 'Adding {ind.say}', titleAny: 'Adding and configuring an indicator', topic: 'indicators',
     words: [/\bindicators?\b/, /\b(rsi|macd|vwap|atr|bollinger|studies|study)\b/, MOVING_AVERAGE],
     caps: ['indicator.add'],
     explain: 'Indicators are in Chart settings → Indicators: search for one (RSI, MACD, a moving average…) and add it; click an indicator already on the chart to change its settings, colours and the pane it draws in.',
@@ -523,8 +543,12 @@ export const GUIDE_FEATURES = [
     doIt: { say: 'I can hide every drawing on this symbol for you — say “hide all my drawings” (nothing is deleted, and Undo shows them again).' },
   },
   {
-    id: 'drawing', slots: ['tool'], terms: ['drawing tools', 'drawing tool', 'drawing toolbar'], control: 'the drawing tools', title: 'Drawing a {tool.label}', titleAny: 'Basic drawing tools', topic: 'drawings',
-    words: [/\bdraw\w*\b/, /\b(trend ?lines?|horizontal (line|level)s?|rectangles?|fib\w*|annotat\w+)\b/],
+    id: 'drawing', slots: ['tool'], terms: ['drawing tools', 'drawing tool', 'drawing toolbar'], control: 'the drawing tools', title: 'Drawing {tool.a} {tool.label}', titleAny: 'Basic drawing tools', topic: 'drawings',
+    // a formula's own markers ('put a green arrow under the bar when true') are the Formula Builder's, not a drawing
+    except: /\bwhen (it is |it's |its )?(true|false)\b|\bsignal markers?\b|\bformulas?\b/,
+    words: [/\bdraw\w*\b/, /\b(trend ?lines?|horizontal (line|level)s?|rectangles?|fib\w*|annotat\w+)\b/, TOOL_NAMED],
+    // ⭐ cov-2: a tool that is not only a drawing (an arrow, a note, a measure) counts with a verb that places it
+    match: (q) => PLACED_TOOL.test(q) && !!SLOTS.tool.read(q),
     caps: ['drawing.addLevel'],
     explain: 'The drawing tools run along the chart’s toolbar: pick one (a trendline, a horizontal line, a rectangle…) and click on the chart to place it. Click a drawing to restyle, lock or delete it.',
     steps: [

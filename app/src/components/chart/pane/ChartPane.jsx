@@ -14,6 +14,8 @@ import useChartSurfaceSettings from './useChartSurfaceSettings'
 import { paneLookProps } from './paneLook'
 import ChartSettingsModal from '../ChartSettingsModal'
 import AttachedPineDisclosures from './AttachedPineDisclosures'
+// W9-T13b: the strategy report panel, DARK behind VITE_PINE_STRATEGY_BROKER_ENABLED (read inside)
+import AttachedStrategyReports from './AttachedStrategyReports'
 import UIcon from '../../ui/UIcon'
 import { VOLUME_PANE_SURFACE_FIXED } from '../indicatorRegistry'
 import { tfLabel, tfSortKey, tfSpokenLabel } from '../timeframes'
@@ -1213,6 +1215,9 @@ function ChartPane({
           and `null` when nothing attached raises anything, which is every chart
           in the app today. */}
       <AttachedPineDisclosures settings={chartCs} barsLoaded={drawnBars} noticeScope={noticeScope} />
+      {/* ⭐ W9-T13b — a drawn strategy's report. null unless the broker gate is on AND a run
+          published a record; the gate is read INSIDE (one reader, strategyBrokerGate.js). */}
+      <AttachedStrategyReports settings={chartCs} noticeScope={noticeScope} />
       <ChartSettingsModal
         open={settingsOpen}
         chartTf={effectiveTf}

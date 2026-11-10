@@ -337,6 +337,9 @@ export const RESULT_FIELDS = Object.freeze({
   withheld: Object.freeze({ required: Object.freeze([...RUNNER_RESULT_FIELDS.withheld.required, 'digest']), optional: RUNNER_RESULT_FIELDS.withheld.optional }),
 })
 export const REFUSAL_FIELDS = Object.freeze(['key', 'guard', 'sentence', 'bar'])
+/** LIMITS r1: a run-wide stop may name the engine limit it met, as a field (never in the sentence). */
+export const REFUSAL_OPTIONAL_FIELDS = Object.freeze(['limit'])
+const LIMIT_NAME = /^[A-Z][A-Z0-9_]{0,63}$/
 export const WARMUP_FIELDS = Object.freeze(['withheldBars'])
 const U32_MAX = 0xffffffff
 
@@ -344,14 +347,17 @@ function refusalsOf(v, path) {
   if (!Array.isArray(v)) throw bad(path, 'must be an array')
   return v.map((r, i) => {
     const p = `${path}[${i}]`
-    closed(r, p, REFUSAL_FIELDS)
+    closed(r, p, REFUSAL_FIELDS, REFUSAL_OPTIONAL_FIELDS)
     if (typeof r.key !== 'string' || r.key.length === 0) throw bad(`${p}.key`, 'must be a non-empty string')
     if (typeof r.guard !== 'string' || r.guard.length === 0) throw bad(`${p}.guard`, 'must be a non-empty string')
     if (typeof r.sentence !== 'string') throw bad(`${p}.sentence`, 'must be a string')
     if (r.bar !== null && (!Number.isSafeInteger(r.bar) || r.bar < 0 || r.bar > U32_MAX)) {
       throw bad(`${p}.bar`, 'must be null or a bar index')
     }
-    return { key: r.key, guard: r.guard, sentence: r.sentence, bar: r.bar }
+    if (Object.hasOwn(r, 'limit') && (typeof r.limit !== 'string' || !LIMIT_NAME.test(r.limit))) {
+      throw bad(`${p}.limit`, 'must be an engine limit name')
+    }
+    return { key: r.key, guard: r.guard, sentence: r.sentence, bar: r.bar, ...(Object.hasOwn(r, 'limit') ? { limit: r.limit } : {}) }
   })
 }
 

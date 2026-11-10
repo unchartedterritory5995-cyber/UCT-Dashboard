@@ -61,6 +61,19 @@ test('a withheld result is sealed too: the digest of no columns and its refusals
   assert.equal(r.warmup, undefined)
 })
 
+test('LIMITS r1: a refusal may carry its engine limit NAME as a field, kept on the wire and out of the digest', () => {
+  const held = heldResult()
+  const named = { ...held, refusals: held.refusals.map((x, i) => (i === 0 ? { ...x, limit: 'CALL_COUNT' } : x)) }
+  const out = seal(named)
+  assert.equal(out.ok, true, JSON.stringify(out))
+  assert.equal(out.results[0].refusals[0].limit, 'CALL_COUNT')
+  assert.equal(out.results[0].digest, seal(heldResult()).results[0].digest, 'the name is not in the preimage')
+  assert.equal(seal(heldResult()).results[0].refusals[0].limit, undefined, 'absent stays absent')
+  for (const bad of ['call_count', '', 7, null, 'CALL COUNT']) {
+    refused({ ...held, refusals: held.refusals.map((x, i) => (i === 0 ? { ...x, limit: bad } : x)) }, /limit: must be an engine limit name/)
+  }
+})
+
 test('the schema stays CLOSED: an unknown field anywhere in a result is refused, and so is a missing one', () => {
   for (const extra of ['digest', 'instructions', 'warmUp', 'secret', 'cached', 'Cache']) {
     refused(okResult({ [extra]: 'x' }), /unknown key/)

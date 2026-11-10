@@ -2197,7 +2197,7 @@
     "domain": "chart",
     "target": "chart",
     "summary": "Change one chart's timeframe.",
-    "hints": "Codes: 1, 5, 15, 30, 60 are minutes; D daily, W weekly, M monthly.",
+    "hints": "1/5/15/30/60 min, D, W, M; next/previous: one rung.",
     "args": {
      "type": "object",
      "properties": {
@@ -2211,7 +2211,9 @@
         "60",
         "D",
         "W",
-        "M"
+        "M",
+        "next",
+        "previous"
        ]
       }
      },
@@ -2511,8 +2513,8 @@
     "name": "chart.setSetting",
     "domain": "chart",
     "target": "chart",
-    "summary": "Change one chart display setting from UCT's approved list (grid, crosshair, scale text, legend, watermark incl. opacity/position, labels, event/IPO markers, dark-pool levels, swing labels, prev-day lines, countdown, title, color mode, thin bars, inverted scale, gradient background, Volume pane colors/label/MA/bar style/height, Heikin Ashi, Chart IQ, position calculator defaults).",
-    "hints": "value = true/false for on/off settings (crosshair.mode, header.legendMode and bgMode too); a hex color (#2962ff) for colors; a number in range. Allowed — crosshair.mode, header.legendMode: always|hold|off; textSize: 8|10|11|12|14|16|18|20|22|24|28|32|40; header.titleMode: ticker|company|both; candleColorMode: onecolor|netchange|openclose; swingLabels.sensitivity: low|medium|high; crosshair.width, prevDayLevels.high|low|close.width, volume.maLineWidth: 1|2|3|4; crosshair.style, prevDayLevels.high|low|close.style, volume.maLineStyle: solid|dashed|dotted; watermark.sizeScale: 0.5|0.75|1|1.25|1.5|2|2.5|3|4; watermark.weight: 300|400|500|600|700|800; bgMode: solid|gradient; volume.barStyle: columns|histogram; volume.paneHeightPct: 8–45 (whole); volume.maPeriod: 0–500 (whole); watermark.opacity|x|y: 0–1; positionCalc.accountSize: 0–1000000000; positionCalc.riskPct: 0–100. Any other setting (header info-row fields, volume plot style…): no op — say where it lives in Chart Settings.",
+    "summary": "Change one chart display setting from UCT's approved list (grid, crosshair, scale text, legend, watermark, labels, event/IPO markers, dark-pool levels, swing labels, prev-day lines, countdown, title, color mode, thin bars, inverted scale, gradient background, Volume pane look, Heikin Ashi, Chart IQ, position calculator, Info row / Bar info fields).",
+    "hints": "value = true/false for on/off settings (crosshair.mode, header.legendMode and bgMode too); a hex color (#2962ff) for colors; a number in range. Allowed — crosshair.mode, header.legendMode: always|hold|off; textSize: 8|10|11|12|14|16|18|20|22|24|28|32|40; header.titleMode: ticker|company|both; candleColorMode: onecolor|netchange|openclose; swingLabels.sensitivity: low|medium|high; crosshair.width, prevDayLevels.high|low|close.width, volume.maLineWidth: 1|2|3|4; crosshair.style, prevDayLevels.high|low|close.style, volume.maLineStyle: solid|dashed|dotted; watermark.sizeScale: 0.5|0.75|1|1.25|1.5|2|2.5|3|4; watermark.weight: 300|400|500|600|700|800; bgMode: solid|gradient; volume.barStyle: columns|histogram; volume.paneHeightPct: 8–45 (whole); volume.maPeriod: 0–500 (whole); watermark.opacity|x|y: 0–1; positionCalc.accountSize: 0–1000000000; positionCalc.riskPct: 0–100. header.fields|barInfo: +/-field (\"+Market Cap\"). Anything else: no op — say where it lives in Chart Settings.",
     "args": {
      "type": "object",
      "properties": {
@@ -2601,7 +2603,9 @@
         "heikinAshi",
         "showChartIq",
         "positionCalc.accountSize",
-        "positionCalc.riskPct"
+        "positionCalc.riskPct",
+        "header.fields",
+        "header.barInfo"
        ]
       },
       "value": {
@@ -4675,13 +4679,14 @@
     "domain": "guide",
     "target": "guide",
     "summary": "SHOW the member where a control is (on Charts, the Screener, Breadth, the Calendar or the Journal): highlight the real control on their screen with a short step-by-step card (Next / Back / Exit). Changes nothing — use it for \"where do I…\", \"show me how to…\", \"how do I…\" questions, never to do the thing.",
-    "hints": "target = the guide entry. feature = the walkthrough that teaches it: an id from the enum, each named for what it teaches (indicators, indicatorColor, drawing, multiChart, widgetResize, layoutSave, alertPrice, chartSetting…); 7 ids belong to other pages and work only there. detail = the member's own words for which one (\"the RSI\", \"a rectangle\", \"2x2\") or for the chart they named (\"the NVDA chart\", \"the left chart\"), when they named one. A request to DO it (\"change my chart to weekly\") is a command, not this.",
+    "hints": "target = the guide entry. feature = the walkthrough that teaches it: an id from the enum, each named for what it teaches (indicators, indicatorColor, drawing, multiChart, widgetResize, layoutSave, alertPrice, chartSetting…), and control for any other named control (a widget's button, a list's or a drawing's menu row: detail = the member's words); 7 ids belong to other pages and work only there. detail = the member's own words for which one (\"the RSI\", \"a rectangle\", \"2x2\") or for the chart they named (\"the NVDA chart\", \"the left chart\"), when they named one. A request to DO it (\"change my chart to weekly\") is a command, not this.",
     "args": {
      "type": "object",
      "properties": {
       "feature": {
        "type": "string",
        "enum": [
+        "control",
         "builderAction",
         "gridAction",
         "drawingEdit",
@@ -5314,7 +5319,7 @@
     "domain": "chart",
     "target": "chart",
     "summary": "Change one chart's timeframe.",
-    "hints": "Codes: 1, 5, 15, 30, 60 are minutes; D daily, W weekly, M monthly.",
+    "hints": "1/5/15/30/60 min, D, W, M; next/previous: one rung.",
     "args": {
      "type": "object",
      "properties": {
@@ -5328,7 +5333,9 @@
         "60",
         "D",
         "W",
-        "M"
+        "M",
+        "next",
+        "previous"
        ]
       }
      },
@@ -5628,8 +5635,8 @@
     "name": "chart.setSetting",
     "domain": "chart",
     "target": "chart",
-    "summary": "Change one chart display setting from UCT's approved list (grid, crosshair, scale text, legend, watermark incl. opacity/position, labels, event/IPO markers, dark-pool levels, swing labels, prev-day lines, countdown, title, color mode, thin bars, inverted scale, gradient background, Volume pane colors/label/MA/bar style/height, Heikin Ashi, Chart IQ, position calculator defaults).",
-    "hints": "value = true/false for on/off settings (crosshair.mode, header.legendMode and bgMode too); a hex color (#2962ff) for colors; a number in range. Allowed — crosshair.mode, header.legendMode: always|hold|off; textSize: 8|10|11|12|14|16|18|20|22|24|28|32|40; header.titleMode: ticker|company|both; candleColorMode: onecolor|netchange|openclose; swingLabels.sensitivity: low|medium|high; crosshair.width, prevDayLevels.high|low|close.width, volume.maLineWidth: 1|2|3|4; crosshair.style, prevDayLevels.high|low|close.style, volume.maLineStyle: solid|dashed|dotted; watermark.sizeScale: 0.5|0.75|1|1.25|1.5|2|2.5|3|4; watermark.weight: 300|400|500|600|700|800; bgMode: solid|gradient; volume.barStyle: columns|histogram; volume.paneHeightPct: 8–45 (whole); volume.maPeriod: 0–500 (whole); watermark.opacity|x|y: 0–1; positionCalc.accountSize: 0–1000000000; positionCalc.riskPct: 0–100. Any other setting (header info-row fields, volume plot style…): no op — say where it lives in Chart Settings.",
+    "summary": "Change one chart display setting from UCT's approved list (grid, crosshair, scale text, legend, watermark, labels, event/IPO markers, dark-pool levels, swing labels, prev-day lines, countdown, title, color mode, thin bars, inverted scale, gradient background, Volume pane look, Heikin Ashi, Chart IQ, position calculator, Info row / Bar info fields).",
+    "hints": "value = true/false for on/off settings (crosshair.mode, header.legendMode and bgMode too); a hex color (#2962ff) for colors; a number in range. Allowed — crosshair.mode, header.legendMode: always|hold|off; textSize: 8|10|11|12|14|16|18|20|22|24|28|32|40; header.titleMode: ticker|company|both; candleColorMode: onecolor|netchange|openclose; swingLabels.sensitivity: low|medium|high; crosshair.width, prevDayLevels.high|low|close.width, volume.maLineWidth: 1|2|3|4; crosshair.style, prevDayLevels.high|low|close.style, volume.maLineStyle: solid|dashed|dotted; watermark.sizeScale: 0.5|0.75|1|1.25|1.5|2|2.5|3|4; watermark.weight: 300|400|500|600|700|800; bgMode: solid|gradient; volume.barStyle: columns|histogram; volume.paneHeightPct: 8–45 (whole); volume.maPeriod: 0–500 (whole); watermark.opacity|x|y: 0–1; positionCalc.accountSize: 0–1000000000; positionCalc.riskPct: 0–100. header.fields|barInfo: +/-field (\"+Market Cap\"). Anything else: no op — say where it lives in Chart Settings.",
     "args": {
      "type": "object",
      "properties": {
@@ -5718,7 +5725,9 @@
         "heikinAshi",
         "showChartIq",
         "positionCalc.accountSize",
-        "positionCalc.riskPct"
+        "positionCalc.riskPct",
+        "header.fields",
+        "header.barInfo"
        ]
       },
       "value": {
@@ -6751,7 +6760,7 @@
     "domain": "chart",
     "target": "chart",
     "summary": "Change one chart's timeframe.",
-    "hints": "Codes: 1, 5, 15, 30, 60 are minutes; D daily, W weekly, M monthly.",
+    "hints": "1/5/15/30/60 min, D, W, M; next/previous: one rung.",
     "args": {
      "type": "object",
      "properties": {
@@ -6765,7 +6774,9 @@
         "60",
         "D",
         "W",
-        "M"
+        "M",
+        "next",
+        "previous"
        ]
       }
      },
@@ -7065,8 +7076,8 @@
     "name": "chart.setSetting",
     "domain": "chart",
     "target": "chart",
-    "summary": "Change one chart display setting from UCT's approved list (grid, crosshair, scale text, legend, watermark incl. opacity/position, labels, event/IPO markers, dark-pool levels, swing labels, prev-day lines, countdown, title, color mode, thin bars, inverted scale, gradient background, Volume pane colors/label/MA/bar style/height, Heikin Ashi, Chart IQ, position calculator defaults).",
-    "hints": "value = true/false for on/off settings (crosshair.mode, header.legendMode and bgMode too); a hex color (#2962ff) for colors; a number in range. Allowed — crosshair.mode, header.legendMode: always|hold|off; textSize: 8|10|11|12|14|16|18|20|22|24|28|32|40; header.titleMode: ticker|company|both; candleColorMode: onecolor|netchange|openclose; swingLabels.sensitivity: low|medium|high; crosshair.width, prevDayLevels.high|low|close.width, volume.maLineWidth: 1|2|3|4; crosshair.style, prevDayLevels.high|low|close.style, volume.maLineStyle: solid|dashed|dotted; watermark.sizeScale: 0.5|0.75|1|1.25|1.5|2|2.5|3|4; watermark.weight: 300|400|500|600|700|800; bgMode: solid|gradient; volume.barStyle: columns|histogram; volume.paneHeightPct: 8–45 (whole); volume.maPeriod: 0–500 (whole); watermark.opacity|x|y: 0–1; positionCalc.accountSize: 0–1000000000; positionCalc.riskPct: 0–100. Any other setting (header info-row fields, volume plot style…): no op — say where it lives in Chart Settings.",
+    "summary": "Change one chart display setting from UCT's approved list (grid, crosshair, scale text, legend, watermark, labels, event/IPO markers, dark-pool levels, swing labels, prev-day lines, countdown, title, color mode, thin bars, inverted scale, gradient background, Volume pane look, Heikin Ashi, Chart IQ, position calculator, Info row / Bar info fields).",
+    "hints": "value = true/false for on/off settings (crosshair.mode, header.legendMode and bgMode too); a hex color (#2962ff) for colors; a number in range. Allowed — crosshair.mode, header.legendMode: always|hold|off; textSize: 8|10|11|12|14|16|18|20|22|24|28|32|40; header.titleMode: ticker|company|both; candleColorMode: onecolor|netchange|openclose; swingLabels.sensitivity: low|medium|high; crosshair.width, prevDayLevels.high|low|close.width, volume.maLineWidth: 1|2|3|4; crosshair.style, prevDayLevels.high|low|close.style, volume.maLineStyle: solid|dashed|dotted; watermark.sizeScale: 0.5|0.75|1|1.25|1.5|2|2.5|3|4; watermark.weight: 300|400|500|600|700|800; bgMode: solid|gradient; volume.barStyle: columns|histogram; volume.paneHeightPct: 8–45 (whole); volume.maPeriod: 0–500 (whole); watermark.opacity|x|y: 0–1; positionCalc.accountSize: 0–1000000000; positionCalc.riskPct: 0–100. header.fields|barInfo: +/-field (\"+Market Cap\"). Anything else: no op — say where it lives in Chart Settings.",
     "args": {
      "type": "object",
      "properties": {
@@ -7155,7 +7166,9 @@
         "heikinAshi",
         "showChartIq",
         "positionCalc.accountSize",
-        "positionCalc.riskPct"
+        "positionCalc.riskPct",
+        "header.fields",
+        "header.barInfo"
        ]
       },
       "value": {

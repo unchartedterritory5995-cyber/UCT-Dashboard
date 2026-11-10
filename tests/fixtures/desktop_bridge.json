@@ -1,0 +1,6 @@
+{
+  "bridgeVersion": 1,
+  "properties": ["bridgeVersion", "capabilities"],
+  "methods": ["getInfo", "onWindowState", "onBeforeQuit", "ackBeforeQuit"],
+  "capabilities": ["window-state", "before-quit"]
+}

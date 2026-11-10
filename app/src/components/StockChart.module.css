@@ -487,6 +487,10 @@
 .legendToolbarHidden {
   transform: translateY(-26px);
 }
+/* No toolbar band at all (legendFlush): the legend's first row sits at the pane's top. */
+.legendFlush {
+  transform: translateY(-30px);
+}
 .legendTime {
   color: var(--legend-ink-text, var(--text));
   font-weight: 600;
@@ -1155,6 +1159,22 @@
   border-radius: 3px;
   cursor: pointer;
   transition: background 0.12s ease, color 0.12s ease, opacity 0.12s ease;
+}
+
+/* A small card (breadth drill grid, owner 2026-11-09: "way too big"): the
+   chips shrink to fit the card. The full-size chips above stay the default
+   on every other chart. */
+.scaleToggleCompact {
+  right: 6px;
+  padding: 0 1px;
+  border-radius: 4px;
+}
+.scaleToggleCompact .scaleToggleBtn {
+  min-width: 16px;
+  min-height: 15px;
+  font-size: 9px;
+  letter-spacing: 0.2px;
+  padding: 0 2px;
 }
 
 .scaleToggleBtn:hover {

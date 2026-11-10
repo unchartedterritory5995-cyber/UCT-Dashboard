@@ -34,10 +34,10 @@ export const DRAWING_TOOLS = [
   { id: 'pitchfork', label: 'Pitchfork', re: /\bpitch ?forks?\b/, place: 'Click three points on the chart.' },
   { id: 'channel', label: 'Parallel Channel', re: /\b(parallel )?channels?\b/, place: 'Click the two ends of one side, then a third point for its width.' },
   { id: 'cup', label: 'Cup Curve', re: /\bcup\b/, place: 'Click the left rim, the bottom, then the right rim.' },
-  { id: 'avwap', label: 'Anchored VWAP', re: /\banchored vwap\b|\bavwap\b/, place: 'Click the bar to anchor it to.' },
+  { id: 'avwap', label: 'Anchored VWAP', re: /\banchored vwap\b|\bavwap\b|\banchor\w*\b.*\bvwap\b/, place: 'Click the bar to anchor it to.' },
   { id: 'text', label: 'Text Note', re: /\b(text( note)?|notes?|label)\b/, place: 'Click on the chart where the note goes, then type it.' },
   { id: 'measure', label: 'Measure', re: /\bmeasure\b|\bruler\b/, place: 'Click the start, then the end, to read the move.' },
-  { id: 'dateRange', label: 'Bars & Time', re: /\bbars (&|and) time\b|\bdate range\b/, place: 'Click the start, then the end, to count the bars.' },
+  { id: 'dateRange', label: 'Bars & Time', re: /\bbars (&|and) time\b|\bdate range\b|\bcount\w*\b.*\bbars\b|\bhow many bars\b/, place: 'Click the start, then the end, to count the bars.' },
   { id: 'advance', label: 'Price Move', re: /\bprice move\b/, place: 'Click the setup candle, then the candle where the move tops.' },
   { id: 'position', label: 'Position Calculator', re: /\bposition (calculator|size|sizing|tool)\b|\bposition\b/, place: 'Enter your numbers in the panel; the entry, stop and target lines follow them on the chart.' },
 ]
@@ -45,6 +45,7 @@ export const DRAWING_TOOLS = [
 // components/chart/keyboardShortcuts.js: the chord that arms a tool when a narrow chart cannot show its button
 const CHORDS = { trendline: 'Alt+T', horizontal: 'Alt+H', hray: 'Alt+J', vertical: 'Alt+V', rect: 'Alt+R', circle: 'Alt+C', arrow: 'Alt+A', fib: 'Alt+F', fibext: 'Alt+E', pitchfork: 'Alt+Y', avwap: 'Alt+W', text: 'Alt+X', position: 'Alt+P', dateRange: 'Alt+Shift+D' }
 for (const t of DRAWING_TOOLS) {
+  t.a = /^[AEIOU]/.test(t.label) ? 'an' : 'a'
   t.narrow = CHORDS[t.id] ? `Click the chart, then press ${CHORDS[t.id]} to pick it.` : 'Make the chart wider (close a widget beside it, or close me for a moment) to reach it.'
 }
 
@@ -182,7 +183,7 @@ const TABS = { 'price style': 'price', canvas: 'canvas', indicators: 'indicators
 const ONLY_ON = ' Its controls show beside the switch once the line is on.'
 const SETTING_SPOT = {
   showPriceLabels: { where: 'Price labels' }, showMaLabels: { where: 'Moving average labels' },
-  candleColorMode: { where: 'Color based on' }, 'candles.thinBars': { where: 'Bar thickness', note: ' This shows while the chart type is Bars or HLC.' },
+  candleColorMode: { where: 'Color based on' }, 'candles.thinBars': { where: 'Bar thickness', note: ' This shows while the chart type is Bars or HLC.', alt: 'Thin bars shows on this tab only while the chart type is Bars or HLC. Choose Bars under Chart type first, and it appears here.' },
   'crosshair.style': { where: 'Crosshair', note: ' Click the Line color swatch below it: the panel has the line style.' },
   'crosshair.width': { where: 'Crosshair', note: ' Click the Line color swatch below it: the panel has the thickness.' },
   'header.colors.*': { where: 'Title color', note: ' Each info row’s colour is further down this tab.' },
@@ -202,12 +203,27 @@ export function settingRows() {
     const tab = m && TABS[m[1].trim().toLowerCase()]
     if (!tab || tab === 'indicators' || d.agent === 'internal' || !d.label) continue
     const words = [d.label, ...(d.words || [])].map(w => escapeRe(String(w).toLowerCase()))
-    rows.push({ id: d.id, label: d.label, tab, tabLabel: m[1].trim(), where: (m[2] || d.label).trim(), note: '', ...SETTING_SPOT[d.id], re: new RegExp(`(^|[^a-z0-9])(${words.join('|')})($|[^a-z0-9])`), len: Math.max(...words.map(w => w.length)) })
+    // `alt`: what is true when the row is not on the tab (a row that shows only in some state says which); else it is further down
+    rows.push({ id: d.id, label: d.label, tab, tabLabel: m[1].trim(), where: (m[2] || d.label).trim(), note: '', alt: `It’s on this tab: scroll down for ${d.label}.`, ...SETTING_SPOT[d.id], re: new RegExp(`(^|[^a-z0-9])(${words.join('|')})($|[^a-z0-9])`), len: Math.max(...words.map(w => w.length)) })
   }
   settingCache = rows.sort((a, b) => b.len - a.len)
   return settingCache
 }
-export const readSetting = (text) => settingRows().find(r => r.re.test(String(text || '').toLowerCase())) || null
+// ⭐ cov-4: a member's spelling (colour, grey) is the settings table's (color, gray)
+const usSpelling = (s) => String(s || '').toLowerCase().replace(/\bcolour/g, 'color').replace(/\bgrey\b/g, 'gray')
+// the label's own content words, each found in the request by its stem ("earnings beats" holds earnings + beat): the settings
+// table names a row in words, and a request that holds every one of them is about that row, in any order
+const SETTING_STOP = new Set(['the', 'a', 'an', 'in', 'on', 'of', 'to', 'and', 'or', 'its', 'legacy', 'off', 'not', 'yet', 'declared', 'honoured', 'shows'])
+const contentWords = (label) => String(label).toLowerCase().replace(/\(.*?\)/g, ' ').split(/[^a-z0-9]+/).filter(w => w.length > 1 && !SETTING_STOP.has(w))
+const holdsWord = (q, w) => new RegExp(`(^|[^a-z0-9])${escapeRe(w.length > 4 ? w.replace(/s$/, '') : w)}`).test(q)
+export const readSetting = (text) => {
+  const q = usSpelling(text)
+  const exact = settingRows().find(r => r.re.test(q))
+  // a longer label every word of which the request holds beats a shorter one it holds outright ("IPO marker color" over "IPO marker")
+  const whole = settingRows().filter(r => { const ws = contentWords(r.label); return ws.length >= 2 && ws.every(w => holdsWord(q, w)) }).sort((a, b) => contentWords(b.label).length - contentWords(a.label).length)[0]
+  if (whole && (!exact || contentWords(whole.label).length > contentWords(exact.label).length)) return whole
+  return exact || null
+}
 
 export const SLOTS = {
   tool: { read: firstRow(DRAWING_TOOLS), rows: DRAWING_TOOLS },

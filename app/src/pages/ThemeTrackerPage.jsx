@@ -1,5 +1,6 @@
 // app/src/pages/ThemeTrackerPage.jsx
 import { useWidgetDoor } from './charts/widgetDoors'
+import { isHiddenDeskKey } from './charts/deskKeyGate'
 import { useState, useMemo, useEffect, useLayoutEffect, useRef, useCallback, useContext, lazy, Suspense, memo } from 'react'
 import { createPortal } from 'react-dom'
 import useMobileSWR from '../hooks/useMobileSWR'
@@ -1076,7 +1077,9 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   useWidgetDoor(() => ({
     read: () => {
       const open = sortedThemes.find(t => t.ticker === openTheme)
-      return { period: RANK_TO_KEY[activeTab], sortDir, openTheme: open ? open.ticker : null, themeSet: activeSet?.id ?? null }
+      // C3-174 (pl-exec round 3): the member's theme sets as the set menu lists them — what its Rename and Delete controls act on
+      return { period: RANK_TO_KEY[activeTab], sortDir, openTheme: open ? open.ticker : null, themeSet: activeSet?.id ?? null,
+        themeSets: themeSetsEnabled ? sets.map(x => ({ id: x.id, name: x.name })) : [] }
     },
     options: () => ({
       openTheme: sortedThemes.map(t => ({ value: t.ticker, label: t.name || t.ticker })),
@@ -1092,6 +1095,14 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
         if (v == null) setOpenTheme(null)
         else if (v !== openTheme) toggleTheme(v)
       } else if (key === 'themeSet') selectSet(v)
+      else if (key === 'themeSets' && themeSetsEnabled && v && typeof v === 'object' && !Array.isArray(v)) {
+        // ONE operation, as the set menu's own control does it — Delete (deleteSet; a deleted active set falls back to Default,
+        // as its menu does) or Rename (renameSet). AUDIT S1-A: never a reconcile of the whole list (a set made since stays).
+        const x = sets.find(s => s.id === v.id)
+        if (!x) return
+        if (v.op === 'delete') deleteSet(x.id).then(() => { if (x.id === themeSetId) selectSet(null) }).catch(() => {})
+        else if (v.op === 'rename' && v.name && v.name !== x.name) renameSet(x.id, v.name)
+      }
     },
     capture: () => (filteredThemes.length > 0 ? { kind: 'themes', capture: doorCapture(), label: themesCaptureLabel } : null),
   }))
@@ -1163,6 +1174,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   }, [rtPrices, barPrices, expandedSyms])
 
   const handleKeyDown = useCallback((e) => {
+    if (isHiddenDeskKey(e)) return
     // Space advances like ArrowDown (next ticker).
     const navSpace = e.key === ' ' || e.key === 'Spacebar'
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && !navSpace) return
@@ -1259,6 +1271,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   useEffect(() => {
     if (!selectedSym) return
     const handler = (e) => {
+      if (isHiddenDeskKey(e)) return
       // S2 CP5 — reads the DECLARED chord table instead of spelling the modifier
       // set out inline. Behaviour is identical by construction and proved so in
       // ThemeTrackerPage.chordAdoption.test.jsx.
