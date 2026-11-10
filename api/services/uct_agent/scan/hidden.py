@@ -65,8 +65,9 @@ EXTRA_FLOW: frozenset = frozenset()
 #: patterns are matched against the member's text (lower-cased) BEFORE any catalog or look-alike matching, in the
 #: refinement path, the new-screen fast path and the server turn; a hit is the F-16 sentence plus the public
 #: alternative (refine.refusal_for_text / scanRefine.refineRefusalForText). (pattern, hidden key) pairs, written in the
-#: regex subset Python and JavaScript share (\b, \s, \d, (?:…), ?, |, fixed-width (?!…) / (?<!…)); the mirror carries
-#: them verbatim.
+#: regex subset Python and JavaScript share (\b, \s, \d, (?:…), ?, |, (?!…)); the mirror carries them verbatim.
+#: ⛔ NO LOOKBEHIND: the browser compiles these with `new RegExp`, and Safari < 16.4 throws on `(?<!…)` / `(?<=…)`
+#: (app/src/agent/agentNoLookbehindStrings.test.js). Check the characters before a word by consuming them instead.
 #: Generic trading words that are not UCT's names ("vcp", "flat base", bare "ratings", bare "premium") are NOT here:
 #: a wrong mapping of those is still refused at the key level (hidden_keys), never silently run.
 HIDDEN_PHRASES: tuple = (
@@ -76,9 +77,13 @@ HIDDEN_PHRASES: tuple = (
     (r"\bhighest[\s-]rs\b(?![\s-]line)|\blowest[\s-]rs\b(?![\s-]line)|\brs[\s-]leaders?\b", "rs_rank"),
     (r"\brs[\s-]?(?:weighted[\s-])?returns?\b", "rs_return"),
     # W1.1 review BLOCKING-2: a bare "composite" is the public index ("the nasdaq composite"); only "uct composite",
-    # "composite score/rating/rank" or a composite THRESHOLD ("composite over 85") names the UCT rating
+    # "composite score/rating/rank" or a composite THRESHOLD ("composite over 85") names the UCT rating. The threshold
+    # is never after "nasdaq " / "nyse ": the 0-6 characters before the space are consumed and checked by lookahead (no
+    # lookbehind, see above). The KEY is unchanged; the matched text (the phrase) may now carry those characters too.
     (r"\buct[\s-]?composites?\b|\bcomposite[\s-](?:score|scores|rating|ratings|rank|ranks|ranking)\b|"
-     r"(?<!nasdaq )(?<!nyse )\bcomposite\s*(?:>=?|<=?|=|over|above|under|below|at least|at most|more than|less than|of at least)\s*\d",
+     r"(?:^|[^ ])\bcomposite\s*(?:>=?|<=?|=|over|above|under|below|at least|at most|more than|less than|of at least)\s*\d|"
+     r"(?:^[\s\S]{0,3}|^(?!nyse)[\s\S]{4}|^(?![\s\S]nyse)[\s\S]{5}|(?!nasdaq|[\s\S]{2}nyse)[\s\S]{6})"
+     r" composite\s*(?:>=?|<=?|=|over|above|under|below|at least|at most|more than|less than|of at least)\s*\d",
      "uct_composite"),
     (r"\buct[\s-]?(?:score|scores|rating|ratings|rank|ranks|ranking)\b", "uct_composite"),
     (r"\b(?:uct'?s?[\s-])?proprietary[\s-](?:ratings?|scores?|ranks?|rankings?)\b", "uct_composite"),
