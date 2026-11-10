@@ -193,7 +193,11 @@ function FocusList({ mode, onMode }) {
   // lands (an answer for A arriving after the member moved to B is A's, not B's).
   const askedBy = useRef(new WeakMap())
   const scanSpec = useMemo(() => {
-    const sp = { ...s.scanSpec, columns, ...(retryNonce ? { _retry: retryNonce } : {}) }
+    // `columns` always goes last: the hook keys on this object's JSON, and useScreenSpec only
+    // puts `columns` in its spec once the filter registry has answered, so a registry answering
+    // after the landing scan otherwise reorders the JSON and asks the same screen again.
+    const { columns: _registryColumns, ...base } = s.scanSpec
+    const sp = { ...base, columns, ...(retryNonce ? { _retry: retryNonce } : {}) }
     askedBy.current.set(sp, { sig: screenSig, filters: s.filters, logic: s.logic, rank: s.rank, baseSpec: s.baseSpec })
     return sp
   }, [s.scanSpec, columns, retryNonce, screenSig, s.filters, s.logic, s.rank, s.baseSpec])

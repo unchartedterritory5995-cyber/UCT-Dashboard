@@ -29,6 +29,7 @@ const OTHER = scr('starter_other', 'Other screen', 50)
 let countsByMin
 let starters
 let savedDelay
+let metaDelay
 let fail
 const minOf = spec => (spec.filters || []).find(f => f.key === 'rs_rank')?.min
 beforeEach(() => {
@@ -39,10 +40,14 @@ beforeEach(() => {
   uid = 'member-a'
   starters = [THIN, WIDE]
   savedDelay = 0
+  metaDelay = 0
   fail = false
   globalThis.fetch = vi.fn(async (u, o) => {
     const url = String(u)
-    if (url.startsWith('/api/screener/meta')) return { ok: true, json: async () => META }
+    if (url.startsWith('/api/screener/meta')) {
+      const body = { ok: true, json: async () => META }
+      return metaDelay ? new Promise(r => setTimeout(() => r(body), metaDelay)) : body
+    }
     if (url === '/api/screener/scan') return { ok: true, json: async () => ({ rows, total: rows.length, page: 1 }) }
     if (url === '/api/screener/count') return { ok: true, json: async () => ({ count: rows.length }) }
     if (url === '/api/screener/count/batch') {
@@ -230,3 +235,15 @@ test('Minor 3: a kept seeded screen the server still has unchanged is not marked
   expect(screen.getByRole('button', { name: /Wide screen/ })).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: /edited/ })).toBeNull()
 }, 12000)
+
+// Speed pass: a filter registry that answers AFTER the landing scan fired used to move `columns`
+// inside the spec's JSON, so the same screen read as a new spec and was asked for a second time
+// (2 of 3 runs measured on production, ~2.5 s of server time each).
+test('the screen is asked for once when the filter registry answers after the landing scan', async () => {
+  pin([WIDE.id])
+  metaDelay = 120
+  mount()
+  await waitFor(() => expect(scanMins()).toEqual([70]))
+  await new Promise(r => setTimeout(r, 800))
+  expect(scanMins()).toEqual([70])
+}, 10000)
