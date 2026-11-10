@@ -381,6 +381,39 @@ def install() -> bool:
                 if tally is not None:
                     tally.finish(ok)
 
+        # Budget gate: a feature whose block-mode daily budget is spent is refused
+        # BEFORE the request is sent (api/services/llm_budget.py). Never raises
+        # for any other reason; a gate fault allows the call.
+        orig_req = bc.SyncAPIClient.request
+        orig_areq = bc.AsyncAPIClient.request
+
+        def _gate(options):
+            if options is None or not _is_messages_url(options):
+                return
+            if str(getattr(options, "method", "post")).lower() != "post":
+                return
+            from api.services import llm_budget
+            d, _fn = attribute(sys._getframe(2))
+            llm_budget.enforce(d)
+
+        def sync_request(self, cast_to, options, *a, **kw):
+            try:
+                _gate(options)
+            except Exception as e:  # noqa: BLE001
+                if type(e).__name__ == "LLMBudgetExceeded":
+                    raise
+            return orig_req(self, cast_to, options, *a, **kw)
+
+        async def async_request(self, cast_to, options, *a, **kw):
+            try:
+                _gate(options)
+            except Exception as e:  # noqa: BLE001
+                if type(e).__name__ == "LLMBudgetExceeded":
+                    raise
+            return await orig_areq(self, cast_to, options, *a, **kw)
+
+        bc.SyncAPIClient.request = sync_request
+        bc.AsyncAPIClient.request = async_request
         bc.SyncAPIClient._process_response = sync_process
         bc.AsyncAPIClient._process_response = async_process
         st.Stream.__stream__ = sync_stream

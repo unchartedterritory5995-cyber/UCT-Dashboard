@@ -22,7 +22,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from api.middleware.auth_middleware import require_admin
-from api.services import llm_usage
+from api.services import llm_budget, llm_usage
 
 router = APIRouter(prefix="/api/admin/llm-usage", tags=["admin-llm-usage"])
 internal_router = APIRouter(prefix="/api/internal/llm-usage", tags=["admin-llm-usage"])
@@ -107,6 +107,14 @@ def summary(days: int = Query(7, ge=1, le=120), _admin=Depends(require_admin)):
         bucket = stacked.setdefault(r["day"], {"day": r["day"], "total": 0.0, "calls": 0, "doors": {}})
         bucket["doors"][key] = bucket["doors"].get(key, 0.0) + r["cost"]
 
+    try:
+        budget_rows = llm_budget.status(today)
+    except Exception:  # noqa: BLE001 -- the page still renders without budgets
+        budget_rows = []
+    by_key = {b["door"]: b for b in budget_rows}
+    for r in by_door:
+        b = by_key.get(r["door"])
+        r["budget"] = {"daily_usd": b["daily_usd"], "mode": b["mode"], "level": b["level"]} if b else None
     recorded = {r["door"] for r in by_door}
     anthropic_doors = {p for p, d in doors.items() if d.kind != "shared-client"}
     days_covered = len(by_day) or 1
@@ -119,7 +127,7 @@ def summary(days: int = Query(7, ge=1, le=120), _admin=Depends(require_admin)):
         "by_day": [stacked[k] for k in sorted(stacked)], "top_doors": top,
         "unlisted_doors": sorted(d for d in recorded if d not in doors),
         "silent_doors": sorted(anthropic_doors - recorded),
-        "ledger": llm_usage.stats(),
+        "ledger": llm_usage.stats(), "budgets": budget_rows,
     }
 
 
@@ -148,6 +156,37 @@ def door_detail(door: str = Query(..., min_length=1, max_length=300), days: int 
             "totals": {**totals, "cache_ratio": _cache_ratio(totals)},
             "by_func": by_func, "by_model": by_model, "by_day": by_day, "by_hour_utc": by_hour,
             "recent": recent}
+
+
+# ── budgets ──────────────────────────────────────────────────────────────────
+
+class BudgetBody(BaseModel):
+    door: str = Field(..., min_length=1, max_length=300)
+    daily_usd: float = Field(..., gt=0, le=100000)
+    mode: str = Field("alert", pattern="^(alert|block)$")
+    note: str = Field("", max_length=300)
+
+
+@router.get("/budgets")
+def list_budgets(_admin=Depends(require_admin)):
+    return {"budgets": llm_budget.status(), "modes": list(llm_budget.MODES),
+            "special_keys": {llm_budget.GLOBAL: "whole site",
+                             llm_budget.BACKGROUND: "all non-member features"}}
+
+
+@router.put("/budgets")
+def put_budget(body: BudgetBody, admin=Depends(require_admin)):
+    who = (admin or {}).get("email", "") if isinstance(admin, dict) else ""
+    try:
+        row = llm_budget.set_budget(body.door, body.daily_usd, body.mode, body.note, by=who)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"budget": row}
+
+
+@router.delete("/budgets")
+def remove_budget(door: str = Query(..., min_length=1, max_length=300), _admin=Depends(require_admin)):
+    return {"deleted": llm_budget.delete_budget(door)}
 
 
 # ── ingest from other services / sibling repos ───────────────────────────────

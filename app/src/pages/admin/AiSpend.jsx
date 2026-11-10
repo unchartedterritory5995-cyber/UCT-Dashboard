@@ -128,10 +128,94 @@ function DoorDetail({ door, days, onClose }) {
   )
 }
 
+const budgetLabel = (door) => (door === '*' ? 'Whole site' : door === '*background' ? 'All background jobs' : featureName(door))
+
+export function Budgets({ rows, doorOptions, onChanged }) {
+  const [form, setForm] = useState({ door: '*', daily_usd: '', mode: 'alert', note: '' })
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState(null)
+  const save = async (body) => {
+    setBusy(true); setErr(null)
+    try {
+      const r = await fetch('/api/admin/llm-usage/budgets', {
+        method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!r.ok) throw new Error(`HTTP ${r.status}`)
+      onChanged()
+    } catch (e) { setErr(String(e)) } finally { setBusy(false) }
+  }
+  const remove = async (door) => {
+    setBusy(true); setErr(null)
+    try {
+      const r = await fetch(`/api/admin/llm-usage/budgets?door=${encodeURIComponent(door)}`, { method: 'DELETE', credentials: 'include' })
+      if (!r.ok) throw new Error(`HTTP ${r.status}`)
+      onChanged()
+    } catch (e) { setErr(String(e)) } finally { setBusy(false) }
+  }
+  return (
+    <div>
+      <h2 className={styles.h2}>Daily budgets</h2>
+      <p className={styles.sub}>
+        <strong>Alert</strong> posts to the ops channel at 80%, at 100%, and when today&apos;s pace projects past the budget.
+        <strong> Block</strong> also refuses that feature&apos;s Claude calls until midnight ET once the budget is spent
+        (background jobs skip their run instead of failing). &ldquo;All background jobs&rdquo; never blocks a member feature.
+      </p>
+      <table className={styles.table}>
+        <thead><tr><th>Applies to</th><th>Budget / day</th><th>Mode</th><th>Spent today</th><th>Projected</th><th>Status</th><th /></tr></thead>
+        <tbody>
+          {rows.map((b) => (
+            <tr key={b.door}>
+              <td><span className={styles.feature}>{budgetLabel(b.door)}</span>{b.note ? <span className={styles.surface}>{b.note}</span> : null}</td>
+              <td>{usd(b.daily_usd)}</td>
+              <td>
+                <select aria-label={`mode for ${budgetLabel(b.door)}`} value={b.mode} disabled={busy}
+                  onChange={(e) => save({ door: b.door, daily_usd: b.daily_usd, mode: e.target.value, note: b.note })}>
+                  <option value="alert">alert</option><option value="block">block</option>
+                </select>
+              </td>
+              <td>{usd(b.spent)}<div className={styles.share}><div style={{ width: pct(Math.min(1, b.pct)) }} /></div></td>
+              <td>{usd(b.projected)}</td>
+              <td><span className={`${styles.level} ${styles[`level_${b.level}`] || ''}`}>{b.blocking ? 'blocking' : b.level}</span></td>
+              <td><button type="button" className={styles.linkBtn} disabled={busy} onClick={() => remove(b.door)}>remove</button></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <form className={styles.budgetForm} onSubmit={(e) => {
+        e.preventDefault()
+        const usdN = Number(form.daily_usd)
+        if (!(usdN > 0)) { setErr('Budget must be more than $0'); return }
+        save({ ...form, daily_usd: usdN })
+      }}>
+        <select aria-label="budget target" value={form.door} onChange={(e) => setForm({ ...form, door: e.target.value })}>
+          <option value="*">Whole site</option>
+          <option value="*background">All background jobs</option>
+          {doorOptions.map((d) => <option key={d} value={d}>{featureName(d)}</option>)}
+        </select>
+        <input aria-label="daily budget in dollars" type="number" min="0.01" step="0.01" placeholder="$ / day"
+          value={form.daily_usd} onChange={(e) => setForm({ ...form, daily_usd: e.target.value })} />
+        <select aria-label="budget mode" value={form.mode} onChange={(e) => setForm({ ...form, mode: e.target.value })}>
+          <option value="alert">alert</option><option value="block">block</option>
+        </select>
+        <input aria-label="note" placeholder="note (optional)" value={form.note} maxLength={300}
+          onChange={(e) => setForm({ ...form, note: e.target.value })} />
+        <button type="submit" className={styles.dayBtnActive} disabled={busy}>Set budget</button>
+      </form>
+      {err ? <div className={styles.error}>{err}</div> : null}
+    </div>
+  )
+}
+
 export default function AiSpend() {
   const [days, setDays] = useState(7)
   const [open, setOpen] = useState(null)
-  const { data, loading, error } = useJson(`/api/admin/llm-usage/summary?days=${days}`)
+  const [rev, setRev] = useState(0)
+  const { data, loading, error } = useJson(`/api/admin/llm-usage/summary?days=${days}&r=${rev}`)
+  const doorOptions = useMemo(() => {
+    const all = new Set([...(data?.by_door || []).map((r) => r.door), ...(data?.silent_doors || [])])
+    return [...all].sort()
+  }, [data])
 
   const colorOf = useMemo(() => {
     const top = data?.top_doors || []
@@ -181,12 +265,14 @@ export default function AiSpend() {
             ))}
           </div>
 
+          <Budgets rows={data.budgets || []} doorOptions={doorOptions} onChanged={() => setRev((n) => n + 1)} />
+
           <h2 className={styles.h2}>Features, most expensive first</h2>
           <div className={styles.scroll}>
             <table className={styles.table}>
               <thead>
                 <tr><th>Feature</th><th>Kind</th><th>Spend</th><th>Share</th><th>Calls</th><th>Per call</th>
-                  <th>Cache hit</th><th>Output</th><th>Models</th></tr>
+                  <th>Cache hit</th><th>Output</th><th>Budget</th><th>Models</th></tr>
               </thead>
               <tbody>
                 {data.by_door.map((r) => (
@@ -197,7 +283,9 @@ export default function AiSpend() {
                     <td><strong>{usd(r.cost)}</strong></td>
                     <td><div className={styles.share}><div style={{ width: pct(r.share) }} /></div>{pct(r.share)}</td>
                     <td>{r.calls.toLocaleString()}</td><td>{usd(r.cost_per_call, 4)}</td><td>{pct(r.cache_ratio)}</td>
-                    <td>{tok(r.output)}</td><td className={styles.models}>{r.models.join(', ')}</td>
+                    <td>{tok(r.output)}</td>
+                    <td>{r.budget ? <span className={`${styles.level} ${styles[`level_${r.budget.level}`] || ''}`}>{usd(r.budget.daily_usd, 0)} {r.budget.mode}</span> : '—'}</td>
+                    <td className={styles.models}>{r.models.join(', ')}</td>
                   </tr>
                 ))}
               </tbody>

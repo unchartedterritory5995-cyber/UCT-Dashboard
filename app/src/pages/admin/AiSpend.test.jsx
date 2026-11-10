@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
-import AiSpend, { featureName } from './AiSpend'
+import AiSpend, { featureName, Budgets } from './AiSpend'
 
 const SUMMARY = {
   days: 7, since: '2026-11-04', today: '2026-11-10', ledger_first_day: '2026-11-10',
@@ -53,5 +53,30 @@ describe('AiSpend', () => {
     expect(featureName('api/services/journal_two/coach_chat.py')).toBe('journal_two/coach_chat')
     expect(featureName('api/routers/ai_search.py')).toBe('ai_search')
     expect(featureName('')).toBe('unattributed')
+  })
+
+  it('shows each budget against today and saves a mode change and a new budget', async () => {
+    const fetchMock = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) }))
+    vi.stubGlobal('fetch', fetchMock)
+    const onChanged = vi.fn()
+    render(<Budgets onChanged={onChanged} doorOptions={['api/services/tsdr_lessons.py']} rows={[
+      { door: 'api/services/tsdr_lessons.py', daily_usd: 10, mode: 'block', note: 'backfill', spent: 10.5,
+        projected: 14, pct: 1.05, level: 'over', blocking: true },
+      { door: '*', daily_usd: 60, mode: 'alert', note: '', spent: 20, projected: 55, pct: 0.33, level: 'ok', blocking: false },
+    ]} />)
+    expect(screen.getByText('blocking')).toBeInTheDocument()
+    expect(screen.getAllByText('Whole site')).toHaveLength(2) // the row and the add-form option
+
+    fireEvent.change(screen.getByLabelText('mode for Whole site'), { target: { value: 'block' } })
+    await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1))
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toBe('/api/admin/llm-usage/budgets')
+    expect(init.method).toBe('PUT')
+    expect(JSON.parse(init.body)).toMatchObject({ door: '*', daily_usd: 60, mode: 'block' })
+
+    fireEvent.change(screen.getByLabelText('daily budget in dollars'), { target: { value: '0' } })
+    fireEvent.submit(screen.getByText('Set budget').closest('form')) // past the native min= check, to our own guard
+    expect(await screen.findByText(/more than \$0/)).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(1) // a $0 budget is never sent
   })
 })

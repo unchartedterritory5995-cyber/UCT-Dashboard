@@ -46,6 +46,14 @@
 .details summary { cursor: pointer; color: var(--color-text-muted, #9ca3af); }
 .empty { padding: 24px 0; color: var(--color-text-muted, #9ca3af); font-size: 13px; }
 .error { padding: 12px; color: #ffaaa0; font-size: 13px; }
+.level { font-size: 11px; padding: 2px 7px; border-radius: 4px; background: rgba(255, 255, 255, 0.06); white-space: nowrap; }
+.level_ok { background: rgba(63, 191, 127, 0.15); color: #8ee0b5; }
+.level_warn { background: rgba(232, 154, 60, 0.18); color: #f5c58a; }
+.level_over { background: rgba(224, 103, 90, 0.2); color: #ffaaa0; }
+.linkBtn { background: none; border: 0; color: var(--color-text-muted, #9ca3af); cursor: pointer; font-size: 12px; text-decoration: underline; }
+.budgetForm { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center; }
+.budgetForm select, .budgetForm input { background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); color: inherit; border-radius: 6px; padding: 6px 8px; font-size: 12.5px; min-height: 32px; }
+.budgetForm button { border: 0; border-radius: 6px; padding: 7px 14px; cursor: pointer; font-size: 12.5px; }
 @media (max-width: 1024px) {
   .page { padding: 20px 16px 48px; }
   .head { flex-direction: column; }
