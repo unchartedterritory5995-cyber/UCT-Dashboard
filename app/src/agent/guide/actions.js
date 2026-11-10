@@ -203,7 +203,7 @@ const TITLE_MENU_ACTIONS = [
   { id: 'export', label: 'Exporting a list', re: /\b(export|download|csv|excel|xlsx|spreadsheet)\b/, steps: titleMenu([listRow('Export CSV'), listRow('Export Excel')], 'Export CSV', 'Click Export CSV, or Export Excel just below it where it shows, to download this list.') },
   { id: 'import', label: 'Importing tickers into a list', re: /\b(import|paste|bulk|a bunch of|many)\b.*\b(tickers?|symbols?|stocks?|names?|list)\b|\bimport\b/, steps: titleMenu(listRow('Import tickers'), 'Import tickers', 'Click Import tickers and paste them in: one per line, or separated by commas.', OWN) },
   { id: 'copyList', label: 'Copying a list to the clipboard', re: /\b(copy|clipboard)\b/, steps: titleMenu(listRow('Copy list to clipboard'), 'Copy list to clipboard', 'Click Copy list to clipboard: its tickers are copied, ready to paste.') },
-  { id: 'shareList', label: 'Sharing a list with the community', re: /\b(share|sharing|public|private|everyone|community|publish)\b/, steps: titleMenu([listRow('Share with community'), listRow('Make Private')], 'Share with community', 'Click Share with community to make the list public; the same row says Make Private once it is, and takes it back.') },
+  { id: 'shareList', label: 'Sharing a list with the community', re: /^(?!.*\b(open|load|show|see|view|browse|find|pick)\b).*\b(share|sharing|public|private|everyone|community|publish)\b/, steps: titleMenu([listRow('Share with community'), listRow('Make Private')], 'Share with community', 'Click Share with community to make the list public; the same row says Make Private once it is, and takes it back.') },
 ]
 export const WATCHLIST_ACTIONS = [
   ...TITLE_MENU_ACTIONS,
