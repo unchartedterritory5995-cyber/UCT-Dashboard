@@ -125,6 +125,10 @@ export const PANEL_MOUNT_CAP = 3
 // any other panel has no ready signal, so it frees its slot after this short pause instead of
 // that 5 s timer -- the cap still paces them, at this rate, rather than blanking them for 5 s.
 const NON_CHART_SLOT_MS = 300
+// Every panel type joins the board at most this often, whatever released its slot: a chart reports
+// ready when IndexedDB answers, with its fetches still pending, so readiness alone would let a
+// warm board mount all at once.
+const PANEL_ADMIT_INTERVAL_MS = 300
 // Smart adaptive placement (docs/superpowers/plans/2026-08-23-smart-adaptive-
 // widget-placement.md). When true, a newly ADDED widget is positioned/sized by
 // planPlacement (region + type affinity, fill-empty-then-resize) instead of the
@@ -1154,6 +1158,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // the widgets back in through the same cap instead of mounting them all at once.
   const { mountedIds: mainBoardMountedIds, release: releaseMainBoardSlot } = useStaggeredMount(boardHidden ? NO_MAIN_BOARD_WIDGETS : mainBoardWidgetIds, {
     limit: PANEL_MOUNT_CAP,
+    minAdmitIntervalMs: PANEL_ADMIT_INTERVAL_MS,
     slotTimeoutFor: (id) => {
       const w = layout.widgets.find(x => x.id === id)
       return w && resolveActiveTab(w).type !== 'chart' ? NON_CHART_SLOT_MS : undefined

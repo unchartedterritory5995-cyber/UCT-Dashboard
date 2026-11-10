@@ -81,4 +81,37 @@ describe('useStaggeredMount', () => {
     expect(result.current.mountedIds.size).toBe(9)
     expect(commits - seeded).toBeLessThanOrEqual(6)   // six admissions, never a loop
   })
+  // Review round: a chart reports ready as soon as IndexedDB answers, with its network fetches
+  // still pending, so on a warm browser release alone would admit a whole board within milliseconds.
+  it('12 panels ready at once are admitted no faster than the minimum interval', () => {
+    vi.useFakeTimers()
+    const { result } = renderHook(() => useStaggeredMount(ids(12), { limit: 3, slotTimeoutMs: 5000, minAdmitIntervalMs: 300 }))
+    const releaseAll = () => act(() => { for (const id of result.current.mountedIds) result.current.release(id) })
+    expect(result.current.mountedIds.size).toBe(3)
+    releaseAll()
+    expect(result.current.mountedIds.size).toBe(3)            // ready at once admits nobody yet
+    for (let admitted = 4; admitted <= 12; admitted += 1) {
+      act(() => { vi.advanceTimersByTime(299) })
+      expect(result.current.mountedIds.size).toBe(admitted - 1)
+      act(() => { vi.advanceTimersByTime(1) })
+      expect(result.current.mountedIds.size).toBe(admitted)
+      releaseAll()
+    }
+  })
+
+  it('the 5 s timer stays the backstop under a minimum interval', () => {
+    vi.useFakeTimers()
+    const { result } = renderHook(() => useStaggeredMount(ids(4), { limit: 3, slotTimeoutMs: 5000, minAdmitIntervalMs: 300 }))
+    act(() => { vi.advanceTimersByTime(4999) })
+    expect(result.current.mountedIds.size).toBe(3)            // nobody released, so nobody admitted
+    act(() => { vi.advanceTimersByTime(1) })
+    expect(result.current.mountedIds.size).toBe(4)
+  })
+
+  it('CONTROL: with no minimum interval a release admits at once', () => {
+    vi.useFakeTimers()
+    const { result } = renderHook(() => useStaggeredMount(ids(4), { limit: 3, slotTimeoutMs: 5000 }))
+    act(() => result.current.release('c0'))
+    expect(result.current.mountedIds.size).toBe(4)
+  })
 })

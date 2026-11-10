@@ -130,6 +130,17 @@ test('panels with no chart in them do not wait out the chart slot timer', () => 
   act(() => { vi.advanceTimersByTime(900) })
   expect(queuedCount()).toBe(0)
 })
+test('12 charts ready at once join the board no faster than one per 300 ms', async () => {
+  mockPrefs = { charts_workspace_layout: slotBoard(Array(12).fill('chart')) }
+  renderWS()
+  expect(queuedCount()).toBe(9)
+  await act(async () => { for (let i = 0; i < 12; i += 1) hostReady.get(`w${i}`)?.(`w${i}`) })
+  expect(queuedCount(), 'ready at once admits nobody yet').toBe(9)
+  act(() => { vi.advanceTimersByTime(299) })
+  expect(queuedCount()).toBe(9)
+  act(() => { vi.advanceTimersByTime(1) })
+  expect(queuedCount()).toBe(8)
+})
 test('CONTROL: chart panels keep their slot until they report bars, then free it', async () => {
   mockPrefs = { charts_workspace_layout: slotBoard(['chart', 'chart', 'chart', 'watchlist', 'themes']) }
   renderWS()
