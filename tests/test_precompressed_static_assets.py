@@ -143,6 +143,46 @@ def test_a_sidecar_with_no_plain_file_is_a_404(client, assets):
     assert r.status_code == 404
 
 
+@pytest.mark.parametrize("value", ["0", "false", "No", " 0 "])
+def test_the_kill_switch_restores_plain_serving(client, monkeypatch, value):
+    monkeypatch.setenv("PRECOMPRESSED_ASSETS_ENABLED", value)
+    r, wire = fetch(client, accept_encoding="br, gzip")
+    assert r.status_code == 200
+    assert "content-encoding" not in r.headers
+    assert "vary" not in r.headers
+    assert wire == PLAIN
+    assert r.headers["content-length"] == str(len(PLAIN))
+    assert r.headers["accept-ranges"] == "bytes"
+    assert r.headers["cache-control"] == CACHE
+
+
+@pytest.mark.parametrize("value", [None, "1", "", "garbage"])
+def test_the_kill_switch_defaults_to_on(client, monkeypatch, value):
+    if value is None:
+        monkeypatch.delenv("PRECOMPRESSED_ASSETS_ENABLED", raising=False)
+    else:
+        monkeypatch.setenv("PRECOMPRESSED_ASSETS_ENABLED", value)
+    r, wire = fetch(client, accept_encoding="br")
+    assert r.headers["content-encoding"] == "br"
+    assert wire == BR
+
+
+def test_the_kill_switch_also_gives_plain_304s(client, monkeypatch):
+    monkeypatch.setenv("PRECOMPRESSED_ASSETS_ENABLED", "0")
+    first, _ = fetch(client, accept_encoding="br")
+    r, _ = fetch(client, accept_encoding="br", if_none_match=first.headers["etag"])
+    assert r.status_code == 304
+    assert r.headers["etag"] == first.headers["etag"]
+    assert "-br" not in r.headers["etag"]
+
+
+def test_the_kill_switch_is_read_per_request(client, monkeypatch):
+    monkeypatch.setenv("PRECOMPRESSED_ASSETS_ENABLED", "0")
+    assert "content-encoding" not in fetch(client, accept_encoding="br")[0].headers
+    monkeypatch.setenv("PRECOMPRESSED_ASSETS_ENABLED", "1")
+    assert fetch(client, accept_encoding="br")[0].headers["content-encoding"] == "br"
+
+
 def test_a_font_has_no_negotiation_and_keeps_its_caching(client, assets):
     (assets / "brand-v4.woff2").write_bytes(b"wOF2" * 100)
     (assets / "brand-v4.woff2.br").write_bytes(BR)

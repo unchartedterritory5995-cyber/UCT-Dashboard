@@ -36,6 +36,7 @@ Rules this class keeps, each railed in tests/test_precompressed_static_assets.py
 from __future__ import annotations
 
 import mimetypes
+import os
 import stat
 
 import anyio.to_thread
@@ -76,6 +77,13 @@ def accepted_codings(values: list[str]) -> list[str]:
     wildcard = qualities.get("*", 0.0)
     ranked = [(qualities.get(coding, wildcard), coding) for coding in _SIDECAR_SUFFIX]
     return [coding for q, coding in sorted(ranked, key=lambda r: -r[0]) if q > 0.0]
+
+
+def precompressed_enabled() -> bool:
+    """The kill switch. Default on; `0`, `false` or `no` serve every asset plain, exactly
+    as before this module negotiated. Read per request and cannot raise."""
+    value = os.environ.get("PRECOMPRESSED_ASSETS_ENABLED", "1")
+    return value.strip().lower() not in ("0", "false", "no")
 
 
 def _is_sidecar_name(path: str) -> bool:
@@ -124,7 +132,7 @@ class ImmutableStaticFiles(StaticFiles):
     async def get_response(self, path, scope):
         if "\x00" in path or _is_sidecar_name(path):
             raise HTTPException(status_code=404)
-        negotiated = path.endswith(_NEGOTIATED_SUFFIXES)
+        negotiated = path.endswith(_NEGOTIATED_SUFFIXES) and precompressed_enabled()
         headers = Headers(scope=scope)
         if negotiated and scope["method"] in ("GET", "HEAD") and "range" not in headers:
             codings = accepted_codings(headers.getlist("accept-encoding"))
