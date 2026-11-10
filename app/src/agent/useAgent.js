@@ -26,7 +26,7 @@ import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSa
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
 import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts } from './deixis'
-import { checkSpatialConstraints, excludedCharts, spatialConstraints, UNPLACED } from './spatialCheck'
+import { checkSpatialConstraints, excludedCharts, spatialConstraints, UNPLACED, withoutExcludedCharts } from './spatialCheck'
 import { groundSymbols } from './nl/tickers'
 import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } from './multiChart'
 import { scopeHostToGrid } from './host'
@@ -1414,6 +1414,22 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       return undefined
     }
     if (onGrid?.note) onTarget = onTarget ? `${onTarget} ${onGrid.note}` : onGrid.note
+    // ⛔ #988 (pl-auto u14-g3-05, GO bar 1): ONE gate for every card and every apply, on every path (instant, model, a resumed
+    // question): a chart the member's words EXCLUDE ("this row except the TSLA one") is dropped from the plan here — never on a
+    // proposal card, never applied. An apply that loses a chart this way is only proposed; nothing left → asked, with no card.
+    if (path !== 'approved') {
+      const g = withoutExcludedCharts(opsIn, [member, saidRef.current], { host, getTargetKind, getCapability })
+      if (g.dropped) {
+        if (!g.ops.length) {
+          const text = 'Which chart do you mean? Click it (or say left, right…) and ask again — nothing has changed yet.'
+          push({ role: 'agent', text })
+          record({ member, outcome: text, outcomeData: { kind: 'clarify-excluded', actions: (opsIn || []).map(o => o?.action) }, telemetry: { path, disposition: 'clarify', voice } })
+          return undefined
+        }
+        opsIn = g.ops
+        if (suggested === 'apply') suggested = 'propose'
+      }
+    }
     // ⭐ PHASE 2 (agent/duplicates.js, owner decision 2026-10-29): an add of an indicator the chart already shows, same
     // settings, is not added a second time — the existing one is reused (and is what "make it a 9" means next); a hidden
     // one is shown instead. Never on an approved card, nor when the member asked for another copy ("add another RSI").

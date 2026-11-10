@@ -297,7 +297,8 @@ const REL_CLICK = /\b(beside|next to|alongside|above|over|on top of|below|under(
 
 /** The target-bearing clauses: inert ones ("… looks fine", "leave … alone", "not …") dropped. */
 // "everything BUT the bottom row" is an exclusion, never a clause boundary (read as "except")
-const exceptForm = (t) => String(t || '').replace(/\b(everything|all|charts|ones|them|these|row|column|board)\s+but\b(?!\s+not\b)/gi, '$1 except')
+// ("every chart but the bottom row": a forced question offered the excluded row — the singular "every / each chart" is a set too)
+const exceptForm = (t) => String(t || '').replace(/\b(everything|all|charts|ones|them|these|row|column|board|(?:every|each)\s+chart)\s+but\b(?!\s+not\b)/gi, '$1 except')
 function targetClauses(text) {
   return exceptForm(text).split(CLAUSES).map(s => s.trim()).filter(s => s && !INERT.test(s))
 }
@@ -387,9 +388,37 @@ export function excludedCharts(text, charts = [], sel = null) {
     }
     if (/^(?:the\s+)?(?:this(?:\s+(?:one|chart))?|it|the\s+(?:selected|clicked)\s+(?:one|chart))$/i.test(phrase)) { if (sel) out.add(sel); continue }
     const a = namedAnchor(/\b(?:chart|one)$/i.test(phrase) ? phrase : `${phrase} chart`, charts) || namedAnchor(phrase, charts)
-    if (a) out.add(a.ref)
+    if (a) { out.add(a.ref); continue }
+    // ⛔ (pl-auto u14-g3-05) a ticker on SEVERAL charts ("this row except the TSLA one", TSLA twice on the board) is the one in
+    // the line the request is scoped to; none or several there → UNPLACED (the plan is asked). Never silently no exclusion.
+    const multi = symbolCharts(phrase, charts)
+    if (multi.length > 1) {
+      const scope = scopeLine(text, charts, sel)
+      const inScope = scope ? multi.filter(c => scope.includes(c)) : []
+      out.add(inScope.length === 1 ? inScope[0].ref : UNPLACED)
+    }
   }
   return out
+}
+/** The charts showing a ticker the phrase names, when that ticker is on more than one chart ([] otherwise). */
+function symbolCharts(phrase, charts) {
+  const bySym = new Map()
+  for (const c of charts) { const k = String(c?.symbol || '').toUpperCase(); if (k) bySym.set(k, [...(bySym.get(k) || []), c]) }
+  for (const [sym, list] of bySym) {
+    if (list.length < 2) continue
+    const re = new RegExp(`(?:^|[^A-Za-z0-9.])${sym.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![A-Za-z0-9])`, sym.length <= 2 ? '' : 'i')
+    if (re.test(phrase)) return list
+  }
+  return []
+}
+/** The one line a request is scoped to: "this row / column" (the click's), or an absolute "the top row", "the left column". */
+function scopeLine(text, charts, sel) {
+  const s = String(text || '')
+  const t = /\bthis\s+(row|column)\b/i.exec(s)
+  if (t && sel) return linesOf(charts, t[1].toLowerCase()).find(l => l.some(c => c.ref === sel)) || null
+  const w = /\bthe\s+(top|bottom|upper|lower|middle|cent(?:er|re)|first|second|third|last|left|right)\s+(row|column)\b/i.exec(s)
+  if (w) return pickLine(linesOf(charts, w[2].toLowerCase()), w[1].toLowerCase().replace('upper', 'top').replace('lower', 'bottom'), w[2].toLowerCase())
+  return null
 }
 /** An exclusion the board cannot place ("except the three on the left" with two there): every plan is asked. */
 export const UNPLACED = '\u0000unplaced'
@@ -485,6 +514,32 @@ export function spatialConstraints(text, charts = [], sel = null) {
     for (const c of hits) out.excluded.add(c.ref)
   }
   return out
+}
+
+/**
+ * The plan without its chart-backed ops on a chart the words EXCLUDE (each text read on its own: the request, and a question's
+ * own request on its answer) → { ops, dropped }. An exclusion the board cannot place is the constraint check's (asked), not this.
+ */
+export function withoutExcludedCharts(ops, texts, { host, getTargetKind, getCapability }) {
+  const charts = host?.charts?.list?.() || []
+  if (charts.length < 2 || !Array.isArray(ops) || !ops.length) return { ops, dropped: 0 }
+  const sel = selectedChart(host)
+  const ex = new Set()
+  for (const t of new Set((texts || []).filter(x => typeof x === 'string' && x.trim()))) {
+    for (const r of excludedCharts(t, charts, sel)) ex.add(r)
+    for (const r of spatialConstraints(t, charts, sel).excluded) ex.add(r)
+  }
+  ex.delete(UNPLACED)
+  if (!ex.size) return { ops, dropped: 0 }
+  const keep = ops.filter(o => {
+    const cap = getCapability(o?.action)
+    const kind = cap ? getTargetKind(cap.target) : null
+    if (!kind || cap.query) return true
+    const snap = (kind.list(host) || []).find(s => s.ref === o.target)
+    const chart = snap ? chartRefOf(kind, snap) : null
+    return !chart || !ex.has(chart)
+  })
+  return { ops: keep, dropped: ops.length - keep.length }
 }
 
 /**

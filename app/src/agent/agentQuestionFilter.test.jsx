@@ -47,6 +47,9 @@ const CASES = [
   ['could you put everything except SPY on weekly', '2x2', 'BR', 'TR', ['TL']],                    // SPY = TL is excluded
   ['everything but the bottom row on weekly please', '2x3', 'TL', 'TM', ['BL', 'BM', 'BR']],       // a whole excluded line
   ['could you put this row except the QQQ one on weekly', '2x3', 'TL', 'TR', ['TM']],
+  // the singular "every / each chart but …" is an exclusion too (it offered the excluded row on d4273558b4)
+  ['every chart but the bottom row on weekly please', '2x3', 'TL', 'TM', ['BL', 'BM', 'BR']],
+  ['each chart but the top row on weekly please', '2x3', 'BL', 'BM', ['TL', 'TM', 'TR']],
 ]
 describe('a forced question listing every chart: the filter removes the anchor and every excluded chart', () => {
   it.each(CASES)('"%s" (%s, clicked %s)', async (t, g, sel, aim, never) => {
