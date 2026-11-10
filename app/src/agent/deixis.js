@@ -12,7 +12,8 @@
 import { addableRows } from './capabilities/indicatorEdits'
 import { resolvedTicker } from './nl/tickers'
 import { sanitizeChartTabs } from '../pages/charts/chartTabs'
-import { namedAnchorRelation, wholeLinesNamed, clickLineMatch, clickLineHits, activeText, relationAnchor, blankStated, negatedClick } from './spatialCheck'
+import { CLICK_ACT_NP } from './clickRef'
+import { namedAnchorRelation, wholeLinesNamed, clickLineMatch, clickLineHits, activeText, relationAnchor, blankStated, negatedClick, withoutExclusions } from './spatialCheck'
 
 // Words that point at "the chart in front of me". "it" counts only for a CHART-kind op ("make it
 // weekly"), never on its own ("put it in Momentum", "what is it" are not about a chart).
@@ -78,13 +79,14 @@ const FAR_END = new RegExp(`\\b(?:at\\s+)?the\\s+(?:far(?:thest)?|other|opposite
 // (relational words only: a verb particle — "pull UP nvidia on this one", "switch OVER" — or a time word — "the PAST year on this
 // chart" — is not one; "far / other" only with end / side / corner, "row / column" only as "same / next row")
 const SPATIAL_WORD = '(?:left|right|above|below|under(?:neath)?|beneath|next\\s+(?:to|door)|beside|adjacent|neighbou?rs?|corner|opposite|diagonal\\w*|across|facing|beyond|behind|(?:far|farthest|furthest|other)\\s+(?:end|side|corner)|(?:same|next)\\s+(?:row|column)|past(?=\\s+(?:this|that|it|here)\\b))'
+const SPATIAL_VALUE = new RegExp(`\\b${SPATIAL_WORD}\\s+(?:the\\s+)?\\$?\\d`, 'i')     // "above the 20", "under 30", "over $150"
 const STRUCT_CHART = new RegExp(`\\b(?:the|that|which|any|both|all|either)\\s+(?:[a-z-]+\\s+){0,3}?(?:chart|one|cell|pane|panel|graph|neighbou?rs?)s?\\b[^.;,]{0,40}?\\b${SPATIAL_WORD}\\b[^.;,]{0,30}?\\b(?:this|that|here|it|the\\s+(?:selected|clicked|current|highlighted|active|focused)|the\\s+one\\s+(?:that\\s+)?(?:i|you))\\b`, 'i')
 const STRUCT_NEIGHBOURS = new RegExp(`\\b(?:both|all|either|the|its|my)\\s+(?:two\\s+)?neighbou?rs?\\s+(?:of|to|beside)\\s+(?:this|that|here|it|the\\s+(?:selected|clicked|current|highlighted|active|focused)|the\\s+one\\s+(?:that\\s+)?(?:i|you))\\b`, 'i')
 const STRUCT_TAIL = new RegExp(`\\b${SPATIAL_WORD}\\b[^.;,]{0,24}?\\b(?:this|that)\\s+(?:one|chart|cell|pane|panel|graph)\\b`, 'i')
 // AUDIT #988 (belt and braces): a COUNT with a DIRECTION anywhere in the words ("2 spaces left of here", "a couple over to the
 // right", "3 over") is a relation from the click even when its shape is not one UCT can place: the click is its anchor, so it is
 // never applied and never offered (the reference resolves to no chart and is asked about without the anchor)
-const COUNT_DIRECTION = /\b(?:two|three|four|five|six|[2-9]|second|third|a\s+couple(?:\s+of)?|next[-\s]but[-\s]one)\s+(?:(?:charts?|cells?|panes?|panels?|places?|spots?|positions?|slots?|spaces?|ones?)\s+)?(?:(?:over|across)\b|(?:(?:to|on)\s+the\s+)?(?:left|right)\b|above\b|below\b|under\b|beneath\b)/i
+const COUNT_DIRECTION = /\b(?:two|three|four|five|six|[2-9]|second|third|2nd|3rd|a\s+couple(?:\s+of)?|next[-\s]but[-\s]one)\s+(?:(?:charts?|cells?|panes?|panels?|places?|spots?|positions?|slots?|spaces?|ones?)\s+)?(?:(?:over|across)\b|(?:(?:to|on)\s+the\s+)?(?:left|right)\b|above\b|below\b|under\b|beneath\b)/i
 // AUDIT #988 (possessive anchor): "its / it's / this one's / this chart's / the selected one's" before a RELATIONAL noun or phrase
 // makes the click a REFERENCE POINT, as R1: "the neighbour on its left" = the cell to the click's left, "its right neighbour", "its
 // diagonal", "its row's far end", "both of its neighbours". Rewritten to the anchored phrase the readers below already resolve; a
@@ -264,6 +266,9 @@ function relationMatchIn(text) {
   // bare "one" that stands for a thing, S2-B) → a relation UCT may not place: the click is only its anchor
   const chartRef = (x) => !!x && !placesNonChart(s.slice(0, x.index), x[0]) && !(/^\s*(?:the|that)\s+one\b/i.test(x[0]) && oneStandsForAThing(s.slice(0, x.index)))
     && !PLACED_IN.test(x[0]) && !x[0].toLowerCase().split(/[^a-z0-9%]+/).some(w => w && !SPAN_STOP.has(w) && (PLACED.test(w) || isIndicatorWord(w)))
+    // (#988, AUDIT on the #1022 baseline diff) a spatial word on a VALUE ("crosses above the 20 on this chart", "closes under 30 on
+    // this one"): a level or an average's period on the click, never a chart relation
+    && !SPATIAL_VALUE.test(x[0])
   // plurals: "both neighbours of this one", "both charts on either side of this one" — the set on both sides of the click
   const nb = STRUCT_NEIGHBOURS.exec(s) || EITHER_SIDE.exec(s)
   if (nb && chartRef(nb)) { nb.neighbours = true; return nb }
@@ -754,6 +759,7 @@ const POS_WORDS = /\b(top-left|top-right|bottom-left|bottom-right|top left|top r
 // (probe 19) "everything (but / except …)", "all of these": the whole board, an exclusion taken out by the constraint check
 const MANY_COUNT = /\b(?:(both)\b|(?:all|every|each)(?:\s+(?:the|of the))?(?:\s+(two|three|four|five|six|seven|eight|nine|ten|\d{1,2}))?\s+(?:charts?|of them|ones)\b|everything\b(?!\s+(?:else\s+)?(?:in|on|along)\s+(?:this|that|its|my)\b)|all\s+of\s+(?:these|them)\b)/i
 const OTHER_CHARTS = /\b(?:(?:my|the|all(?: my| the)?|every) )?other charts\b/i
+const REST_OF_BOARD = /\b(?:(?:all\s+)?the\s+(?:rest|others|other\s+ones)|everything\s+else|all\s+(?:the\s+)?others|every\s+other\s+(?:one|chart))\b/i
 const OTHER_CHART = /\b(?:my|the|that|this) other (?:chart|one)\b/i
 // …and "a different chart", "another chart", "some other chart": a chart that is NOT the clicked one, not yet which
 const DIFFERENT_CHART = /\b(?:a|another|some|any)\s+(?:different|other)\s+(?:chart|one)\b|\banother\s+(?:chart|one)\b|\bone\s+other\b/i
@@ -940,7 +946,8 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
   // chart there is unidentified like any other. A bare "this" still means the clicked chart, and a position word fitting several
   // charts counts the click only if it is one of them.
   const sel = selectedChart(host)
-  const said = chartPositions(words)
+  // (#988) a position said only to EXCLUDE a chart ("log on the one I selected, not the left one") is no place the request names
+  const said = chartPositions(withoutExclusions(words))
   const answered = (pickedRefs || []).some(Boolean)
   // ⛔ AUDIT (single clause): a plain "the other one / the other chart" on a board of TWO names the chart that is NOT the click,
   // and the click is EXCLUDED: a plan on the other chart runs, a plan on the click is asked (unless "this" names it too)
@@ -955,6 +962,9 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
   const lineSet = wholeLinesNamed(words, charts)
   for (const r of lineSet) named.add(r)
   const lineNamed = !!absLine?.line || lineSet.size > 0
+  // (#988, AUDIT probe 20 a) "other than the one I'm looking at, put THE REST on log": with the click negated, "the rest / the
+  // others / everything else" names every chart but the click (a plan on the click is excluded by the negation screens)
+  if (sel && !answered && REST_OF_BOARD.test(words) && negatedPointer(words)) for (const c of charts) if (c.ref !== sel) named.add(c.ref)
   if (sel && (/\bthis\b/i.test(otherOne ? words.replace(OTHER_CHART, ' ') : words) || (!otherOne && !answered && !lineNamed && !chartsNamedBy(`${words.replace(POS_WORDS, ' ')} ${said.join(' ')}`, charts).size && clickFits(said, charts, sel)))) named.add(sel)
   const unnamed = [...targets.keys()].filter(c => !named.has(c))
   if (!unnamed.length) return null
@@ -1031,7 +1041,11 @@ export function closedTabNamed(text, host) {
 // pl-auto u-target-05/08 (BROWSER-MOCK-MODEL): a NEGATED pointer — "everything except this one", "not this chart", "all but
 // this one", "other than this" — EXCLUDES the clicked chart. It is never aimed at nor stood in for: a plan on the other charts
 // runs where it is planned, and an op on the click itself is asked about.
-const NEG_POINTER = /(?:\b(?:except(?:\s+for)?|not|other\s+than|besides|apart\s+from|aside\s+from|excluding|minus|save\s+for)|\b(?:all|every\w*|them|others?|charts?|ones)\s+but(?:\s+not)?)\s+(?:this|that|it|the\s+(?:selected|clicked|current|highlighted|active|focused)\s+(?:chart|one))\b/i
+// (#988, pl-grid / AUDIT probe 20) …and the click named by the ACT: "not the one I clicked", "instead of the chart I'm on", "other
+// than the one I'm looking at" (clickRef.js CLICK_ACT_NP)
+const NEG_POINTER = new RegExp('(?:\\b(?:except(?:\\s+for)?|not|other\\s+than|besides|apart\\s+from|aside\\s+from|excluding|minus|save\\s+for|instead\\s+of|rather\\s+than)'
+  + '|\\b(?:all|every\\w*|them|others?|charts?|ones)\\s+but(?:\\s+not)?)\\s+(?:this|that|it|the\\s+(?:selected|clicked|current|highlighted|active|focused)\\s+(?:chart|one)|'
+  + CLICK_ACT_NP + ')\\b', 'i')
 export const negatedPointer = (text) => NEG_POINTER.exec(String(text || '')) || (negatedClick(text).excludes ? [String(text || '')] : null)
 // ⭐ round 3 (pl-exec): PER-CLAUSE TARGETS — "make the NVDA chart weekly and this one log". A sentence of several clauses, each
 // naming ONE chart (a description, a ticker, a position) or pointing at the click (this one / this chart / here / it), and each

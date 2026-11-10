@@ -16,6 +16,7 @@
 // says a chart is fine / left alone / not meant ("the middle of the bottom row looks fine") states no target constraint, and
 // a line or place that is a move's destination, a comparison ("like the top row") or a source states none either.
 import { ordinalChart, chartsNamedBy, relativeChart, selectedChart, chartRefOf } from './deixis'
+import { CLICK_ACT_NP } from './clickRef'
 
 const INERT = /\b(?:fine|alone|already|leave|leaving|left alone|can stay|stays?|stay put|untouched|as (?:it|they) (?:is|are)|don'?t|do not|doesn'?t|not|never|ignore|skip|keep)\b/i
 const CLAUSES = /[,;.!?]|\b(?:and then|but|then|while|also|plus|although|though)\b/i
@@ -329,7 +330,15 @@ export function blankStated(text) {
 // chart", "don't change the clicked one", "not this one", "never touch it": the operator (leave / keep / let / don't / do not /
 // never / not …) governs the click (this / this one / this chart / it / the clicked or selected one / here) as its OBJECT. The
 // click is EXCLUDED; the clause names no other chart and relates nothing (blanked for the relation readers, positions kept).
-const CLICK_OBJ = '(?:this(?:\\s+(?:one|chart))?|it|here|the\\s+(?:clicked|selected|current|active)\\s+(?:one|chart))'
+// (#988, pl-grid / AUDIT probe 20) …or by the ACT: "not the one I clicked", "leave the chart I'm on alone" (clickRef.js)
+const CLICK_OBJ = '(?:this(?:\\s+(?:one|chart))?|it|here|the\\s+(?:clicked|selected|current|active)\\s+(?:one|chart)|' + CLICK_ACT_NP + ')'
+// (AUDIT probe 20 b) a STATIVE clause whose subject is the click — "the one I selected stays daily", "this one can stay as it is",
+// "the chart I'm on is fine as it is": the click is kept as it is, so it is EXCLUDED (as "leave this alone"). A want ("the one I
+// selected should be weekly", "…needs log scale") is not one: that clause is the change, on the click.
+const STAY_CLICK = new RegExp('^\\s*(?:(?:and|but|so|while|though)\\s+)?' + CLICK_OBJ + '\\s+(?:'
+  + '(?:(?:can|should|will|must|may|could)\\s+)?(?:stays?|remains?|stay|remain)\\b'
+  + '|(?:is|[\'’]s)\\s+(?:fine|good|ok(?:ay)?|perfect|right|alright|all\\s+right)\\b(?:\\s+as\\s+(?:it\\s+)?is)?'
+  + ')[^,;.!?]*[.!]?\\s*$', 'i')
 const NEG_CLICK = new RegExp('^\\s*(?:(?:and|but|then|so|or)\\s+)?(?:please\\s+)?(?:'
   + '(?:leave|keep|let)\\s+' + CLICK_OBJ + '\\b(?!\\s*[\'’]s)(?:\\s+(?:alone|be|as\\s+(?:it\\s+)?is|untouched|unchanged|where\\s+it\\s+is))?'
   + '|(?:don[\'’]?t|do\\s+not|never)\\s+(?:touch|change|move|switch|alter|modify|update|do\\s+anything\\s+to)\\s+' + CLICK_OBJ + '\\b(?!\\s*[\'’]s)'
@@ -351,7 +360,7 @@ export function negatedRelations(text) {
 export function negatedClick(text) {
   let excludes = false
   const out = String(text || '').split(CLAUSE_PARTS).map(part => {
-    if (NEG_CLICK.test(part)) { excludes = true; return part.replace(/\S/g, ' ') }
+    if (NEG_CLICK.test(part) || STAY_CLICK.test(part)) { excludes = true; return part.replace(/\S/g, ' ') }
     if (NEG_REL.test(part)) return part.replace(/\S/g, ' ')
     return part
   }).join('')
@@ -371,11 +380,37 @@ export function activeText(text) {
 const EXCEPT = /\b(?:except(?:\s+for)?|but\s+not|other\s+than|apart\s+from|excluding|save\s+for|minus)\s+((?:the\s+)?(?:top|bottom|upper|lower|middle|cent(?:er|re)|first|second|third|last|left|right)\s+(?:row|column)|(?:the\s+)?(?:(?:two|three|four|pair|2|3|4)\s+)?(?:(?:charts?|ones?)\s+)?(?:on|at|along)\s+the\s+(?:left|right|top|bottom)(?:\s+(?:side|edge|row|column))?|(?:the\s+)?[A-Za-z0-9 -]{1,30}?)(?=\s+(?:on|to|in|onto|at|for|from|please|thanks|weekly|daily|monthly|hourly)\b|\s*[,.;!?]|\s*$)/gi
 /** Every exclusion match in the words (as excludedCharts reads them; the #988 no-lookbehind equivalence rail holds it) */
 export const exceptMatches = (text) => [...exceptForm(text).matchAll(EXCEPT)]
+// (#988, pl-grid / AUDIT probe 20) the other exclusion forms, read beside EXCEPT (which the equivalence rail holds as it was):
+// "instead of / rather than / besides / aside from X", a clause-leading "not X" ("…weekly, not the bottom-left", "not the
+// bottom-left — …"), and any operator on the click named by the ACT ("other than the one I'm looking at": its apostrophe is
+// outside EXCEPT's phrase). An "X" the board cannot place excludes nothing.
+const NEG_EXCEPT = new RegExp('(?:\\b(?:instead\\s+of|rather\\s+than|besides|aside\\s+from|other\\s+than|except(?:\\s+for)?|excluding|apart\\s+from)'
+  + '|(?:^|[,;:—–]|\\b(?:and|but))\\s*not(?!\\s+(?:just|only|merely|simply|sure|yet|now|too|so)\\b))\\s+(' + CLICK_ACT_NP + '|(?:the\\s+)?[A-Za-z0-9 -]{1,30}?)'
+  + '(?=\\s+(?:on|to|in|onto|at|for|from|please|thanks|weekly|daily|monthly|hourly)\\b|\\s*[,.;!?—–]|\\s*$)', 'gi')
+const CLICK_ACT_ONLY = new RegExp('^' + CLICK_ACT_NP + '$', 'i')
+/** The words with every exclusion phrase blanked (EXCEPT and NEG_EXCEPT): a position said only to EXCLUDE a chart ("…, not the
+ * left one") is no place the request is aimed at (deixis.screenUnnamedTargets' said positions). */
+export function withoutExclusions(text) {
+  let s = exceptForm(text)
+  for (const m of [...s.matchAll(EXCEPT), ...s.matchAll(NEG_EXCEPT)]) s = s.slice(0, m.index) + ' '.repeat(m[0].length) + s.slice(m.index + m[0].length)
+  return s
+}
+// (AUDIT control) NEG_EXCEPT's "X" excludes only a CHART or a POSITION — a chart noun, a place / order word, the click, or a ticker
+// on the board. A value or a setting ("weekly, not daily", "log, not linear", "show the 50, not the 200") is a contrast on the
+// change itself and excludes nothing.
+const NEG_CHART_WORD = /\b(?:one|ones|charts?|cells?|panes?|panels?|graphs?|top|bottom|upper|lower|left|right|middle|cent(?:er|re)|corner|first|second|third|fourth|last|row|column|this|that|it)\b/i
+function negNamesAChart(phrase, charts) {
+  if (CLICK_ACT_ONLY.test(phrase) || NEG_CHART_WORD.test(phrase)) return true
+  const words = phrase.toUpperCase().split(/[^A-Z0-9.]+/).filter(Boolean)
+  return charts.some(c => c?.symbol && words.includes(String(c.symbol).toUpperCase()))
+}
 /** The charts an exclusion in the words names (by symbol, position, order, or "this one" = the click). */
 export function excludedCharts(text, charts = [], sel = null) {
   const out = new Set()
-  for (const m of exceptMatches(text)) {
+  const negs = [...exceptForm(text).matchAll(NEG_EXCEPT)].filter(m => negNamesAChart(m[1].trim(), charts))
+  for (const m of [...exceptMatches(text), ...negs]) {
     const phrase = m[1].trim()
+    if (CLICK_ACT_ONLY.test(phrase)) { if (sel) out.add(sel); continue }
     const wl = /^(?:the\s+)?(top|bottom|upper|lower|middle|cent(?:er|re)|first|second|third|last|left|right)\s+(row|column)$/i.exec(phrase)
     if (wl) {
       const line = pickLine(linesOf(charts, wl[2].toLowerCase()), wl[1].toLowerCase().replace('upper', 'top').replace('lower', 'bottom'), wl[2].toLowerCase())
@@ -394,6 +429,14 @@ export function excludedCharts(text, charts = [], sel = null) {
     if (/^(?:the\s+)?(?:this(?:\s+(?:one|chart))?|it|the\s+(?:selected|clicked)\s+(?:one|chart))$/i.test(phrase)) { if (sel) out.add(sel); continue }
     const a = namedAnchor(/\b(?:chart|one)$/i.test(phrase) ? phrase : `${phrase} chart`, charts) || namedAnchor(phrase, charts)
     if (a) { out.add(a.ref); continue }
+    // (#988, AUDIT control) a position that fits SEVERAL charts ("not the left one" on a 2×2): every chart it fits is excluded —
+    // never none (a plan there would run) and never the whole plan asked (the click elsewhere is still meant)
+    const pw = String(phrase).toLowerCase().match(/\b(?:top|bottom|upper|lower|left|right)\b/g)
+    if (pw && /^(?:the\s+)?(?:(?:top|bottom|upper|lower|left|right)[\s-]*){1,2}(?:one|chart|cell|pane|panel|graph|side)?s?$/i.test(phrase)) {
+      const parts = pw.map(w => w.replace('upper', 'top').replace('lower', 'bottom'))
+      const fit = charts.filter(c => c.position && parts.every(p => String(c.position).split('-').includes(p)))
+      if (fit.length) { for (const c of fit) out.add(c.ref); continue }
+    }
     // ⛔ (pl-auto u14-g3-05) a ticker on SEVERAL charts ("this row except the TSLA one", TSLA twice on the board) is the one in
     // the line the request is scoped to; none or several there → UNPLACED (the plan is asked). Never silently no exclusion.
     const multi = symbolCharts(phrase, charts)
