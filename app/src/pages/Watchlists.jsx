@@ -1921,6 +1921,10 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     if (com) return { id: com.id, isOwner: false, symbols: (com.items || []).map(i => i.sym) }
     return null
   })()
+  // The title the member sees on a picked list. On Flagged it is the Flagged list's OWN name (useFlagged), not the name the list
+  // had when it was picked (pickName = opts.watchName), so a Rename (the title menu's, or the Agent's) shows on the face at once
+  // (AUDIT #1027 F4, u18-flagged-01/02). The Agent's door reads this same title back.
+  const pickTitle = (pickList === 'flagged' ? (flaggedName || pickName || 'Flagged') : pickName) || 'Watchlist'
   const openTitleMenu = (x, y) => {
     if (!titleMenuList) return
     setCtxMenu({ x: Math.min(x, window.innerWidth - 220), y: Math.min(y, window.innerHeight - 300), ...titleMenuList, fromTitle: true })
@@ -2418,7 +2422,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       textColor: wlSettings.textColor, gainColor: wlSettings.upColor, lossColor: wlSettings.downColor,
       look: wlTemplates.find(t => t.settings && Object.entries(t.settings).every(([k, v]) => JSON.stringify(wlSettings[k]) === JSON.stringify(v)))?.id ?? null,
       looks: wlTemplates.map(t => ({ id: t.id, name: t.name })),
-      ...(titleMenuList?.id === 'flagged' ? { flaggedName: flaggedName || 'Flagged' } : {}),
+      ...(titleMenuList?.id === 'flagged' ? { flaggedName: pickTitle } : {}),   // the title on the face (F4), not the hook alone
     }),
     options: () => ({ look: wlTemplates.map(t => ({ value: t.id, label: t.name })) }),
     write: (key, value) => {
@@ -3040,7 +3044,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                   data-guide="watchlist.title"
                   onContextMenu={titleMenuList ? (e => { e.preventDefault(); e.stopPropagation(); openTitleMenu(e.clientX, e.clientY) }) : undefined}
                   {...(titleMenuList ? longPressMenu(e => ({ x: Math.min(e.clientX, window.innerWidth - 220), y: Math.min(e.clientY, window.innerHeight - 300), ...titleMenuList, fromTitle: true })) : {})}
-                >{pickName || 'Watchlist'}</span>
+                >{pickTitle}</span>
               </span>
             )}
             {titleMenuList && (
