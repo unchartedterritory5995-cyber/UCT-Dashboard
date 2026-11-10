@@ -1241,3 +1241,29 @@ Older examples (TOL 2004, EL 2009, REGN 2011) sit before or near the start of th
 - NVDA, buy 2025-08-18 at 181.91, stop 178.01, stopped the next day (low 175.49, close 175.64). A late tap after a four-month run with the 20 EMA already flattening; the stock then went sideways for six weeks. Lesson: the late tap of a tired trend, not the first or second. (The 2025-08-27 report was seven trading days away, so B22 did not block it.)
 - CAT, buy 2025-11-17 at 558.32, stop 540.97 (3.1%, already wide), stopped the next day on a gap down to 543.35 and a low of 538.05, then it closed at 546.88 and reached 610 (the 3R level) within a month without us. Lesson: a one-day shakeout through a wider stop; the rule has no re-entry, so the trade was gone. A new hold session would have been the way back in.
 - AMZN, buy 2026-05-18 at 264.37, stop 260.86, stopped the next day, and the stock lost its 50-day SMA in June. Lesson: the second tap after a steep April run, with the 20 EMA turning down within a week of the buy; the hold session was a small-bodied candle under the prior highs, a weak hold.
+
+## 14. Failures and near-misses (from our data)
+
+Built 2026-11-10 from the same scan as section 13 (`final/hits.json`, trigger B, the stop 3 cents under the lower of the hold candle's low and the trigger session's low). Scripts in the review scratchpad folder `setups/11-ema20-pullback/`: `fails11.py` (the failures), `near_scan.py` and `near11.py` (the near-misses: the scan's gates turned into flags, keeping only the candidates that fail exactly one gate criterion of the card; the 900 most liquid names of today's universe, 2005 on). Sheets in `final/`: `fail_1-4.png`, `near_1-4.png`, and `pair_12-ma-pullbacks.png` (GE 2024-01-05 above CAT 2025-09-03 from setup 12, the 50-day form). Every chart carries the same levels as the winners: buy, stop, 3R, 5R, the pullback box and the hold mark. All numbers below are read off the daily bars.
+
+**Four failures (every gate passed, traded by the rules, stopped before 3R).**
+
+| # | Ticker | Buy (hold session) | Buy | Stop | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|---|
+| 1 | NVDA | 2025-08-18 (08-15) | 181.91 | 178.01 | 08-19, day 1, low 175.49 | Closed 175.64, under the 20 EMA, the same day; the low broke the 50-day on 09-02; 20 sessions later (09-16) it closed at 174.88, still under the 20 EMA. A late tap after a four-month run. | e20.which_tap |
+| 2 | AMZN | 2026-05-18 (05-15) | 264.37 | 260.86 | 05-19, day 1, low 255.19 | Closed 259.34 under the line; 20 sessions later (06-16) it closed at 246.00, 10.16 under the 50-day. The second tap after the April run. | e20.which_tap |
+| 3 | GILD | 2013-08-08 (08-07) | 60.50 | 59.17 | 08-09, day 1, low 58.57 | Closed back at 59.21 the same day and reached the 3R level (64.49) on 09-18 and 5R (67.15) on 10-17 without us. A one-day shakeout. | none failed; e20.tries (no re-entry without a new hold) |
+| 4 | DIS | 2021-01-14 (01-13) | 177.74 | 173.37 | 01-15, day 1, low 170.17 | The low undercut the 50-day on 01-27, then it reached 3R (190.85) on 02-11 and 5R (199.59) on 02-24 without us. A shakeout. | none failed; e20.tries |
+
+CAT 2025-11-17 (section 13) stays in the card's list; it shares a year with NVDA, so GILD and DIS were charted instead.
+
+**Four near-misses (the chart looks like the setup; exactly one gate criterion fails).**
+
+| # | Ticker | Hold / would-be buy | The one criterion | The number | What it really is |
+|---|---|---|---|---|---|
+| 1 | HD | 2025-02-03 / 02-04 | e20.above_50 | the hold low 401.01 is under the 50-day SMA 408.58 (the 20 EMA sat at 408.60) | Which average: the low reached the 50-day, so it is setup 12's 50-day form, if anything. It stopped (best 0.56R). |
+| 2 | AAPL | 2022-01-11 / 01-12 | e20.inv_close_under | 3 closes under the 20 EMA in the five-session pullback, the deepest 0.73 ATR | How many closes under: a line lost, not tapped. Too few closes (under 5) and the wrong line for a Remount. No trade until it sets up again. It stopped (best 0.09R). The scan's first-tag condition (e20.which_tap, not a gate) was relaxed for this criterion, since two closes under the line always mean an earlier tag. |
+| 3 | TSLA | 2025-10-31 / 11-03 | e20.prior_advance | the best close of the prior 10 sessions sat 1.2 ATR above the 20 EMA (rule: 1.5) | A stock drifting along its line with nothing to pull back from; the crossback side of the border, not a pullback. Stopped at 0R. |
+| 4 | INTC | 2017-11-20 / 11-21 | e20.orderly | a down day in the pullback on 2.3x the 50-day volume (rule: at most 1.5x); the largest down day 1.2 ATR | Distribution into the line (e20.inv_heavy_down is the same fact). Stopped at 0R. |
+
+**What the failures have in common.** All four were stopped on the first session after the buy with a best excursion of 0R; the stops were 1.3% to 2.5% wide, so one ordinary red day took them. The two late taps (NVDA, AMZN) went on to lose the line and, for AMZN, the 50-day, which is the e20.which_tap warning in section 8. The two shakeouts (GILD, DIS) reached 3R and 5R inside five weeks without us; the rule's answer to that is not a re-entry at the old price but a new hold session with its own trigger and stop (e20.tries), and in both the next hold came within days.

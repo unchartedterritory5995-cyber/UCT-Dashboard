@@ -1265,7 +1265,38 @@
     "note": "pop 01-28 off the January low, hold 02-08, 2.6% stop; stopped 02-11 with 0R. The Nasdaq 100 had closed under its own 20-day EMA the day before the entry and regained it only that day, inside the January 2022 correction: the market condition Kell and UCT's intro both warn about."
    }
   ],
-  "limits": "Daily bars only (the 65-minute trigger was not tested); no RS or market data in the scan; the short mirror was not scanned; the base rate is the raw pattern with a fixed stop; a scan cannot see the clean and obvious quality the owner grades by eye, which is why the ten were chosen by looking at every chart, not by best R. The ten machine-found candidates in 8.10 (three winners in ten) are leads for him to chart and grade."
+  "limits": "Daily bars only (the 65-minute trigger was not tested); no RS or market data in the scan; the short mirror was not scanned; the base rate is the raw pattern with a fixed stop; a scan cannot see the clean and obvious quality the owner grades by eye, which is why the ten were chosen by looking at every chart, not by best R. The ten machine-found candidates in 8.10 (three winners in ten) are leads for him to chart and grade.",
+  "near_misses": [
+   {
+    "ticker": "NOW",
+    "date": "2023-12-06",
+    "criterion": "xbk.wedge_pop_first",
+    "why": "26 sessions from the pop (10-27) to the hold day (12-05), over the 3 to 20 rule; first touch or later: a tap of a 20 EMA risen for five weeks, the 20 EMA Pullback card. Stopped, best 2.38R."
+   },
+   {
+    "ticker": "AMZN",
+    "date": "2023-11-22",
+    "criterion": "xbk.first_test",
+    "why": "the second pullback into the 9/20 zone since the pop of 10-30 (hold 11-21); the second rest is a Base n' Break or a pullback, graded lower. It worked (9.94R) but is not this card's entry."
+   },
+   {
+    "ticker": "AMAT",
+    "date": "2023-08-28",
+    "criterion": "xbk.depth",
+    "why": "the hold day's low 2.1% under the 20 EMA, over the 1% rule (hold 08-25); a deeper undercut, the MAU&R shape if anything. Stopped, best 2.27R."
+   },
+   {
+    "ticker": "GE",
+    "date": "2026-01-02",
+    "criterion": "xbk.hold_day",
+    "why": "the hold day (12-31) closed in the lower 3% of its range, not the upper half; a weak hold. It still reached 3R (best 3.5R) before the stop, which is luck, not the setup."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_11-ema20-pullback.png"
+  }
  },
  "question_seeds": [
   {

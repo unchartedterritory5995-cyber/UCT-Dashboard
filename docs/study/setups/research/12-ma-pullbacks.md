@@ -915,3 +915,31 @@ group rank or market reading in the sandbox, so C31 and F65 were not applied. Ea
 ten examples (the earnings database is complete from about 2005; QCOM 1999 shows none for that reason). Prices are
 split-adjusted as the sandbox holds them. The scan is a mechanical stand-in for the owner's judgment, not a backtest
 of his trade.
+
+## 14. Failures and near-misses (from our data)
+
+Built 2026-11-10 from the same scan as section 13 (`final/hits.json`, the buy over the hold day's high, the stop 5 cents under the lowest low of the touch, hold and trigger days). Scripts in the review scratchpad folder `setups/12-ma-pullbacks/`: `charts12.py` (both sets) and `near_scan12.py` (the near-misses: the scan's gates turned into flags, keeping only the candidates that fail exactly one gate criterion of the card, with the 200-day added as a fourth line so the wrong-line case can show; the 700 most liquid names of today's universe, 2005 on). Sheets in `final/`: `fail_1-4.png`, `near_1-4.png`, and `pair_11-ema20-pullback.png` (YELP 2013-06-26, the 10-day form, above GE 2024-01-05 from setup 11). Every chart carries the winners' levels: buy, stop, 3R, 5R, the pullback box and the touch mark. All numbers are read off the daily bars.
+
+**Four failures (every gate passed, traded by the rules, stopped before 3R).**
+
+| # | Ticker | Trigger | Line | Buy | Stop | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|---|---|
+| 1 | NVDA | 2024-04-03 | 20 EMA | 90.10 | 87.57 | 04-04, day 1, low 85.88 | Closed 85.91 under the 20 EMA; 20 sessions later (05-01) it closed at 83.04, 2.89 under the 50-day; it reached the 3R level (97.69) on 05-23 without us. Section 13: the index topped the same week. | map.market_reading |
+| 2 | GILD | 2014-11-10 | 50 SMA | 109.07 | 106.28 | 11-12, day 2, low 105.70 | The low broke the 50-day the same day; 20 sessions later (12-09) it closed at 105.91 and it never reached 3R inside the 60-session window. | none failed; map.after_entry_stop |
+| 3 | AAPL | 2018-10-09 | 20 EMA | 56.21 | 55.00 | 10-10, day 1, low 54.01 | Closed 54.09, under the 20 EMA and the 50-day the same day; 20 sessions later (11-06) it closed at 50.94, 4.20 under the 50-day; never 3R. | none failed; map.after_entry_stop |
+| 4 | PLTR | 2025-05-20 | 10 EMA | 127.78 | 124.27 | 05-21, day 1, low 119.41 | Closed 120.58 and did not close under the 20 EMA in the next 10 sessions; it reached 3R (138.31) on 06-11 and 5R (145.33) on 06-25 without us. A one-day shakeout. | none failed; map.tries |
+
+TSLA 2024-01-08 and MU 2026-10-07 (section 13) stay in the card's list; TSLA shares a year with NVDA and MU's 5.9% stop fails map.stop_width, so they were not charted here.
+
+**Four near-misses (the chart looks like the setup; exactly one gate criterion fails).**
+
+| # | Ticker | Hold / would-be buy | The one criterion | The number | What it really is |
+|---|---|---|---|---|---|
+| 1 | IBM | 2010-08-16 / 08-17 | map.not_200_long | the line the low tagged is the 200-day SMA (122.14); 4 sessions, 2.41 ATR deep, 4.8% off the high | Which average: the 200-day is context, not a buy (map.one_setup names the 10-day, 20 EMA and 50-day). It stopped (best 0.71R). |
+| 2 | ADI | 2023-04-17 / 04-18 | map.inv_third_close | 3 closes under the 20 EMA in the 8-session pullback (rule: a third close is a skip) | How many closes under: a line sliced, not held. Fewer than 5 closes, so not a Remount either; nothing to buy. Stopped at 0R. |
+| 3 | META | 2026-10-08 / 10-09 | map.length | 10 sessions from the swing high to the touch day (rule: 2 to 8) | Longer than this card allows; on the 20 EMA a 10-session drift sits inside the 20 EMA Pullback card's 2 to 15 window, so judge it there. It reached 3R (best 3.01R) and was then stopped. |
+| 4 | AMD | 2019-02-11 / 02-12 | map.near_high | 32.7% under the 52-week high 34.14 (rule: within 25%) | A recovering stock's 10-day, not a leader's pullback (common mistake 5). Stopped at 0R. |
+
+Also found but not charted: TSM 2025-02-05 (a close under the 50-day on 4.5x the 50-day volume, map.inv_heavy_close) and WMT 2025-09-30 (2.1x).
+
+**What the failures have in common.** All four were stopped within two sessions with a best excursion of 0R. Two (GILD, AAPL) lost the 50-day on the stop day and never recovered inside the window; two (NVDA, PLTR) were shakeouts that reached 3R and 5R within four to seven weeks without us. Three of the four touch days ran on 0.7x to 0.9x volume and every pullback was 1 to 3 ATR deep, so nothing in the pattern itself told them apart from the ten winners; the rule cannot see the market (NVDA) or the news, which is why F65 sits above the setup and why a failed hold is answered with a new trigger, not a re-buy (map.tries).

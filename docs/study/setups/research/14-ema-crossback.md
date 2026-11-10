@@ -1278,3 +1278,27 @@ the scan; the short mirror (8.6) was not scanned (it is a Red-market-only propos
 side); the base rate is the raw pattern with a fixed stop, so the house plan's trims and trail would change the R
 numbers; and a scan cannot see the "clean and obvious" quality the owner grades by eye, which is why the ten were chosen
 by looking at every chart, not by best R.
+
+## 14. Failures and near-misses (from our data)
+
+Built 2026-11-10 from the same scan as section 13 (`final/hits.json`, the buy 2 cents over the hold-day high within 3 sessions, the stop 3 cents under the hold-day low). Scripts in the review scratchpad folder `setups/14-ema-crossback/`: `charts14.py` (both sets) and `near_scan14.py` (the near-misses: the scan's gates turned into flags, keeping only the candidates that fail exactly one gate criterion of the card; every pullback into the 9/20 zone within 45 sessions of a Wedge Pop is counted so the late and second-test cases can show; the 900 most liquid names of today's universe, 2005 on). Sheets in `final/`: `fail_1-4.png`, `near_1-4.png`, and `pair_11-ema20-pullback.png` (NET 2023-11-13 above ILMN 2013-12-05 from setup 11). Every chart carries the winners' levels: buy, stop, 3R, 5R, the drift box, the pop and hold marks. All numbers are read off the daily bars. The four failures are the four named in section 13; all four passed every scan rule.
+
+**Four failures (every gate passed, traded by the rules, stopped before 3R).**
+
+| # | Ticker | Entry (pop, hold) | Buy | Stop | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|---|
+| 1 | MU | 2025-08-19 (08-08, 08-18) | 123.70 | 120.63 | 08-20, day 1, low 113.46 | Closed 117.21 under the 20 EMA with the low under the 50-day the same day; it reached 3R (132.91) on 09-09 and 5R (139.05) on 09-10 without us. A shakeout. | none failed; xbk.stop |
+| 2 | LLY | 2024-09-03 (08-08, 08-30) | 961.02 | 940.48 | 09-04, day 1, low 938.01 | Closed under the 20 EMA on 09-05 and under the 50-day on 09-06; 20 sessions later (10-01) it closed at 884.48; never 3R. Sixteen sessions after the pop, late in the stock's own advance. | xbk.wedge_pop_first |
+| 3 | NFLX | 2023-04-11 (03-23, 04-06) | 34.34 | 33.23 | 04-12, day 1, low 33.00 | The report's reaction day was 04-19, five sessions after the entry; it reached 3R (37.67) on 05-26 and 5R (39.89) on 05-30 without us. | xbk.earnings_window |
+| 4 | AAPL | 2022-02-09 (01-28, 02-08) | 176.05 | 171.40 | 02-11, day 2, low 168.04 | Closed 168.64; 20 sessions later (03-10) it closed at 158.52, 5.93 under the 20 EMA; never 3R. The Nasdaq was under its 20 EMA (section 13). | xbk.index_20ema |
+
+**Four near-misses (the chart looks like the setup; exactly one gate criterion fails).**
+
+| # | Ticker | Hold / would-be buy | The one criterion | The number | What it really is |
+|---|---|---|---|---|---|
+| 1 | NOW | 2023-12-05 / 12-06 | xbk.wedge_pop_first | 26 sessions from the pop (10-27) to the hold day (rule: 3 to 20); a 2-day drift, the first test | First touch or later: a tap of a 20 EMA that had risen for five weeks, the 20 EMA Pullback card (setup 11). Best 2.38R, stopped. |
+| 2 | AMZN | 2023-11-21 / 11-22 | xbk.first_test | the second pullback into the 9/20 zone since the pop of 10-30 (rule: the first only); 16 sessions after the pop | The second rest: Kell's Base n' Break (setup 18) or a 20 EMA pullback, graded lower here. It worked (best 9.94R), but the entry is not this card's. |
+| 3 | AMAT | 2023-08-25 / 08-28 | xbk.depth | the hold day's low 2.1% under the 20 EMA (rule: at most 1%) | A deeper undercut of the line, the MAU&R shape of the Undercut and Rally (setup 29) if anything. Best 2.27R, stopped. |
+| 4 | GE | 2025-12-31 / 2026-01-02 | xbk.hold_day | the hold day closed in the lower 3% of its range (rule: the upper half) | A weak hold day: the low reached the zone but the close gave it back. It still triggered and reached 3R (best 3.5R) before the stop, which is luck, not the setup. |
+
+**What the failures have in common.** All four were stopped within two sessions with a best excursion of 0R, and in three of the four the stop day also closed under the 20 EMA or put the low under the 50-day, so the hold-day low was the right line to be out at. The two with a reason the card can name (LLY late after the pop, AAPL with the index under its 20 EMA) kept falling for a month; the two clean ones (MU, NFLX) were shakeouts that reached 3R and 5R three to seven weeks later without us, and the rule's answer is a new hold day and a new trigger (xbk.tries), not a chase.

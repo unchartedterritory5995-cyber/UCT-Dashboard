@@ -1256,9 +1256,58 @@
     "trigger": "2023-12-06",
     "criterion": "mar.stop_width",
     "note": "ETF; 200-day, Entry B, stopped at 0R. Fifty-three closes under the line, a 1.7x-volume reclaim, a tight pause, the buy over its high with a 1.6% stop under the pause low; the stop was hit the next session on the shakeout and the fund closed about 9% higher three weeks later. The Entry B stop is tight by design; on a broad index fund it was too tight for the noise. Also an ETF when the setup is written for leading stocks."
+   },
+   {
+    "ticker": "FDX",
+    "date": "2018-07-31",
+    "criterion": "mar.tries",
+    "why": "200-day, Entry A, stopped at 0R: buy 198.12, stop 195.31, stopped the next day (low 193.94) and closed back at 194.28; it reached the 3R level on 09-13 without us. A shakeout; no criterion failed."
+   },
+   {
+    "ticker": "FSLR",
+    "date": "2013-07-15",
+    "criterion": "mar.after_entry_stop",
+    "why": "50-day, Entry A, stopped at 0R: buy 50.27, stop 48.79, stopped the next day (low 48.69), lost the 50-day again on 07-17 and closed 6.30 under it 20 sessions later. No criterion failed."
+   },
+   {
+    "ticker": "RTX",
+    "date": "2017-09-27",
+    "criterion": "mar.tries",
+    "why": "200-day, Entry A, stopped at 0R: buy 73.74, stop 72.22, stopped on day 2 (09-29, low 72.05) after an undercut of the 50-day; it reached the 3R level on 12-13 without us. A shakeout."
    }
   ],
-  "limits": "Not coded: RS 80+ (C31), the market reading, B22 (the examples were checked by hand), C29, the 8-week base as a gate, and the trims. The structure alone is near a coin flip at 1R; the slope of the 200-day is the only measured cue with a visible edge. Of the 16 reclaim days behind the owner's named remounts only 4 pass every proposed rule (6.8, D-075). These are one scan's counts, not a study."
+  "limits": "Not coded: RS 80+ (C31), the market reading, B22 (the examples were checked by hand), C29, the 8-week base as a gate, and the trims. The structure alone is near a coin flip at 1R; the slope of the 200-day is the only measured cue with a visible edge. Of the 16 reclaim days behind the owner's named remounts only 4 pass every proposed rule (6.8, D-075). These are one scan's counts, not a study.",
+  "near_misses": [
+   {
+    "ticker": "CAT",
+    "date": "2025-08-20",
+    "criterion": "mar.lines",
+    "why": "the line retaken is the 20 EMA 416.86 after 9 closes under it; which average: a 20 EMA closed back over out of a decline is the Wedge Pop card, not a Remount. Reached 2.01R, then stopped."
+   },
+   {
+    "ticker": "GOOG",
+    "date": "2023-07-13",
+    "criterion": "mar.lost_line",
+    "why": "only 3 closes under the 50-day before the reclaim, under the 5 to 30 rule; how many closes under: a pullback's undercut and reclaim or an Undercut and Rally. Stopped, best 0.64R."
+   },
+   {
+    "ticker": "CRM",
+    "date": "2025-06-06",
+    "criterion": "mar.above_200",
+    "why": "the reclaim close 274.51 sat under the 200-day SMA 295.88, the 50-day under it too; Weinstein's 4B-, a read and not a buy. Stopped at 0R."
+   },
+   {
+    "ticker": "MSFT",
+    "date": "2024-11-26",
+    "criterion": "mar.not_chop",
+    "why": "12 side switches across the 200-day in the 60 sessions before the break, over the rule's 2; a chop line. Stopped at 0R."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_32-remount.png"
+  }
  },
  "question_seeds": [
   {

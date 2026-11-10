@@ -1271,9 +1271,58 @@
     "trigger": "2026-10-07",
     "criterion": "map.stop_width",
     "note": "20 EMA; a seven-day drift onto a rising 20 EMA with the 50 and 200 far below, but 16.7% off its high and with a 5.9% stop. It failed on day two and lost its 50 SMA within the week. Under A13 the trade would have been skipped or sized down."
+   },
+   {
+    "ticker": "GILD",
+    "date": "2014-11-10",
+    "criterion": "map.after_entry_stop",
+    "why": "50 SMA; buy 109.07, stop 106.28, stopped on day 2 (11-12, low 105.70) and lost the 50-day the same day; never near 3R in the window. No criterion failed; the stop did its job."
+   },
+   {
+    "ticker": "AAPL",
+    "date": "2018-10-09",
+    "criterion": "map.after_entry_stop",
+    "why": "20 EMA; buy 56.21, stop 55.00, stopped the next day (low 54.01) and lost the 50-day the same day; 20 sessions later it closed 4.20 under the 50-day. No criterion failed."
+   },
+   {
+    "ticker": "PLTR",
+    "date": "2025-05-20",
+    "criterion": "map.tries",
+    "why": "10 EMA; buy 127.78, stop 124.27, stopped the next day (low 119.41) and closed back at 120.58; it reached 3R on 06-11 and 5R on 06-25 without us. A one-day shakeout; a new trigger, not a re-buy."
    }
   ],
-  "limits": "Daily bars only; the hourly Go Signal and red-to-green variants were not scanned. No RS rating, group rank or market reading in the sandbox, so C31 and F65 were not applied. Earnings dates were used only to read the ten examples (complete from about 2005). The scan is a mechanical stand-in for the owner's judgment, not a backtest of his trade. Rejected after looking at the chart: SRPT 2012-09-27 (a drug-data gap), MSTR 2024-02-26 (parabolic), TGT 2020-07-22 and HPE 2026-04-16 (a flat 200-day just reclaimed), TEAM 2021-07-02 (a flat shelf), CINF 2019-04-10 (3R only on the reaction day)."
+  "limits": "Daily bars only; the hourly Go Signal and red-to-green variants were not scanned. No RS rating, group rank or market reading in the sandbox, so C31 and F65 were not applied. Earnings dates were used only to read the ten examples (complete from about 2005). The scan is a mechanical stand-in for the owner's judgment, not a backtest of his trade. Rejected after looking at the chart: SRPT 2012-09-27 (a drug-data gap), MSTR 2024-02-26 (parabolic), TGT 2020-07-22 and HPE 2026-04-16 (a flat 200-day just reclaimed), TEAM 2021-07-02 (a flat shelf), CINF 2019-04-10 (3R only on the reaction day).",
+  "near_misses": [
+   {
+    "ticker": "IBM",
+    "date": "2010-08-17",
+    "criterion": "map.not_200_long",
+    "why": "the line the low tagged is the 200-day SMA 122.14 (hold 08-16); which average: the 200-day is context, not a buy. Stopped, best 0.71R."
+   },
+   {
+    "ticker": "ADI",
+    "date": "2023-04-18",
+    "criterion": "map.inv_third_close",
+    "why": "3 closes under the 20 EMA in the 8-session pullback (hold 04-17); how many closes under: a line sliced, not held, and too few closes for a Remount. Stopped at 0R."
+   },
+   {
+    "ticker": "META",
+    "date": "2026-10-09",
+    "criterion": "map.length",
+    "why": "10 sessions from the swing high to the touch day, over the 2 to 8 rule (hold 10-08); on the 20 EMA that drift belongs to the 20 EMA Pullback card's 2 to 15 window. Reached 3R, then stopped."
+   },
+   {
+    "ticker": "AMD",
+    "date": "2019-02-12",
+    "criterion": "map.near_high",
+    "why": "32.7% under the 52-week high 34.14, over the 25% rule (hold 02-11); a recovering stock's 10-day, not a leader's pullback. Stopped at 0R."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_11-ema20-pullback.png"
+  }
  },
  "question_seeds": [
   {

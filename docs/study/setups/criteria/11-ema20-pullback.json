@@ -1367,9 +1367,52 @@
     "trigger": "2026-11 (before 11-08)",
     "criterion": "e20.earnings_window",
     "note": "the owner's own: closed below the 20EMA ahead of earnings knocking me out (2026-11-08). B22 allows holding through a report only at 5R."
+   },
+   {
+    "ticker": "GILD",
+    "date": "2013-08-08",
+    "criterion": "e20.tries",
+    "why": "buy 60.50, stop 59.17, stopped the next day (low 58.57) and closed back at 59.21; it reached the 3R level on 09-18 without us. A one-day shakeout; no criterion failed, and the rule's answer is a new hold session, not a re-entry."
+   },
+   {
+    "ticker": "DIS",
+    "date": "2021-01-14",
+    "criterion": "e20.tries",
+    "why": "buy 177.74, stop 173.37, stopped the next day (low 170.17); the low undercut the 50-day on 01-27 and the stock reached 5R on 02-24 without us. A shakeout; no criterion failed."
    }
   ],
-  "limits": "Trigger A (the intraday turn) could not be scanned on daily bars; the base rate is trigger B. No RS rating, group rank or market reading in the sandbox; the earnings table is complete only from about 2005. No delisted names, so the base rate leans toward survivors. The app's own v5 lab found no forward-return edge for its close entry and tag-bar-low stop. Nothing here is a published statistic."
+  "limits": "Trigger A (the intraday turn) could not be scanned on daily bars; the base rate is trigger B. No RS rating, group rank or market reading in the sandbox; the earnings table is complete only from about 2005. No delisted names, so the base rate leans toward survivors. The app's own v5 lab found no forward-return edge for its close entry and tag-bar-low stop. Nothing here is a published statistic.",
+  "near_misses": [
+   {
+    "ticker": "HD",
+    "date": "2025-02-04",
+    "criterion": "e20.above_50",
+    "why": "the hold low 401.01 sat under the 50-day SMA 408.58 (hold 02-03); which average: setup 12's 50-day form, if anything. Stopped, best 0.56R."
+   },
+   {
+    "ticker": "AAPL",
+    "date": "2022-01-12",
+    "criterion": "e20.inv_close_under",
+    "why": "3 closes under the 20 EMA in the five-session pullback, the deepest 0.73 ATR (hold 01-11); a line lost, not tapped, and too few closes for a Remount. Stopped, best 0.09R."
+   },
+   {
+    "ticker": "TSLA",
+    "date": "2025-11-03",
+    "criterion": "e20.prior_advance",
+    "why": "the best close of the prior 10 sessions sat 1.2 ATR above the 20 EMA, under the 1.5 ATR rule (hold 10-31); a stock drifting along its line with nothing to pull back from. Stopped at 0R."
+   },
+   {
+    "ticker": "INTC",
+    "date": "2017-11-21",
+    "criterion": "e20.orderly",
+    "why": "a down day in the pullback on 2.3x the 50-day volume, over the 1.5x rule (hold 11-20); distribution into the line. Stopped at 0R."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_12-ma-pullbacks.png"
+  }
  },
  "question_seeds": [
   {

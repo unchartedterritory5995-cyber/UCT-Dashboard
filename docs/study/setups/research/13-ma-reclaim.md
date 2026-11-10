@@ -1239,3 +1239,29 @@ though they were big winners: HUBS 2024-11-05 (report 2024-11-06), MSM 2016-10-3
   a tight pause, the buy over its high with a 1.6% stop under the pause low; the stop was hit the next session on the
   shakeout and the fund then closed about 9% higher three weeks later. The Entry B stop is tight by design; on a broad
   index fund it was too tight for the noise. Also an ETF when the setup is written for leading stocks.
+
+## 13. Failures and near-misses (from our data)
+
+Built 2026-11-10 from the same scan as section 12 (`final/hits.json`; all four failures are Entry A, the market order at the reclaim close, the stop 5 cents under the reclaim day's low). Scripts in the review scratchpad folder `setups/13-ma-reclaim/`: `charts13.py` (both sets) and `near_scan13.py` (the near-misses: the scan's gates turned into flags, keeping only the candidates that fail exactly one gate criterion of the card, with the 50-day allowed under the 200-day and the 20 EMA added as a third line so the wrong-line and 4B- cases can show; Entry A only; the 900 most liquid names of today's universe, 2005 on). Sheets in `final/`: `fail_1-4.png`, `near_1-4.png`, and `pair_32-remount.png` (UAL 2024-09-06 above NKE 2020-08-07 from setup 32). Every chart carries the winners' levels: buy point, stop, 3R, 5R, the box over the run under the line and the reclaim mark. All numbers are read off the daily bars.
+
+**Four failures (every gate passed, traded by the rules, stopped before 3R).**
+
+| # | Ticker | Reclaim / entry | Line | Buy | Stop | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|---|---|
+| 1 | AAPL | 2022-09-12 (A) | 200-day | 163.43 | 159.25 | 09-13, day 1, gap open 159.90, low 153.37 | Closed 153.84; 20 sessions later (10-10) it closed at 140.42, 17.83 under the 50-day; never 3R. Section 12: the S&P 500 was under its own 200-day. | mar.index_200 |
+| 2 | FDX | 2018-07-31 (A) | 200-day | 198.12 | 195.31 | 08-01, day 1, low 193.94 | Closed back at 194.28; the low undercut the 50-day that day; it reached the 3R level (206.55) on 09-13 without us. A shakeout. | none failed; mar.tries |
+| 3 | FSLR | 2013-07-15 (A) | 50-day | 50.27 | 48.79 | 07-16, day 1, low 48.69 | Lost the 50-day again on 07-17; 20 sessions later (08-12) it closed at 40.57, 6.30 under the 50-day; never 3R. | none failed; mar.after_entry_stop |
+| 4 | RTX | 2017-09-27 (A) | 200-day | 73.74 | 72.22 | 09-29, day 2, low 72.05 | The low undercut the 50-day on 09-28; it reached the 3R level (78.30) on 12-13 without us. A shakeout. | none failed; mar.tries |
+
+AMZN 2023-04-27 and IWM 2023-12-06 (section 12) stay in the card's list; AMZN was bought into its report (mar.earnings_window fails) and IWM is an ETF, so neither counts as a failure with every gate passed.
+
+**Four near-misses (the chart looks like the setup; exactly one gate criterion fails).**
+
+| # | Ticker | Reclaim day | The one criterion | The number | What it really is |
+|---|---|---|---|---|---|
+| 1 | CAT | 2025-08-20 | mar.lines | the line retaken is the 20 EMA (416.86) after 9 closes under it, 0.99 ATR deep, on 1.42x volume | Which average: a 20 EMA closed back over out of a decline is the Wedge Pop card (setup 15), not a Remount; the 50-day and 200-day were never lost. As a trade it reached 2.01R and was then stopped. |
+| 2 | GOOG | 2023-07-13 | mar.lost_line | only 3 closes under the 50-day before the reclaim (rule: 5 to 30) | How many closes under: a pullback's undercut and reclaim (setup 12, map.undercut) or an Undercut and Rally (setup 29). Best 0.64R, stopped. |
+| 3 | CRM | 2025-06-06 | mar.above_200 | the reclaim close 274.51 is under the 200-day SMA 295.88, and the 50-day (267.88) is under it too | Weinstein's 4B- (setup 10): a 50-day reclaim under a falling 200-day, a read and not a buy. Stopped at 0R. |
+| 4 | MSFT | 2024-11-26 | mar.not_chop | the close switched sides of the 200-day 12 times in the 60 sessions before the break (rule: at most 2) | A chop line; the 7 closes under were one more saw across a flat average. Stopped at 0R. |
+
+**What the failures have in common.** All four were Entry A remounts stopped within two sessions with a best excursion of 0R, and all four reclaim days ran on 1.12x to 1.49x volume, under the 1.5x grade cue. The two inside downtrends (AAPL, FSLR) kept falling and were 6 to 18 points under the 50-day a month later; the two shakeouts (FDX, RTX) undercut the 50-day on the stop day and reached 3R six to eleven weeks later without us. A remount's first test is the next session: the line held or it did not, and the rule's answer to a failed first try is a new reclaim with its own stop (mar.tries), not a lower average-in.
