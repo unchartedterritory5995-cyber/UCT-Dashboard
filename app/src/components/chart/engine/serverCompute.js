@@ -30,6 +30,10 @@
 // that could disagree with the server.
 
 import { withDerivedColumns } from './derivedColumns'
+// ⭐ U2b — the forming bar's live value for a `plots[].liveTail` (`liveTail.js`):
+// the one cell of a cached envelope that moves with price, recomputed where the
+// envelope is aligned. The module imports nothing of this one.
+import { withLiveTail, benchmarkTailFor, subscribeBenchmarkTails } from './liveTail'
 
 /** The ONE path every server-lane definition is fetched through. */
 export const SERVER_COLUMNS_PATH = '/api/signature/columns'
@@ -305,6 +309,12 @@ function _notify(key) {
   }
 }
 
+// ⭐ U2b — a landed BENCHMARK TAIL says "something landed, ask again" through the
+// same door as a landed envelope, so the chart's one listener (`useServerColumns`)
+// repaints and the binder's memo (which carries the tail's version, see
+// `nativeRegistry.computeSignature`) recomputes the forming bar.
+subscribeBenchmarkTails((key) => _notify(`liveTail:${key}`))
+
 /** ⭐ RT1 — another lane whose columns arrive AFTER the paint that asked (the
  *  runtime pane's off-thread run, `runtime/runtimeAsync.js`) says so through the
  *  same notification, so the chart's one listener (`useServerColumns`) repaints
@@ -440,7 +450,22 @@ export function serverColumnsFor(def, bars, inputs, ctx) {
   // ⭐ UCT RS design round (2026-11-08): the declared `plots[].derive` columns —
   // an event's glyph riding the line — are built here, the one place a server
   // definition's columns are aligned, from columns the envelope already carries.
-  return withDerivedColumns(def, alignColumns(parsed, bars), inputs)
+  // ⭐ U2b (RS split, 2026-11-09): and the declared `plots[].liveTail` moves the
+  // FORMING bar's cell first — the cached envelope's history is served as it is,
+  // its last cell is `close / benchmarkClose` (and the average's exact one-step
+  // continuation) on the chart's own last bar, with the benchmark's forming bar
+  // read from the bars route the candle itself is served from. Before `derive`,
+  // so a glyph that fires on the last bar rides the live line, not the stale one.
+  // Fail closed in `withLiveTail`: anything it cannot prove leaves the server's
+  // value in place.
+  const aligned = alignColumns(parsed, bars)
+  const live = withLiveTail(def, aligned, bars, inputs, {
+    scalars: parsed.payload || null, sym, tf: ctx.tf,
+    newestBarIsForming: ctx.newestBarIsForming,
+    timeKey: barTimeKey,
+    tail: (benchSym, tf) => benchmarkTailFor(benchSym, tf),
+  })
+  return withDerivedColumns(def, live, inputs)
 }
 
 /**
