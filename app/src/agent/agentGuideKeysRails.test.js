@@ -7,7 +7,7 @@ import { registerBuiltins } from './builtins'
 import { getCapability } from './capabilities'
 import { guideFeature } from './guide/registry'
 import { guideSteps } from './capabilities/guide'
-import { SHORTCUTS } from '../components/chart/keyboardShortcuts'
+import { SHORTCUTS, matchShortcut } from '../components/chart/keyboardShortcuts'
 import { CHART_KEY_ACTIONS, keyAsSaid } from './guide/keys'
 
 beforeAll(() => { registerBuiltins() })
@@ -29,6 +29,23 @@ describe('chart keys: one row per declared key, the key said exactly', () => {
     expect(keyAsSaid('Ctrl+M')).toBe('Ctrl+M (⌘M on a Mac)')
     expect(keyAsSaid('Alt+Shift+A')).toBe('Alt+Shift+A')
     expect(CHART_KEY_ACTIONS.find(r => r.id === 'key.toggle:volume').steps[0].text).toContain('Ctrl+V (⌘V on a Mac)')
+  })
+  // ⭐ the ⌘ substitution is earned per key, not granted by the word "Ctrl": a card may say ⌘ only for a key the chart's own
+  // matcher answers under metaKey exactly as under ctrlKey. A handler that checks ctrlKey alone (Ctrl+Alt+J, CWID's Journal
+  // capture) must get no Mac substitution: declaring it in SHORTCUTS as-is fails here, which is the point (findings C3-223 (b)).
+  it('every card that says ⌘ names a key the chart matches under metaKey exactly as under ctrlKey', () => {
+    const macRows = CHART_KEY_ACTIONS.filter(r => r.steps[0].text.includes('on a Mac)'))
+    expect(macRows.length).toBeGreaterThan(0)
+    for (const r of macRows) {
+      const s = SHORTCUTS.find(x => `key.${x.command}` === r.id)
+      const parts = s.keys.split('+')
+      const key = parts.at(-1).toLowerCase()
+      const mods = { altKey: parts.includes('Alt'), shiftKey: parts.includes('Shift') }
+      const asCtrl = matchShortcut({ key, ctrlKey: true, metaKey: false, ...mods })
+      const asCmd = matchShortcut({ key, ctrlKey: false, metaKey: true, ...mods })
+      expect(asCtrl, s.keys).toBeTruthy()
+      expect(asCmd, s.keys).toEqual(asCtrl)
+    }
   })
   it('Esc says it works while a drawing tool is armed', () => {
     expect(CHART_KEY_ACTIONS.find(r => r.id === 'key.tool:cursor').steps[0].text).toMatch(/while a drawing tool is armed/)
