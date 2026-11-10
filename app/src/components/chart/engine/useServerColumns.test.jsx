@@ -127,8 +127,12 @@ describe('⛔ the chart actually consumes it', () => {
     // the opening bracket matched THAT and passed vacuously. `secondarySources`
     // is the sibling lane's signal and appears in exactly one dependency array
     // — the repaint one this must join.
-    const deps = src.split(String.fromCharCode(10)).filter((l) => l.includes('secondarySources]')
-      || l.includes('secondarySources, serverColumnsGeneration]'))
+    // ⭐ RS split F4 (2026-11-10): F2/F3/U2b appended `compactAxes` after the
+    // generation, so the line no longer ENDS at `secondarySources]`. Anchor on the
+    // dependency-array close of an effect (`}, [ ... ])`) that names
+    // `secondarySources` as a whole word — still exactly one such line.
+    const deps = src.split(String.fromCharCode(10))
+      .filter((l) => /^\s*\}, \[.*\bsecondarySources\b.*\]\)\s*$/.test(l))
     expect(deps, 'the repaint dependency array moved — re-anchor this rail').toHaveLength(1)
     expect(deps[0], 'the generation reaches no dependency array')
       .toContain('serverColumnsGeneration')
