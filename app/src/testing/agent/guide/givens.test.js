@@ -42,3 +42,22 @@ describe('declared givens', () => {
     expect(g.chartSettings).toEqual({ header: { customTimeframes: ['45'] } })
   })
 })
+
+// gridOpen (2026-11-10, teach-grid-widget): the member's own Multi Chart grid, left open: the pref the grid reads on load
+// (multichart_state), read back through the grid's OWN sanitizer, so the seed is a state the app itself would have saved
+import { sanitizeState } from '../../../pages/charts/grid/gridLayouts'
+describe('gridOpen', () => {
+  it('seeds multichart_state: grid mode, 2x2, four symbols, the second chart with its own settings (Reset shows on it)', () => {
+    const g = applyGivens({}, ['gridOpen'])
+    expect(g.declared).toEqual(['gridOpen'])
+    const raw = JSON.parse(g.prefs.multichart_state)
+    expect(raw.mode).toBe('grid')
+    const s = sanitizeState(raw)
+    expect(s.layout).toBe('2x2')
+    expect(s.cells.map(c => c.sym)).toEqual(['SPY', 'QQQ', 'IWM', 'DIA'])
+    expect(s.cells.map(c => !!c.settings)).toEqual([false, true, false, false])
+    // a store seed: no board, no routes, no member act
+    expect(g.widgets).toBeUndefined()
+    expect(GIVENS.gridOpen.prelude).toBeUndefined()
+  })
+})
