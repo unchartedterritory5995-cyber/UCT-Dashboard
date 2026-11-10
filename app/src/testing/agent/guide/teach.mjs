@@ -77,7 +77,9 @@ const STATE = `(async () => {
   const box = (b) => b && [Math.round(b.left), Math.round(b.top), Math.round(b.width), Math.round(b.height)]
   // the ringed control's own parts: a row's handlers sit on one of its cells (a list row's menu is on its symbol cell)
   const kids = el ? [...el.children].slice(0, 8).map(k => k.getBoundingClientRect()).filter(b => b.width > 4 && b.height > 4).map(b => ({ x: Math.round(b.left + b.width / 2), y: Math.round(b.top + b.height / 2) })) : []
-  return { kids, pr: box(pel && pel.getBoundingClientRect()), rr: box(r), index: st.index, last: st.index === st.steps.length - 1, onPrimary: inRing(pel), text: text.slice(0, 140), ring: r && { x: r.left + r.width / 2, y: r.top + r.height / 2 }, next: next ? next.textContent.trim() : null, right: /right-click/i.test(step.text), onChart: step.target === 'chart.plot', stepText: step.text, met, field: !!el?.matches?.('input,textarea,select'), picker: /one of your (own )?lists|Click (a|the) list/i.test(step.text), chartRef: st.chartRef || null }
+  // the field a typing step means: the ringed control, or the one field inside it (a formula box's wrapper)
+  const fieldEl = el?.matches?.('input,textarea,select') ? el : (el?.querySelectorAll?.('textarea, input:not([type=hidden]):not([type=radio]):not([type=checkbox])') || []).length === 1 ? el.querySelector('textarea, input:not([type=hidden]):not([type=radio]):not([type=checkbox])') : null
+  return { kids, pr: box(pel && pel.getBoundingClientRect()), rr: box(r), index: st.index, last: st.index === st.steps.length - 1, onPrimary: inRing(pel), text: text.slice(0, 140), ring: r && { x: r.left + r.width / 2, y: r.top + r.height / 2 }, next: next ? next.textContent.trim() : null, right: /right-click/i.test(step.text), onChart: step.target === 'chart.plot', stepText: step.text, met, field: !!el?.matches?.('input,textarea,select'), fieldAt: fieldEl ? (() => { const b = fieldEl.getBoundingClientRect(); return { x: Math.round(b.left + Math.min(b.width / 2, 60)), y: Math.round(b.top + Math.min(b.height / 2, 14)) } })() : null, picker: /one of your (own )?lists|Click (a|the) list/i.test(step.text), chartRef: st.chartRef || null }
 })()`
 
 // ⭐ REGION-AWARE INPUT. A right-click the card asks for lands on the REGION it names. Candidate points come from the chart
@@ -185,9 +187,11 @@ try {
       await p.b.send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, modifiers: m, windowsVirtualKeyCode: k.charCodeAt(0) })
       await sleep(1300); continue
     }
-    // a field the card asks to type into ("Type a name for the list"): a person types something there
-    if (s.field && /\btype\b/i.test(s.stepText || '')) {
-      await p.b.click(s.ring.x, s.ring.y); await sleep(200); await p.b.type('Teach list'); await sleep(900)
+    // a field the card asks to type into ("Type a name for the list"): a person types something there, and the card's own
+    // example when it gives one ("Type a yes-or-no formula, such as close > open.")
+    if ((s.field || s.fieldAt) && /\btype\b/i.test(s.stepText || '')) {
+      const example = /\bsuch as ([^.;]+?)(?:[.;]\s|[.;]?$)/i.exec(s.stepText || '')?.[1] || 'Teach list'
+      const at = s.fieldAt || s.ring; await p.b.click(at.x, at.y); await sleep(200); await p.b.type(example); await sleep(900)
       const after = await p.b.evaluate(STATE)
       if (after && after.index === s.index && after.next) { await p.button(after.next, '[data-testid="guide-card"]'); await sleep(900) }
       continue

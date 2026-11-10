@@ -349,9 +349,11 @@ window.fetch = async (input, init) => {
     // Everything else (bars, quotes, widgets' data): try the local backend if one
     // is running; an error just leaves that widget empty. Never a write.
     // ?defs=1 — an in-page definitions store (nothing leaves this page), so a formula saved in the real builder is listed
-    if (params.get('defs') === '1' && path === '/api/user-definitions') {
+    // (the list read carries ?engine=…&graph=…: matched on the path alone)
+    if (params.get('defs') === '1' && path.split('?')[0] === '/api/user-definitions') {
       H.defs = H.defs || []
-      if (method === 'GET') return json(H.defs)
+      // the store's own list shape (hooks/useUserDefinitions.js fetcher: `{ definitions: [...] }`, anything else is "malformed")
+      if (method === 'GET') return json({ definitions: H.defs })
       if (method === 'POST') {
         const row = { def_id: `u_fixture${String(H.defs.length + 1).padStart(4, '0')}`, version: 1, rev: 1 }
         H.defs.push({ ...row, definition: { ...JSON.parse(init.body).definition, id: row.def_id, version: 1 } })
