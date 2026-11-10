@@ -440,6 +440,32 @@ GATE_READ_PATHS = (
     "docs/decisions/2026-08-06-machine-repaint-linter.md",
     "docs/superpowers/specs/2026-07-31-indicator-platform-design.md",
     # python sources the cross-lane rails read — and one they EXECUTE
+    # UCT RS split (2026-11-10): rails read these sources directly (test_rs_split_js_rows
+    # diffs the server rows against the JS definitions; test_gen_rs reads the drill bank).
+    "api/routers/signature.py",
+    "api/services/signature/registry_defs.py",
+    "api/services/signature/rs_provider.py",
+    "docs/study/bank/rs.drills.json",
+    # Reads the read-set rail (test_gate_shards) found uncovered on 2026-11-10 while the UCT RS
+    # split ran it; every one is read by a suite already on master (the closure tool is the one
+    # the split touched). Listed so a re-derivation never carries a verdict across them.
+    "api/services/bars_window.py",
+    "api/services/journal_two/note_connectors/corpora/corpora_gen.py",
+    "api/services/journal_two/note_connectors/test_connector_corpora.py",
+    "api/services/uct_agent/scan/eval/composition_flatten_cases.json",
+    "docs/agent/CHARTS_COVERAGE_MATRIX.md",
+    "docs/agent/CHARTS_TEACH_STATUS.md",
+    "docs/economic-data/integration/tools/probe.mjs",
+    "services/pine_runtime/job.mjs",
+    "services/pine_runtime/protocol.mjs",
+    "tests/test_notebook_tweet_capture.py",
+    "tools/pine_coverage/census_peel.mjs",
+    "tools/pine_runtime_closure.mjs",
+    "tools/pine_runtime_host_parity.mjs",
+    "tools/pine_survey/emit_length_qualifiers.js",
+    "tools/vendor_harness",
+    "tools/vendor_harness/strategy_capture.mjs",
+    "tools/vendor_harness/strategy_report_slots.json",
     "api/routers/auth.py",
     "api/routers/breadth_monitor.py",
     "api/routers/definition_record.py",
