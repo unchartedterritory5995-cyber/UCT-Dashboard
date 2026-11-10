@@ -545,6 +545,14 @@ def purge_breadth_ohlc_reconstructed(request: Request):
     return {"ok": True, "purged": n}
 
 
+#: The catalogue below, shared for a minute: it reads nothing about the caller and every chart
+#: mount asks for it. ⛔ INSIDE THE HANDLER, AFTER `require_bars_access` HAS RUN, AND NEVER AS
+#: `s-maxage`: an edge cache would hand the proprietary symbol list back to anonymous callers,
+#: which is the enumeration hole the gate on this route closed.
+_BREADTH_SYMBOLS_CACHE_KEY = "chart_catalogue_breadth_symbols"
+_BREADTH_SYMBOLS_TTL = 60
+
+
 @router.get("/api/breadth-symbols")
 def get_breadth_symbols(_access: dict = Depends(require_bars_access)):
     """Catalog of the UCT breadth pseudo-tickers (UCTA50 etc.) so the chart UI can
@@ -558,6 +566,9 @@ def get_breadth_symbols(_access: dict = Depends(require_bars_access)):
     their full history from `/api/bars/{sym}`. Naming the product's own breadth
     measures is not a lesser disclosure when the data behind them is what is sold.
     """
+    cached = cache.get(_BREADTH_SYMBOLS_CACHE_KEY)
+    if cached is not None:
+        return cached
     from api.services import breadth_symbols as bs
     # ⭐ `library` IS ADDITIVE. The Breadth Library's richer view rides beside
     # `symbols`/`groups` so one fetch serves both, rather than a second endpoint the
@@ -575,7 +586,7 @@ def get_breadth_symbols(_access: dict = Depends(require_bars_access)):
     # ⚠️ WITH NO PUBLICATION FLAGS THIS IS BYTE-IDENTICAL to what it has always
     # returned: the same 44 rows, same order, same keys. `test_the_dark_payload_is_
     # byte_identical_to_the_legacy_projection` pins that.
-    return {
+    body = {
         "symbols": bs.list_breadth_symbols(),
         "groups": [{"id": g, "label": bs.LIST_META[g]["label"],
                     "list_name": bs.LIST_META[g]["list_name"]} for g in bs.GROUP_ORDER],
@@ -584,6 +595,8 @@ def get_breadth_symbols(_access: dict = Depends(require_bars_access)):
         # `symbols` stays byte-identical to the legacy projection every consumer parses.
         "display_symbols": bs.display_symbols(),
     }
+    cache.set(_BREADTH_SYMBOLS_CACHE_KEY, body, ttl=_BREADTH_SYMBOLS_TTL)
+    return body
 
 
 @router.get("/api/breadth-monitor/library-health")
