@@ -46,7 +46,8 @@ export function checkOne([path, op, want], before, after) {
 }
 
 // A chart's fingerprint. Only what the mode can read takes part.
-const CHART_KEYS = ['sym', 'tf', 'scale', 'session', 'volume', 'chips', 'type', 'panes', 'settingsHash', 'pixels']
+// `cell` (a Multi Chart cell maximized / forked) is read only on a board that names the 'grid' read: elsewhere it is undefined everywhere
+const CHART_KEYS = ['sym', 'tf', 'scale', 'session', 'volume', 'chips', 'type', 'panes', 'settingsHash', 'pixels', 'cell']
 export const chartPrint = (c, un = []) => JSON.stringify(CHART_KEYS.filter(k => !un.includes(k)).map(k => c?.[k]))
 export function worldPrint(s) {
   const un = s.unreadable || []
@@ -56,6 +57,8 @@ export function worldPrint(s) {
     wl: s.wl,
     drawings: Object.fromEntries(Object.entries(s.drawings || {}).map(([k, d]) => [k, d.length])),
     alerts: (s.alerts || []).length, ialerts: (s.ialerts || []).length, layouts: s.layouts,
+    // only on a board that reads them (boards.mjs `reads`): undefined, and so left out, everywhere else
+    grid: s.grid, wlCols: s.wlCols,
   })
 }
 // `pixels` shift with the view (a timeframe round trip reopens a few bars off, for a person too), so Undo compares state

@@ -22,6 +22,8 @@ import { unseen13 } from './families/unseen13.mjs'
 import { unseen14 } from './families/unseen14.mjs'
 import { unseen15 } from './families/unseen15.mjs'
 import { unseen16 } from './families/unseen16.mjs'
+import { unseen17 } from './families/unseen17.mjs'
+import { unseen18 } from './families/unseen18.mjs'
 
 export function publicRequests() {
   const L = []
@@ -152,6 +154,20 @@ export function unseen16Requests() {
   const L = []
   unseen16(L)
   return L.map(r => ({ ...r, set: 'unseen16' }))
+}
+
+/** Batch 17, MULTI CHART GRID (2026-11-10): multiChart.set / multiChart.cell in pl-auto's own words, written before any run and before pl-grid's branch lands. */
+export function unseen17Requests() {
+  const L = []
+  unseen17(L)
+  return L.map(r => ({ ...r, set: 'unseen17' }))
+}
+
+/** Batch 18, DATA WIDGETS + WATCHLIST (2026-11-10): widget action / colour / look rows, Flagged rename, arrangeColumns, showList, exportList; written before any run and before pl-widget's branch lands. */
+export function unseen18Requests() {
+  const L = []
+  unseen18(L)
+  return L.map(r => ({ ...r, set: 'unseen18' }))
 }
 
 /** The set's identity: the owner's authorization names it, so editing the set after approval voids the approval. */

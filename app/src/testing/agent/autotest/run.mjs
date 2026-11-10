@@ -1,6 +1,6 @@
 // UCT Agent AUTOTEST: the runner. Local harness by default, free by default.
 //
-//   node src/testing/agent/autotest/run.mjs --mode browser-mock [--sample 2] [--ids regex] [--set public|heldout|unseen|unseen2|unseen3|unseen4|unseen5|unseen6|unseen7|unseen8|unseen9|unseen10|unseen11|unseen12|unseen13|unseen14|unseen15|unseen16|followup3|all] [--env VITE_FLAG=1]... [--out dir] [--cache dir] [--port 5303]
+//   node src/testing/agent/autotest/run.mjs --mode browser-mock [--sample 2] [--ids regex] [--set public|heldout|unseen|unseen2|unseen3|unseen4|unseen5|unseen6|unseen7|unseen8|unseen9|unseen10|unseen11|unseen12|unseen13|unseen14|unseen15|unseen16|unseen17|unseen18|followup3|all] [--env VITE_FLAG=1]... [--out dir] [--cache dir] [--port 5303]
 //     BROWSER-MOCK-MODEL owns its dev server (selectionServe.mjs) unless BA_BASE is set: it starts here and dies with the process
 //   node src/testing/agent/autotest/run.mjs --mode real-model --target local|production --stage <name>
 //   node src/testing/agent/autotest/run.mjs --lint          the set's own checks, sizes and hash (free)
@@ -12,7 +12,7 @@ import { parseArgs } from 'node:util'
 import { join } from 'node:path'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
-import { publicRequests, unseenRequests, unseen2Requests, unseen3Requests, followup3Requests, unseen4Requests, unseen5Requests, unseen6Requests, unseen7Requests, unseen8Requests, unseen9Requests, unseen10Requests, unseen11Requests, unseen12Requests, unseen13Requests, unseen14Requests, unseen15Requests, unseen16Requests, sample, setHash } from './requests.mjs'
+import { publicRequests, unseenRequests, unseen2Requests, unseen3Requests, followup3Requests, unseen4Requests, unseen5Requests, unseen6Requests, unseen7Requests, unseen8Requests, unseen9Requests, unseen10Requests, unseen11Requests, unseen12Requests, unseen13Requests, unseen14Requests, unseen15Requests, unseen16Requests, unseen17Requests, unseen18Requests, sample, setHash } from './requests.mjs'
 import { lint, summarize, loadManifest } from './lint.mjs'
 import { blobInfo, loadHeldout } from './heldout.mjs'
 import { say, rowOf, writeFailure, finish } from './report.mjs'
@@ -48,7 +48,7 @@ if (A['guard-check'] || A.mode === 'real-model') {
 
 const list = (() => {
   if (MODE === 'REAL-MODEL') return stageList(A.stage, pub, A.stage === 'heldout' ? loadHeldout() : [])
-  let L = A.set === 'heldout' ? loadHeldout() : A.set === 'unseen' ? unseenRequests() : A.set === 'unseen2' ? unseen2Requests() : A.set === 'unseen3' ? unseen3Requests() : A.set === 'followup3' ? followup3Requests() : A.set === 'unseen4' ? unseen4Requests() : A.set === 'unseen5' ? unseen5Requests() : A.set === 'unseen6' ? unseen6Requests() : A.set === 'unseen7' ? unseen7Requests() : A.set === 'unseen8' ? unseen8Requests() : A.set === 'unseen9' ? unseen9Requests() : A.set === 'unseen10' ? unseen10Requests() : A.set === 'unseen11' ? unseen11Requests() : A.set === 'unseen12' ? unseen12Requests() : A.set === 'unseen13' ? unseen13Requests() : A.set === 'unseen14' ? unseen14Requests() : A.set === 'unseen15' ? unseen15Requests() : A.set === 'unseen16' ? unseen16Requests() : A.set === 'all' ? [...pub, ...loadHeldout()] : pub
+  let L = A.set === 'heldout' ? loadHeldout() : A.set === 'unseen' ? unseenRequests() : A.set === 'unseen2' ? unseen2Requests() : A.set === 'unseen3' ? unseen3Requests() : A.set === 'followup3' ? followup3Requests() : A.set === 'unseen4' ? unseen4Requests() : A.set === 'unseen5' ? unseen5Requests() : A.set === 'unseen6' ? unseen6Requests() : A.set === 'unseen7' ? unseen7Requests() : A.set === 'unseen8' ? unseen8Requests() : A.set === 'unseen9' ? unseen9Requests() : A.set === 'unseen10' ? unseen10Requests() : A.set === 'unseen11' ? unseen11Requests() : A.set === 'unseen12' ? unseen12Requests() : A.set === 'unseen13' ? unseen13Requests() : A.set === 'unseen14' ? unseen14Requests() : A.set === 'unseen15' ? unseen15Requests() : A.set === 'unseen16' ? unseen16Requests() : A.set === 'unseen17' ? unseen17Requests() : A.set === 'unseen18' ? unseen18Requests() : A.set === 'all' ? [...pub, ...loadHeldout()] : pub
   if (A.ids) { const re = new RegExp(A.ids); L = L.filter(r => re.test(r.id)) }
   if (A.sample) L = sample(L, Number(A.sample))
   return L

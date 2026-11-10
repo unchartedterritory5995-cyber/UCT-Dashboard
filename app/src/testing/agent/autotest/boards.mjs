@@ -35,6 +35,32 @@ const nine = () => [['c-tl', 'A', 0, 0], ['c-tm', 'B', 6, 0], ['c-tr', 'C', 12, 
 const one = () => [chart('w-chart-a', 'A', 0, 0, 18, 20), WATCH()]
 const scan = () => [chart('w-chart-a', 'A', 0, 0, 12, 20), { id: 'w-scan', type: 'scanner', color: 'A', x: 12, y: 0, w: 12, h: 20, opts: {} }]
 
+
+// ── Multi Chart GRID boards (unseen17): agent-harness.html?multichart=<name> (MC_GRIDS there). Cell ids g0.. in reading order;
+// each role's position is the grid's own word for it (host.js gridPositionWord). `reads: ['grid']`: the snapshot carries the grid
+// as persisted (layout, syncs, forked cells) and the maximized cell / Shared Chart Settings on screen
+const gpos = (i, rows, cols) => {
+  const w = (k, n, a, b) => (n === 1 ? '' : k === 0 ? a : k === n - 1 ? b : n === 3 ? 'middle' : null)
+  const v = w(Math.floor(i / cols), rows, 'top', 'bottom'), h = w(i % cols, cols, 'left', 'right')
+  return v == null || h == null ? null : [v, h].filter(Boolean).join('-')
+}
+const ROLE = { 'top-left': 'TL', 'top-middle': 'TM', 'top-right': 'TR', 'middle-left': 'ML', 'middle-middle': 'MM', 'middle-right': 'MR', 'bottom-left': 'BL', 'bottom-middle': 'BM', 'bottom-right': 'BR' }
+const gridRoles = (syms, rows, cols) => Object.fromEntries(syms.map((sym, i) => { const position = gpos(i, rows, cols); return [ROLE[position], { id: `g${i}`, sym, position }] }))
+const gridBoard = (name, syms, rows, cols) => ({ roles: gridRoles(syms, rows, cols), browser: { query: `multichart=${name}&layouts=1` }, sim: null, reads: ['grid'] })
+const S4 = ['SPY', 'NVDA', 'AMD', 'TSLA'], S6 = ['QQQ', 'SPY', 'NVDA', 'TSLA', 'AMD', 'AAPL'], S9 = ['SPY', 'QQQ', 'NVDA', 'TSLA', 'AMD', 'AAPL', 'MSFT', 'META', 'AVGO']
+
+// ── data widgets + Watchlist boards (unseen18): the widgets' own fetches answered by the harness (?board=widgets), scan fetches
+// counted. DATA: one Scanner, one Period Sort, one Watchlist (Momentum). DATA2: two Scanners and two Watchlists (Momentum, Swing).
+// DATAF: the Watchlist on Flagged. A saved watchlist look "Paper" exists (watchlist_templates)
+const PAPER = { id: 'tpl-paper', name: 'Paper', settings: { bgMode: 'solid', bg: '#ffffff', textColor: '#1f2328', upColor: '#17a917', downColor: '#db000b', showLogos: false, tintEnabled: false } }
+const WG = (id, type, x, y, w, h, opts) => ({ id, type, color: 'A', x, y, w, h, opts })
+const SCAN1 = (id = 'w-scan', y = 0) => WG(id, 'scanner', 8, y, 8, 10, { scanKey: 'ipo-1y', scanName: 'IPOs' })
+const SCAN2 = () => WG('w-scan2', 'scanner', 8, 10, 8, 10, { scanKey: 'top-gainers-30d', scanName: 'Top Gainers 30D' })
+const PSORT = () => WG('w-psort', 'periodsort', 8, 10, 8, 10, { start: 20261001, end: 20261102 })
+const WLW = (id, key, name, y = 0, h = 20) => WG(id, 'watchlist', 16, y, 8, h, { watchKey: key, watchName: name, watchTab: 'mine' })
+const dataPrefs = (widgets) => ({ ...prefsOf(widgets, GROUPS), watchlist_templates: JSON.stringify([PAPER]) })
+const dataBoard = (widgets, doors) => ({ roles: { A: { id: 'w-chart-a', position: null, sym: 'SPY' } }, browser: { query: 'board=widgets', prefs: dataPrefs(widgets), waitDoors: doors }, sim: null, reads: ['wlCols', 'scanGets'] })
+
 export const BOARDS = {
   TWO: {
     roles: { A: { id: 'w-chart-a', position: 'left', sym: 'SPY' }, B: { id: 'w-chart-b', position: 'right', sym: 'AAPL' } },
@@ -127,6 +153,12 @@ export const BOARDS = {
     browser: { query: 'multichart=1' },
     sim: null,        // Multi Chart's cells are real only in a browser
   },
+  G4: gridBoard('g4', S4, 2, 2), G4F: gridBoard('g4f', S4, 2, 2), G4X: gridBoard('g4x', S4, 2, 2),
+  G6: gridBoard('g6', S6, 2, 3), G6F: gridBoard('g6f', S6, 2, 3), G9: gridBoard('g9', S9, 3, 3),
+  GWS: gridBoard('ws', S4, 2, 2),       // the grid is kept, the Charts board is on screen: its cells are not mounted
+  DATA: dataBoard([chart('w-chart-a', 'A', 0, 0, 8, 20), SCAN1(), PSORT(), WLW('w-watch', 'user:m1', 'Momentum')], ['w-scan', 'w-watch']),
+  DATA2: dataBoard([chart('w-chart-a', 'A', 0, 0, 8, 20), SCAN1(), SCAN2(), WLW('w-watch', 'user:m1', 'Momentum', 0, 10), WLW('w-watch2', 'user:s1', 'Swing', 10, 10)], ['w-scan', 'w-scan2', 'w-watch', 'w-watch2']),
+  DATAF: dataBoard([chart('w-chart-a', 'A', 0, 0, 8, 20), SCAN1(), WLW('w-watch', 'flagged', 'Flagged')], ['w-scan', 'w-watch']),
 }
 
 export const roleOf = (boardName, role) => BOARDS[boardName]?.roles?.[role]

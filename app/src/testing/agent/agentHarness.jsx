@@ -105,19 +105,37 @@ const WL = WATCHLISTS ? [
   wlRow('s1', 'Swing', ['MSFT']),
   wlRow('l1', 'Long Term', []),
 ] : []
+const MC_SYMS4 = ['SPY', 'NVDA', 'AMD', 'TSLA']
+const MC_SYMS6 = ['QQQ', 'SPY', 'NVDA', 'TSLA', 'AMD', 'AAPL']
+const MC_SYMS9 = ['SPY', 'QQQ', 'NVDA', 'TSLA', 'AMD', 'AAPL', 'MSFT', 'META', 'AVGO']
+const MC_GRIDS = {
+  g4: { layout: '2x2', syms: MC_SYMS4 }, g4f: { layout: '2x2', syms: MC_SYMS4, fork: true },
+  g4x: { layout: '2x2', syms: MC_SYMS4, syncCrosshair: true, syncTimeRange: true },
+  g6: { layout: '2x3', syms: MC_SYMS6 }, g6f: { layout: '2x3', syms: MC_SYMS6, fork: true },
+  g9: { layout: '3x3', syms: MC_SYMS9 },
+  ws: { layout: '2x2', syms: MC_SYMS4, mode: 'workspace' },
+}
+function mcState(v) {
+  const g = MC_GRIDS[v]
+  if (!g) {
+    return { mode: 'grid', layout: '2x2', syncTimeRange: v === 'sync',
+      cells: [{ id: 'g0', sym: 'NVDA', tf: 'D' }, { id: 'g1', sym: 'AMD', tf: 'D' }, { id: 'g2', sym: 'TSLA', tf: 'D' }, { id: 'g3', sym: null, tf: 'D' }] }
+  }
+  return { mode: g.mode || 'grid', layout: g.layout, syncCrosshair: !!g.syncCrosshair, syncTimeRange: !!g.syncTimeRange, groupsMode: false, group: null,
+    cells: g.syms.map((sym, i) => ({ id: `g${i}`, sym, tf: 'D', ...(g.fork ? { settings: { invertScale: false } } : {}) })) }
+}
 const PREFS = {
   charts_workspace_layout: JSON.stringify({ version: 1, cols: 24, widgets }),
   charts_workspace_groups: JSON.stringify({ A: 'SPY', B: 'NVDA', C: 'AAPL', D: 'MSFT' }),
   theme: THEME,
   ...(LAYOUTS ? { charts_active_template: JSON.stringify({ id: 11, name: 'Agent Test', scope: 'user' }) } : {}),
-  // ?multichart=1 — the workspace opens in Multi Chart: a 2×2 grid, one cell empty (=sync: time-range sync on)
-  ...(params.has('multichart') ? { multichart_state: JSON.stringify({
-    mode: 'grid', layout: '2x2', syncTimeRange: params.get('multichart') === 'sync',
-    cells: [{ id: 'g0', sym: 'NVDA', tf: 'D' }, { id: 'g1', sym: 'AMD', tf: 'D' }, { id: 'g2', sym: 'TSLA', tf: 'D' }, { id: 'g3', sym: null, tf: 'D' }],
-  }) } : {}),
+  // ?multichart=1 — the workspace opens in Multi Chart: a 2×2 grid, one cell empty (=sync: time-range sync on).
+  // Named grids (MC_GRIDS, above): g4 / g6 / g9 are full 2×2 / 2×3 / 3×3 grids, an `f` suffix gives every cell its own
+  // settings (a forked cell), g4x has both syncs on, ws is a 2×2 grid kept while the Charts board is on screen
+  ...(params.has('multichart') ? { multichart_state: JSON.stringify(mcState(params.get('multichart'))) } : {}),
 }
 
-const H = (window.__agentHarness = { refused: [], turns: [], records: [], conversations: new Map(), lib: LIB, layoutWrites: [], wl: WL, wlWrites: [] })
+const H = (window.__agentHarness = { refused: [], turns: [], records: [], conversations: new Map(), lib: LIB, layoutWrites: [], wl: WL, wlWrites: [], prefs: PREFS })
 // ANOTHER SESSION: write a preference on the 'server' without this page knowing
 // (exactly what a second tab/device does — this tab never re-reads after load).
 H.remoteWrite = (key, value) => { PREFS[key] = typeof value === 'string' ? value : JSON.stringify(value) }
@@ -170,6 +188,13 @@ window.fetch = async (input, init) => {
       if (LIB.mine.some(r => r.id !== row.id && r.name === body.name)) return json({ detail: 'You already have a layout with that name' }, 409)
       row.name = body.name
       return json(row)
+    }
+    // DELETE removes one of "your" layouts (a saved grid's ✕), as the real route does; a prebuilt is refused
+    if (method === 'DELETE' && m) {
+      const i = LIB.mine.findIndex(r => r.id === Number(m[1]))
+      if (i < 0) return json({ detail: 'Not found' }, 404)
+      LIB.mine.splice(i, 1)
+      return json({ ok: true })
     }
     return json({ detail: 'refused by harness' }, 403)
   }
@@ -278,7 +303,8 @@ window.fetch = async (input, init) => {
     if (path.startsWith('/api/calendar/')) return json({})
     if (route === '/api/calendar') return json({ days: {}, econ: {} })
     if (route === '/api/snapshot') return json(SNAPSHOT_FIXTURE)
-    if (path.startsWith('/api/scans/')) return json({ results: [{ sym: 'AAA' }, { sym: 'BBB' }], as_of: '2026-11-05T15:00:00Z' })
+    // every scan fetch is COUNTED (H.scanGets, by route), so a widget's own Refresh can be seen to refetch
+    if (path.startsWith('/api/scans/')) { ;(H.scanGets = H.scanGets || []).push(route); return json({ results: [{ sym: 'AAA' }, { sym: 'BBB' }], as_of: '2026-11-05T15:00:00Z' }) }
     if (route === '/api/scatter/metrics') return json({ metrics: [
       { key: 'rvol', label: 'RVOL', group: 'Volume', unit: 'x', live: true }, { key: 'chg_today', label: 'Change', group: 'Price', unit: 'pct', live: true },
       { key: 'adr', label: 'ADR %', group: 'Price', unit: 'pct' },

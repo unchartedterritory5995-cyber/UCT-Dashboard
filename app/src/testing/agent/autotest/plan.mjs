@@ -35,7 +35,10 @@ export function resolveToken(v, body, boardName) {
     case 'ie': return byRole(body, boardName, a, 'indicatorEdits')?.ref ?? miss
     case 'dr': return byRole(body, boardName, a, 'drawings')?.ref ?? miss
     case 'list': return (ctx[a] || [])[0]?.ref ?? miss
-    case 'view': return (ctx.listViews || [])[0]?.ref ?? miss
+    // $view = the first list view; $view:<list name> = the list view showing that list
+    case 'view': return (a ? (ctx.listViews || []).find(x => x.name === a) : (ctx.listViews || [])[0])?.ref ?? miss
+    // the Multi Chart grid (its context section is one object, not a list)
+    case 'grid': return ctx.multiChart?.ref ?? miss
     case 'wl': return (ctx.watchlists || []).find(w => w.name === a)?.ref ?? miss
     case 'inst': {
       const re = new RegExp(b, 'i')

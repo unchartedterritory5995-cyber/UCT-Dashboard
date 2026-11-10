@@ -27,6 +27,38 @@ export async function snapshot(p, boardName) {
     return { wl: Object.fromEntries((H.wl || []).map(w => [w.name, w.items.map(i => i.sym)])), wlNotes: Object.fromEntries((H.wl || []).map(w => [w.name, Object.fromEntries(w.items.filter(i => i.notes).map(i => [i.sym, i.notes]))])), drawings: draw, alerts: B.alerts || [], ialerts: B.ialerts || [],
       layouts: (H.lib?.mine || []).map(l => l.name), written: B.written, layoutWrites: (H.layoutWrites || []).map(w => [w.method, w.body && w.body.name]), screens: (B.screens || []).map(s => s.name) }
   })()`)
+  // a board that names extra READS (boards.mjs `reads`) gets them: the Multi Chart grid as persisted plus its maximized cell and
+  // Shared Chart Settings dialog on screen ('grid'), the watchlist columns as saved ('wlCols'), the scan fetches ('scanGets').
+  // Other boards' snapshots are unchanged
+  const reads = BOARDS[boardName].reads || []
+  if (reads.length) {
+    if (reads.includes('grid')) await sleep(900)        // the grid persists 500 ms after a change (useMultiChartState scheduleSave)
+    const extra = await p.b.evaluate(`(() => {
+      const H = window.__agentHarness || {}, want = ${q(reads)}, out = {}
+      const js = (s) => { try { return JSON.parse(s || 'null') } catch { return null } }
+      if (want.includes('grid')) {
+        const s = js((H.prefs || {}).multichart_state)
+        const maxEl = document.querySelector('[class*="cellMaximized"] [data-widget-id]')
+        const dlg = [...document.querySelectorAll('[role="dialog"]')].some(d => /Shared Chart Settings/i.test(d.textContent || ''))
+        out.grid = s ? { open: !!document.querySelector('[data-grid-cell-id]'), mode: s.mode || null, layout: s.layout || null, cells: (s.cells || []).length,
+          syms: (s.cells || []).map(c => c.sym || null), forked: (s.cells || []).map(c => !!c.settings), syncCrosshair: !!s.syncCrosshair,
+          syncTimeRange: !!s.syncTimeRange, groupsMode: !!s.groupsMode, max: maxEl ? maxEl.dataset.widgetId : null, settingsOpen: dlg } : null
+      }
+      if (want.includes('wlCols')) { out.wlCols = {}; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (/^uct\.watchlist\.cols/.test(k)) out.wlCols[k] = js(localStorage.getItem(k)) } }
+      if (want.includes('scanGets')) {
+        const g = H.scanGets || [], byRoute = {}
+        for (const r of g) byRoute[r] = (byRoute[r] || 0) + 1
+        out.scanGets = { all: g.length, period: g.filter(r => /period-change/.test(r)).length, scanner: g.filter(r => !/period-change/.test(r)).length, byRoute }
+      }
+      return out
+    })()`)
+    Object.assign(raw, extra)
+    if (extra.grid) for (const [role, r] of Object.entries(BOARDS[boardName].roles)) {
+      if (!charts[role] || charts[role].gone) continue
+      const i = extra.grid.syms.length ? Number(String(r.id).replace(/^g/, '')) : -1
+      charts[role].cell = `${extra.grid.max === r.id ? 'max' : ''}|${extra.grid.forked[i] ? 'fork' : ''}`
+    }
+  }
   const drawings = Object.fromEntries(Object.entries(raw.drawings).filter(([, v]) => Array.isArray(v) && v.length))
   const faces = {}
   const harness = await p.b.evaluate('!!window.__ba')     // on production a widget's face holds real values: never read
