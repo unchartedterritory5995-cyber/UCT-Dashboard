@@ -190,6 +190,32 @@ def _other_methods() -> list:
 
 
 def _rs_rank_method() -> dict:
+    """The RS Rank method, READ FROM THE FLAG that decides which rating the
+    column carries (RS split unit U5a). Off: the hourly weighted-return
+    percentile, as before. On (``RS_RANK_IBD_ENABLED``): the column is the
+    nightly IBD-style RS Rating, the same number as the RS Rating column and
+    the chart's UCT RS, with the hourly rank only where a name has no stored
+    rating; the prose says so, and says the number moves once a night."""
+    from api.services import rs_ranking as _rsr                 # noqa: PLC0415
+    if _rsr.rs_rank_ibd_enabled():
+        p = _rs_params()
+        return {
+            "column": "rs_rank", "label": "RS Rank",
+            "one_line": "The nightly IBD-style RS Rating, 1-99: one number, the same as "
+                        "the chart's UCT RS and the RS Rating column.",
+            "scale": f"1-{p['max']}, higher is stronger",
+            "how": (f"Since the two were unified, this column IS the RS Rating: over the "
+                    f"stock's daily closes, {_ibd_formula_prose(p)}, ranked as a percentile "
+                    f"across the cap universe excluding ETFs. It is written once a night by "
+                    f"the 04:15 ET rating job and does not move during the session. Where a "
+                    f"name has no stored rating for the newest session, the hourly weighted "
+                    f"return rank (" + _rs_terms_prose() + ") stands in and the row's "
+                    f"source says so."),
+            "caveat": ("The universe is our own coverage list minus ETFs, not the whole "
+                       "market, so the rank is relative to what we screen. RS Ret is still "
+                       "the hourly weighted return, so this column is no longer its "
+                       "percentile; read RS Rating and RS Rank as one number."),
+        }
     return {
         "column": "rs_rank", "label": "RS Rank",
         "one_line": "Price performance rank against the whole universe, 1-99.",
