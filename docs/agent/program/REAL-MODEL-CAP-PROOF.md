@@ -110,6 +110,12 @@ pytest, that fakes `PYTEST_CURRENT_TEST`, sets all three overrides to a temp dir
 The mutation was run by editing the two call sites out, running the rail, then `git checkout --` the files. The no-key
 control shows that the fake client is reachable, so the refusal in row 1 can only come from the rail.
 
+**Accepted residual (AUDIT GO at `d22bd7675d`).** The rail reads key PRESENCE from the process ENVIRONMENT at the time of
+the call. Code that built a client from the key and then unset `UCT_AGENT_EVAL_API_KEY` / `ANTHROPIC_API_KEY` before calling
+`guarded_call` would get past it. Nothing does that today: every paid tool builds its client from `preflight()`'s key and
+leaves the environment as it is. Getting past the rail would take deliberately written code. The production reserve does not
+depend on a key at all: it refuses under any override.
+
 ## 3. Concurrency: atomic reserve
 
 **Ledger cap (atomic before and after the fix).** `Ledger.reserve` runs `BEGIN IMMEDIATE`, takes SQLite's RESERVED write
