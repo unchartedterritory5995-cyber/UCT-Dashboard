@@ -47,6 +47,8 @@ zoom row.
 | `bcf63dab91` | product fix: whole-chord matching; several keys at once are not one card (rails extended) |
 | `465729f386` | harness: expected.json assignments, cases regenerated 318 → 324 (none lost) |
 | `49a75abad4` | R-RAW browser evidence, committed before it was interpreted |
+| `be63593084` | this doc |
+| `de5fa21feb` | chore: golden manifest and SAT-1 section B copy gain the one enum id `chartKey` (as `fe482e46bd` did for `control`) |
 
 ## Assignments (expected.json; each keeps its former feature in `was`)
 | row | was | now |
@@ -74,7 +76,13 @@ reaches alertPrice.
     are 0 console errors.
 - **Bytes:** `bytes.notebook_first_open` is 2,254,173 B on both this branch and master `dfc645ccb3`. The delta is 0 and the
   budget is 2,260,793 B.
-- **Full suite:** see the PR body (one locked run on the head handed to AUDIT).
+- **Full suite:** the locked run on `be63593084` hit the 40-minute limit with 4523 of 4582 files done, on a loaded machine.
+  - The 51 files it failed were rerun on master `dfc645ccb3` in the same worktree, and on the branch with the 59 files it never
+    reached.
+  - The only failures not also on master were the golden manifest, the /charts surface manifest and the SAT-1 planner
+    requests. Each was the new `chartKey` enum id, and `de5fa21feb` fixes them. pineStrictCensus failed under load and
+    passes alone.
+  - A complete locked run on the final head still has to be done on a quiet machine.
 
 ## Findings: not taught
 - **C3-223 Ctrl+Alt+J.** This is a raw keydown listener (`ChartsWorkspace.jsx` ~2843, `ChartWidget.jsx` ~591) that
