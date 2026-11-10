@@ -893,7 +893,8 @@ export function withheldPlotsOf(clockReport, cols, notes) {
   if (!clockReport) return out
   for (const r of clockReport.withheld) {
     const what = r.code.startsWith('bar-index:') ? '`bar_index`'
-      : (r.code.startsWith('running-total:') ? 'a running total' : 'time(<timeframe>)')
+      : r.code.startsWith('running-total:') ? 'a running total'
+        : r.code.startsWith('var-origin:') ? '`var`' : 'time(<timeframe>)'
     notes.push(`${what} withheld (${r.code}) on ${r.plots.length} plot(s) — ${r.reason}`)
     const whole = CHART_CLOCK_WHOLE.includes(r.code)
     for (const key of r.plots) {
