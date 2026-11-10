@@ -1,5 +1,5 @@
-// Task 7: where a bare first open lands. Owner decision 1 / P1 (first pinned screen with >= 10
-// matches, else the first pinned) and Perf 3 (seeded from the last-known pins, reconciled when the
+// Task 7: where a bare first open lands. Owner decision (speed-3): the member's last-used screen, or the first pinned
+// screen for a first-timer, never waiting on counts and Perf 3 (seeded from the last-known pins, reconciled when the
 // server answers unless the member has touched the page).
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
@@ -16,7 +16,7 @@ vi.mock('../../../../utils/prefetchBars', () => ({ prefetchBars: () => {}, prefe
 import FocusScreener from '../FocusScreener'
 import { AuthContext } from '../../../../context/AuthContext'
 import { __resetCountCache } from '../useLazyCounts'
-import { landingSeedKey } from '../landing'
+import { landingSeedKey, lastScreenKey } from '../landing'
 
 const META = { filters: [], categories: [], views: [{ key: 'overview', columns: ['ticker', 'price'] }] }
 const rows = [{ ticker: 'MU', price: 956.12, chg_pct_1d: -3.7, base_render: 'Flat Base', vol_ratio: 0.8 },
@@ -70,36 +70,70 @@ const scanMins = () => fetch.mock.calls.filter(([u]) => String(u) === '/api/scre
 const pin = ids => localStorage.setItem('uct.screener.pinned', JSON.stringify(ids))
 const seed = (items, who = 'member-a') => localStorage.setItem(landingSeedKey(who), JSON.stringify(items))
 
-test('P1: lands on the first pinned screen with at least 10 matches, and scans only it', async () => {
+const openMenu = async () => {
+  await waitFor(() => screen.getByRole('button', { name: /Change screen/ }))
+  fireEvent.click(screen.getByRole('button', { name: /Change screen/ }))
+}
+test('owner decision: a first-timer lands on the first pinned screen without waiting for any count', async () => {
+  fail = true                     // /count/batch never answers
   pin([THIN.id, WIDE.id])
   mount()
-  await waitFor(() => expect(screen.getByRole('button', { name: /Wide screen/ })).toBeInTheDocument())
-  await waitFor(() => screen.getByTestId('focus-row-MU'))
-  await new Promise(r => setTimeout(r, 400))
-  expect(scanMins()).toEqual([70])
-})
-test('P1: when no pinned screen has 10 matches, lands on the first pinned', async () => {
-  countsByMin = { 95: 3, 70: 9 }
+  await waitFor(() => expect(scanMins()).toEqual([95]), { timeout: 800 })
+  expect(screen.getByRole('button', { name: /Thin screen/ })).toBeInTheDocument()
+}, 6000)
+test('owner decision: the landing scan does not ask for per-screen counts first', async () => {
   pin([THIN.id, WIDE.id])
   mount()
-  await waitFor(() => expect(screen.getByRole('button', { name: /Thin screen/ })).toBeInTheDocument())
   await waitFor(() => expect(scanMins()).toEqual([95]))
+  expect(fetch.mock.calls.some(([u]) => String(u) === '/api/screener/count/batch')).toBe(false)
 })
-test('P1: exactly 10 is enough', async () => {
-  countsByMin = { 95: 10, 70: 40 }
+test('owner decision: a returning member lands at once on the last-used screen, before the saved screens answer', async () => {
+  localStorage.setItem(lastScreenKey('member-a'), JSON.stringify({ ...OTHER, kind: 'starter' }))
+  starters = [THIN, WIDE, OTHER]
   pin([THIN.id, WIDE.id])
-  mount()
-  await waitFor(() => expect(screen.getByRole('button', { name: /Thin screen/ })).toBeInTheDocument())
-})
-test('P1: counts that never answer do not hold the page past the landing cap: first pinned', async () => {
+  savedDelay = 1500
   fail = true
+  mount()
+  await waitFor(() => expect(scanMins()).toEqual([50]), { timeout: 800 })
+  expect(screen.getByRole('button', { name: /Other screen/ })).toBeInTheDocument()
+  await new Promise(r => setTimeout(r, 1700))
+  expect(scanMins()).toEqual([50])
+}, 10000)
+test('owner decision: picking a screen makes it the last-used; a member who only landed records nothing', async () => {
   pin([THIN.id, WIDE.id])
   mount()
-  await new Promise(r => setTimeout(r, 400))
-  expect(scanMins()).toEqual([])
-  await waitFor(() => expect(screen.getByRole('button', { name: /Thin screen/ })).toBeInTheDocument(), { timeout: 5000 })
   await waitFor(() => expect(scanMins()).toEqual([95]))
-}, 10000)
+  expect(localStorage.getItem(lastScreenKey('member-a'))).toBeNull()
+  await openMenu()
+  fireEvent.click(await screen.findByRole('button', { name: /Open Wide screen/ }))
+  await waitFor(() => expect(scanMins().at(-1)).toBe(70))
+  expect(JSON.parse(localStorage.getItem(lastScreenKey('member-a')))).toMatchObject({ id: WIDE.id, name: 'Wide screen' })
+})
+test('owner decision: a last-used screen the server no longer has falls back to the default', async () => {
+  const gone = { id: 99, name: 'Deleted screen', kind: 'saved', spec: { filters: [{ key: 'rs_rank', op: 'gte', min: 50 }] } }
+  localStorage.setItem(lastScreenKey('member-a'), JSON.stringify(gone))
+  pin([THIN.id])
+  savedDelay = 300
+  mount()
+  await waitFor(() => expect(scanMins()[0]).toBe(50))     // lands at once on it
+  await waitFor(() => expect(screen.getByRole('button', { name: /Thin screen/ })).toBeInTheDocument(), { timeout: 2000 })
+  await waitFor(() => expect(scanMins().at(-1)).toBe(95))
+}, 8000)
+test('owner decision: a last-used screen is per member', async () => {
+  localStorage.setItem(lastScreenKey('member-a'), JSON.stringify({ ...OTHER, kind: 'starter' }))
+  uid = 'member-b'
+  starters = [THIN, WIDE, OTHER]
+  pin([WIDE.id])
+  mount()
+  await waitFor(() => expect(scanMins()).toEqual([70]))
+  expect(screen.queryByRole('button', { name: /Other screen/ })).toBeNull()
+})
+test('owner decision: the screen count still arrives after the page has landed', async () => {
+  pin([WIDE.id])
+  mount()
+  await waitFor(() => expect(scanMins()).toEqual([70]))
+  await waitFor(() => expect(screen.getByTestId('screen-count')).toHaveTextContent('2'))
+})
 
 test('Perf 3: with last-known pins, the scan starts before the saved screens answer', async () => {
   seed([WIDE])
