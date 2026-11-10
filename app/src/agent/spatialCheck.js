@@ -335,10 +335,20 @@ const CLICK_OBJ = '(?:this(?:\\s+(?:one|chart))?|it|here|the\\s+(?:clicked|selec
 // (AUDIT probe 20 b) a STATIVE clause whose subject is the click — "the one I selected stays daily", "this one can stay as it is",
 // "the chart I'm on is fine as it is": the click is kept as it is, so it is EXCLUDED (as "leave this alone"). A want ("the one I
 // selected should be weekly", "…needs log scale") is not one: that clause is the change, on the click.
-const STAY_CLICK = new RegExp('^\\s*(?:(?:and|but|so|while|though)\\s+)?' + CLICK_OBJ + '\\s+(?:'
-  + '(?:(?:can|should|will|must|may|could)\\s+)?(?:stays?|remains?|stay|remain)\\b'
-  + '|(?:is|[\'’]s)\\s+(?:fine|good|ok(?:ay)?|perfect|right|alright|all\\s+right)\\b(?:\\s+as\\s+(?:it\\s+)?is)?'
-  + ')[^,;.!?]*[.!]?\\s*$', 'i')
+// (#988, AUDIT probe 2 "make it weekly, it is right above support") a clause that says where the PRICE is, not how the chart
+// should be, never keeps the click as it is. Three guards: (i) the subject NAMES the chart (this one / this chart / the clicked
+// one / the one I clicked …), never bare it / this / here, which stand for the stock or its price as often as for the chart;
+// (ii) fine / right / ok / good ENDS the clause (optionally "as it is", "the way it is", "where it is", "for now", "already"),
+// so "is right above support" is no verdict; (iii) stays / remains is never followed by a price place (above / below / under /
+// over / near / around / between / beneath, or at / on a level, support, resistance or an average).
+const STAY_SUBJ = '(?:this\\s+(?:one|chart)|the\\s+(?:clicked|selected|current|active)\\s+(?:one|chart)|' + CLICK_ACT_NP + ')'
+const STAY_TAIL = '(?:\\s+(?:as\\s+(?:it\\s+)?is|the\\s+way\\s+it\\s+is|where\\s+it\\s+is|(?:for\\s+)?now|already|too))*'
+const PRICE_LEVEL = '(?:the\\s+|its\\s+|a\\s+)?(?:\\$?\\d|support|resistance|highs?|lows?|levels?|(?:trend\\s*)?lines?|(?:day\\s+)?(?:ma|sma|ema|vwap|moving\\s+average)\\b)'
+const PRICE_PLACE = '(?:(?:right|just|well|still|firmly|comfortably)\\s+)*(?:above|below|under(?:neath)?|over|beneath|near|around|between|(?:at|on)\\s+' + PRICE_LEVEL + ')'
+const STAY_CLICK = new RegExp('^\\s*(?:(?:and|but|so|while|though)\\s+)?' + STAY_SUBJ + '\\s+(?:'
+  + '(?:(?:can|should|will|must|may|could)\\s+)?(?:stays?|remains?)\\b(?!\\s+' + PRICE_PLACE + ')[^,;.!?]*'
+  + '|(?:is|[\'’]s)\\s+(?:(?:just|already|totally|completely)\\s+)?(?:fine|good|ok(?:ay)?|perfect|right|alright|all\\s+right)\\b' + STAY_TAIL
+  + ')\\s*[.!]?\\s*$', 'i')
 const NEG_CLICK = new RegExp('^\\s*(?:(?:and|but|then|so|or)\\s+)?(?:please\\s+)?(?:'
   + '(?:leave|keep|let)\\s+' + CLICK_OBJ + '\\b(?!\\s*[\'’]s)(?:\\s+(?:alone|be|as\\s+(?:it\\s+)?is|untouched|unchanged|where\\s+it\\s+is))?'
   + '|(?:don[\'’]?t|do\\s+not|never)\\s+(?:touch|change|move|switch|alter|modify|update|do\\s+anything\\s+to)\\s+' + CLICK_OBJ + '\\b(?!\\s*[\'’]s)'

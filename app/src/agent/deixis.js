@@ -1046,6 +1046,9 @@ export function closedTabNamed(text, host) {
 const NEG_POINTER = new RegExp('(?:\\b(?:except(?:\\s+for)?|not|other\\s+than|besides|apart\\s+from|aside\\s+from|excluding|minus|save\\s+for|instead\\s+of|rather\\s+than)'
   + '|\\b(?:all|every\\w*|them|others?|charts?|ones)\\s+but(?:\\s+not)?)\\s+(?:this|that|it|the\\s+(?:selected|clicked|current|highlighted|active|focused)\\s+(?:chart|one)|'
   + CLICK_ACT_NP + ')\\b', 'i')
+// (#988, AUDIT probe 2) the reply quotes a negation ("You said not …") only when the words HAVE one; a click excluded by a stative
+// clause ("the one I selected stays daily") or an imperative ("leave this alone", "all but this one") is said as left out
+const NEG_WORD = /\b(?:not|never|except|excluding|besides|minus|other\s+than|instead\s+of|rather\s+than|apart\s+from|aside\s+from|save\s+for)\b|n['’]t\b/i
 export const negatedPointer = (text) => NEG_POINTER.exec(String(text || '')) || (negatedClick(text).excludes ? [String(text || '')] : null)
 // ⭐ round 3 (pl-exec): PER-CLAUSE TARGETS — "make the NVDA chart weekly and this one log". A sentence of several clauses, each
 // naming ONE chart (a description, a ticker, a position) or pointing at the click (this one / this chart / here / it), and each
@@ -1186,7 +1189,7 @@ export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability
       const snap = list.find(x => x.ref === o.target)
       if (snap && sel && chartRefOf(kind, snap) === sel) {
         const others = list.filter(x => chartRefOf(kind, x) && chartRefOf(kind, x) !== sel)
-        return { ask: { text: 'You said not the chart you clicked. Which chart do you mean?', choices: others.map(c => ({ ref: c.ref, label: c.label })), action: o.action } }
+        return { ask: { text: NEG_WORD.test(String(text || '')) ? 'You said not the chart you clicked. Which chart do you mean?' : 'You asked me to leave out the chart you clicked. Which chart do you mean?', choices: others.map(c => ({ ref: c.ref, label: c.label })), action: o.action } }
       }
     }
     return null
