@@ -494,6 +494,12 @@ const LEDGER = [
   { file: 'api/services/signature/rs_provider.py',
     region: 'rs_*_envelope — one provider per RS split row, each naming its own id (an over-match: no list)',
     anchor: 'def rs_rating_envelope(', fate: 'keep' },
+  // ⭐ RS split lane S2 (2026-11-10): the alert rev table now names every RS definition an
+  // alert can bind to (rsLine, rsPhases, rsVsEma) plus the base -> definition map. A
+  // hand-written table by design (a rev is a decision, not derived); ledgered `keep`.
+  { file: 'api/services/alert_rev_migration.py',
+    region: 'ADDRESS_REVS / ADDRESS_BASE_DEFINITION — alert rev per definition and the alert base -> definition map',
+    anchor: 'ADDRESS_BASE_DEFINITION: dict[str, str] = {', fate: 'keep' },
 
   // ── the engine ───────────────────────────────────────────────────────────
   // ⭐⭐⭐ PHASE D TASK 1 — THE CLOSED TABLE. Fate `keep`, and the reason is the
@@ -1256,7 +1262,9 @@ const RETIRED_BY_B4_ALERTS = [
 // ⭐ 20 -> 21 AT THE UCT RS SPLIT FIX LANE F1 (2026-11-10): U9's public glossary
 // (`pages/RsGlossary.jsx::RS_INDICATORS`) names all four RS ids in reading order
 // — a content judgment, ledgered `keep`; see its row.
-const SITE_COUNT = 21
+// ⭐ 21 -> 22 AT RS SPLIT LANE S2 (2026-11-10): `alert_rev_migration.py` names the four RS
+// definitions an alert binds to; ledgered `keep`, see its row.
+const SITE_COUNT = 22
 
 describe('the enumeration ledger — the count is a test, not a comment', () => {
   it(`holds ${SITE_COUNT} live sites, and every one of them is still where it says it is`, () => {
@@ -1441,7 +1449,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // server-side rows above, every one `keep`.
     // ⭐ `{keep: 20}` -> `{keep: 21}` AT FIX LANE F1 (2026-11-10): the public RS
     // glossary's `RS_INDICATORS` table joins as a `keep`. See its LEDGER row.
-    expect(counts).toEqual({ keep: 21 })
+    expect(counts).toEqual({ keep: 22 })  // 21 -> 22: lane S2's alert rev table
     // …and by NAME, because a histogram cannot tell an absent bucket from a
     // bucket somebody renamed.
     expect(LEDGER.filter(s2 => s2.fate === 'phase'),
@@ -1531,6 +1539,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // `discoveryCatalog.js` precedes `engine/` alphabetically.
     ).toEqual([
       ["api/routers/signature.py::RS_SPLIT_PROVIDERS — the RS split rows` id → provider map, plugged in under RS_SPLIT_ENABLED","keep"],
+      ["api/services/alert_rev_migration.py::ADDRESS_REVS / ADDRESS_BASE_DEFINITION — alert rev per definition and the alert base -> definition map","keep"],
       ["api/services/alert_series.py::SERIES_FUNCS — address → the full aligned column, and since Task 10 the ONE value table","keep"],
       ["api/services/ast_interpret.py::FN — the manifest`s functions bound to indicator_compute`s own maths","keep"],
       ["api/services/indicator_alert_evaluator.py::ALERT_CONDITIONS — which conditions each address offers, a product decision nothing derives","keep"],
@@ -2467,6 +2476,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     ).toEqual([
       // ⭐ U6 (2026-11-09): three server-side RS split modules joined — see their ledger rows.
       'api/routers/signature.py',
+      'api/services/alert_rev_migration.py',
       'api/services/alert_series.py',
       'api/services/ast_interpret.py',
       'api/services/indicator_alert_evaluator.py',
@@ -2510,6 +2520,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     ).toEqual([
       // ⭐ U6 (2026-11-09): the three RS split rows are `keep`, so the floor rises with them.
       'api/routers/signature.py',
+      'api/services/alert_rev_migration.py',
       'api/services/alert_series.py',
       'api/services/ast_interpret.py',
       'api/services/indicator_alert_evaluator.py',
