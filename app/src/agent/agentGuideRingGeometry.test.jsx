@@ -213,6 +213,85 @@ describe('2 · a moving control: the ring follows within one frame', () => {
   })
 })
 
+// ⭐ held-out rails for the round-5 tail (written 2026-11-10, before pl-auto's re-measure): the TAIL is a property of the
+// shared tracker, not of one widget. It slides from the LAST board event, a transition's late frame is caught with no event of
+// its own, and an event on a box that does not hold the control costs no frames. LOCAL / SIMULATED (jsdom, frames by hand).
+describe('2b · the tail: sliding, a late frame after transitionend, unrelated boxes ignored', () => {
+  const board = () => {
+    const d = fixture('<div class="board"><div data-widget-id="a"><div data-guide="widget.resize.se"></div></div><div data-widget-id="b"></div></div>')
+    return { d, cell: d.querySelector('[data-widget-id="a"]'), other: d.querySelector('[data-widget-id="b"]'), h: d.querySelector('[data-guide]') }
+  }
+  let t
+  let clock
+  beforeEach(() => { t = 1000; clock = vi.spyOn(performance, 'now').mockImplementation(() => t) })
+  afterEach(() => { clock.mockRestore() })
+  const run = (ms) => { for (let s = 0; s < ms; s += 16) { t += 16; frame() } }
+
+  it('a second board change inside the tail extends it: the loop runs until TAIL_MS after the LAST change, not the first', async () => {
+    const { cell, h } = board()
+    setBox(h, { top: 100, left: 100, width: 12, height: 12 })
+    const tr = trackRing(h, () => {}, { holder: cell })
+    run(16 * (STILL_FRAMES + 2))
+    expect(tr.running).toBe(false)
+    cell.style.transform = 'translate(-4px, 0px)'
+    await Promise.resolve()
+    run(TAIL_MS - 100)
+    cell.style.transform = 'translate(-6px, 0px)'                 // the grid's debounced second write
+    await Promise.resolve()
+    run(TAIL_MS - 100)                                            // past the FIRST change's tail
+    expect(tr.running).toBe(true)
+    run(200)                                                      // past the second change's tail
+    expect(tr.running).toBe(false)
+    tr.stop()
+  })
+
+  it('transitionend on the cell, then a 3 px last frame with no event of its own: the ring is on it in that frame', () => {
+    const { cell, h } = board()
+    setBox(h, { top: 100, left: 100, width: 12, height: 12 })
+    const seen = []
+    const tr = trackRing(h, (r) => seen.push(r), { holder: cell })
+    run(16 * (STILL_FRAMES + 2))
+    act(() => { cell.dispatchEvent(new Event('transitionend', { bubbles: true })) })
+    run(160)                                                      // still frames: STILL_FRAMES alone would have stopped it
+    expect(tr.running).toBe(true)
+    setBox(h, { top: 100, left: 97, width: 12, height: 12 })
+    t += 16; frame()
+    expect(seen.at(-1).left + seen.at(-1).width / 2).toBe(103)
+    run(TAIL_MS + 16 * (STILL_FRAMES + 2))
+    expect(tr.running).toBe(false)
+    tr.stop()
+  })
+
+  it('a transition on a box that does not hold the control starts no frames', () => {
+    const { cell, other, h } = board()
+    setBox(h, { top: 100, left: 100, width: 12, height: 12 })
+    const tr = trackRing(h, () => {}, { holder: cell })
+    run(16 * (STILL_FRAMES + 2))
+    const before = rafCalls
+    act(() => { other.dispatchEvent(new Event('transitionrun', { bubbles: true })) })
+    act(() => { other.dispatchEvent(new Event('transitionend', { bubbles: true })) })
+    run(64)
+    expect(tr.running).toBe(false)
+    expect(rafCalls).toBe(before)
+    tr.stop()
+  })
+
+  it('stop() inside a tail: no frame after it', async () => {
+    const { cell, h } = board()
+    setBox(h, { top: 100, left: 100, width: 12, height: 12 })
+    const tr = trackRing(h, () => {}, { holder: cell })
+    cell.style.transform = 'translate(-4px, 0px)'
+    await Promise.resolve()
+    run(48)
+    expect(tr.running).toBe(true)
+    tr.stop()
+    const before = rafCalls
+    run(TAIL_MS)
+    expect(rafCalls).toBe(before)
+    expect(tr.running).toBe(false)
+  })
+})
+
 describe('3 · unmount: the ring hides and stops', () => {
   it('the control leaves the page: the ring is told null, and no frame follows', () => {
     const d = fixture('<button data-guide="chart.settings">g</button>')
