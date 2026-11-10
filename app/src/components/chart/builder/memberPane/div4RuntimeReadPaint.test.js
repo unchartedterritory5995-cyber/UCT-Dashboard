@@ -247,7 +247,9 @@ describe('⭐⭐ DIV-4 r1 — SuperTrend STRATEGY (RDDT 1D from the listing)', (
     expect(served()).toBeUndefined()
     vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
     expect(served()).toBeInstanceOf(Float64Array) // and back
-  })
+  // ⏱ nine full runs of the 636-bar script: measured 8.1 s alone (Node 20, --maxWorkers=1,
+  // 2026-11-09); the 15 s default tripped under a loaded box, so ~7x headroom
+  }, 60000)
 
   it('⛔ the door does not lift it for a killed or a not-yet-graded script', () => {
     setRuntimeKillList([runtimeSourceHash(ST)])
