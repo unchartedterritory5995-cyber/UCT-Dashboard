@@ -985,6 +985,8 @@ def _serve_bars_impl(
                                 content={"ticker": ticker.upper(), "tf": tf, "bars": [], "warming": True},
                             )
                             response.headers["Retry-After"] = "4"
+                            # deliberate shed → edge passes it through (worker.js)
+                            response.headers["X-Bars-Shed"] = "warm-shed"
                 if response is None:
                     try:
                         if since:

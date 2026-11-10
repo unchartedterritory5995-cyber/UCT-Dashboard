@@ -3905,6 +3905,9 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
             content={"ticker": ticker_up, "tf": tf, "bars": [], "error": "warming"},
         )
         r.headers["Retry-After"] = "3"
+        # Names this 503 as a DELIBERATE shed so the edge passes it to the browser
+        # (re-poll the tier) instead of re-asking WEB_ORIGIN (edge worker.js).
+        r.headers["X-Bars-Shed"] = "warming"
         return r
 
     # No-blank guard: a COLD intraday ticker (no stored rows, no disk fallback)
