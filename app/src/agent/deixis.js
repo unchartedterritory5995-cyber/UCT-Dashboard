@@ -36,7 +36,9 @@ const WITH_NAMED = /\b(?:this|that|the)\s+(?:chart|one)\s+(?:with|that has|showi
 // the relation and the anchor, so "under 30 on this chart" is no relation ("this chart" there is the click itself). "this/that" on
 // another noun ("under this candle") is no anchor. A bare "this" with no relation word still binds to the click.
 const REL_ANCHOR_NOUN = '(?:chart|one|cell|pane|panel|ticker|stock|symbol|graph|name)'
-const REL_ANCHOR = `(?:(?:this|that)(?:\\s+${REL_ANCHOR_NOUN}\\b|(?![\\s-]+[a-z]+\\b(?<!\\b(?:to|on|in|and|then|please|for|with|as|into|onto|now|weekly|daily|monthly|hourly|intraday|instead|too|also|here)))\\b)`
+// ⛔ no lookbehind (iOS 16 floor — this string is compiled into RELATIVE; agentNoLookbehindStrings.test.js): "this/that, then a
+// word that is NOT one of these" is a lookahead on the word itself (that word is the whole letter run, so the two agree)
+const REL_ANCHOR = `(?:(?:this|that)(?:\\s+${REL_ANCHOR_NOUN}\\b|(?![\\s-]+(?!(?:to|on|in|and|then|please|for|with|as|into|onto|now|weekly|daily|monthly|hourly|intraday|instead|too|also|here)\\b)[a-z]+\\b)\\b)`
   + `|it\\b|the\\s+(?:selected|clicked|current|highlighted|active|focused)(?:\\s+${REL_ANCHOR_NOUN})?\\b`
   + `|the\\s+one\\s+(?:that\\s+)?(?:i|you)(?:'ve|\\s+have|\\s+just)?\\s*(?:clicked|selected|picked|chose|chosen|highlighted|tapped)(?:\\s+on)?\\b)`
 export const RELATIVE = new RegExp(`\\b(?:(?:right|just|directly|immediately|exactly)\\s+)?(?:(above|over|below|under|underneath|beneath)|(?:to\\s+the\\s+|on\\s+the\\s+)?(left|right)\\s+of|(next\\s+to|beside|alongside)|(adjacent\\s+to|near|nearest(?:\\s+to)?|closest\\s+to))\\s+(?:(?:right|just|directly|immediately)\\s+)?${REL_ANCHOR}`, 'i')
