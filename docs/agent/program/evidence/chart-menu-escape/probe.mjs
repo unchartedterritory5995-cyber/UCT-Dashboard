@@ -22,6 +22,10 @@ try {
   await escape(); rec.steps.push({ step: 'Escape (1)', ...(await p.b.evaluate(STATE)) })
   await rclick(); rec.steps.push({ step: 'right-click (2)', ...(await p.b.evaluate(STATE)) })
   await escape(); rec.steps.push({ step: 'Escape (2)', ...(await p.b.evaluate(STATE)) })
+  // attempt-2: focus moved off the chart while the menu is open (the right-click itself focuses the chart), so the Escape
+  // has to hand it back
+  await rclick(); await p.b.evaluate(`document.activeElement && document.activeElement.blur()`); rec.steps.push({ step: 'right-click (2b), then focus moved off the chart', ...(await p.b.evaluate(STATE)) })
+  await escape(); rec.steps.push({ step: 'Escape (2b)', ...(await p.b.evaluate(STATE)) })
   await rclick(); rec.steps.push({ step: 'right-click (3)', ...(await p.b.evaluate(STATE)) })
   await p.b.click(3, 3); await sleep(400); rec.steps.push({ step: 'click the backdrop', ...(await p.b.evaluate(STATE)) })
   rec.consoleErrors = p.errors().slice(0, 5)
