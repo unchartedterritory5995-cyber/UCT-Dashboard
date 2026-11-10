@@ -736,11 +736,12 @@
     "S24",
     "S5"
    ],
-   "status": "proposed",
+   "status": "pending-owner",
    "gate": true,
    "grade_cue": false,
    "dossier_ref": "13 CRWD failure; 7 B22 row",
-   "evidence": "CRWD 2021-03-17: the pop was the earnings-reaction day on 3 times the 50-day volume and the day's range left a stop 8.6% below the fill; stopped the next session. Kell's own AMD and MELI pops were earnings reactions, so this line is the card's and the owner may read it as D-025 (not in this dossier's register rows)."
+   "evidence": "CRWD 2021-03-17: the pop was the earnings-reaction day on 3 times the 50-day volume and the day's range left a stop 8.6% below the fill; stopped the next session. Kell's own AMD and MELI pops were earnings reactions, so this line is the card's and the owner may read it as D-025 (not in this dossier's register rows).",
+   "owner_question": "D-025"
   },
   {
    "id": "wp.cross_alone",
@@ -1494,6 +1495,7 @@
   "D-015",
   "D-018",
   "D-021",
+  "D-025",
   "D-077"
  ],
  "conflicts": [

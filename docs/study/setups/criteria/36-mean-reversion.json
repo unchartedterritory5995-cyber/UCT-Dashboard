@@ -1076,7 +1076,7 @@
    ],
    "recommended": "a",
    "status": "pending-owner",
-   "owner_question": "D-001",
+   "owner_question": "D-009",
    "gate": true,
    "grade_cue": false,
    "dossier_ref": "8.7 Above the 200-day; 10 question 9",

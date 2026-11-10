@@ -33,7 +33,7 @@ Ordered by how many setups each touches, biggest first.
 
 ### D-001. Teach the short side of each setup now, later, or not at all
 
-**Setups touched:** 36 (37 questions): 01:10, 02:12, 03:10, 04:11, 05:13, 06:13, 07:6, 08:12, 09:10, 12:11, 13:11, 14:9, 16:1, 17:9, 18:10, 19:10, 21:13, 22:12, 23:1, 25:9, 26:14, 27:2, 27:11, 28:7, 29:14, 30:7, 31:9, 32:10, 33:1, 35:8, 36:9, 37:10, 40:10, 41:10, 42:13, 43:8, 44:9
+**Setups touched:** 35 (36 questions): 01:10, 02:12, 03:10, 04:11, 05:13, 06:13, 07:6, 08:12, 09:10, 12:11, 13:11, 14:9, 16:1, 17:9, 18:10, 19:10, 21:13, 22:12, 23:1, 25:9, 26:14, 27:2, 27:11, 28:7, 29:14, 30:7, 31:9, 32:10, 33:1, 35:8, 37:10, 40:10, 41:10, 42:13, 43:8, 44:9
 
 **The question.** Nearly every dossier asks whether its short mirror goes into the course. D47 says shorts are our longs reversed; B26 allows them only below the 200-day. 27:11 asks the master question: should members be taught to short at all, or only after 50 journaled trades, or only as a reading skill.
 
@@ -168,7 +168,7 @@ Ordered by how many setups each touches, biggest first.
 
 ### D-009. Setups that form below the 200-day: no exception, watch-only, or an index exception
 
-**Setups touched:** 17 (18 questions): 07:3, 09:11, 10:2, 12:2, 14:11, 15:3, 18:7, 23:4, 25:6, 27:5, 28:9, 29:3, 31:2, 35:10, 35:11, 36:3, 38:9, 42:11
+**Setups touched:** 18 (20 questions): 07:3, 09:11, 10:2, 12:2, 14:11, 15:3, 18:7, 23:4, 24:6, 25:6, 27:5, 28:9, 29:3, 31:2, 35:10, 35:11, 36:3, 36:9, 38:9, 42:11
 
 **The question.** B26 bans longs below the 200-day SMA except a parabolic long. Several reversal setups (4B-, Wedge Pop, U&R, Spring, Mean Reversion, Slingshot) often form under it, and some of your own graded examples did.
 
@@ -180,7 +180,7 @@ Ordered by how many setups each touches, biggest first.
 
 ### D-010. Remove unsourced claims, invented quotes and wrong attributions from member-facing text now
 
-**Setups touched:** 16 (16 questions): 02:14, 04:15, 06:15, 11:13, 14:10, 15:10, 16:10, 19:9, 20:14, 29:11, 33:10, 36:14, 37:11, 40:12, 43:12, 44:8
+**Setups touched:** 15 (15 questions): 04:15, 06:15, 11:13, 14:10, 15:10, 16:10, 19:9, 20:14, 29:11, 33:10, 36:14, 37:11, 40:12, 43:12, 44:8
 
 **The question.** Twenty-two dossiers found text members can see (scanner narratives, quotes.json, definitions.json, Model Book cards, the voice KB, the recall bank, course drafts) that quotes a source the writer could not find, names a wrong book, or states a statistic with no source. Remove or rewrite it now, before you rule on the setups?
 
@@ -192,7 +192,7 @@ Ordered by how many setups each touches, biggest first.
 
 ### D-011. RS 80 (C31): which setups are exempt, and when RS is measured
 
-**Setups touched:** 16 (16 questions): 07:7, 10:3, 12:5, 13:7, 15:7, 19:8, 20:6, 21:10, 22:8, 28:5, 29:4, 30:5, 32:6, 33:6, 36:15, 42:12
+**Setups touched:** 16 (16 questions): 07:7, 10:3, 12:5, 13:7, 15:7, 19:8, 20:6, 21:10, 22:8, 28:5, 29:4, 30:5, 32:6, 33:6, 36:15, 42:12. Also the RS half of 24:6 (does C31 apply to a neglected stock on its HVE day) and of 23:4 (C31 for the News Failure short), mapped to D-009 for their 200-day half.
 
 **The question.** C31 requires an RS rating of 80 or more except parabolic and mean-reversion trades. Nineteen dossiers ask whether their setup is in the exempt class, and whether RS is read on the entry day or before the pullback or gap.
 
@@ -228,7 +228,7 @@ Ordered by how many setups each touches, biggest first.
 
 ### D-014. Model Book cards, playbooks, glyphs and journal tags: rewrite to your rulings and add the missing ones
 
-**Setups touched:** 12 (12 questions): 05:15, 07:12, 08:14, 14:12, 18:13, 25:11, 31:13, 34:10, 36:12, 38:10, 42:10, 44:10
+**Setups touched:** 13 (13 questions): 02:14, 05:15, 07:12, 08:14, 14:12, 18:13, 25:11, 31:13, 34:10, 36:12, 38:10, 42:10, 44:10
 
 **The question.** Many cards describe a different setup than the dossier found (the Flat Base card is a VCP, the Wedge Drop playbook mirrors the Wedge Pop, the Parabolic Long card rides a parabola up, the Go Signal card describes a 9 EMA engulfing candle). Several setups have no card or journal tag. Rewrite and add, once you rule?
 
@@ -315,7 +315,7 @@ Ordered by how many setups each touches, biggest first.
 
 ### D-020. A gap or reclaim through the 200-day: does a close above it the same day count
 
-**Setups touched:** 7 (7 questions): 09:2, 20:7, 21:9, 22:6, 24:6, 26:9, 30:6
+**Setups touched:** 6 (6 questions): 09:2, 20:7, 21:9, 22:6, 26:9, 30:6
 
 **The question.** B26 says no longs below the 200-day. Does a stock that opens under it and trades above it on the entry day qualify, or must the prior close already be above? 09:2 asks whether the 200-day must be rising.
 
@@ -375,7 +375,7 @@ Ordered by how many setups each touches, biggest first.
 
 ### D-025. An earnings gap on a pattern: this setup, or the catalyst-gap units
 
-**Setups touched:** 6 (7 questions): 01:9, 02:11, 21:2, 25:8, 26:12, 26:13, 27:4
+**Setups touched:** 6 (7 questions): 01:9, 02:11, 21:2, 25:8, 26:12, 26:13, 27:4 Also setup 15 (no dossier question): the Wedge Pop card's wp.not_earnings_day, from the CRWD 2021-03-17 failure, asks the same thing.
 
 **The question.** When the breakout, flag, Kicker or gap-support test is the earnings day itself, which lesson owns it? Your Kicker verdicts cut several earnings-day Kickers as "just an earnings gapper".
 
@@ -1888,6 +1888,8 @@ C35: days to a few weeks; a winner can be held longer while it keeps working. C3
 
 ## Part D: the map from every question to its decision
 
+Corrected 2026-11-10 after the criteria cards were written: 24:6 and 36:9 moved to D-009 (both are the 200-day rule), 02:14 to D-014 (a Model Book rewrite).
+
 Every one of the 596 questions, by dossier. Part C ids are marked (settled).
 
 **01 Flat Base Breakout** (15 questions)
@@ -1927,7 +1929,7 @@ Every one of the 596 questions, by dossier. Part C ids are marked (settled).
 | 02:11 | D-025 |
 | 02:12 | D-001 |
 | 02:13 | D-004 |
-| 02:14 | D-010 |
+| 02:14 | D-014 |
 | 02:15 | D-002 |
 
 **03 High Tight Flag** (12 questions)
@@ -2333,7 +2335,7 @@ Every one of the 596 questions, by dossier. Part C ids are marked (settled).
 | 24:3 | D-017 |
 | 24:4 | D-005 |
 | 24:5 | D-030 |
-| 24:6 | D-020 |
+| 24:6 | D-009 |
 | 24:7 | D-090 |
 | 24:8 | D-091 |
 | 24:9 | D-092 |
@@ -2554,7 +2556,7 @@ Every one of the 596 questions, by dossier. Part C ids are marked (settled).
 | 36:6 | D-114 |
 | 36:7 | D-003 |
 | 36:8 | D-005 |
-| 36:9 | D-001 |
+| 36:9 | D-009 |
 | 36:10 | D-006 |
 | 36:11 | D-023 |
 | 36:12 | D-014 |
