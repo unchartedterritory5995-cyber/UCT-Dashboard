@@ -7,7 +7,7 @@
   - It ran from `C:\w\pl-exec-master\app` through `agent_suite_lock.py` at BelowNormal.
   - Install: `C:\w\pl-mc-fw\app\node_modules`, pl-mc-fw's install with the same package-lock.
 - **Commit:** master `dfc645ccb3`.
-- **Scope:** the whole tree, 4580 test files collected. For comparison, `find app/src -name "*.test.*" | wc -l` gives 4584; vitest did not collect four of those paths. Which four, and why, has not been checked.
+- **Scope:** the whole tree, 4580 test files collected. For comparison, `find app/src -name "*.test.*" | wc -l` gives 4584; vitest did not collect four of those paths. The 4-file gap is not yet explained (pl-exec is naming the four).
 - **Totals:**
   - `Test Files  48 failed | 4498 passed | 34 skipped (4580)`
   - `Tests  52 failed | 71048 passed | 243 skipped (71343)`
@@ -21,7 +21,7 @@
 - **Category** comes from each file's first failure message in the log.
   - census: a ratchet, census or source-shape rail over the tree.
   - golden: a pinned hash or exact snapshot.
-  - timing: a timeout, or a readiness or order race.
+  - load-sensitive: passes solo at master and fails only under whole-tree load. These are listed separately below and are never a regression.
   - env: this machine's environment. Examples are a Python bridge that cannot import `conftest` or `tzdata`, no `app/dist` build, a V8 other than the recording one, and source rails reading CRLF-checked-out `.py` files.
   - other: none of the above.
 - **Team** is the scope of the newest commit touching the test file at `dfc645ccb3` (`git log -1 dfc645ccb3 -- <file>`). It is the area that owns it, not a person.
@@ -30,8 +30,8 @@
 | # | Failing file | Category | First failure (abridged) | Team (last commit) |
 |---|---|---|---|---|
 | 1 | src/__tests__/sourcesAreText.test.js | census | a source contains a NUL/C0 control byte | engine (`fix(engine)`) |
-| 2 | src/components/StockChart.firstVisitFraming.test.jsx | other | frame offset 7.84 vs 5.84 expected | chart (`fix(chart)`) |
-| 3 | src/components/StockChart.focusWarmStep.test.jsx | timing | "Q1 ready after null ms" | focus (`test(focus)`) |
+| 2 | src/components/StockChart.firstVisitFraming.test.jsx | deterministic (chart) | frame offset 7.84 vs 5.84 expected | chart (`fix(chart)`) |
+| 3 | src/components/StockChart.focusWarmStep.test.jsx | deterministic (chart) | "Q1 ready after null ms" | focus (`test(focus)`) |
 | 4 | src/components/chart/engine/ast/symbolFoldParity.test.js | env | python: No module named 'tzdata' | pine (`feat(pine-c29)`) |
 | 5 | src/components/chart/engine/ast/targetScriptReport.measure.test.js | other | 1 target in target-scripts.json missing on disk | pine (`feat(pine)`) |
 | 6 | src/components/chart/engine/runtime/__tests__/hostParity.v8.rail.test.js | env | --check exit not 0 on this V8 | engine runtime (W5-T4) |
@@ -45,7 +45,6 @@
 | 14 | src/lib/persistence/persistenceManifest.test.js | census | storage-shaped calls unclassified (9) | term-076 (`fix(term-076)`) |
 | 15 | src/lib/presentation/dataGrid/dataGridSeed.rail.test.js | census | a hand-rolled grid outside the baseline | terminal (`feat(terminal)`) |
 | 16 | src/lib/presentation/handRolledFormatters.census.test.js | census | new hand-rolled formatter file(s) | term-066 (`fix(term-066)`) |
-| 17 | src/lib/presentation/presentationSingleFormatter.test.js | timing | Test timed out in 15000ms | research (`fix(research)`) |
 | 18 | src/lib/swallowedFetch.census.test.js | census | `.catch(() => null)` sites grew (6) | term-033 (`fix(term-033)`) |
 | 19 | src/noRegexLookbehind.test.js | census | 4 product files use a regex lookbehind | notebook (wave 5) |
 | 20 | src/pages/Watchlists.entitykeys.test.jsx | golden | flag-off render hash differs | ent-uc2 (`feat(ent-uc2)`) |
@@ -69,7 +68,6 @@
 | 38 | src/pages/journal-2-0/lib/templateLibrary.server.test.js | env | regex over the Python router fails on a CRLF checkout | notebook (`test(notebook)`) |
 | 39 | src/pages/journal-2-0/lib/widgetFormula/widgetFormula.lazy.test.js | other | first-open closure entries: 3, 2 expected | notebook (`feat(notebook)`) |
 | 40 | src/pages/journal-2-0/rawErrorSurface.test.js | census | raw-error violations | notebook (`fix(notebook)`) |
-| 41 | src/pages/study/DrillPlayer.test.jsx | timing | element still in the document after the 1-4 keys and Enter | study (`feat(study)`) |
 | 42 | src/pages/terminal/a11y/terminalA11yStatic.test.js | census | unnamed table: agent/AgentResult.jsx:42 | terminal (revert of a revert) |
 | 43 | src/pages/terminal/a11y/terminalReachableContrast.test.js | census | --loss/--gain as text; new text under AA | a11y (`test(a11y)`) |
 | 44 | src/pages/terminal/formControls.terminal.test.js | census | native select/input remain | ui (`feat(ui)`) |
@@ -78,6 +76,17 @@
 | 47 | src/surfaces/manifest.test.js | census | routes with no manifest row: notebook/playbook, /admin/rare-preview | notebook (wave 6) |
 | 48 | src/utils/jsonFetcher.test.js | census | surfaces hand a non-OK body on as data | jsonFetcher (`test(jsonFetcher)`) |
 
-**Counts:** census 27, env 13, timing 3, golden 1, other 4 (48).
+**Deterministic: 46 files.** census 27, env 13, deterministic (chart) 2, golden 1, other 3.
+- AUDIT ran StockChart.focusWarmStep and StockChart.firstVisitFraming solo, and each fails identically at masters 50302a62b8 and 503c442796 (2 of 7 tests each). They are deterministic chart-team reds, not timing.
+
+## Load-sensitive: 2 files (never a regression)
+AUDIT checked both: each passes solo at both masters and fails only under whole-tree load.
+
+| # | File | Failure under load | Owner | Fix direction |
+|---|---|---|---|---|
+| 17 | src/lib/presentation/presentationSingleFormatter.test.js | `:245` timed out at 15000 ms in a source-corpus scan | presentation | (owner's call) |
+| 41 | src/pages/study/DrillPlayer.test.jsx | the drill-takeover overlay is still present at the `not.toBeInTheDocument` check | Study | wait for the overlay to clear |
+
+**Reference set for the PASS rule:** all 48 names, the 46 deterministic files plus these 2.
 - None of these is in a file teach-keys touches. teach-keys changes the guide's key family and its rails only.
-- The timing rows (3, 17, 41) are the ones a head run may flip. Rule: a red that is new against this list, and that looks like a timing failure, gets a solo 5× run against this base, which must stay within 20%.
+- If a head run passes one of the two load-sensitive files, that is not a change, and a failure in one is not a regression. A red that is NEW against all 48 names, and that looks like a timing failure, gets a solo 5× run against this base, which must stay within 20%.
