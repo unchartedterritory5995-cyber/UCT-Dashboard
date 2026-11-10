@@ -14,6 +14,7 @@ import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
 import { TAG_BY_KEY } from '../constants/tagColors'
 import { prefetchBar, prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent, prewarmVisibleList } from '../utils/prefetchBars'
+import { sessionState } from '../lib/marketClock/marketClock'
 import { useNeighborWarm } from '../hooks/useNeighborWarm'
 import { fetchTf } from '../components/chart/timeframes'
 import TickerActionsMenu, { useTickerActions } from '../components/TickerActions'
@@ -66,6 +67,15 @@ function fmtEtTime(iso) {
     return new Date(iso).toLocaleTimeString('en-US',
       { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' })
   } catch { return '' }
+}
+
+// /api/theme-performance is 161 KB a poll, about 58 MB an hour at 10 s, so 10 s is for the regular
+// session only. The clock is read at each tick (a page left open across the bell speeds up without a
+// re-render), and this stays one module-level function because SWR restarts its timer whenever the
+// interval's identity changes. `computing` is a short first-build state, so it keeps its own retry.
+function themePerformanceRefreshMs(d) {
+  if (d?.status === 'computing') return 15_000
+  return sessionState(new Date()).isOpen ? 10_000 : 120_000
 }
 
 // The most rows one list prewarm may request from the open theme group.
@@ -644,14 +654,14 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   // A selected personal set overlays server-side via ?set=<id>. Default = shared tracker.
   const perfUrl = themeSetId ? `/api/theme-performance?set=${encodeURIComponent(themeSetId)}` : '/api/theme-performance'
   const { data, isLoading, mutate } = useMobileSWR(perfUrl, fetcher, {
-    // 10s so the theme %s stay near-live and the leaderboard re-sorts in order.
+    // 10s in the regular session so the theme %s stay near-live and the leaderboard re-sorts in order.
     // (The server overlay is cached at the same 10s window — see _LIVE_1D_TTL —
     // so this polls no faster than the data actually refreshes.) Theme %s are
     // aggregates of up to ~2,050 holdings; we can't stream them tick-by-tick
     // like the watchlist (that would fan out the single-process SSE backend),
     // so a short server-refresh window is the live-enough, safe approach.
     fallbackData: themeSetId ? undefined : themeFallback,
-    refreshInterval: (d) => d?.status === 'computing' ? 15_000 : 10_000,
+    refreshInterval: themePerformanceRefreshMs,
     dedupingInterval: 8_000,
     revalidateOnFocus: false,
   })
