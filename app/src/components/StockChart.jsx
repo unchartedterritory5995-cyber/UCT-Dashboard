@@ -11576,18 +11576,36 @@ export default function StockChart({
         // decision.kind === 'skip' above (returns early), so reaching here means
         // the tick genuinely belongs to the current last bar.
 
+        // liveBarRef only describes THIS candle when its time matches — after a poll it
+        // can legitimately sit one bucket AHEAD of lastBarRef (reconcileWithServerTail
+        // keeps a bucket the server hasn't seen), and borrowing its H/L painted the next
+        // bucket's range onto this one.
+        const _lbU = (liveBarRef.current && liveBarRef.current.time === last.time) ? liveBarRef.current : null
+        if (isIntradayTf) {
+          // A held bucket newer than the series tail: this tick is for an OLDER bucket
+          // (classifyLiveBar said 'update' to the tail) — never let it touch either.
+          if (liveBarRef.current && liveBarRef.current.time > last.time) return
+          // Bucket by the TRADE's time: a late print from the previous bucket (tick time
+          // before this candle's start) is 'earlier' and must not snap the close back
+          // or stretch the wick of the candle that's forming now.
+          if (Number.isFinite(tickSec)) {
+            const _fA = foldPrice(_lbU || last, price, tickSec + _ET_OFFSET, resolvedTf,
+              showExtendedRef.current ? 'eth' : 'rth')
+            if (_fA.kind !== 'update') return
+          }
+        }
         // Track in liveBarRef (survives setData wipes)
-        if (liveBarRef.current && liveBarRef.current.time === last.time) {
-          liveBarRef.current.high = Math.max(liveBarRef.current.high, price)
-          liveBarRef.current.low = Math.min(liveBarRef.current.low, price)
-          liveBarRef.current.close = price
+        if (_lbU) {
+          _lbU.high = Math.max(_lbU.high, price)
+          _lbU.low = Math.min(_lbU.low, price)
+          _lbU.close = price
         }
 
         const updated = {
           time: last.time,
           open: last.open,
-          high: liveBarRef.current ? liveBarRef.current.high : Math.max(last.high, price),
-          low: liveBarRef.current ? liveBarRef.current.low : Math.min(last.low, price),
+          high: _lbU ? _lbU.high : Math.max(last.high, price),
+          low: _lbU ? _lbU.low : Math.min(last.low, price),
           close: price,
         }
         if (useOhlc) {
@@ -11667,8 +11685,12 @@ export default function StockChart({
     // hours). A frame tagged for the OTHER mode is a straggler from before an RTH/ETH
     // toggle re-subscribed — its bucket times don't belong on this series.
     const _barSession = showExtendedRef.current ? 'eth' : 'rth'
-    if (String(resolvedTf) === '60' && typeof data.bar?.session === 'string'
-        && data.bar.session.toLowerCase() !== _barSession) return
+    // The server puts `session` on the MESSAGE (bar_broadcaster._msg); accept it on the
+    // bar too in case that ever moves.
+    const _frameSession = typeof data?.session === 'string' ? data.session
+      : (typeof data?.bar?.session === 'string' ? data.bar.session : null)
+    if (String(resolvedTf) === '60' && _frameSession != null
+        && _frameSession.toLowerCase() !== _barSession) return
     // AM `t` is bucket-start in ms. Convert to seconds AND add _ET_OFFSET so
     // the time matches the rest of the chart series — REST bars stored via
     // setData(ohlcData) where ohlcData uses adjustTime(b.t) = b.t + _ET_OFFSET.
@@ -13054,7 +13076,9 @@ export default function StockChart({
         // glitches / its low disappears" report). Volume = max(server, live), never down.
         const _rec = reconcileWithServerTail(_lb ? { ..._lb, sym: _lb.sym ?? _lbOwnerSym } : null,
           { time: _lt, open: last.o, high: last.h, low: last.l, close: last.c, volume: last.v || 0 },
-          { sym, periodSec: LIVE_PERIOD_SECONDS[resolvedTf] || 300 })
+          { sym, periodSec: LIVE_PERIOD_SECONDS[resolvedTf] || 300,
+            nowChart: Date.now() / 1000 + _ET_OFFSET, tf: resolvedTf,
+            session: showExtendedRef.current ? 'eth' : 'rth' })
         {
           // Reconcile the developing bar's H/L against the server bucket, PRESERVING
           // the accumulated live high/low. The live push feed IS the real-time tape
@@ -13223,14 +13247,28 @@ export default function StockChart({
         }
       } else if (decision.kind === 'skip') {
         // New day for D/W/M but no confirmed session — don't corrupt yesterday's bar
+      } else if (isIntradayTf && lb && lb.time > last.time && isCompleteOhlc(lb)) {
+        // The held live bucket is AHEAD of the fetched tail (reconcileWithServerTail kept
+        // it) and this tick is stamped for an older bucket. Re-append the live bucket
+        // exactly as it stood — never fold the stale tick into it, and never paint its
+        // range onto the closed tail (which is the server's truth after setData).
+        if (isOhlcType(cs.chartType)) {
+          candleSeriesRef.current.update({ time: lb.time, open: lb.open, high: lb.high, low: lb.low, close: lb.close })
+        } else {
+          candleSeriesRef.current.update({ time: lb.time, value: lb.close })
+        }
+        lastBarRef.current = { time: lb.time, open: lb.open, high: lb.high, low: lb.low, close: lb.close,
+          volume: Number(lb.volume) || 0 }
       } else {
-        // Same bar — restore tick-tracked high/low from liveBarRef
-        const high = lb ? Math.max(lb.high, lp) : Math.max(last.high, lp)
-        const low = lb ? Math.min(lb.low, lp) : Math.min(last.low, lp)
+        // Same bar — restore tick-tracked high/low from liveBarRef, ONLY when liveBarRef
+        // is this same bar (time match).
+        const _lbD = lb && lb.time === last.time ? lb : null
+        const high = _lbD ? Math.max(_lbD.high, lp) : Math.max(last.high, lp)
+        const low = _lbD ? Math.min(_lbD.low, lp) : Math.min(last.low, lp)
         last.high = high
         last.low = low
         last.close = lp
-        if (lb) { lb.high = high; lb.low = low; lb.close = lp }
+        if (_lbD) { _lbD.high = high; _lbD.low = low; _lbD.close = lp }
         if (isOhlcType(cs.chartType)) {
           candleSeriesRef.current.update({ time: last.time, open: last.open, high, low, close: lp })
         } else {
@@ -13244,6 +13282,30 @@ export default function StockChart({
         if (e?.message && !/oldest data/i.test(e.message)) {
           console.warn('[StockChart] live re-top update error:', e.message)
         }
+      }
+    }
+
+    // Fallback safety net: a live bucket AHEAD of the fetched tail (kept by
+    // reconcileWithServerTail) that no branch above re-appended — e.g. no live tick to
+    // re-top from yet. setData just wiped it off the series; put it back as it stood so
+    // the new candle never vanishes between the poll and the next tick. Contiguous only
+    // (one period), matching classifyLiveBar's guard.
+    {
+      const _lbN = liveBarRef.current
+      const _tailN = lastBarRef.current
+      if (isIntraday && !barsPushActiveRef.current && !provisionalStaleRef.current
+          && _lbN && _tailN && _lbN.time > _tailN.time
+          && _lbN.time - _tailN.time <= (LIVE_PERIOD_SECONDS[resolvedTf] || 300)
+          && isCompleteOhlc(_lbN) && candleSeriesRef.current) {
+        try {
+          if (isOhlcType(cs.chartType)) {
+            candleSeriesRef.current.update({ time: _lbN.time, open: _lbN.open, high: _lbN.high, low: _lbN.low, close: _lbN.close })
+          } else {
+            candleSeriesRef.current.update({ time: _lbN.time, value: _lbN.close })
+          }
+          lastBarRef.current = { time: _lbN.time, open: _lbN.open, high: _lbN.high, low: _lbN.low, close: _lbN.close,
+            volume: Number(_lbN.volume) || 0 }
+        } catch { /* series tail moved — next tick re-tops */ }
       }
     }
 

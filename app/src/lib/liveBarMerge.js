@@ -138,12 +138,15 @@ export function mergePushBar(prev, inc, opts = {}) {
  * @param {object} opts
  * @param {string} opts.sym
  * @param {number} opts.periodSec
+ * @param {number} [opts.nowChart] current wall-clock time in chart time (unix s + ET offset)
+ * @param {string} [opts.tf]       chart timeframe code (with nowChart: the current-bucket test)
+ * @param {string} [opts.session]  'rth' | 'eth'
  * @returns {{bar:object, ahead:boolean}}
  *   ahead=true ⇒ `bar` is the NEXT bucket after the server tail (server hasn't seen
  *   it yet) — the caller must re-append it, never drop it (the "new candle blanks /
  *   collapses to the current price when the poll lands" bug).
  */
-export function reconcileWithServerTail(live, server, { sym = null, periodSec = 300 } = {}) {
+export function reconcileWithServerTail(live, server, { sym = null, periodSec = 300, nowChart = null, tf = null, session = 'rth' } = {}) {
   const srv = { ...server, volume: _vol(server.volume), sym }
   if (!live || !Number.isFinite(live.time) || (live.sym != null && sym != null && live.sym !== sym)) {
     return { bar: srv, ahead: false }
@@ -162,9 +165,14 @@ export function reconcileWithServerTail(live, server, { sym = null, periodSec = 
       ahead: false,
     }
   }
-  if (live.time > server.time && live.time - server.time <= periodSec) {
-    // The live writer has already opened the next bucket; the server tail is the
-    // just-closed one. Keep the live bucket intact.
+  // The live writer has already opened a LATER bucket than the fetched tail. Keep it when
+  // it is the next bucket, OR when it is the bucket the wall clock is in right now — the
+  // first bucket of a session (tail = the prior session's last bar) and a thin name that
+  // skipped buckets are both "more than one period" past the tail yet entirely current.
+  // Dropping it there re-seeded the candle at o=h=l=price on the next tick.
+  const isCurrent = Number.isFinite(nowChart) && tf != null &&
+    live.time <= nowChart && nowChart < bucketEndTime(live.time, tf, session)
+  if (live.time > server.time && (live.time - server.time <= periodSec || isCurrent)) {
     return { bar: { ...live, sym }, ahead: true }
   }
   // Server is newer (or the live bar is detached by >1 bucket): server wins.

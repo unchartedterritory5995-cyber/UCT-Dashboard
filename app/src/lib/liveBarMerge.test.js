@@ -215,3 +215,17 @@ describe('W-B contract additions', () => {
     expect(foldPrice(bar(at(9, 0), 20, 20, 20, 20), 21, at(9, 45), '60', 'rth').kind).toBe('later')
   })
 })
+
+describe('F3: reconcile keeps a CURRENT live bucket even when it is >1 period past the tail', () => {
+  it('first bucket of the session / thin name with skipped buckets', () => {
+    const live = bar(at(10, 20), 20.2, 20.6, 20.0, 20.4, 300, { sym: 'SYN' })
+    const server = bar(at(10, 5), 20.0, 20.8, 19.6, 20.2, 8000)
+    const nowChart = at(10, 22)
+    expect(reconcileWithServerTail(live, server, { sym: 'SYN', periodSec: 300 }).ahead).toBe(false)
+    const r = reconcileWithServerTail(live, server, { sym: 'SYN', periodSec: 300, nowChart, tf: '5' })
+    expect(r.ahead).toBe(true)
+    expect(r.bar).toMatchObject({ open: 20.2, high: 20.6, low: 20.0 })
+    // not current any more (wall clock moved past it) and detached → server wins
+    expect(reconcileWithServerTail(live, server, { sym: 'SYN', periodSec: 300, nowChart: at(10, 40), tf: '5' }).ahead).toBe(false)
+  })
+})
