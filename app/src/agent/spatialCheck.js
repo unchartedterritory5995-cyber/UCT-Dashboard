@@ -364,12 +364,17 @@ export function activeText(text) {
 
 // ── AUDIT probe 18 (#988) ──
 // (G3) an EXCLUSION: "everything in this row except SPY", "all the charts but not the QQQ one", "other than this one" — the
-// charts it names are never targets (a plan that includes one is asked, on the apply AND the proposal path)
-const EXCEPT = /\b(?:except(?:\s+for)?|but\s+not|other\s+than|apart\s+from|excluding|save\s+for|minus|(?<=\b(?:everything|all|charts|ones|them|these|row|column|board))\s+but(?!\s+not\b))\s+((?:the\s+)?(?:top|bottom|upper|lower|middle|cent(?:er|re)|first|second|third|last|left|right)\s+(?:row|column)|(?:the\s+)?(?:(?:two|three|four|pair|2|3|4)\s+)?(?:(?:charts?|ones?)\s+)?(?:on|at|along)\s+the\s+(?:left|right|top|bottom)(?:\s+(?:side|edge|row|column))?|(?:the\s+)?[A-Za-z0-9 -]{1,30}?)(?=\s+(?:on|to|in|onto|at|for|from|please|thanks|weekly|daily|monthly|hourly)\b|\s*[,.;!?]|\s*$)/gi
+// charts it names are never targets (a plan that includes one is asked, on the apply AND the proposal path).
+// ⛔ NO LOOKBEHIND (iOS 16.0–16.3, #988 AUDIT L1): "everything / all / … BUT x" is read through exceptForm, which already writes
+// every such "but" as "except" — the old look-behind "<scope word> but" alternative could never match its output, so it is gone (equivalence:
+// agentNoLookbehind988.test.js). EXCEPT is only ever run on exceptForm(text).
+const EXCEPT = /\b(?:except(?:\s+for)?|but\s+not|other\s+than|apart\s+from|excluding|save\s+for|minus)\s+((?:the\s+)?(?:top|bottom|upper|lower|middle|cent(?:er|re)|first|second|third|last|left|right)\s+(?:row|column)|(?:the\s+)?(?:(?:two|three|four|pair|2|3|4)\s+)?(?:(?:charts?|ones?)\s+)?(?:on|at|along)\s+the\s+(?:left|right|top|bottom)(?:\s+(?:side|edge|row|column))?|(?:the\s+)?[A-Za-z0-9 -]{1,30}?)(?=\s+(?:on|to|in|onto|at|for|from|please|thanks|weekly|daily|monthly|hourly)\b|\s*[,.;!?]|\s*$)/gi
+/** Every exclusion match in the words (as excludedCharts reads them; the #988 no-lookbehind equivalence rail holds it) */
+export const exceptMatches = (text) => [...exceptForm(text).matchAll(EXCEPT)]
 /** The charts an exclusion in the words names (by symbol, position, order, or "this one" = the click). */
 export function excludedCharts(text, charts = [], sel = null) {
   const out = new Set()
-  for (const m of exceptForm(text).matchAll(EXCEPT)) {
+  for (const m of exceptMatches(text)) {
     const phrase = m[1].trim()
     const wl = /^(?:the\s+)?(top|bottom|upper|lower|middle|cent(?:er|re)|first|second|third|last|left|right)\s+(row|column)$/i.exec(phrase)
     if (wl) {
@@ -531,15 +536,27 @@ export function withoutExcludedCharts(ops, texts, { host, getTargetKind, getCapa
   }
   ex.delete(UNPLACED)
   if (!ex.size) return { ops, dropped: 0 }
-  const keep = ops.filter(o => {
+  let dropped = 0
+  const keep = []
+  for (const o of ops) {
     const cap = getCapability(o?.action)
     const kind = cap ? getTargetKind(cap.target) : null
-    if (!kind || cap.query) return true
-    const snap = (kind.list(host) || []).find(s => s.ref === o.target)
-    const chart = snap ? chartRefOf(kind, snap) : null
-    return !chart || !ex.has(chart)
-  })
-  return { ops: keep, dropped: ops.length - keep.length }
+    if (kind && !cap.query) {
+      const snap = (kind.list(host) || []).find(s => s.ref === o.target)
+      const chart = snap ? chartRefOf(kind, snap) : null
+      if (chart && ex.has(chart)) { dropped++; continue }
+    }
+    // (AUDIT, #988 GO) a change that lands on charts named in its ARGS — an indicator Save's `addTo`, run later as follow-ups
+    // that never pass through execute — loses the excluded ones too
+    if (Array.isArray(o?.args?.addTo) && o.args.addTo.some(r => ex.has(String(r).replace(/^[a-z]+:/i, '')))) {
+      const addTo = o.args.addTo.filter(r => !ex.has(String(r).replace(/^[a-z]+:/i, '')))
+      dropped += o.args.addTo.length - addTo.length
+      keep.push({ ...o, args: { ...o.args, addTo } })
+      continue
+    }
+    keep.push(o)
+  }
+  return { ops: dropped ? keep : ops, dropped }
 }
 
 /**

@@ -1160,7 +1160,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         return { followUps: fan }
       }
       const pid = nid()
-      pendingRef.current = { kind: 'proposal', id: pid, ops: fan, epoch: boardEpoch(host, fan), card: plines, expiresAt: Date.now() + PROPOSAL_TTL_MS, binding: binds }
+      pendingRef.current = { kind: 'proposal', id: pid, ops: fan, epoch: boardEpoch(host, fan), card: plines, expiresAt: Date.now() + PROPOSAL_TTL_MS, binding: binds, words: [member, saidRef.current] }
       push({ id: pid, role: 'proposal', lines: plines, status: 'pending' })
       record({ member, outcome: `Proposed: ${plines.join(' · ')}`, outcomeData: { kind: 'proposed', actions }, telemetry: { path, disposition: 'propose', actions, voice } })
       return
@@ -1248,7 +1248,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     if (composing && !composed) {
       const pid = nid()
       pendingRef.current = { kind: 'proposal', id: pid, ops: [...allOps, ...deferred], epoch: boardEpoch(host, [...allOps, ...deferred]),
-        binding: approvalBinding(plan, host), expiresAt: Date.now() + PROPOSAL_TTL_MS }
+        binding: approvalBinding(plan, host), expiresAt: Date.now() + PROPOSAL_TTL_MS, words: [member, saidRef.current] }
       // a proposal says what WILL happen (proposalWording.js), never a success not yet written
       const lines = pendingWording([...pendingLines(allOps, host), ...plan.lines, ...deferredLines])
       push({ id: pid, role: 'proposal', lines, status: 'pending' })
@@ -1277,7 +1277,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const plines = pendingWording([...(wholly ? expansion.proposal : (plan.lines.length ? plan.lines : plan.noops)), ...deferredLines])
       const seals = sealsOf(plan)
       pendingRef.current = { kind: 'proposal', id: pid, ops: keep, epoch: boardEpoch(host, keep),
-        binding: approvalBinding(plan, host), expiresAt: Date.now() + PROPOSAL_TTL_MS,
+        binding: approvalBinding(plan, host), expiresAt: Date.now() + PROPOSAL_TTL_MS, words: [member, saidRef.current],
         ...(seals.length ? { seals, card: plines, expiresAt: Math.min(Date.now() + PROPOSAL_TTL_MS, ...seals.map(x => x.expiresAt)) } : {}) }
       push({ id: pid, role: 'proposal', lines: plines, status: 'pending' })
       record({ member, outcome: `Proposed: ${plines.join(' · ')}`, outcomeData: { kind: 'proposed', actions }, telemetry: { path, disposition: 'propose', actions, voice } })
@@ -1404,7 +1404,10 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   }, [host, push, patchItem, record, capCtx, withdrawPending])
 
   // Every execution is traced (agent/trace.js): phase timestamps, memory only.
-  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice, chosen = false, approval = null, card = null, onTarget = null, binding = null, subset = false, noDuplicates = null, more = false }) => {
+  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice, chosen = false, approval = null, card = null, onTarget = null, binding = null, subset = false, noDuplicates = null, more = false, words = null }) => {
+    // ⛔ #988 (AUDIT GO): the words the excluded-chart gate reads — an approved card carries the words it was PROPOSED
+    // from (its proposal stored them): "do it" / "yes" / the Apply click name no chart, so they could never re-check it
+    const gateWords = Array.isArray(words) ? words : [member, saidRef.current]
     // ⭐ Multi Chart: one gate for the instant, model and approved paths — what cannot run on the grid is said, and nothing runs
     const onGrid = gridMode ? screenGridOps(opsIn, host) : null
     if (onGrid?.refuse) {
@@ -1417,8 +1420,16 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     // ⛔ #988 (pl-auto u14-g3-05, GO bar 1): ONE gate for every card and every apply, on every path (instant, model, a resumed
     // question): a chart the member's words EXCLUDE ("this row except the TSLA one") is dropped from the plan here — never on a
     // proposal card, never applied. An apply that loses a chart this way is only proposed; nothing left → asked, with no card.
-    if (path !== 'approved') {
-      const g = withoutExcludedCharts(opsIn, [member, saidRef.current], { host, getTargetKind, getCapability })
+    // (AUDIT, #988 GO) an APPROVED card is re-checked too (idempotent: its card was built behind this gate) — should it ever
+    // carry an excluded chart, nothing of it runs; the follow-ups a change makes (runFollowUps) pass the same check
+    {
+      const g = withoutExcludedCharts(opsIn, gateWords, { host, getTargetKind, getCapability })
+      if (g.dropped && path === 'approved') {
+        const text = boundRefusal('it includes a chart your request excludes')
+        push({ role: 'refusal', text })
+        record({ member, outcome: text, outcomeData: { kind: 'refused-excluded', actions: (opsIn || []).map(o => o?.action) }, telemetry: { path, refused: true, voice } })
+        return undefined
+      }
       if (g.dropped) {
         if (!g.ops.length) {
           const text = 'Which chart do you mean? Click it (or say left, right…) and ask again — nothing has changed yet.'
@@ -1591,6 +1602,11 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
           continue
         }
         one = r.op
+      }
+      // ⛔ #988 (AUDIT GO): a follow-up never lands on a chart the member's words exclude (the same gate as execute's)
+      if (withoutExcludedCharts([one], gateWords, { host, getTargetKind, getCapability }).dropped) {
+        record({ member, outcome: 'excluded chart skipped', outcomeData: { kind: 'refused-excluded', actions: [one.action] }, telemetry: { path: 'followup', refused: true, voice } })
+        continue
       }
       traceStart('followup:apply')
       try { await executeInner([one], { path: 'followup', mode: approvedStep ? 'approved' : 'apply', member, voice, note: followNote || null, lead: held }) } finally { traceEnd('done') }
@@ -1828,7 +1844,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     const kinds = p.then ? [] : null
     if (kinds) tapRef.current = kinds
     try {
-      await execute(ops, { path: 'approved', mode: 'approved', member, voice, approval: p.seals || null, card: p.card || null, binding: p.binding, subset: !!count && count < p.ops.length })
+      await execute(ops, { path: 'approved', mode: 'approved', member, voice, approval: p.seals || null, card: p.card || null, binding: p.binding, subset: !!count && count < p.ops.length, words: p.words || null })
     } finally { if (kinds) tapRef.current = null }
     // NLM-1 step plans (dark): the plan this card belonged to is read back now that it has run
     if (stepPlanRef.current) await readBackRef.current?.()

@@ -115,8 +115,22 @@ const FAR_LINE = /\bthe\s+(row|column)\s+from\s+this\s+one\b/i
 // real candidates, never the click. Units are grid units only: "two bars to the left", "one pane up" are no walk.
 const MOVE_VERB = /\b(?:move|moving|shift|drag|slide|push|nudge|swap|scroll|pan)\b/i
 // a COUNT, never a pronoun: "a / an / one" only after a chart noun or a verb particle ("the chart one over", "up one row", "the one
-// one over") — not "the top one over", "the next-but-one chart"; 2–4 never inside a hyphenated word
-const N_WORD = '((?<=\\b(?:chart|charts|one|cell|cells|pane|panel|graph|neighbou?r|up|down|it|just|only|exactly|by|is|sits?)\\s)(?:a|an|one)|(?<![-\\w])(?:two|three|four|[1-4]))'
+// one over") — not "the top one over", "the next-but-one chart"; 2–4 never inside a hyphenated word.
+// ⛔ NO LOOKBEHIND (iOS 16.0–16.3, #988 AUDIT L1): the word BEFORE the count is checked in code (countOk), on the text before
+// the match — a rejected count retries one character on, as the regex engine would (walkExec)
+const N_WORD = '(a|an|one|two|three|four|[1-4])'
+const COUNT_ARTICLE_AFTER = /\b(?:chart|charts|one|cell|cells|pane|panel|graph|neighbou?r|up|down|it|just|only|exactly|by|is|sits?)\s$/i
+const countOk = (before, w) => (/^(?:a|an|one)$/i.test(w) ? COUNT_ARTICLE_AFTER.test(before) : !/[-\w]$/.test(before))
+/** The first match of a walk regex whose count (group `g`, starting `lead(m)` characters into the match) passes countOk. */
+function walkExec(re, s, g = 1, lead = () => 0) {
+  const r = new RegExp(re.source, `${re.flags}g`)
+  for (let m; (m = r.exec(s));) {
+    if (countOk(s.slice(0, m.index + lead(m)), m[g])) return m
+    r.lastIndex = m.index + 1
+  }
+  return null
+}
+const V2_LEAD = (m) => /^(?:up|down)\s+/i.exec(m[0])[0].length
 // the walk's own anchor, when the words name it ("one row up FROM THIS ONE"): part of the walk, not another pointer at the click
 const WALK_FROM = `(?:\\s+(?:(?:away\\s+)?(?:from|of|to|than|as)\\s+)?(?:this|that|here|it|the\\s+(?:selected|clicked|current|highlighted|active|focused)(?:\\s+(?:chart|one))?|the\\s+one\\s+(?:that\\s+)?(?:i|you)(?:'ve|\\s+have|\\s+just)?\\s*(?:clicked|selected|picked|chose|chosen|highlighted|tapped)(?:\\s+on)?)(?:\\s+(?:chart|one|cell|pane|panel))?\\b)?`
 const N_OF = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4 }
@@ -125,6 +139,8 @@ const WALK_V1 = new RegExp(`\\b${N_WORD}\\s+rows?\\s+(up|down|higher|lower|above
 const WALK_V2 = new RegExp(`\\b(up|down)\\s+${N_WORD}\\s+rows?\\b${WALK_FROM}`, 'i')
 const WALK_H1 = new RegExp(`\\b${N_WORD}\\s+(?:${GRID_UNIT}\\s+)?(?:over\\s+)?(?:(?:to|on)\\s+the\\s+)?(left|right)\\b(?!\\s+(?:above|below|under|over|beneath)\\b)${WALK_FROM}`, 'i')
 const WALK_H2 = new RegExp(`\\b${N_WORD}\\s+(?:${GRID_UNIT}\\s+)?over\\b${WALK_FROM}`, 'i')
+/** (test hook) the walk regexes' first match on `s` — the #988 no-lookbehind equivalence rail compares it with the old forms */
+export const _walkExec = (kind, s) => ({ V1: () => walkExec(WALK_V1, s), V2: () => walkExec(WALK_V2, s, 2, V2_LEAD), H1: () => walkExec(WALK_H1, s), H2: () => walkExec(WALK_H2, s) })[kind]()
 const OTHER_SIDE = /\b(?:the\s+other\s+side\s+of|across)\s+the\s+(row|column)\b/i
 const SAME_CORNER = new RegExp(`\\bcorner\\s+(?:on|in|along|at)\\s+the\\s+same\\s+(side|row|column)\\b${WALK_FROM}`, 'i')
 // AUDIT probe-16 shapes (#988): "the <ordinal / position> chart in / of / on <a row or column>" and "same <axis> but the other <axis>".
@@ -188,13 +204,13 @@ function walkMatch(s) {
   const at = (m, set) => { if (!m || placesNonChart(s.slice(0, m.index), m[0])) return null; Object.assign(m, set); return m }
   const n = (w) => N_OF[String(w).toLowerCase()] || Number(w)
   const vDir = (w) => (/^(up|higher|above)$/i.test(w) ? 'above' : 'below')
-  let m = WALK_V1.exec(s)
+  let m = _walkExec('V1', s)
   if (m) return at(m, { walk: { dirs: [vDir(m[2])], n: n(m[1]) } })
-  m = WALK_V2.exec(s)
+  m = _walkExec('V2', s)
   if (m) return at(m, { walk: { dirs: [vDir(m[1])], n: n(m[2]) } })
-  m = WALK_H1.exec(s)
+  m = _walkExec('H1', s)
   if (m) return at(m, { walk: { dirs: [m[2].toLowerCase()], n: n(m[1]) } })
-  m = WALK_H2.exec(s)
+  m = _walkExec('H2', s)
   if (m) return at(m, { walk: { dirs: ['left', 'right'], n: n(m[1]) } })
   m = lineRefExec(s)
   if (m && m[2]) return at(m, { line: { axis: m[4].toLowerCase(), pos: m[1] } })
