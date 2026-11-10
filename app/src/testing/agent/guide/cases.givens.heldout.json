@@ -4,5 +4,7 @@
  {"id":"HG-03","say":"show me how to copy what the AI search said","feature":"control","title":"Copying an answer","given":["aiAnswer"]},
  {"id":"HG-04","say":"how do I send my AI search chat to the journal","feature":"control","title":"Sending AI Search to the Journal","given":["aiAnswer"]},
  {"id":"HG-05","say":"how do I rename my note","feature":"control","title":"Editing a note","given":["noteOpen"]},
- {"id":"HG-06","say":"how do I change the text of this note","feature":"control","title":"Editing a note","given":["noteOpen"]}
+ {"id":"HG-06","say":"how do I change the text of this note","feature":"control","title":"Editing a note","given":["noteOpen"]},
+ {"id":"HG-07","say":"how do I leave replay mode","feature":"panelAction","title":"Leaving replay","given":["replayRunning"]},
+ {"id":"HG-08","say":"how do I stop the replay and go back to live","feature":"panelAction","title":"Leaving replay","given":["replayRunning"]}
 ]
