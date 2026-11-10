@@ -39,6 +39,7 @@
 import { CROSSHAIR_MODES, crosshairModeOf } from './crosshairMode'
 import { LEGEND_MODES, legendModeOf } from './legendMode'
 import { CHART_DEFAULTS } from './chartDefaults'
+import { HEADER_FIELDS } from './headerFields'
 import { PANE_LOOK, paneWatermarkOpacity } from './pane/paneLook'
 
 export const CHART_SETTINGS_DESCRIPTOR_VERSION = 1
@@ -95,6 +96,27 @@ export const VOLUME_BAR_STYLES = ['columns', 'histogram']
 const E = (id, section, label, type, extra = {}) => ({ id, section, label, type, agent: 'eligible', ...extra })
 // a NUMBER setting: `min`–`max` (inclusive), `integer` when the control takes whole numbers (W1-B)
 const N = (id, section, label, extra = {}) => ({ id, section, label, type: 'number', agent: 'eligible', ...extra })
+// ── pl-grid (chart-settings gaps C1-058 / C1-067 / C1-078): three families the dialog already writes ──
+// Watermark → Alignment (ChartSettingsModal setWmAlign): `watermark.align`, absent = center (StockChart and
+// watermarkPrimitive read `align || 'center'`). Not in CHART_DEFAULTS, so a chart that never set it has no key.
+export const WATERMARK_ALIGNS = ['left', 'center', 'right']
+// Shift+T (StockChart toggle:theme): `theme` 'dark' | 'light' at the top level, CHART_DEFAULTS.theme = 'dark'.
+export const CHART_PALETTES = ['dark', 'light']
+// Header colours (Chart Settings → Header): `header.colors.<key>`, absent = the item's built-in colour. The title, the
+// day-change pair and the legend are the header's own pickers (COLOR_PATHS hdr*); every Info-row field has one picker per
+// `colorKey` (a signed field two: `<colorKey>:pos` / `:neg`), GENERATED from the product's catalog (headerFields.js), so
+// a field added there is covered here with no edit.
+// The Info row reads every field's colour by its catalog key (ChartPane: `hdrColors[f.colorKey]`, a signed half
+// `hdrColors[`${f.colorKey}:${s}`]`), never by a literal name, so these rows name that reader for settingsLiveness.test.js.
+const FIELD_READER = /hdrColors\[f\.colorKey\]/
+const SIGNED_READER = /hdrColors\[`\$\{f\.colorKey\}:\$\{s\}`\]/
+export const HEADER_COLOR_KEYS = [
+  ['title', 'Header title color'], ['dayChangeUp', 'Header up-day change color'], ['dayChangeDown', 'Header down-day change color'],
+  ['legend', 'Chart legend color'],
+  ...HEADER_FIELDS.filter(f => f.colorKey).flatMap(f => (f.signed
+    ? [[`${f.colorKey}:pos`, `Info row ${f.label} color (positive)`, SIGNED_READER], [`${f.colorKey}:neg`, `Info row ${f.label} color (negative)`, SIGNED_READER]]
+    : [[f.colorKey, `Info row ${f.label} color`, FIELD_READER]])),
+].filter(([k], i, all) => all.findIndex(([x]) => x === k) === i)
 const ELIGIBLE = [
   E('grid.visible', 'canvas', 'Grid lines', 'bool', { ui: 'Chart Settings → Canvas → Grid', words: ['grid', 'grid lines', 'gridlines'] }),
   E('crosshair.mode', 'canvas', 'Crosshair', 'enum', { options: CROSSHAIR_MODES, ui: 'Chart Settings → Canvas → Crosshair', words: ['crosshair'],
@@ -191,6 +213,11 @@ const ELIGIBLE = [
   E('showChartIq', 'tools', 'Chart IQ pattern recognition', 'bool', { ui: 'Chart toolbar → Chart IQ (server-gated: drawn only where Chart IQ is served)', words: ['chart iq', 'pattern recognition', 'patterns'] }),
   N('positionCalc.accountSize', 'tools', 'Position calculator account size', { ui: 'Position Calculator', min: 0, max: 1e9 }),
   N('positionCalc.riskPct', 'tools', 'Position calculator risk per trade (%)', { ui: 'Position Calculator', min: 0, max: 100 }),
+  // pl-grid: the three gap families (see WATERMARK_ALIGNS / CHART_PALETTES / HEADER_COLOR_KEYS above)
+  E('watermark.align', 'watermark', 'Watermark alignment', 'enum', { options: WATERMARK_ALIGNS, default: 'center', ui: 'Chart Settings → Canvas → Watermark → Alignment',
+    words: ['watermark alignment', 'align the watermark'], requires: WHEN_WATERMARK }),
+  E('theme', 'canvas', 'Light/dark palette', 'enum', { options: CHART_PALETTES, ui: 'Shift+T on the chart', words: ['light palette', 'dark palette'] }),
+  ...HEADER_COLOR_KEYS.map(([k, label, reader]) => E(`header.colors.${k}`, 'header', label, 'color', { ui: 'Chart Settings → Header', ...(reader ? { reader } : {}) })),
 ]
 
 // What StockChart's themeColors ignores (a Sunrise canvas has no grid and its own colors; the light palette has its own)
@@ -240,10 +267,10 @@ const KNOWN = [
   K('header.showNextEarnings', 'header', 'Next earnings in the info row (Info row fields)', 'Chart Settings → Header → Info row'),
   K('header.showUctRating', 'header', 'UCT rating in the info row (Info row fields)', 'Chart Settings → Header → Info row'),
   K('header.showLegend', 'header', 'Chart legend (legacy on/off)', 'Chart Settings → Header → Chart Legend'),
+  // a header.colors key the catalog does not name (the named ones are eligible rows above, matched first)
   K('header.colors.*', 'header', 'Header colors', 'Chart Settings → Header'),
   K('volume.plotStyle', 'volume', 'Volume plot style (declared, not yet honoured)', 'Chart Settings → Indicators → Volume'),
   K('drawingDefaults.*', 'drawings', 'Default drawing style', 'drawing → Save as default'),
-  K('theme', 'canvas', 'Light/dark palette (Shift+T)', 'Shift+T on the chart'),
 ]
 
 // ── internal: bookkeeping or dead data, never offered ──
