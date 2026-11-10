@@ -2093,13 +2093,28 @@ function validatePlacement(placement, errors) {
   if (placement.pane !== undefined && placement.pane !== null) {
     if (!isPlainObject(placement.pane)) {
       errors.push(`placement.pane: expected an object, got ${fmt(placement.pane)}`)
-    } else if (placement.pane.height !== undefined
-               && !(isFiniteNumber(placement.pane.height)
-                    && placement.pane.height > 0 && placement.pane.height < 1)) {
-      errors.push(
-        `placement.pane.height: expected a finite fraction of the chart in (0, 1) — ` +
-        `the pane's default height — got ${fmt(placement.pane.height)}`,
-      )
+    } else {
+      if (placement.pane.height !== undefined
+          && !(isFiniteNumber(placement.pane.height)
+               && placement.pane.height > 0 && placement.pane.height < 1)) {
+        errors.push(
+          `placement.pane.height: expected a finite fraction of the chart in (0, 1) — ` +
+          `the pane's default height — got ${fmt(placement.pane.height)}`,
+        )
+      }
+      // ⭐ RS split U3 — `minPx`: the pane's MINIMUM height in pixels, applied
+      // after the member's own sizes (`paneStretchPlan`). Optional; absent means
+      // no floor beyond the stack's 4 % share, which is every definition before
+      // U3. PIXELS, not a fraction, because readability is a property of the
+      // screen — so the bound is simply a positive finite number, and a string
+      // is refused like every other behavioural value.
+      if (placement.pane.minPx !== undefined
+          && !(isFiniteNumber(placement.pane.minPx) && placement.pane.minPx > 0)) {
+        errors.push(
+          `placement.pane.minPx: expected a positive finite number of pixels — ` +
+          `the pane's minimum height — got ${fmt(placement.pane.minPx)}`,
+        )
+      }
     }
   }
 

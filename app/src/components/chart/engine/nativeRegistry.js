@@ -4151,7 +4151,7 @@ const RS_LINE_RAW = {
   // reading on its own invisible scale in the lowest third under the bars (the
   // IBD look) instead of on the candles' dollar axis. The default target stays
   // the pane, so no saved instance moves (F30).
-  placement: { target: 'pane', pane: { height: 0.20 }, axis: 'hidden', ownScale: true },
+  placement: { target: 'pane', pane: { height: 0.20, minPx: 64 }, axis: 'hidden', ownScale: true },
   inputs: [
     // ⭐ STILL AN `enum`, NOT A `symbol` (decision A3 and platform C-A3 stand).
     // SECTOR and INDUSTRY are enum values the SERVER resolves from the universe
