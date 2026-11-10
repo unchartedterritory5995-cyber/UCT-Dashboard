@@ -267,6 +267,12 @@ def diff(baseline_failing: set, current_failing: set, current_ran: set,
                        "finish" % (v.get("collected") or 0,
                                    "no totals line" if v.get("totals_line_found") is False
                                    else "a totals line"))
+    # ⛔⛔ VITEST IS SHARDED (`--shard=i/4`), AND ITS SHARDS ARE READ EXACTLY AS PYTEST'S
+    # ARE. A missing, killed, unreadable or totals-less shard leaves a PARTIAL count that
+    # looks like a whole one — one shard's `Tests … (N)` line is indistinguishable from the
+    # suite's. So any of them makes the record INVALID, never green, never "fewer tests".
+    if isinstance(v, dict):
+        invalid.extend(vitest_shard_problems(v))
     if not current_ran:
         invalid.append("current: no junit testcases could be read — RAN is unknowable, "
                        "so FIXED and MISSING cannot be told apart")
@@ -938,6 +944,90 @@ def collect_runs(root, repo="."):
 # `BASELINE_RUN_ID` is RETIRED for master; kept, unchanged, for feat-branch runs
 # (there the comparison point is a deliberate feat-branch anchor, not a moving one).
 
+def vitest_shard_problems(v: dict) -> list:
+    """Why a SHARDED vitest record is incomplete — [] when it is whole (or not sharded).
+
+    Mirrors the pytest shard checks in `diff()` field for field: `shards_success` below
+    `shards_total`, and any non-empty `shards_unreadable` / `shards_without_totals` /
+    `shards_missing`. ⛔ A record that SAYS it is sharded but carries no shard total is
+    itself a problem: "how many shards should there have been" is the question a partial
+    count cannot answer for itself."""
+    if not isinstance(v, dict) or not (v.get("sharded") or "shards_total" in v):
+        return []
+    out = []
+    if not v.get("shards_total"):
+        out.append("current: vitest is sharded but records no shards_total")
+    elif v.get("shards_success", 0) < v["shards_total"]:
+        out.append("current: vitest shards_success %s of %s"
+                   % (v.get("shards_success"), v.get("shards_total")))
+    for field in ("shards_unreadable", "shards_without_totals", "shards_missing"):
+        if v.get(field):
+            out.append("current: vitest %s = %s" % (field, v[field]))
+    return out
+
+
+def classify_run(run: dict, jobs=None) -> dict:
+    """{"state", "basis"} for one workflow RUN from the Actions API.
+
+    ⛔⛔ **A RUN CANCELLED WHILE QUEUED IS `NOT_RUN` — NEVER A RESULT, NEVER A TIMEOUT.**
+    The full-suite workflow keeps `cancel-in-progress: false`, so a newer run queues behind
+    the running one instead of killing it. GitHub keeps only ONE pending run per concurrency
+    group, so a third trigger cancels the run already waiting: it reports
+    `conclusion: cancelled` having run nothing, publishes no record, and must be reported
+    as "not run" when the nightly runs are tallied — not as a red run and not as a cap cut.
+
+    `jobs` is that run's jobs list (or the `{"jobs": [...]}` payload). None means it could
+    not be read, which is UNREADABLE for a cancelled run — never guessed either way.
+
+    States: NOT_RUN · CANCELLED_AFTER_START · COMPLETED · IN_PROGRESS · UNREADABLE.
+    """
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+    import ci_outcome
+    if not isinstance(run, dict):
+        return {"state": "UNREADABLE", "basis": "run payload is not an object"}
+    status, conclusion = run.get("status"), run.get("conclusion")
+    if status != "completed":
+        return {"state": "IN_PROGRESS", "basis": "status=%s" % status}
+    if conclusion != "cancelled":
+        return {"state": "COMPLETED", "basis": "conclusion=%s" % conclusion}
+    if isinstance(jobs, dict):
+        jobs = jobs.get("jobs")
+    if jobs is None:
+        return {"state": "UNREADABLE",
+                "basis": "cancelled, and its jobs could not be read — not guessed"}
+    started = [j.get("name") for j in jobs if not ci_outcome.job_never_started(j)]
+    if not started:
+        return {"state": "NOT_RUN",
+                "basis": "cancelled with %d job(s), none ever started — superseded in the "
+                         "queue; not a result, not a timeout" % len(jobs)}
+    return {"state": "CANCELLED_AFTER_START",
+            "basis": "cancelled after %d job(s) started: %s" % (len(started), started[:5])}
+
+
+#: A manual re-run of a run publishes BESIDE attempt 1, never over it (ci_publish.record_dest).
+ATTEMPT_DIR_PREFIX = "attempt-"
+
+
+def rerun_flaky(record_dir) -> list:
+    """Keys that FAILED on attempt 1 and ran without failing on a later manual re-run.
+
+    ⛔⛔ **NO RETRY LAUNDERING.** Nothing in this pipeline retries automatically. If a run is
+    ever re-run by hand, `results/<run>/` stays attempt 1's record (the re-run lands under
+    `results/<run>/attempt-<n>/`, see `ci_publish.record_dest`) and attempt 1's failures
+    stay failures. A test that failed on attempt 1 and passed later is FLAKY — named here —
+    and is NOT subtracted from NEW and NOT counted as fixed: a re-run can never make a
+    record greener than its first attempt."""
+    d = pathlib.Path(record_dir)
+    first_failing, _, _ = load_record(d)
+    flaky = set()
+    for sub in sorted(d.glob(ATTEMPT_DIR_PREFIX + "*")):
+        if not sub.is_dir():
+            continue
+        later_failing, later_ran, _ = load_record(sub)
+        flaky |= (first_failing & later_ran) - later_failing
+    return sorted(flaky)
+
+
 def record_is_valid(summary: dict) -> bool:
     """VALID = every pytest shard succeeded, the totals are present, and the suite
     actually collected something. Mirrors `diff()`'s own INVALID checks — a baseline
@@ -951,6 +1041,10 @@ def record_is_valid(summary: dict) -> bool:
     if p.get("shards_unreadable") or p.get("shards_without_totals") or p.get("shards_missing"):
         return False
     if not p.get("collected"):
+        return False
+    # ⛔ A SHARDED vitest record is only a valid baseline when every shard reported.
+    # (Records from before sharding carry no shard fields and are judged as before.)
+    if vitest_shard_problems((summary or {}).get("vitest") or {}):
         return False
     return True
 
@@ -1007,9 +1101,11 @@ def previous_valid_master_run(results_root, current_run_id=None, branch="master"
             candidates.append((n, d.name, s))
         else:
             p = s.get("pytest") or {}
-            exclusions.append((d.name, "INVALID: shards_success=%s/%s collected=%s"
+            exclusions.append((d.name, "INVALID: shards_success=%s/%s collected=%s%s"
                                % (p.get("shards_success"), p.get("shards_total"),
-                                  p.get("collected"))))
+                                  p.get("collected"),
+                                  "".join(" · " + x for x in vitest_shard_problems(
+                                      s.get("vitest") or {})))))
     if not candidates:
         return None, {}, candidates, exclusions
     candidates.sort(key=lambda c: c[0])
@@ -1282,6 +1378,21 @@ def _self_check() -> int:
     show("  ...and it NAMES vitest", any("vitest" in r for r in dv["invalid_because"]), True)
     dvm = diff({A, B}, {A, B}, RAN, {"pytest": GOOD["pytest"]})
     show("no vitest record at all -> INVALID", dvm["verdict"], "INVALID")
+    VS = dict(GOOD["vitest"], sharded=True, shards_total=4, shards_success=4,
+              shards_unreadable=[], shards_without_totals=[], shards_missing=[])
+    show("sharded vitest 4/4 -> not INVALID",
+         diff({A, B}, {A, B}, RAN, dict(GOOD, vitest=VS))["verdict"] != "INVALID", True)
+    show("sharded vitest 3/4 (one MISSING) -> INVALID",
+         diff({A, B}, {A, B}, RAN, dict(GOOD, vitest=dict(
+             VS, shards_success=3, shards_missing=["4"])))["verdict"], "INVALID")
+    show("sharded vitest, a shard with no totals -> INVALID",
+         diff({A, B}, {A, B}, RAN, dict(GOOD, vitest=dict(
+             VS, shards_without_totals=["2"])))["verdict"], "INVALID")
+    show("...and not a valid baseline either",
+         record_is_valid(dict(GOOD, vitest=dict(VS, shards_missing=["4"]))), False)
+    show("queued-then-cancelled run -> NOT_RUN",
+         classify_run({"status": "completed", "conclusion": "cancelled"},
+                      {"jobs": []})["state"], "NOT_RUN")
 
     # 1 identical
     d1 = diff({A, B}, {A, B}, RAN, GOOD)
@@ -1492,10 +1603,24 @@ def main(argv=None) -> int:
     ap.add_argument("--repo", default=".",
                     help="the code checkout the diffs are read from (needs full history)")
     ap.add_argument("--flaky-out", help="write flaky_findings.md here")
+    ap.add_argument("--classify-run", metavar="RUN_JSON",
+                    help="classify one Actions run (NOT_RUN / COMPLETED / ...); with "
+                         "--jobs, that run's jobs payload")
+    ap.add_argument("--jobs", help="the jobs payload for --classify-run")
     ap.add_argument("--self-check", action="store_true")
     a = ap.parse_args(argv)
     if a.self_check:
         return _self_check()
+
+    if a.classify_run:
+        def _read(path):
+            try:
+                return json.loads(pathlib.Path(path).read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                return None
+        r = classify_run(_read(a.classify_run), _read(a.jobs) if a.jobs else None)
+        print(json.dumps(r, indent=2))
+        return OK if r["state"] != "UNREADABLE" else FAIL
 
     if a.flaky:
         runs = collect_runs(a.results_root, a.repo)
@@ -1585,6 +1710,8 @@ def main(argv=None) -> int:
                 flaky_prev = {k for k, v in prev.items() if not v["retired"]}
         d = diff(bf, cf, cr, cs, bs, flaky=flaky, flaky_previous=flaky_prev, repo=a.repo,
                  first_run=first_run, attribute=rolling)
+        # ⛔ Reported, never subtracted: see `rerun_flaky`.
+        rflaky = rerun_flaky(cdir)
         for line in derivation_lines:
             print(line)
         text = render_diff(d, a.baseline, a.current)
@@ -1606,7 +1733,9 @@ def main(argv=None) -> int:
                  "file_level_resolved": ["|".join(k) for k in d.get("file_level_resolved", [])],
                  "coverage_lost": ["|".join(k) for k in d.get("coverage_lost", [])],
                  "missing_buckets": d.get("missing_buckets", {}),
-                 "attribution": d.get("attribution", {})},
+                 "attribution": d.get("attribution", {}),
+                 "run_attempt": (cs or {}).get("run_attempt"),
+                 "rerun_flaky": ["|".join(k) for k in rflaky]},
                 indent=2) + "\n", encoding="utf-8")
             print("[ci-inventory] wrote %s" % a.out)
         print(text)
