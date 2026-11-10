@@ -1,0 +1,9 @@
+src/agent/agentNl1SelectionCoverage.test.js failedTests=1 
+   - holds the selection invariants on every dev / exposed request, and reports first-call coverage | AssertionError: corpus.json: first-call coverage: expected # to be greater than or equal to # at C:/w/pl-auto/app/src/agent/agentNl1SelectionCoverage.test.js:127:56 at file:///C:/w/pl-auto/app/node_mo
+src/agent/agentNoLookbehindEquivalence.test.js failedTests=1 
+   - no-lookbehind equivalence: the outputs recorded on master before the rewrite are reproduced routing: every output identical to the master baseline | AssertionError: expected [ [ 69, …(2) ], [ 146, …(2) ] ] to deeply equal [] at C:/w/pl-auto/app/src/agent/agentNoLookbehindEquivalence.test.js:95:34 at file:///C:/w/pl-auto/app/node_modules/@vitest/ru
+src/agent/agentRouting.test.jsx failedTests=1 
+   - release audit: every registered action is reachable through routing each group can be sent (by its words or a reroute) within the per-request limit, and the gro | AssertionError: expected 160 to be 158 // Object.is equality at C:/w/pl-auto/app/src/agent/agentRouting.test.jsx:203:25 at file:///C:/w/pl-auto/app/node_modules/@vitest/runner/dist/index.js:145:11 at 
+src/agent/agentScanSat1Requests.test.jsx failedTests=0 FILE-LEVEL: 
+src/agent/agentScreener.test.jsx failedTests=1 
+   - Screener: the real engine, the real catalog READ-ONLY: every Screener action is a query (nothing to undo); the manifest stays closed-schema | AssertionError: expected 154 to be 152 // Object.is equality at C:/w/pl-auto/app/src/agent/agentScreener.test.jsx:133:22 at file:///C:/w/pl-auto/app/node_modules/@vitest/runner/dist/index.js:145:11 at

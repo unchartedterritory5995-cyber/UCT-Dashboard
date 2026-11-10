@@ -1,0 +1,6 @@
+W2 files 9 failed | 1951 passed (1960); tests 4 failed | 10007 passed | 38 skipped (10049)
+  src/agent/agentNl1SelectionCoverage.test.js
+  src/agent/agentNoLookbehindEquivalence.test.js
+  src/agent/agentRouting.test.jsx
+  src/agent/agentScanSat1Requests.test.jsx
+  src/agent/agentScreener.test.jsx

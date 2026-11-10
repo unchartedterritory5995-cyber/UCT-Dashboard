@@ -1,0 +1,37 @@
+unseen18: 6/42 | APPLIED 0 | PROPOSED 0 | OFFERED 0 | OVERASK 0 | OTHER 36
+  u18-refresh-01 [OTHER] "rerun the scanner" (DATA, click -, intended -) scanGets.byRoute./api/scans/ipo-1y changed; a receipt reports the change
+  u18-refresh-02 [OTHER] "pull fresh results into the IPO scan" (DATA, click -, intended -) scanGets.byRoute./api/scans/ipo-1y changed; a receipt reports the change
+  u18-refresh-03 [OTHER] "refresh the period sort" (DATA, click -, intended -) scanGets.period changed; a receipt reports the change
+  u18-refresh-04 [OTHER] "update the custom period ranking" (DATA, click -, intended -) scanGets.period changed; a receipt reports the change
+  u18-refresh-05 [OTHER] "leave the scanner alone and refresh the period sort" (DATA, click -, intended -) scanGets.period changed; a receipt reports the change
+  u18-refresh-06 [OTHER] "don't touch the period sort, just reload the scanner" (DATA, click -, intended -) scanGets.byRoute./api/scans/ipo-1y changed; a receipt reports the change
+  u18-refresh-08 [OTHER] "take the scanner back to the list of scans" (DATA, click -, intended -) written re scanKey\W+null; a receipt reports the change
+  u18-refresh-09 [OTHER] "refresh the top gainers scanner" (DATA2, click -, intended -) scanGets.byRoute./api/scans/top-gainers-30d changed; a receipt reports the change
+  u18-refresh-10 [OTHER] "refresh the scanner" (DATA2, click -, intended -) it asked
+  u18-look-01 [OTHER] "no company logos on my watchlist" (DATA, click -, intended -) written re showLogos\W+false; a receipt reports the change
+  u18-look-02 [OTHER] "stop the watchlist rows flashing on every tick" (DATA, click -, intended -) written re tint\w*\W+false; a receipt reports the change
+  u18-look-03 [OTHER] "watchlist background to pure black" (DATA, click -, intended -) written re #000000; a receipt reports the change
+  u18-look-04 [OTHER] "make the watchlist text a light grey, #cccccc" (DATA, click -, intended -) written re #cccccc; a receipt reports the change
+  u18-look-05 [OTHER] "green for up names and red for down names on the watchlist" (DATA, click -, intended -) written re #00c853; written re #d50000; a receipt reports the change
+  u18-look-07 [OTHER] "make the watchlist background black" (DATA2, click -, intended -) it asked
+  u18-look-08 [OTHER] "on the Swing watchlist, hide the logos" (DATA2, click -, intended -) written re showLogos\W+false; a receipt reports the change
+  u18-looks-01 [OTHER] "keep this watchlist styling as a look named Desk Dark" (DATA, click -, intended -) written re Desk Dark; a receipt reports the change
+  u18-looks-02 [OTHER] "put the Paper look on my watchlist" (DATA, click -, intended -) written re 1f2328; a receipt reports the change
+  u18-looks-03 [OTHER] "remove the Paper look from my saved looks" (DATA, click -, intended -) written re watchlist_templates\W+\[\]; a receipt reports the change
+  u18-flagged-01 [OTHER] "rename flagged to Top Ideas" (DATAF, click -, intended -) faces.watchlist re Top Ideas; a receipt reports the change
+  u18-flagged-02 [OTHER] "call my flagged list Shortlist instead" (DATAF, click -, intended -) faces.watchlist re Shortlist; a receipt reports the change
+  u18-cols-01 [OTHER] "put % change right before price on my watchlist" (DATA, click -, intended -) wlCols re "order":\["flag","sym","chg","price","vol"\]; a receipt reports the change
+  u18-cols-02 [OTHER] "move volume to the end of the watchlist columns" (DATA, click -, intended -) wlCols re "order":\["flag","sym","price","chg","vol"\]; a receipt reports the change
+  u18-cols-03 [OTHER] "widen the symbol column to 150 px" (DATA, click -, intended -) wlCols re "sym":150; a receipt reports the change
+  u18-cols-04 [OTHER] "make the price column 70 wide" (DATA, click -, intended -) wlCols re "price":70; a receipt reports the change
+  u18-cols-06 [OTHER] "on the Swing list, move volume right after symbol" (DATA2, click -, intended -) wlCols re "order":\["flag","sym","vol","price","chg"\]; a receipt reports the change
+  u18-cols-07 [OTHER] "move the volume column after the symbol" (DATA2, click -, intended -) it asked
+  u18-show-01 [OTHER] "switch my watchlist widget to the Swing list" (DATA, click -, intended -) written re watchKey\W+user:s1; a receipt reports the change
+  u18-show-02 [OTHER] "show my flagged names in the watchlist" (DATA, click -, intended -) written re watchKey\W+flagged; a receipt reports the change
+  u18-show-03 [OTHER] "back to the list chooser on the watchlist widget" (DATA, click -, intended -) written re watchKey\W+null; a receipt reports the change
+  u18-show-05 [OTHER] "put Long Term on the Swing watchlist widget" (DATA2, click -, intended -) written re watchKey\W+user:l1; a receipt reports the change
+  u18-show-06 [OTHER] "show the Long Term list in the watchlist" (DATA2, click -, intended -) it asked
+  u18-export-01 [OTHER] "download this watchlist as a csv" (DATA, click -, intended -) a receipt reports the change
+  u18-export-02 [OTHER] "copy the tickers on my watchlist so I can paste them" (DATA, click -, intended -) a receipt reports the change
+  u18-export-03 [OTHER] "export my watchlist to csv" (DATA2, click -, intended -) it asked
+  u18-export-04 [OTHER] "export the Swing watchlist as a csv file" (DATA2, click -, intended -) a receipt reports the change

@@ -1,0 +1,73 @@
+{
+ "head": [
+  "# Reconciled coverage ledger (LOCAL, src/agent vitest + recount per tree; harness files only added; 2026-11-10)"
+ ],
+ "legend": [
+  "V/P/I/M/B/U = the tree doc state; * = re-proved by that tree src/agent run; +R = raised by test; V~ = doc VERIFIED, citation unmatched, named test files all passed"
+ ],
+ "tail": [],
+ "trees": [
+  {
+   "tag": "M",
+   "label": "master",
+   "sha": "b2300e547d",
+   "doc": "<scratch>/runs/ledger6/docs/b2300e547d.md",
+   "recount": "<scratch>/runs/ledger6/M/recount.json",
+   "vitest": "<scratch>/runs/ledger6/M/vitest-agent.json"
+  },
+  {
+   "tag": "D",
+   "label": "r8-integration",
+   "sha": "16fb5272a3",
+   "doc": "<scratch>/runs/ledger6/docs/16fb5272a3.md",
+   "recount": "<scratch>/runs/ledger6/D/recount.json",
+   "vitest": "<scratch>/runs/ledger2/D/vitest-agent.json",
+   "cls": "<scratch>/runs/ledger6/cls/cls-16fb5272a3.json"
+  },
+  {
+   "tag": "X",
+   "label": "exec-p1-gaps",
+   "sha": "6e88f01f1c",
+   "doc": "<scratch>/runs/ledger6/docs/6e88f01f1c.md",
+   "recount": "<scratch>/runs/ledger6/X/recount.json",
+   "vitest": "<scratch>/runs/ledger6/X/vitest-agent.json",
+   "cls": "<scratch>/runs/ledger6/cls/cls-6e88f01f1c.json"
+  },
+  {
+   "tag": "O",
+   "label": "owner-0910",
+   "sha": "b72b1f711d",
+   "doc": "<scratch>/runs/ledger6/docs/b72b1f711d.md",
+   "recount": "<scratch>/runs/ledger6/O/recount.json",
+   "vitest": "<scratch>/runs/ledger6/O/vitest-agent.json",
+   "cls": "<scratch>/runs/ledger6/cls/cls-b72b1f711d.json"
+  },
+  {
+   "tag": "W",
+   "label": "exec-widget-actions (old head)",
+   "sha": "f31f541a07",
+   "doc": "<scratch>/runs/ledger6/docs/f31f541a07.md",
+   "recount": "<scratch>/runs/ledger6/W/recount.json",
+   "vitest": "<scratch>/runs/ledger6/W/vitest-agent.json",
+   "cls": "<scratch>/runs/ledger6/cls/cls-f31f541a07.json"
+  },
+  {
+   "tag": "N",
+   "label": "fix-relative-refs",
+   "sha": "c01bab958c",
+   "doc": "<scratch>/runs/ledger6/docs/c01bab958c.md",
+   "recount": "<scratch>/runs/ledger6/N/recount.json",
+   "vitest": "<scratch>/runs/ledger6/N/vitest-agent.json",
+   "cls": "<scratch>/runs/ledger6/cls/cls-c01bab958c.json"
+  },
+  {
+   "tag": "W2",
+   "label": "exec-widget-actions #1027 head",
+   "sha": "8a3977c833",
+   "doc": "<scratch>/runs/ledger6/docs/8a3977c833.md",
+   "recount": "<scratch>/runs/ledger6/W2/recount.json",
+   "vitest": "<scratch>/runs/ledger6/W2/vitest-agent.json",
+   "cls": "<scratch>/runs/ledger6/cls/cls-8a3977c833.json"
+  }
+ ]
+}

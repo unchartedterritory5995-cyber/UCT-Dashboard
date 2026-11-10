@@ -1,0 +1,139 @@
+{
+ "C3-063": {
+  "cls": "EXISTING CAPABILITY NEWLY VERIFIED",
+  "productCommits": [],
+  "testOnlyCommits": [],
+  "actions": [],
+  "actionsNotOnMaster": []
+ },
+ "C3-064": {
+  "cls": "NEW CAPABILITY",
+  "productCommits": [
+   "b812facdd8"
+  ],
+  "testOnlyCommits": [],
+  "actions": [],
+  "actionsNotOnMaster": []
+ },
+ "C3-065": {
+  "cls": "EXISTING CAPABILITY NEWLY VERIFIED",
+  "productCommits": [],
+  "testOnlyCommits": [],
+  "actions": [],
+  "actionsNotOnMaster": []
+ },
+ "C3-067": {
+  "cls": "EXISTING CAPABILITY NEWLY VERIFIED",
+  "productCommits": [],
+  "testOnlyCommits": [],
+  "actions": [],
+  "actionsNotOnMaster": []
+ },
+ "C3-074": {
+  "cls": "EXISTING CAPABILITY NEWLY VERIFIED",
+  "productCommits": [],
+  "testOnlyCommits": [
+   "c8927e1150"
+  ],
+  "actions": [],
+  "actionsNotOnMaster": []
+ },
+ "C3-085": {
+  "cls": "EXISTING CAPABILITY NEWLY VERIFIED",
+  "productCommits": [],
+  "testOnlyCommits": [
+   "df729e1651"
+  ],
+  "actions": [],
+  "actionsNotOnMaster": []
+ },
+ "C3-086": {
+  "cls": "EXISTING CAPABILITY NEWLY VERIFIED",
+  "productCommits": [],
+  "testOnlyCommits": [
+   "df729e1651"
+  ],
+  "actions": [],
+  "actionsNotOnMaster": []
+ },
+ "C3-094": {
+  "cls": "EXISTING CAPABILITY NEWLY VERIFIED",
+  "productCommits": [],
+  "testOnlyCommits": [],
+  "actions": [],
+  "actionsNotOnMaster": []
+ },
+ "C3-095": {
+  "cls": "EXISTING CAPABILITY NEWLY VERIFIED",
+  "productCommits": [],
+  "testOnlyCommits": [],
+  "actions": [],
+  "actionsNotOnMaster": []
+ },
+ "C3-104": {
+  "cls": "EXISTING CAPABILITY NEWLY VERIFIED",
+  "productCommits": [],
+  "testOnlyCommits": [
+   "c8927e1150"
+  ],
+  "actions": [],
+  "actionsNotOnMaster": []
+ },
+ "C3-108": {
+  "cls": "EXISTING CAPABILITY NEWLY VERIFIED",
+  "productCommits": [],
+  "testOnlyCommits": [
+   "bedfa3ba69"
+  ],
+  "actions": [],
+  "actionsNotOnMaster": []
+ },
+ "C3-112": {
+  "cls": "EXISTING CAPABILITY NEWLY VERIFIED",
+  "productCommits": [],
+  "testOnlyCommits": [
+   "bedfa3ba69"
+  ],
+  "actions": [],
+  "actionsNotOnMaster": []
+ },
+ "C3-132": {
+  "cls": "EXISTING CAPABILITY NEWLY VERIFIED",
+  "productCommits": [],
+  "testOnlyCommits": [
+   "bedfa3ba69"
+  ],
+  "actions": [],
+  "actionsNotOnMaster": []
+ },
+ "C3-137": {
+  "cls": "EXISTING CAPABILITY NEWLY VERIFIED",
+  "productCommits": [],
+  "testOnlyCommits": [],
+  "actions": [],
+  "actionsNotOnMaster": []
+ },
+ "C3-186": {
+  "cls": "EXISTING CAPABILITY NEWLY VERIFIED",
+  "productCommits": [],
+  "testOnlyCommits": [],
+  "actions": [],
+  "actionsNotOnMaster": []
+ },
+ "C3-200": {
+  "cls": "EXISTING CAPABILITY NEWLY VERIFIED",
+  "productCommits": [],
+  "testOnlyCommits": [],
+  "actions": [],
+  "actionsNotOnMaster": []
+ },
+ "C3-208": {
+  "cls": "EXISTING CAPABILITY NEWLY VERIFIED",
+  "productCommits": [],
+  "testOnlyCommits": [
+   "bedfa3ba69"
+  ],
+  "actions": [],
+  "actionsNotOnMaster": []
+ }
+}

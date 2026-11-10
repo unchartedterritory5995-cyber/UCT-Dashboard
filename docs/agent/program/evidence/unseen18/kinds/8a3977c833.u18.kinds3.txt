@@ -1,0 +1,14 @@
+unseen18: 29/42 | APPLIED 0 | PROPOSED 0 | OFFERED 0 | OVERASK 0 | OTHER 13
+  u18-refresh-06 [OTHER] "don't touch the period sort, just reload the scanner" (DATA, click -, intended -) scanGets.byRoute./api/scans/ipo-1y changed; scanGets.period same; the receipt is backed by a real change
+  u18-refresh-10 [OTHER] "refresh the scanner" (DATA2, click -, intended -) no success receipt; it asked
+  u18-look-07 [OTHER] "make the watchlist background black" (DATA2, click -, intended -) no success receipt; it asked; written notRe #000000
+  u18-flagged-01 [OTHER] "rename flagged to Top Ideas" (DATAF, click -, intended -) faces.watchlist re Top Ideas; the receipt is backed by a real change
+  u18-flagged-02 [OTHER] "call my flagged list Shortlist instead" (DATAF, click -, intended -) faces.watchlist re Shortlist; the receipt is backed by a real change
+  u18-cols-01 [OTHER] "put % change right before price on my watchlist" (DATA, click -, intended -) one undo restores the board
+  u18-cols-02 [OTHER] "move volume to the end of the watchlist columns" (DATA, click -, intended -) one undo restores the board
+  u18-cols-03 [OTHER] "widen the symbol column to 150 px" (DATA, click -, intended -) one undo restores the board
+  u18-cols-04 [OTHER] "make the price column 70 wide" (DATA, click -, intended -) one undo restores the board
+  u18-cols-06 [OTHER] "on the Swing list, move volume right after symbol" (DATA2, click -, intended -) one undo restores the board
+  u18-cols-07 [OTHER] "move the volume column after the symbol" (DATA2, click -, intended -) nothing changed; no success receipt; it asked
+  u18-show-05 [OTHER] "put Long Term on the Swing watchlist widget" (DATA2, click -, intended -) written re watchKey\W+user:l1; a receipt reports the change
+  u18-export-04 [OTHER] "export the Swing watchlist as a csv file" (DATA2, click -, intended -) a receipt reports the change; it says /CSV[^.]*Swing|Swing[^.]*CSV/
