@@ -402,7 +402,8 @@ async def _proxy_bars_to_tier(ticker, tf, bars, since, to, warm, origin):
         raise RuntimeError(f"bars tier refused the service token ({r.status_code})")
     resp = _Response(content=r.content, status_code=r.status_code,
                      media_type=r.headers.get("content-type", "application/json"))
-    for _h in ("cache-control", "pragma", "server-timing"):
+    # retry-after / x-bars-shed: a deliberate tier shed must reach the browser intact.
+    for _h in ("cache-control", "pragma", "server-timing", "retry-after", "x-bars-shed"):
         if _h in r.headers:
             resp.headers[_h] = r.headers[_h]
     resp.headers["X-Bars-Tier"] = "1"  # canary observability only; the client ignores it
@@ -586,7 +587,7 @@ async def get_bars(
     # blocks the event loop (this route is async now for the proxy path). Behaviourally
     # identical to the pre-Phase-2 sync route, which FastAPI also ran in the threadpool.
     from starlette.concurrency import run_in_threadpool
-    return await run_in_threadpool(serve_bars, ticker, tf, bars, since, to, warm)
+    return await run_in_threadpool(serve_bars_http, ticker, tf, bars, since, to, warm)
 
 
 @router.get("/api/adjustment-basis/{ticker}")
@@ -846,13 +847,22 @@ def serve_bars(
     if is_econ_symbol(ticker):          # the tier + in-process callers enter here, not via get_bars
         return _econ_refusal(ticker)
     _bars_fetch.set_request_interactive(not warm)
-    # One wait budget for the whole serve (bars_fetch._bounded_wait) so the sum of
-    # every request-path wait stays under the edge's 8 s abort.
-    _bars_fetch.start_request_budget()
     try:
         return _serve_bars_impl(ticker, tf, bars, since, to, warm)
     finally:
         _bars_fetch.set_request_interactive(False)
+
+
+def serve_bars_http(ticker, tf, bars=200, since="", to="", warm=0):
+    """`serve_bars` for an HTTP request behind the edge: runs it under ONE wait budget
+    (bars_fetch._bounded_wait) so the sum of every request-path wait stays under the
+    edge's 8 s abort. ⚠️ HTTP routes only — in-process callers (seasonality,
+    cot_prewarm, data_exports, discord...) call `serve_bars` and keep each wait's own
+    ceiling (review F3). Resolves `serve_bars` at call time, so a patched core is used."""
+    _bars_fetch.start_request_budget()
+    try:
+        return serve_bars(ticker, tf, bars, since, to, warm)
+    finally:
         _bars_fetch.end_request_budget()
 
 

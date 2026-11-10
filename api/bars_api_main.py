@@ -235,6 +235,7 @@ async def _lifespan(app: FastAPI):
 def _build_app() -> FastAPI:
     app = FastAPI(title="UCT Bars API", docs_url=None, redoc_url=None, lifespan=_lifespan)
     from api.routers.bars import serve_bars, serve_bars_history
+    from api.routers.bars import serve_bars_http   # edge-budgeted HTTP entry (8 s abort)
     # 🔴 THIS SERVICE IS PUBLICLY ROUTABLE. Railway serves it at a public domain as
     # well as on private networking, so every data route below is directly reachable
     # from the internet and a gate on the web pod alone would protect one of TWO doors.
@@ -347,7 +348,7 @@ def _build_app() -> FastAPI:
         to: str = "",
         warm: int = 0,
     ):
-        return serve_bars(ticker, tf, bars, since=since, to=to, warm=warm)
+        return serve_bars_http(ticker, tf, bars, since=since, to=to, warm=warm)
 
     # ⛔ NO GATE HERE ON PURPOSE — same reason as `/api/bars/{ticker}` above.
     @app.get("/api/bars-history/{ticker}")

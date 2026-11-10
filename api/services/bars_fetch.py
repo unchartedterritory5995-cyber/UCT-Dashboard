@@ -198,7 +198,12 @@ _EDGE_MARGIN_SECONDS = 1.0
 
 
 def start_request_budget() -> None:
-    """Router entry: start this request thread's wait budget."""
+    """HTTP entry (behind the edge): start this request thread's wait budget.
+
+    ⚠️ ONLY the HTTP routes start it (`serve_bars(edge_budget=True)`). In-process
+    callers (seasonality, cot_prewarm, data_exports, discord...) are not behind the
+    edge's 8 s abort, so they keep each wait's own ceiling and the D/W/M deltas stay
+    blocking for them (review F3)."""
     _req_ctx.budget_t0 = _time.monotonic()
 
 
@@ -211,6 +216,10 @@ def _budget_cap() -> float:
     return max(0.0, min(_REQUEST_BUDGET_SECONDS, _EDGE_ABORT_SECONDS - _EDGE_MARGIN_SECONDS))
 
 
+def _budget_active() -> bool:
+    return getattr(_req_ctx, "budget_t0", None) is not None
+
+
 def _budget_left() -> float:
     t0 = getattr(_req_ctx, "budget_t0", None)
     cap = _budget_cap()
@@ -221,7 +230,10 @@ def _budget_left() -> float:
 
 def _bounded_wait(seconds: float) -> float:
     """The timeout a request-path wait may actually use: its own ceiling, never more
-    than what is left of this request's budget."""
+    than what is left of this request's budget. Outside an edge-budgeted HTTP request
+    the wait keeps its own ceiling."""
+    if not _budget_active():
+        return max(0.0, float(seconds))
     return max(0.0, min(float(seconds), _budget_left()))
 
 
@@ -2533,10 +2545,13 @@ def _replay_warming_response(resp_ticker: str, tf: str) -> JSONResponse:
     return r
 
 
-def _bounded_job(key: str, fn, deadline: float) -> bool:
+def _bounded_job(key: str, fn, deadline: float, sem=None, slot_wait: float = 0.0) -> bool:
     """Run `fn` once per `key` (deduped via `_inflight`) on a daemon thread and wait for
     it at most `deadline`, capped by the request budget. True when it finished in time.
-    The job is never cancelled: a shed job still persists for the re-poll."""
+    The job is never cancelled: a shed job still persists for the re-poll.
+
+    `sem` (review F4): a concurrency cap the job must hold while it runs — taken with
+    at most `slot_wait` (budget-capped); no slot → nothing starts, returns False."""
     with _inflight_lock:
         ev = _inflight.get(key)
         mine = ev is None
@@ -2544,18 +2559,29 @@ def _bounded_job(key: str, fn, deadline: float) -> bool:
             ev = _threading.Event()
             _inflight[key] = ev
     if mine:
+        if sem is not None and not (sem.acquire(timeout=_bounded_wait(slot_wait)) if slot_wait > 0
+                                    else sem.acquire(blocking=False)):
+            with _inflight_lock:
+                _inflight.pop(key, None)
+            ev.set()
+            return False
+
         def _run():
             try:
                 fn()
             except Exception:             # noqa: BLE001 — background
                 pass
             finally:
+                if sem is not None:
+                    sem.release()
                 with _inflight_lock:
                     _inflight.pop(key, None)
                 ev.set()
         try:
             _threading.Thread(target=_run, daemon=True, name=f"bars-job-{key[:40]}").start()
         except Exception:                 # noqa: BLE001
+            if sem is not None:
+                sem.release()
             with _inflight_lock:
                 _inflight.pop(key, None)
             ev.set()
@@ -2615,7 +2641,8 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
                     pass
         try:
             _done = _bounded_job(f"replayto-deep::{ticker_up}::{tf}", _replay_deep_job,
-                                 _DEEP_DEADLINE_SECONDS)
+                                 _DEEP_DEADLINE_SECONDS, sem=_replay_cold_sem,
+                                 slot_wait=0.0 if warm else 1.0)
             rows = _sqlite.get_bars_before(ticker_up, tf, bars, to_key)
             if not rows and not _done:
                 return _replay_warming_response(resp_ticker, tf)
@@ -2700,7 +2727,15 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
                 # another request is fetching this exact window — wait (bounded), then read
                 ev.wait(timeout=_bounded_wait(_DEEP_DEADLINE_SECONDS + 0.5))
             rows = _sqlite.get_bars_before(ticker_up, tf, bars, to_key)
-            if not rows and not warm:
+            # ⛔ RE-CHECK COVERAGE, not just emptiness (review F1): a store holding an
+            # OLDER era (2012 rows for a 2015 cutoff) is non-empty but still does not
+            # cover the window — serving it as a 1 h-cacheable answer paints the wrong
+            # era. While the window fetch is still running, shed as warming.
+            try:
+                _intraday_window_missing = (not rows) or (to_key - int(rows[-1][0]) > 7 * 86400)
+            except Exception:
+                _intraday_window_missing = not rows
+            if _intraday_window_missing and not warm:
                 with _inflight_lock:
                     _replay_running = cold_key in _inflight
                 if _replay_running:
@@ -2712,7 +2747,10 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
         return _get_bars_inner(ticker, tf, bars)   # last resort — client filters
     _mark_serve("sqlite")
     payload = {"ticker": resp_ticker, "tf": tf, "bars": _fmt_sqlite_bars(rows, tf, ticker_up)}
-    return JSONResponse(content=payload, headers={"Cache-Control": "public, max-age=3600"})
+    # A window that is STILL not covered (the fetch finished without reaching it) is
+    # an honest best effort, not static history: never pin it for an hour.
+    _replay_ttl = 30 if (not date_tf and _intraday_window_missing) else 3600
+    return JSONResponse(content=payload, headers={"Cache-Control": f"public, max-age={_replay_ttl}"})
 
 
 # Timeframes the snapshot warm serves. Custom intraday tfs (2/45/240/…) are
@@ -3091,11 +3129,21 @@ def _bounded_delta(ticker_up: str, tf: str, last_ts: int, date_tf: bool,
     """
     if deadline is None:
         deadline = _REQUEST_DEADLINE_SECONDS
+    done = _start_bounded_delta(ticker_up, tf, last_ts, date_tf)
+    if done is None:
+        return False                      # no capacity → serve the local store now
+    return done.wait(timeout=_bounded_wait(deadline))
+
+
+def _start_bounded_delta(ticker_up: str, tf: str, last_ts: int, date_tf: bool):
+    """Start the `_bounded_delta` job WITHOUT waiting. Returns its done-Event, or None
+    when no slot was free / the thread could not start (lets the deep branch run the
+    tail repair and the depth fetch in parallel)."""
     # ⭐ An interactive INTRADAY repair may draw on the reserved pool (see
     # `_interactive_heal_sem`); everything else competes for the shared one only.
     _slot = _acquire_heal_slot(interactive=(not date_tf) and _request_is_interactive())
     if _slot is None:
-        return False                      # no capacity → serve the local store now
+        return None
     done = _threading.Event()
 
     def _job():
@@ -3133,8 +3181,8 @@ def _bounded_delta(ticker_up: str, tf: str, last_ts: int, date_tf: bool,
                           name=f"bars-reqdelta-{ticker_up}-{tf}").start()
     except Exception:                     # noqa: BLE001 — thread exhaustion → serve local
         _slot.release()
-        return False
-    return done.wait(timeout=_bounded_wait(deadline))
+        return None
+    return done
 
 
 # ── D/W/M request-path delta: still CORRECT-FIRST, now with a ceiling ────────
@@ -3151,13 +3199,36 @@ _DATE_DELTA_DEADLINE_SECONDS = float(
     _os.environ.get("BARS_DATE_DELTA_DEADLINE_SECONDS", "6.0"))
 _DATE_DELTA_MAX = max(1, int(_os.environ.get("BARS_DATE_DELTA_MAX", "8")))
 _date_delta_sem = _threading.Semaphore(_DATE_DELTA_MAX)
+# ⭐ Warm (`warm=1`) traffic may hold at most this many of the slots, so a list
+# pre-warm can never starve the chart a member clicked (review F3).
+_DATE_DELTA_WARM_MAX = max(1, min(_DATE_DELTA_MAX - 2, int(
+    _os.environ.get("BARS_DATE_DELTA_WARM_MAX", str(max(1, _DATE_DELTA_MAX - 2))))))
+_date_delta_warm_sem = _threading.Semaphore(_DATE_DELTA_WARM_MAX)
+#: How long an INTERACTIVE request may wait for a free slot (from its budget).
+_DATE_DELTA_SLOT_WAIT_S = 1.0
+#: In-process (non-edge) callers keep the original blocking semantics, with a
+#: generous safety ceiling instead of none.
+_DATE_DELTA_INPROC_CEILING_S = 60.0
 
 
 def _bounded_date_delta(ticker_up: str, tf: str, last_ts, deadline: float | None = None) -> bool:
     """D/W/M delta + persist with a hard wait ceiling. True when it finished in time."""
     if deadline is None:
-        deadline = _DATE_DELTA_DEADLINE_SECONDS
-    if not _date_delta_sem.acquire(blocking=False):
+        deadline = (_DATE_DELTA_DEADLINE_SECONDS if _budget_active()
+                    else _DATE_DELTA_INPROC_CEILING_S)
+    warm_slot = None
+    if _budget_active() and not _request_is_interactive():
+        # warm=1 over HTTP: never more than the warm share, never waits for a slot
+        if not _date_delta_warm_sem.acquire(blocking=False):
+            return False
+        warm_slot = _date_delta_warm_sem
+        got = _date_delta_sem.acquire(blocking=False)
+    else:
+        # interactive (or in-process): wait briefly for a slot rather than shed at once
+        got = _date_delta_sem.acquire(timeout=_bounded_wait(_DATE_DELTA_SLOT_WAIT_S))
+    if not got:
+        if warm_slot is not None:
+            warm_slot.release()
         return False
     done = _threading.Event()
 
@@ -3177,6 +3248,8 @@ def _bounded_date_delta(ticker_up: str, tf: str, last_ts, deadline: float | None
                 "[bars] bounded date delta %s tf=%s: %s", ticker_up, tf, type(_e).__name__)
         finally:
             _date_delta_sem.release()
+            if warm_slot is not None:
+                warm_slot.release()
             done.set()
 
     try:
@@ -3184,6 +3257,8 @@ def _bounded_date_delta(ticker_up: str, tf: str, last_ts, deadline: float | None
                           name=f"bars-datedelta-{ticker_up}-{tf}").start()
     except Exception:                     # noqa: BLE001
         _date_delta_sem.release()
+        if warm_slot is not None:
+            warm_slot.release()
         return False
     return done.wait(timeout=_bounded_wait(deadline))
 
@@ -3191,52 +3266,91 @@ def _bounded_date_delta(ticker_up: str, tf: str, last_ts, deadline: float | None
 # ── Background gap-fill after a tail-first repair (2026-11-10) ───────────────
 # The request-path repair is TAIL-ONLY (`_delta_intraday(tail_only=True)`), so the
 # interior-hole scan it used to carry (`_DELTA_GAPFILL_DAYS`) runs here instead:
-# AFTER the tail has landed and the request has been answered, on the shared
-# background pool (never the interactive reserve), at most once per (ticker, tf)
-# per cooldown. No free slot → skipped; the prewarm / stale-while-revalidate heals
-# (full window) still cover it.
+# AFTER the tail has landed and the request has been answered, on its OWN small
+# pool (review F2: never `_bg_delta_sem`, which the deep fetch and the SWR depth
+# kick need at that same moment, and never the interactive reserve).
+# ⭐ NOT DROPPED, NOT LOCKED OUT: a key that finds the pool full is QUEUED (bounded)
+# and drained by the next runner to finish; a FAILED pass may retry after
+# `_TAIL_GAPFILL_RETRY_S`; only a SUCCESSFUL pass (the provider answered, which
+# advances `verified_through`) earns the full cooldown. So a key with holes from the
+# prior session heals within seconds of its first open, not "once the pool is idle".
 _TAIL_GAPFILL_COOLDOWN_S = float(_os.environ.get("BARS_TAIL_GAPFILL_COOLDOWN_S", "900"))
+_TAIL_GAPFILL_RETRY_S = float(_os.environ.get("BARS_TAIL_GAPFILL_RETRY_S", "60"))
+_TAIL_GAPFILL_MAX = max(1, int(_os.environ.get("BARS_TAIL_GAPFILL_MAX", "2")))
+_TAIL_GAPFILL_QUEUE_MAX = 500
 _TAIL_GAPFILL_MAX_KEYS = 20000
-_tail_gapfill_at: dict = {}
+_tail_gapfill_sem = _threading.Semaphore(_TAIL_GAPFILL_MAX)
+_tail_gapfill_at: dict = {}          # key -> monotonic instant before which no new pass
+_tail_gapfill_pending: dict = {}     # insertion-ordered queue of keys waiting for a slot
 _tail_gapfill_lock = _threading.Lock()
 
 
+def _gapfill_disabled_in_tests() -> bool:
+    return bool(_os.environ.get("PYTEST_CURRENT_TEST"))
+
+
 def _kick_tail_gapfill(ticker_up: str, tf: str) -> bool:
+    """Schedule the full-window gap-fill pass for (ticker, tf). True when started now."""
     if _DELTA_GAPFILL_DAYS <= 0 or tf not in ("1", "5", "15", "30", "60"):
         return False
     # pytest NO-OP (same reason as `_maybe_kick_deepfill`): a background thread that
     # outlives a test's monkeypatches would reach the real provider / store.
-    if _os.environ.get("PYTEST_CURRENT_TEST"):
+    if _gapfill_disabled_in_tests():
         return False
     key = (ticker_up, tf)
     now = _time.monotonic()
     with _tail_gapfill_lock:
-        prev = _tail_gapfill_at.get(key)
-        if prev is not None and (now - prev) < _TAIL_GAPFILL_COOLDOWN_S:
+        until = _tail_gapfill_at.get(key)
+        if until is not None and now < until:
             return False
-        if not _bg_delta_sem.acquire(blocking=False):
+        if not _tail_gapfill_sem.acquire(blocking=False):
+            if key not in _tail_gapfill_pending and len(_tail_gapfill_pending) < _TAIL_GAPFILL_QUEUE_MAX:
+                _tail_gapfill_pending[key] = True
             return False
         if len(_tail_gapfill_at) >= _TAIL_GAPFILL_MAX_KEYS:
             _tail_gapfill_at.clear()        # bounded; a cleared map costs one extra scan
-        _tail_gapfill_at[key] = now
+        _tail_gapfill_at[key] = now + _TAIL_GAPFILL_RETRY_S     # in flight / failed
+        _tail_gapfill_pending.pop(key, None)
+    return _start_tail_gapfill(key)
 
-    def _run():
-        try:
-            lt = _sqlite.get_last_ts(ticker_up, tf)
-            if lt:
-                _heal_intraday_tail(ticker_up, tf, int(lt))
-        except Exception as _e:           # noqa: BLE001 — background, never raises
-            import logging as _log_gf
-            _log_gf.getLogger(__name__).warning(
-                "[bars] tail gap-fill %s tf=%s: %s", ticker_up, tf, type(_e).__name__)
-        finally:
-            _bg_delta_sem.release()
+
+def _start_tail_gapfill(key) -> bool:
+    """Run one pass on an ALREADY-ACQUIRED `_tail_gapfill_sem` slot; on finish, hand the
+    slot to the oldest queued key (if any) instead of releasing it."""
+    def _run(k=key):
+        while k is not None:
+            t_up, t_tf = k
+            started = _time.time()
+            try:
+                lt = _sqlite.get_last_ts(t_up, t_tf)
+                if lt:
+                    _heal_intraday_tail(t_up, t_tf, int(lt))
+                vt = tail_verified_through(t_up, t_tf)
+                if vt is not None and vt >= started:          # the provider answered
+                    with _tail_gapfill_lock:
+                        _tail_gapfill_at[k] = _time.monotonic() + _TAIL_GAPFILL_COOLDOWN_S
+            except Exception as _e:           # noqa: BLE001 — background, never raises
+                import logging as _log_gf
+                _log_gf.getLogger(__name__).warning(
+                    "[bars] tail gap-fill %s tf=%s: %s", t_up, t_tf, type(_e).__name__)
+            k = None
+            with _tail_gapfill_lock:
+                now = _time.monotonic()
+                while _tail_gapfill_pending:
+                    nk = next(iter(_tail_gapfill_pending))
+                    _tail_gapfill_pending.pop(nk, None)
+                    until = _tail_gapfill_at.get(nk)
+                    if until is None or now >= until:
+                        _tail_gapfill_at[nk] = now + _TAIL_GAPFILL_RETRY_S
+                        k = nk
+                        break
+        _tail_gapfill_sem.release()
 
     try:
         _threading.Thread(target=_run, daemon=True,
-                          name=f"bars-gapfill-{ticker_up}-{tf}").start()
+                          name=f"bars-gapfill-{key[0]}-{key[1]}").start()
     except Exception:                     # noqa: BLE001
-        _bg_delta_sem.release()
+        _tail_gapfill_sem.release()
         return False
     return True
 
@@ -3266,8 +3380,16 @@ def _bounded_fetch_intraday(ticker_up: str, tf: str, bars: int,
     """
     if deadline is None:
         deadline = _DEEP_DEADLINE_SECONDS
-    if not _bg_delta_sem.acquire(blocking=False):
+    done = _start_bounded_fetch_intraday(ticker_up, tf, bars)
+    if done is None:
         return False
+    return done.wait(timeout=_bounded_wait(deadline))
+
+
+def _start_bounded_fetch_intraday(ticker_up: str, tf: str, bars: int):
+    """Start the deep fetch job WITHOUT waiting; its done-Event, or None (no slot)."""
+    if not _bg_delta_sem.acquire(blocking=False):
+        return None
     done = _threading.Event()
 
     def _job():
@@ -3290,8 +3412,8 @@ def _bounded_fetch_intraday(ticker_up: str, tf: str, bars: int,
                           name=f"bars-deepfetch-{ticker_up}-{tf}").start()
     except Exception:                     # noqa: BLE001
         _bg_delta_sem.release()
-        return False
-    return done.wait(timeout=_bounded_wait(deadline))
+        return None
+    return done
 
 
 def warm_bars_async(tickers: list[str], tf: str = "D", bars: int = 8000) -> None:
@@ -3754,13 +3876,21 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                     # served a tail 4h behind while bars=600 of the same key was current.
                     # The bounded tail-only repair runs first so the answer reaches the
                     # live bucket even when the depth has to wait for the re-poll.
-                    _deep_tail_ok = (not _fresh_needed) or _bounded_delta(
-                        ticker_up, tf, last_ts, False)
+                    # ⭐ Both jobs start NOW and run IN PARALLEL (review F5): the tail
+                    # waits its own short ceiling, the depth fetch the rest of the
+                    # request budget — never their sum.
+                    _tail_ev = (_start_bounded_delta(ticker_up, tf, last_ts, False)
+                                if _fresh_needed else None)
                     # ⛔ BOUNDED (was a bare `_fetch_intraday` on the request thread).
                     # A shed fetch still persists, so the next poll paints the deep
                     # window; what it can no longer do is hold the request past the
                     # edge's 8 s abort. See `_bounded_fetch_intraday`.
-                    _deep_ok = _bounded_fetch_intraday(ticker_up, tf, bars)
+                    _deep_ev = _start_bounded_fetch_intraday(ticker_up, tf, bars)
+                    _deep_tail_ok = (not _fresh_needed) or (
+                        _tail_ev is not None
+                        and _tail_ev.wait(timeout=_bounded_wait(_REQUEST_DEADLINE_SECONDS)))
+                    _deep_ok = _deep_ev is not None and _deep_ev.wait(
+                        timeout=_bounded_wait(_DEEP_DEADLINE_SECONDS))
                     if not _deep_ok:
                         _mark_serve("deep-deadline")
                     if not _deep_tail_ok:

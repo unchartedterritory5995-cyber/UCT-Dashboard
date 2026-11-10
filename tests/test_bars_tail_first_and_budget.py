@@ -104,33 +104,83 @@ def test_bounded_delta_runs_tail_only_then_kicks_the_background_gapfill(monkeypa
     assert kicked.wait(1.0), "the interior gap-fill must follow in the background"
 
 
-def test_gapfill_kick_is_throttled_and_runs_the_full_window(monkeypatch):
-    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)   # the kick is a pytest no-op
+def _gapfill_free_slots() -> int:
+    got = 0
+    while bars_fetch._tail_gapfill_sem.acquire(blocking=False):
+        got += 1
+    for _ in range(got):
+        bars_fetch._tail_gapfill_sem.release()
+    return got
+
+
+def _until(pred, timeout=3.0):
+    end = time.time() + timeout
+    while time.time() < end:
+        if pred():
+            return True
+        time.sleep(0.02)
+    return False
+
+
+@pytest.fixture
+def gapfill(monkeypatch):
+    # the kick is a pytest no-op; opt in for these tests only
+    monkeypatch.setattr(bars_fetch, "_gapfill_disabled_in_tests", lambda: False)
+    monkeypatch.setattr(bars_fetch, "_tail_gapfill_pending", {})
+    monkeypatch.setattr(bars_fetch._sqlite, "get_last_ts", lambda s, tf: int(time.time()) - 60)
     calls = []
-    done = threading.Event()
 
     def _heal(t, tf, lt, tail_only=False):
-        calls.append(tail_only)
-        done.set()
+        calls.append((t, tail_only))
+        if _heal.ok:                       # the provider answered -> verified
+            bars_fetch._mark_tail_verified(t, tf, time.time() + 1)
         return []
+    _heal.ok = True
     monkeypatch.setattr(bars_fetch, "_heal_intraday_tail", _heal)
-    monkeypatch.setattr(bars_fetch._sqlite, "get_last_ts", lambda s, tf: int(time.time()) - 60)
+    yield _heal, calls
+    assert _until(lambda: _gapfill_free_slots() == bars_fetch._TAIL_GAPFILL_MAX)
+
+
+def test_gapfill_runs_the_full_window_and_a_success_earns_the_cooldown(gapfill):
+    heal, calls = gapfill
     assert bars_fetch._kick_tail_gapfill("SOFI", "1") is True
-    assert done.wait(2.0)
-    assert calls == [False], "the background pass is the FULL (gap-fill) window"
-    assert bars_fetch._kick_tail_gapfill("SOFI", "1") is False, "once per cooldown"
+    assert _until(lambda: _gapfill_free_slots() == bars_fetch._TAIL_GAPFILL_MAX)
+    assert calls == [("SOFI", False)], "the background pass is the FULL (gap-fill) window"
+    assert bars_fetch._kick_tail_gapfill("SOFI", "1") is False, "once per cooldown after success"
 
 
-def test_gapfill_kick_never_blocks_when_the_bg_pool_is_full(monkeypatch):
-    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
-    n = 0
-    while bars_fetch._bg_delta_sem.acquire(blocking=False):
-        n += 1
+def test_a_FAILED_gapfill_is_not_locked_out_for_the_full_cooldown(gapfill, monkeypatch):
+    heal, calls = gapfill
+    heal.ok = False                                    # provider did not answer
+    monkeypatch.setattr(bars_fetch, "_TAIL_GAPFILL_RETRY_S", 0.0)
+    assert bars_fetch._kick_tail_gapfill("SOFI", "1") is True
+    assert _until(lambda: _gapfill_free_slots() == bars_fetch._TAIL_GAPFILL_MAX)
+    assert bars_fetch._kick_tail_gapfill("SOFI", "1") is True, "a failure may retry soon"
+
+
+def test_gapfill_has_its_own_pool_and_never_takes_a_bg_delta_slot(gapfill):
+    n = _saturate(bars_fetch._bg_delta_sem)
     try:
-        assert bars_fetch._kick_tail_gapfill("SOFI", "5") is False
+        assert bars_fetch._kick_tail_gapfill("SOFI", "5") is True, \
+            "a busy depth/SWR pool must not block (or be drained by) the gap-fill"
+        assert _until(lambda: _gapfill_free_slots() == bars_fetch._TAIL_GAPFILL_MAX)
     finally:
-        for _ in range(n):
-            bars_fetch._bg_delta_sem.release()
+        _release(bars_fetch._bg_delta_sem, n)
+
+
+def test_a_key_that_finds_the_pool_full_is_queued_and_healed_not_dropped(gapfill):
+    heal, calls = gapfill
+    held = _saturate(bars_fetch._tail_gapfill_sem)
+    try:
+        assert bars_fetch._kick_tail_gapfill("HOLE", "15") is False
+        assert ("HOLE", "15") in bars_fetch._tail_gapfill_pending
+        bars_fetch._tail_gapfill_sem.release()          # one slot frees
+        held -= 1
+        assert bars_fetch._kick_tail_gapfill("OTHER", "15") is True
+        assert _until(lambda: ("HOLE", False) in calls), \
+            "the queued key (yesterday's holes) must be healed by the next runner"
+    finally:
+        _release(bars_fetch._tail_gapfill_sem, held)
 
 
 # ── 2. partial / deep keys still get their tail ──────────────────────────────
@@ -223,7 +273,7 @@ def test_ONON_partial_key_first_answer_reaches_the_live_bucket(onon):
 
 
 def test_deep_partial_key_repairs_the_tail_even_when_the_deep_fetch_is_shed(onon, monkeypatch):
-    monkeypatch.setattr(bars_fetch, "_bounded_fetch_intraday", lambda *a, **k: False)
+    monkeypatch.setattr(bars_fetch, "_start_bounded_fetch_intraday", lambda *a, **k: None)
     bars_fetch.set_request_interactive(True)
     resp = bars_fetch._get_bars_inner("UPST", "15", 2000)        # deep + partial
     body = orjson.loads(resp.body)
@@ -236,6 +286,7 @@ def test_deep_partial_key_repairs_the_tail_even_when_the_deep_fetch_is_shed(onon
 
 def test_budget_can_never_be_configured_past_the_edge_abort(monkeypatch):
     monkeypatch.setattr(bars_fetch, "_REQUEST_BUDGET_SECONDS", 30.0)
+    bars_fetch.start_request_budget()
     assert bars_fetch._budget_cap() <= bars_fetch._EDGE_ABORT_SECONDS - 1.0
     assert bars_fetch._bounded_wait(30) <= 7.0
 
@@ -269,6 +320,7 @@ def test_same_session_WAITER_is_bounded_not_8s(monkeypatch):
     monkeypatch.setattr(bars_fetch, "_history_complete", lambda s, tf: True)
     monkeypatch.setattr(bars_fetch, "_REQUEST_DEADLINE_SECONDS", 0.3)
     bars_fetch._inflight["bars_AVGO_5_20"] = threading.Event()        # a peer that never lands
+    bars_fetch.start_request_budget()
     t0 = time.perf_counter()
     resp = bars_fetch._get_bars_inner("AVGO", "5", 20)
     assert time.perf_counter() - t0 < 1.5
@@ -284,6 +336,7 @@ def test_deep_WAITER_is_bounded_not_12s(monkeypatch):
     monkeypatch.setattr(bars_fetch, "_kick_tail_gapfill", lambda *a, **k: False, raising=False)
     bars_fetch._inflight["bars_AVGO_5_2000"] = threading.Event()
     n = _saturate(bars_fetch._bg_delta_sem)                             # no bg depth thread
+    bars_fetch.start_request_budget()
     try:
         t0 = time.perf_counter()
         resp = bars_fetch._get_bars_inner("AVGO", "5", 2000)
@@ -311,6 +364,7 @@ def test_daily_delta_has_a_ceiling_and_still_persists(monkeypatch):
     monkeypatch.setattr(bars_fetch, "_delta_daily",
                         lambda t, lt: time.sleep(0.6) or [{"t": "2026-11-10"}])
     monkeypatch.setattr(bars_fetch._sqlite, "put_bars", lambda *a, **k: landed.set())
+    bars_fetch.start_request_budget()
     t0 = time.perf_counter()
     assert bars_fetch._bounded_date_delta("AAPL", "D", 20261109) is False
     assert time.perf_counter() - t0 < 0.5
@@ -329,6 +383,7 @@ def test_replay_cold_intraday_fetch_is_bounded_and_sheds_as_warming(monkeypatch)
     monkeypatch.setattr(bars_fetch, "_replay_effective_symbol", lambda t, d: t)
     monkeypatch.setattr(bars_fetch, "_fetch_intraday_range",
                         lambda *a, **k: time.sleep(1.5) or [])
+    bars_fetch.start_request_budget()
     t0 = time.perf_counter()
     resp = bars_fetch._get_bars_to_response("ZZRP", "5", 500, "2026-10-01")
     elapsed = time.perf_counter() - t0
@@ -346,6 +401,143 @@ def test_router_starts_and_clears_the_budget(monkeypatch):
         seen["t0"] = getattr(bars_fetch._req_ctx, "budget_t0", None)
         return bars_router.JSONResponse(content={})
     monkeypatch.setattr(bars_router, "_serve_bars_impl", _impl)
-    bars_router.serve_bars("AAPL", "5", 10)
+    bars_router.serve_bars_http("AAPL", "5", 10)
     assert seen["t0"] is not None
     assert getattr(bars_fetch._req_ctx, "budget_t0", None) is None
+
+
+# ── review fixes F1/F3/F4/F5/F6 ──────────────────────────────────────────────
+
+def _era_rows():
+    old = int(datetime(2012, 6, 1, 15, 0, tzinfo=_ET).timestamp())
+    return [(old - 300 * i, 1.0, 1.0, 1.0, 1.0, 1) for i in range(50)][::-1]
+
+
+def _replay_env(monkeypatch, rows, fetch):
+    monkeypatch.setattr(bars_fetch._sqlite, "get_bars_before", lambda *a, **k: rows)
+    monkeypatch.setattr(bars_fetch._sqlite, "put_bars", lambda *a, **k: None)
+    monkeypatch.setattr(bars_fetch, "_replay_effective_symbol", lambda t, d: t)
+    monkeypatch.setattr(bars_fetch, "_fmt_sqlite_bars", _fmt)
+    monkeypatch.setattr(bars_fetch, "_fetch_intraday_range", fetch)
+
+
+def test_F1_replay_older_era_in_store_sheds_while_the_window_is_landing(monkeypatch):
+    """Store holds 2012 bars; replay asks for a 2015 cutoff; the window fetch overruns
+    the budget -> must NOT serve the 2012 rows as a 1 h answer."""
+    monkeypatch.setattr(bars_fetch, "_DEEP_DEADLINE_SECONDS", 0.3)
+    _replay_env(monkeypatch, _era_rows(), lambda *a, **k: time.sleep(1.0) or [])
+    bars_fetch.start_request_budget()
+    resp = bars_fetch._get_bars_to_response("ZZERA", "5", 500, "2015-03-02")
+    assert resp.status_code == 503
+    assert resp.headers.get("X-Bars-Shed") == "warming"
+    assert _until(lambda: not any(k.startswith("replayto::ZZERA") for k in bars_fetch._inflight))
+
+
+def test_F1_CONTROL_a_finished_fetch_that_never_reached_the_window_is_not_pinned(monkeypatch):
+    _replay_env(monkeypatch, _era_rows(), lambda *a, **k: [])
+    resp = bars_fetch._get_bars_to_response("ZZERA2", "5", 500, "2015-03-02")
+    assert resp.status_code == 200
+    assert resp.headers.get("Cache-Control") == "public, max-age=30"
+
+
+def test_F3_interactive_daily_waits_briefly_for_a_slot_instead_of_shedding(monkeypatch):
+    monkeypatch.setattr(bars_fetch, "_delta_daily", lambda t, lt: [])
+    n = _saturate(bars_fetch._date_delta_sem)
+    bars_fetch.set_request_interactive(True)
+    bars_fetch.start_request_budget()
+    threading.Timer(0.2, bars_fetch._date_delta_sem.release).start()
+    try:
+        assert bars_fetch._bounded_date_delta("AAPL", "D", 20261109) is True
+    finally:
+        _release(bars_fetch._date_delta_sem, n - 1)
+
+
+def test_F3_warm_daily_cannot_take_the_interactive_share(monkeypatch):
+    monkeypatch.setattr(bars_fetch, "_delta_daily", lambda t, lt: [])
+    assert bars_fetch._DATE_DELTA_WARM_MAX <= bars_fetch._DATE_DELTA_MAX - 2
+    n = _saturate(bars_fetch._date_delta_warm_sem)
+    bars_fetch.start_request_budget()
+    try:
+        bars_fetch.set_request_interactive(False)
+        assert bars_fetch._bounded_date_delta("AAPL", "D", 20261109) is False, \
+            "warm traffic past its share must shed, leaving slots for clicks"
+        bars_fetch.set_request_interactive(True)
+        assert bars_fetch._bounded_date_delta("AAPL", "D", 20261109) is True
+    finally:
+        _release(bars_fetch._date_delta_warm_sem, n)
+
+
+def test_F3_in_process_callers_do_not_get_the_edge_budget(monkeypatch):
+    """seasonality / cot_prewarm / data_exports call serve_bars in-process: the D/W/M
+    delta stays blocking for them (no 6 s give-up)."""
+    monkeypatch.setattr(bars_fetch, "_DATE_DELTA_DEADLINE_SECONDS", 0.1)
+    monkeypatch.setattr(bars_fetch, "_delta_daily", lambda t, lt: time.sleep(0.4) or [])
+    seen = {}
+
+    def _impl(*a, **k):
+        seen["active"] = bars_fetch._budget_active()
+        seen["done"] = bars_fetch._bounded_date_delta("AAPL", "D", 20261109)
+        return bars_router.JSONResponse(content={})
+    monkeypatch.setattr(bars_router, "_serve_bars_impl", _impl)
+    bars_router.serve_bars("AAPL", "D", 10)                 # in-process: no edge_budget
+    assert seen == {"active": False, "done": True}
+
+
+def test_F3_http_routes_start_the_edge_budget():
+    import inspect
+    from api import bars_api_main
+    assert "serve_bars_http(ticker" in inspect.getsource(bars_api_main)
+    assert "run_in_threadpool(serve_bars_http," in inspect.getsource(bars_router.get_bars)
+
+
+def test_F4_replay_deep_DWM_pulls_share_the_replay_concurrency_cap():
+    ran = []
+    n = _saturate(bars_fetch._replay_cold_sem)
+    bars_fetch.start_request_budget()
+    try:
+        ok = bars_fetch._bounded_job("replayto-deep::X::D", lambda: ran.append(1), 0.2,
+                                     sem=bars_fetch._replay_cold_sem)
+    finally:
+        _release(bars_fetch._replay_cold_sem, n)
+    assert ok is False and ran == [], "no slot -> no extra unbounded daemon pull"
+    assert "replayto-deep::X::D" not in bars_fetch._inflight
+
+
+def test_F5_deep_branch_runs_tail_and_depth_in_parallel(onon, monkeypatch):
+    monkeypatch.setattr(bars_fetch, "_REQUEST_DEADLINE_SECONDS", 1.5)
+    monkeypatch.setattr(bars_fetch, "_DEEP_DEADLINE_SECONDS", 1.5)
+    real_tail = bars_fetch._delta_intraday
+
+    def _slow_tail(*a, **k):
+        time.sleep(0.6)
+        return real_tail(*a, **k)
+    monkeypatch.setattr(bars_fetch, "_delta_intraday", _slow_tail)
+
+    def _start_deep(t, tf, bars):
+        ev = threading.Event()
+        threading.Timer(0.6, ev.set).start()
+        return ev
+    monkeypatch.setattr(bars_fetch, "_start_bounded_fetch_intraday", _start_deep)
+    bars_fetch.set_request_interactive(True)
+    t0 = time.perf_counter()
+    resp = bars_fetch._get_bars_inner("PAR", "15", 2000)
+    elapsed = time.perf_counter() - t0
+    assert elapsed < 1.0, f"tail + depth ran serially ({elapsed:.2f}s)"
+    assert orjson.loads(resp.body)["bars"][-1]["t"] == NEW_TAIL
+
+
+def test_F6_tier_proxy_forwards_retry_after_and_shed_tag(monkeypatch):
+    import asyncio
+    import httpx
+
+    class _C:
+        async def get(self, url, **k):
+            return httpx.Response(503, content=b'{"bars":[],"error":"warming"}',
+                                  headers={"content-type": "application/json",
+                                           "retry-after": "3", "x-bars-shed": "warming"})
+    monkeypatch.setattr(bars_router, "_bars_proxy_client", _C())
+    monkeypatch.setattr(bars_router, "bars_service_headers", lambda: {})
+    resp = asyncio.run(bars_router._proxy_bars_to_tier("SOFI", "1", 600, "", "", 0, "http://tier"))
+    assert resp.status_code == 503
+    assert resp.headers.get("retry-after") == "3"
+    assert resp.headers.get("x-bars-shed") == "warming"
