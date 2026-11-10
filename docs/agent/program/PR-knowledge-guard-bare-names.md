@@ -180,10 +180,10 @@ changes as it is committed):
 
 ```
  api/routers/uct_agent.py                          |   8 +
- api/services/uct_agent/knowledge/guard.py         |  98 ++++++++++-
- docs/feature_flags.json                           |  20 ++-
- tests/test_uct_agent_server_capability_mirrors.py | 195 ++++++++++++++++++++--
- 4 files changed, 304 insertions(+), 17 deletions(-)
+ api/services/uct_agent/knowledge/guard.py         | 102 +++++++++-
+ docs/feature_flags.json                           |  20 +-
+ tests/test_uct_agent_server_capability_mirrors.py | 215 ++++++++++++++++++++--
+ 4 files changed, 328 insertions(+), 17 deletions(-)
 ```
 
 The round-1 doc said 3 files there; that left the doc out. With the doc it was 4; the boot-log call in
@@ -193,7 +193,7 @@ The round-1 doc said 3 files there; that left the doc out. With the doc it was 4
 
 ```
  api/routers/uct_agent.py                           |   8 +
- api/services/uct_agent/knowledge/guard.py          |  98 ++++-
+ api/services/uct_agent/knowledge/guard.py          | 102 ++++-
  .../uct_agent/scan/sat/section_b_requests.json     | 120 ++++++
  api/services/uct_agent/turn_v2.py                  |   3 +-
  app/src/agent/agentRouting.test.jsx                |   2 +-
@@ -217,8 +217,8 @@ The round-1 doc said 3 files there; that left the doc out. With the doc it was 4
  docs/feature_flags.json                            |  20 +-
  tests/fixtures/nl1_assemble_parity.json            |  33 +-
  tests/test_uct_agent_contract.py                   |   4 +-
- tests/test_uct_agent_server_capability_mirrors.py  | 269 ++++++++++++
- 26 files changed, 2344 insertions(+), 144 deletions(-)
+ tests/test_uct_agent_server_capability_mirrors.py  | 289 +++++++++++++
+ 26 files changed, 2368 insertions(+), 144 deletions(-)
 ```
 
 Plus this doc. No JS product code changed, so the
