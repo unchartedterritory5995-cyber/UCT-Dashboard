@@ -98,11 +98,11 @@ Unit rails: `agentWhichWidget.test.js` (fail closed, named, re-aimed, single wid
   - The 13 that failed: the chips #872 refused as screens (sweeps, premium…), the conflicts, the two-widget asks, the reset.
 - Unit rails (`agentWhichWidget`, `agentFlowChipsParity`): `Tests 12 failed (12)`.
 
-**Mutations (AUDIT #1029 item 1), PARTIAL: M7 and M8 are still running.** The earlier "10 failed / 29 passed (39)" was ONE run with all three mutants applied together. It counted failing TESTS, not surviving mutants, so it is replaced here by one run per mutant.
+**Mutations (AUDIT #1029 item 1).** The earlier "10 failed / 29 passed (39)" was ONE run with all three mutants applied together. It counted failing TESTS, not surviving mutants, so it is replaced here by one run per mutant.
 
 Setup: scratch worktree at `e62493395b`, one mutant applied at a time and then reverted. Each run covers the same 5 files, 102 tests: flowFilters.outcome, agentFlowFiltersHeldOut, agentFlowChipsParity, agentWhichWidget, agentWidgetOptions. Command: `python ../tools/agent_suite_lock.py run --who pl-widget -- npx vitest run <the 5 files>`, at BelowNormal. Specs: scratchpad `f16m/mutants.json`.
 
-Found by this run: `agentFlowChipsParity.test.js` failed to LOAD on the fresh CRLF checkout, in the base run too. Its `_FLOW_CHIPS` regex expected LF. It is fixed at `697274a7f7` (line endings normalised). In the table, parity is therefore a load failure in every row and is not counted. M7 and M8 target parity, so they are re-run on `697274a7f7`.
+Found by this run: `agentFlowChipsParity.test.js` failed to LOAD on the fresh CRLF checkout, in the base run too. Its `_FLOW_CHIPS` regex expected LF. It is fixed at `697274a7f7` (line endings normalised). In the table, parity is therefore a load failure in every row and is not counted. M7 and M8 target parity, so they were re-run on the parity file alone at `673a92b65e` (same code as `697274a7f7`; that commit only changed this doc), base first: `Tests 3 passed (3)`. Command: `cd app && npx vitest run src/agent/agentFlowChipsParity.test.js` (single jsdom file, no lock). Logs: `evidence/f16-mutants-parity-{base,M7-server-table-drops-a-chip,M8-server-word-drops-sweeps}.txt`; each prints the node_modules LinkType/Target first (Junction to `C:/w/pl-mc-fw/app/node_modules`).
 
 | mutant | what changed | tests failed / 102 | killed by |
 |---|---|---:|---|
@@ -114,11 +114,11 @@ Found by this run: `agentFlowChipsParity.test.js` failed to LOAD on the fresh CR
 | M4 approved re-asked | the approved skip removed | 4 | agentWhichWidget "an approved proposal: never asked again" ×2, flowFilters approve cases ×2 |
 | M5 re-aim off | a named other widget not re-aimed | 2 | agentWhichWidget "words that name the OTHER one" ×2 |
 | M6 chip words swapped | Bull ↔ Bear words | 4 | flowFilters bearish held-outs ×2, the bull-and-bear conflict, agentWidgetOptions "only show bears" |
-| M7 server table drops $1M | `_FLOW_CHIPS` | PENDING | expected: agentFlowChipsParity |
-| M8 server word drops sweeps | `_FLOW_CHIP_WORD` | PENDING | expected: agentFlowChipsParity |
-| M9 turn.py widening off | `plans_only_flow_chips` only Calls | NOT RUN (Python only, pytest is not run here) | tests/test_uct_agent_f16_flow_chips.py `test_every_chip_of_a_flow_widget_on_this_board_is_served` (CI) |
+| M7 server table drops $1M | `_FLOW_CHIPS` | 1 of 3 (parity file, at `673a92b65e`) | agentFlowChipsParity "every chip, by stored value and by the word on it, maps to its stored value" (minPremium: 6 keys vs 7) |
+| M8 server word drops sweeps | `_FLOW_CHIP_WORD` | 1 of 3 (parity file, at `673a92b65e`) | agentFlowChipsParity "every chip word a member types … is one the server reads as a chip request" (printType: Sweep) |
+| M9 turn.py widening off | `plans_only_flow_chips` only Calls | CI only (pytest) | tests/test_uct_agent_f16_flow_chips.py `test_every_chip_of_a_flow_widget_on_this_board_is_served` (CI) |
 
-Every mutant run so far is killed by at least one test, and none survived.
+Every mutant run here (M1 to M8) is killed by at least one test, and none survived. M9 is CI only (pytest).
 
 **Head** (`5ca372766b`, 15 files, focused, NOT a full run): `Test Files 15 passed (15)` / `Tests 919 passed (919)`. The files were:
 - flowFilters.outcome 27;

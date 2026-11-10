@@ -1,0 +1,27 @@
+# head 673a92b65e tag=M8-server-word-drops-sweeps 2026-11-10T22:31:08Z
+LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+# diff:  1 file changed, 1 insertion(+), 1 deletion(-)
+ RUN  v4.0.18 C:/w/pl-widget-f16/app
+ ❯ src/agent/agentFlowChipsParity.test.js (3 tests | 1 failed) 11ms
+     ✓ the same four controls 2ms
+     ✓ every chip, by stored value and by the word on it, maps to its stored value; nothing else is accepted 1ms
+     × every chip word a member types (less All / Any) and every `also` word is one the server reads as a chip request 7ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  src/agent/agentFlowChipsParity.test.js > the server's Options Flow chips are the widget's chips > every chip word a member types (less All / Any) and every `also` word is one the server reads as a chip request
+AssertionError: printType: Sweep: expected false to be true // Object.is equality
+- Expected
++ Received
+- true
++ false
+ ❯ src/agent/agentFlowChipsParity.test.js:39:114
+     37|     for (const f of rows) {
+     38|       const words = [...Object.entries(f.shown || {}).filter(([v]) => …
+     39|       for (const w of words) expect(word.test(` only ${w.toLowerCase()…
+       |                                                                                                                  ^
+     40|     }
+     41|     expect(word.test(' only balls on the options flow')).toBe(false)
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 passed (3)
+   Start at  17:31:10
+   Duration  1.16s (transform 188ms, setup 343ms, import 47ms, tests 11ms, environment 586ms)
