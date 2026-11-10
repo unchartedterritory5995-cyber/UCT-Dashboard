@@ -137,7 +137,7 @@ Every mutant run here (M1 to M8) is killed by at least one test, and none surviv
 - C3-164 / C3-165 are covered by #1023 and not touched here.
 - When #1023 and #1027 land first, the recount scripts re-run on the new master. Each one stops if it cannot reproduce the current table.
 
-## Changed files (git diff --stat origin/master...HEAD at 697274a7f7)
+## Changed files (git diff --stat origin/master...HEAD at e2be1abf86; merge base 292983f4bc; this commit adds only this list)
 
 ```
  api/services/uct_agent/turn.py                     |  52 +++++-
@@ -155,10 +155,13 @@ Every mutant run here (M1 to M8) is killed by at least one test, and none surviv
  app/src/agent/useAgent.js                          |  24 +--
  app/src/widgets/widgetControls.js                  |  13 +-
  docs/agent/CHARTS_EXECUTION_STATUS.md              |  20 ++-
- docs/agent/program/PR-exec-flow-filters.md         | 126 ++++++++++++++
+ docs/agent/program/PR-exec-flow-filters.md         | 164 +++++++++++++++++++
+ ...mutants-parity-M7-server-table-drops-a-chip.txt |  34 ++++
+ ...-mutants-parity-M8-server-word-drops-sweeps.txt |  27 +++
+ .../program/evidence/f16-mutants-parity-base.txt   |   9 +
  docs/agent/program/evidence/f16-run2-dark-pool.txt |  27 +++
  docs/agent/program/recount-flow-filters.mjs        | 101 ++++++++++++
  tests/test_uct_agent_f16_calls_control.py          |  84 ++++++++++
  tests/test_uct_agent_f16_flow_chips.py             | 105 ++++++++++++
- 20 files changed, 1054 insertions(+), 59 deletions(-)
+ 23 files changed, 1162 insertions(+), 59 deletions(-)
 ```
