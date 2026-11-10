@@ -59,13 +59,15 @@ The C3-044 to C3-062 notes in `CHARTS_EXECUTION_STATUS.md` say: "Only exists in 
 | C3-055 | Delete a saved grid | `layout.delete` sees workspace-kind entries only; refused in grid (gridMode.js:75) | layout.delete (capabilities/layout.js:598), wrong kind | GAP |
 | C3-056 | Set a cell's timeframe | cell `tf` W, saved pref W, canvas `tf` W; Undo → D; others byte-identical (scripted plan **and** pre-model path) | chart.setTimeframe | **PASS** |
 | C3-057 | Set a cell's chart style | cell `chartType` bars, canvas `settingsOverride.chartType` bars, saved; Undo → the cell's own pick (hollow), no fork left | chart.setType | **PASS** |
-| C3-058 | Toggle a cell's session | D/W/M: the cell's canvas `sessionView` extended, others regular, Undo → regular. Intraday: the cell's own `settings.extendedHoursShading` false, saved, global `chart_settings` never written, Undo drops the fork | chart.setSession | **PASS** |
+| C3-058 | Toggle a cell's session | D/W/M: the cell's canvas `sessionView` extended, others regular, Undo → regular. Intraday: the cell's own `settings.extendedHoursShading` false, saved, global `chart_settings` never written, Undo drops the fork | chart.setSession | **PASS** in test; ledger **PARTIAL (SIMULATED)**: only the intraday half is a persisted outcome |
 | C3-059 | Reset a cell to my chart | product writes `settings: null` (GridChartCell.jsx:228-231); `chart.resetDefaults` writes CHART_DEFAULTS into a fork instead | none that matches | GAP |
 | C3-060 | Maximize or restore a cell | `maxId` is local `useState` (MultiChartGrid.jsx:104); `gridBoard.maximized()` is read-only | none | GAP |
 | C3-061 | Open shared grid settings | dialog opener only (`mc.setSettingsOpen`, useMultiChartState.js:61) | none (no capability opens a dialog, like C1-127) | GAP |
 | C3-062 | Set an alert from a cell | proposed; nothing written before Apply; Apply → exactly one POST, the book holds `AMD above 250` (the top-right cell's symbol); grid byte-identical; Undo deletes it | alert.create (alertLibrary target, not refused in grid) | **PASS** (see caveat) |
 
 **PASS: 4 rows (C3-056, 057, 058, 062) in 6 cases. GAP: 16 rows. BLOCKED-owner: 1 row (C3-054).**
+
+In `CHARTS_EXECUTION_STATUS.md`, under AUDIT's rule (VERIFIED only when the test reads back the real persisted outcome), these become: C3-056, C3-057 and C3-062 VERIFIED (SIMULATED outcome test, scripted model, jsdom), with C3-062 carrying its route/stub note; C3-058 PARTIAL (SIMULATED). See "Update 2026-11-10: Multi Chart (pl-auto)" there.
 
 The earlier read expected 062 to stay unverified. It passes because `alert.create` targets `alertLibrary`, which is neither board- nor layouts-scoped, so `screenGridOps` lets it through.
 
