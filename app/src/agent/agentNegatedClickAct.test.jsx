@@ -161,3 +161,15 @@ describe('control: an imperative to make the click STAY on a setting sets it', (
     expect(logged(m.board), transcript()).toEqual(['c3'])
   }, 40000)
 })
+// …even when the value word also DESCRIBES a chart on the board ("the weekly" = the one weekly chart, here the click itself)
+const tfOn = (id, tf) => (body) => p.env('apply', [{ action: 'chart.setTimeframe', target: body.context.charts.find(c => c.label === `Chart (${id})`).ref, args: { timeframe: tf } }])
+describe('control: ", not the <timeframe>" is a contrast on the change, not the chart of that timeframe', () => {
+  it.each(['log scale on this one, not the weekly', 'put this one on log scale, not the weekly', 'put this one on log scale rather than the weekly'])('"%s" (c1 clicked, c1 the only weekly chart) — applied on the click', async (t) => {
+    const m = at('c1')
+    p.st.envelopes.push(tfOn('c1', 'W'))
+    await m.say('make this one weekly')
+    p.st.envelopes.push(scaleOnAll('c1'))
+    await m.say(t)
+    expect(logged(m.board), transcript()).toEqual(['c1'])
+  }, 40000)
+})
