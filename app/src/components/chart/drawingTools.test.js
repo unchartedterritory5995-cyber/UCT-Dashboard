@@ -5,7 +5,6 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { POINT_COUNT, validateDrawing, drawingTimeFor } from './drawingTools'
 import { toChartTime } from './patternTime'
-import { ET_OFFSET } from './barTime'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const OVERLAY = readFileSync(join(HERE, 'ChartDrawingOverlay.jsx'), 'utf8')
@@ -28,7 +27,7 @@ describe('drawingTimeFor', () => {
     expect(drawingTimeFor(20260105, 'W')).toBe('2026-01-05')
     expect(drawingTimeFor('2026-01-05', '5')).toBe(toChartTime('2026-01-05', '5'))
     const sec = Date.UTC(2026, 0, 5, 15, 0) / 1000
-    expect(drawingTimeFor(sec, '15')).toBe(sec + ET_OFFSET)
+    expect(drawingTimeFor(sec, '15')).toBe(sec - 5 * 3600)   // January: EST, whatever season the box is in
   })
   it('never guesses', () => {
     expect(drawingTimeFor('soon', 'D')).toBeNull()

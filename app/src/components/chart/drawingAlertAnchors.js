@@ -118,9 +118,15 @@ export function parseBoundId(id) {
   return { drawingId: s.slice(0, i), level: lv }
 }
 
-/** Display-epoch time → true UTC seconds. `NaN` when unparseable. */
+/** Display-epoch time → true UTC seconds. `NaN` when unparseable.
+ *  `etOffset` is the inverse of the intraday display shift: pass
+ *  `barTime.fromChartTime` (per-instant ET offset). A bare number is the
+ *  legacy constant shift and is wrong across a DST change — kept only so a
+ *  caller passing 0 (D/W/M, tests) still works. */
 export function toUtcSec(t, etOffset) {
-  if (typeof t === 'number' && Number.isFinite(t)) return t - etOffset   // reverse the intraday ET shift
+  if (typeof t === 'number' && Number.isFinite(t)) {
+    return typeof etOffset === 'function' ? etOffset(t) : t - (Number(etOffset) || 0)   // reverse the intraday ET shift
+  }
   if (typeof t === 'string') {
     const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(t)
     if (m) return Date.UTC(+m[1], +m[2] - 1, +m[3], 16, 0, 0) / 1000      // D/W/M date → ~noon ET (16:00 UTC)

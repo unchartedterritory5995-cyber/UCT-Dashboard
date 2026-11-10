@@ -40,7 +40,9 @@ describe('toChartTime', () => {
     const edt = Date.UTC(2026, 9, 15, 13, 30) / 1000   // Oct: EDT, 09:30 = 13:30 UTC
     const est = Date.UTC(2026, 0, 15, 14, 30) / 1000   // Jan: EST, 09:30 = 14:30 UTC
     expect(toChartTime(20261015, '5', ET)).toBe(edt + ET)
-    expect(toChartTime(20260115, '5', ET)).toBe(est + ET)
+    // January is EST: its own -5h offset, not the -4h one in force elsewhere (the
+    // module-load-constant bug labelled every other-season bar an hour off).
+    expect(toChartTime(20260115, '5', ET)).toBe(est - 5 * 3600)
   })
 
   it('refuses what it cannot read — null, never a guess', () => {

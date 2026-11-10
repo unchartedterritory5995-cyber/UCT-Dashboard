@@ -489,6 +489,75 @@ def iter_tickers(conn: sqlite3.Connection):
         yield current
 
 
+# ── 60m grid migration (2026-11-10: clock hours → TradingView session grid) ──
+# The stored tf=60 layout moved from 09:30(30 min), 10:00, 11:00 … 15:00 to
+# TradingView's 09:30, 10:30 … 15:30 (bars_fetch.SIXTY_MIN_GRID). A row stamped
+# on an ET :00 between 10:00 and the regular close can ONLY come from the old
+# layout, and an old ticker's 09:30 row has the right key but 30 minutes of
+# content — so detection is per row, healing is per TICKER: drop every 60m row
+# of a ticker that has any, and the next request re-resamples from 15m.
+_ET_ZONE = None
+
+
+def is_old_grid_60m_ts(ts: int) -> bool:
+    """True when a stored tf=60 ``ts`` is a pre-2026-11-10 clock-hour RTH bucket
+    (an ET :00 in [10:00, regular close)), which the session grid never emits."""
+    global _ET_ZONE
+    from datetime import datetime
+    if _ET_ZONE is None:
+        from zoneinfo import ZoneInfo
+        _ET_ZONE = ZoneInfo("America/New_York")
+    try:
+        dt = datetime.fromtimestamp(int(ts), tz=_ET_ZONE)
+    except (TypeError, ValueError, OverflowError, OSError):
+        return False
+    if dt.minute != 0 or dt.second != 0:
+        return False
+    close_h = 16
+    try:
+        from api.services.nyse_calendar import NYSE_EARLY_CLOSES_YYYYMMDD
+        if dt.year * 10000 + dt.month * 100 + dt.day in NYSE_EARLY_CLOSES_YYYYMMDD:
+            close_h = 13
+    except Exception:  # noqa: BLE001 — calendar unreadable → regular day
+        pass
+    return 10 <= dt.hour < close_h
+
+
+def ticker_has_old_grid_60m(c: sqlite3.Connection, ticker: str, probe: int = 400) -> bool:
+    """Index-seek both ends of a ticker's tf=60 rows for an old-layout bucket."""
+    for order in ("DESC", "ASC"):
+        rows = c.execute(
+            f"SELECT ts FROM ohlcv WHERE ticker=? AND tf='60' ORDER BY ts {order} LIMIT ?",
+            (ticker, int(probe)),
+        ).fetchall()
+        if any(is_old_grid_60m_ts(r[0]) for r in rows):
+            return True
+    return False
+
+
+def purge_old_grid_60m_ticker(ticker: str) -> int:
+    """Drop ALL of ``ticker``'s tf=60 rows plus its 60m disk/memory caches and
+    history-complete marker, so the next request rebuilds them on the new grid.
+    Returns SQLite rows deleted."""
+    tkr = ticker.upper()
+    c = _conn()
+    with _WRITE_LOCK:
+        cur = c.execute("DELETE FROM ohlcv WHERE ticker=? AND tf='60'", (tkr,))
+        c.commit()
+    try:
+        from api.services import bars_disk_cache as _disk
+        _disk.delete(tkr, "60")
+    except Exception:  # noqa: BLE001 — a stale disk JSON is re-validated on read anyway
+        pass
+    try:
+        from api.services.cache import cache as _mem
+        _mem.delete_prefix(f"bars_{tkr}_60_")
+        _mem.delete_prefix(f"histfull_{tkr}_60")
+    except Exception:  # noqa: BLE001
+        pass
+    return cur.rowcount
+
+
 def purge_mis_keyed_weekly_rows() -> int:
     """Delete weekly rows whose date key is not the FRIDAY of its ISO week.
 
@@ -534,6 +603,14 @@ def purge_mis_keyed_weekly_rows() -> int:
     c = _conn()
     deleted = 0
     for tkr in iter_tickers(c):
+        # ⭐ Same pass, same PK-prefixed seeks: a ticker still carrying the
+        # pre-2026-11-10 clock-hour 60m layout is wiped (see is_old_grid_60m_ts)
+        # — here so a snapshot pull can never resurrect it either.
+        try:
+            if ticker_has_old_grid_60m(c, tkr):
+                deleted += purge_old_grid_60m_ticker(tkr)
+        except Exception as e:  # noqa: BLE001 — never let the 60m check stop the weekly purge
+            _logger.warning(f"[sqlite] 60m grid purge {tkr} failed (non-fatal): {e}")
         bad = [
             ts for (ts,) in c.execute(
                 "SELECT ts FROM ohlcv WHERE ticker=? AND tf='W'", (tkr,)

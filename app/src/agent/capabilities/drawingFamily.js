@@ -28,7 +28,7 @@ import { RESET_FIB_STYLE, bandKey, bandsFor, bandState, defaultBandColor, hasFib
 import { alertKindFor, anchorsForDrawing, boundIdFor } from '../../components/chart/drawingAlertAnchors'
 import { measurementFor } from '../../components/chart/drawingMeasure'
 import { FONT_OPTIONS, fontLabelFor } from '../../components/chart/drawingText'
-import { ET_OFFSET } from '../../components/chart/barTime'
+import { fromChartTime } from '../../components/chart/barTime'
 import { isDateTf } from '../../components/chart/patternTime'
 import { isoDayMs, dayWord } from '../dateWords'
 import { normalizeColor, colorName } from './chart'
@@ -488,7 +488,7 @@ export function registerDrawingFamily(common, h) {
       lv = fibLevel(d.type, level)
       if (lv == null) return { why: `Which level of the ${name}? Its levels are ${fibList(d.type)}.` }
     } else if (level != null) return { why: `That ${name} has no levels.` }
-    const geom = anchorsForDrawing(d, { tf: st.tf, etOffset: ET_OFFSET, level: lv })
+    const geom = anchorsForDrawing(d, { tf: st.tf, etOffset: fromChartTime, level: lv })
     if (!geom) return { why: `I can't read that ${name}'s position to set an alert on it.` }
     if (!boundIds(env)) return { why: 'I couldn\'t read your alerts, so I set nothing.' }
     const id = boundIdFor(d.id, lv)

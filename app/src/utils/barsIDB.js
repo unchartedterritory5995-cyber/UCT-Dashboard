@@ -59,7 +59,15 @@ const STORE      = 'bars'
 // time with a heal-on-mismatch guard in the RENDER path too (StockChart _idbBasisMismatch),
 // not just the pack importer — so a chart rendering straight from IDB before any pack
 // re-ingest also self-heals a future re-basis without another bump.
-const CACHE_LOGIC_VERSION = 7
+//
+// Bumped 7→8 (2026-11-10): the 60m grid moved to TradingView's session alignment
+// (09:30, 10:30 … 15:30; was 09:30 then clock hours 10:00 … 15:00 — see
+// chart/barTime.js SIXTY_MIN_GRID_BY_SESSION). An old-layout 60m cache merged
+// with a new-layout delta would interleave both grids (10:00 AND 10:30 candles).
+// The server purges its old 60m rows (bars_sqlite.is_old_grid_60m_ts); this
+// makes every browser drop its copy too. 30m is now resampled from 15m server-side
+// (same grid), so its caches only gain the half-hours native 30m dropped.
+const CACHE_LOGIC_VERSION = 8
 
 // Intraday freshness is judged by BAR-DATA age against the last CLOSED trading session
 // (weekend/holiday-aware) via marketSession.classifyIntradayTail — NOT a flat wall-clock

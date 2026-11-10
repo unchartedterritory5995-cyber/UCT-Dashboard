@@ -50,7 +50,7 @@ FAKE_NOW = datetime(2026, 9, 15, 13, 17, 0, tzinfo=ET)
 
 RTH_OPEN_MIN, RTH_CLOSE_MIN = 570, 960          # 09:30 / 16:00 ET
 #: Must match `barsIDB.CACHE_LOGIC_VERSION` or every seeded record is ignored.
-CACHE_LOGIC_VERSION = 7
+CACHE_LOGIC_VERSION = 8
 EXT_OPEN_MIN, EXT_CLOSE_MIN = 240, 1200         # 04:00 / 20:00 ET
 
 

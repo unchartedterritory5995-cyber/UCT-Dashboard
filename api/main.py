@@ -5744,7 +5744,7 @@ async def lifespan(app: FastAPI):
         "fmp_tz_fix=on yfinance_tz_fix=on heal_v1=ran-once heal_v2=ran-once heal_v3_60day=ran-once "
         "needs_fresh_post_market=on "
         "swr_refresh_interval=30s_intraday "
-        "tf60_ws_streaming=on bucket_canonical=bars_fetch.bucket_60_et_unix_seconds "
+        "tf60_ws_streaming=on bucket_canonical=bar_rollup.tv_bucket_bounds(via bars_fetch.bucket_60_et_unix_seconds,grid=rth) "
         f"delta_intraday_filter=>= idb_cache_logic_version={_idb_ver if _idb_ver is not None else 'unreadable'} "
         "weekly_dating=friday-close heal_weekly_close=ran-once "
         f"reconciliation_worker={'on' if os.environ.get('RECONCILE_ENABLED', '1') != '0' else 'off'}"
