@@ -22,7 +22,8 @@ REPO = Path(__file__).resolve().parents[1]
 JS = "app-abc123.js"
 PLAIN = b"console.log('the plain bytes of a hashed chunk');" * 40
 BR = b"BROTLI-SIDECAR-BYTES" * 3
-GZ = b"GZIP-SIDECAR-BYTES-LONGER" * 5
+# Over the runtime GZip middleware's minimum_size (1000), so it would act on this.
+GZ = b"GZIP-SIDECAR-BYTES-LONGER" * 50
 CACHE = "public, max-age=31536000, immutable, no-transform"
 
 
@@ -296,14 +297,29 @@ def test_a_sidecar_cannot_be_fetched_by_name(client, name):
     assert BR not in wire and GZ not in wire
 
 
-@pytest.mark.parametrize("target", [
-    "../secret.js", "../../secret.js", "..%2Fsecret.js", "%2e%2e/secret.js",
-    "..%5Csecret.js", "a/../../secret.js", "../secret.js.br",
+@pytest.mark.parametrize("target, reaches", [
+    ("..%2Fsecret.js", "../secret.js"),
+    ("..%2F..%2Fsecret.js", "../../secret.js"),
+    ("%2e%2e%2Fsecret.js", "../secret.js"),
+    ("a%2F..%2F..%2Fsecret.js", "../secret.js"),
+    ("..%2Fsecret.js.br", "../secret.js.br"),
 ])
 @pytest.mark.parametrize("accept", ["br, gzip", "identity"])
-def test_traversal_never_serves_a_file_outside_the_mount(client, target, accept):
-    r, wire = fetch(client, target, accept_encoding=accept)
-    assert r.status_code != 200 or b"OUTSIDE" not in wire
+def test_traversal_never_serves_a_file_outside_the_mount(assets, target, reaches, accept):
+    """Percent-encoded, because a client collapses a literal `..` before sending and the
+    request would never reach the mount. The spy proves this one did."""
+    reached = []
+
+    class Spy(ImmutableStaticFiles):
+        async def get_response(self, path, scope):
+            reached.append(path.replace(os.sep, "/"))
+            return await super().get_response(path, scope)
+
+    app = Starlette(routes=[Mount("/assets", app=Spy(directory=str(assets)))])
+    with TestClient(app, raise_server_exceptions=False) as c:
+        r, wire = fetch(c, target, accept_encoding=accept)
+    assert reached == [reaches]
+    assert r.status_code == 404
     assert b"OUTSIDE" not in wire
 
 
@@ -348,16 +364,33 @@ def test_a_missing_file_is_a_404(client):
 
 # ── the real app ──────────────────────────────────────────────────────────────
 
-def test_the_real_gzip_middleware_does_not_touch_the_sidecars(assets):
-    """The runtime GZip exemption stays: compressing here would double-encode."""
-    from api.main import _GZipSkipSSE, _is_gzip_exempt
+def _behind_the_real_gzip(assets):
+    from api.main import _GZipSkipSSE
 
-    assert _is_gzip_exempt(f"/assets/{JS}")
     inner = Starlette(routes=[Mount("/assets", app=ImmutableStaticFiles(directory=str(assets)))])
-    with TestClient(_GZipSkipSSE(inner, minimum_size=1000, compresslevel=5)) as c:
+    return TestClient(_GZipSkipSSE(inner, minimum_size=1000, compresslevel=5))
+
+
+def test_the_real_gzip_middleware_passes_a_sidecar_through(assets):
+    assert len(GZ) >= 1000
+    with _behind_the_real_gzip(assets) as c:
         r, wire = fetch(c, accept_encoding="gzip")
-        assert r.headers["content-encoding"] == "gzip"
-        assert wire == GZ
+    assert r.headers["content-encoding"] == "gzip"
+    assert wire == GZ
+
+
+def test_a_plain_fallback_is_not_gzipped_at_runtime(assets):
+    """The case the /assets exemption actually decides. Starlette's GZip already leaves a
+    response alone when it carries Content-Encoding, so only an UNencoded response can
+    show the exemption is gone, and runtime gzip of these files is the truncation 0e62823
+    removed."""
+    (assets / f"{JS}.br").unlink()
+    (assets / f"{JS}.gz").unlink()
+    assert len(PLAIN) >= 1000
+    with _behind_the_real_gzip(assets) as c:
+        r, wire = fetch(c, accept_encoding="gzip")
+    assert "content-encoding" not in r.headers
+    assert wire == PLAIN
 
 
 def test_main_mounts_this_class_on_assets():

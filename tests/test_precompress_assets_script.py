@@ -8,6 +8,7 @@ import json
 import os
 import shutil
 import subprocess
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -130,11 +131,29 @@ def test_npm_build_precompresses_last():
     assert steps[-1] == "node scripts/precompress-assets.mjs"
 
 
-@pytest.mark.parametrize("config", ["Dockerfile.web", "nixpacks.toml"])
-def test_every_deployed_build_runs_npm_run_build(config):
-    assert "npm run build" in (REPO / config).read_text(encoding="utf-8")
+def _dockerfile_stages() -> dict[str, list[str]]:
+    """Instruction lines by stage name; comments cannot satisfy a rail."""
+    stages: dict[str, list[str]] = {}
+    current: list[str] = []
+    for raw in (REPO / "Dockerfile.web").read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if line.startswith("FROM "):
+            current = stages.setdefault(line.split()[-1], [])
+        elif line and not line.startswith("#"):
+            current.append(line)
+    return stages
 
 
-def test_the_web_image_copies_the_whole_dist():
-    assert "COPY --from=frontend /src/app/dist /app/app/dist" in \
-        (REPO / "Dockerfile.web").read_text(encoding="utf-8")
+def test_the_web_image_builds_with_npm_run_build():
+    runs = [l for l in _dockerfile_stages()["frontend"] if l.startswith("RUN ")]
+    assert any(l.startswith("RUN cd app && ") and l.endswith("npm run build") for l in runs)
+
+
+def test_nixpacks_builds_with_npm_run_build():
+    config = tomllib.loads((REPO / "nixpacks.toml").read_text(encoding="utf-8"))
+    cmds = config["phases"]["build"]["cmds"]
+    assert any(c.startswith("cd app && ") and c.endswith("npm run build") for c in cmds)
+
+
+def test_the_runtime_stage_copies_the_whole_dist():
+    assert "COPY --from=frontend /src/app/dist /app/app/dist" in _dockerfile_stages()["runtime"]
