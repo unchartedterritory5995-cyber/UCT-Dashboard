@@ -27,6 +27,7 @@ import { isGranted } from './realGuard.mjs'
 import { BOARDS } from './boards.mjs'
 import { rowOf, say, finish } from './report.mjs'
 import { runRequest } from './driver.mjs'
+import { wrongTargetOf } from './prodReport.mjs'
 
 export const PROD_ORIGIN = 'https://www.uctintelligence.com'
 export const TEST_PREFIX = 'AUTOTEST-'
@@ -95,7 +96,7 @@ export async function runProduction({ authorization, list, dir, known }) {
   say(MODE, `production target: ${requests.length} of ${list.length} requests are safe to send; test layout ${run}`)
   mkdirSync(dir, { recursive: true })
   const b = await launch({ width: 1500, height: 900, headless: false })
-  let testLayoutId = null, saved = null, violation = null, prints = null
+  let testLayoutId = null, saved = null, violation = null, prints = null, budgetStart = null
   const rows = []
   try {
     await b.send('Page.navigate', { url: `${PROD_ORIGIN}/charts` })
@@ -103,6 +104,7 @@ export async function runProduction({ authorization, list, dir, known }) {
     const in_ = await b.waitFor(`fetch('/api/auth/me', { credentials: 'include' }).then(r => r.ok ? r.json() : null).then(j => j && j.user && j.user.role === 'admin').catch(() => false)`, { timeout: 300000, step: 2000 })
     if (!in_) throw new Error('no admin sign-in in the isolated window')
     prints = fingerprints(await protectedState(b))
+    budgetStart = await spentToday(b)          // the server's own Agent budget, for the report's side-by-side spend
     const prefs = await b.evaluate(`fetch('/api/auth/preferences', { credentials: 'include' }).then(r => r.json())`)
     saved = Object.fromEntries(WORKSPACE_PREFS.map(k => [k, prefs?.[k] ?? null]))
     writeFileSync(join(dir, 'prod-restore-point.json'), JSON.stringify({ MODE, run, workspacePrefs: saved }))     // for a crash: stays on this machine
@@ -138,7 +140,9 @@ export async function runProduction({ authorization, list, dir, known }) {
       const usd = !evidence?.crash && b0 != null && b1 != null && b2 != null && b1 >= b0 && b2 >= b1 ? Math.max(b1 - b0, b2 - b0) : null
       const s = gate(['settle', '--id', String(reservation), ...(usd == null ? [] : ['--usd', String(usd)])])
       const row = rowOf(req, { ...evidence, usd }, result, { mode: MODE, known })
-      rows.push({ ...row, failed: row.failed?.map(f => ({ name: f.name, tag: f.tag })), say: undefined })      // value-free
+      // value-free: check names and tags, the wrong-target kind with role names, per-turn booleans; never a detail or a reply
+      const turnsLite = (evidence.turns || []).map(t => ({ card: !!t.card, heldUntilApply: t.heldUntilApply ?? null, receipt: !!t.newReceipt, undoable: t.undoable ?? null, ms: t.ms }))
+      rows.push({ ...row, wt: wrongTargetOf(row, req), turnsCount: req.turns?.length || 1, turnsLite, failed: row.failed?.map(f => ({ name: f.name, tag: f.tag })), say: undefined })
       say(MODE, `${row.pass ? 'PASS' : 'FAIL'} ${req.id} ${usd == null ? 'usd unknown, settled at the worst case' : `$${usd.toFixed(4)}`}`)
       finish(dir, MODE, rows, { target: 'production', partial: true })
       if (violation) { say(MODE, `STOP: a write outside the allow list: ${violation}`); break }
@@ -148,7 +152,8 @@ export async function runProduction({ authorization, list, dir, known }) {
     const restored = await restore(b, saved, testLayoutId).catch((e) => `restore failed: ${e.message}`)
     const after = prints ? fingerprints(await protectedState(b).catch(() => ({}))) : null
     const diff = prints && after ? fingerprintDiff(prints, after) : ['never fingerprinted']
-    finish(dir, MODE, rows, { target: 'production', restored, protectedChanged: diff, violation })
+    const budgetEnd = await spentToday(b).catch(() => null)
+    finish(dir, MODE, rows, { target: 'production', restored, protectedChanged: diff, violation, budgetStart, budgetEnd })
     say(MODE, `restore: ${restored}; protected state changed: ${diff.length ? diff.join(', ') : 'none'}`)
     if (diff.length) gate(['stop', '--why', `production protected state changed: ${diff.join(',')}`])
     await b.close()
