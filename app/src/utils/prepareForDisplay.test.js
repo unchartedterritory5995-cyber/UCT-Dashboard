@@ -182,25 +182,31 @@ describe('prepareDailyForDisplay', () => {
     expect(memPeek('MU', 'D')).toEqual(daily)
     expect(memPeekSavedAt('MU', 'D')).toBe(12345)
   })
+  const respond = (body, status = 200) => vi.stubGlobal('fetch', vi.fn(async () => ({
+    ok: status < 400, status, headers: new Headers(), clone() { return this }, json: async () => body,
+  })))
   it("asks the server the chart's own URL when nothing is cached, and stores the answer", async () => {
-    preloadMock.mockResolvedValue({ ticker: 'MU', bars: daily })
+    respond({ ticker: 'MU', bars: daily })
     await expect(prepareDailyForDisplay('MU', 'D')).resolves.toBe('current')
-    expect(preloadMock.mock.calls[0][0]).toBe('/api/bars/MU?tf=D&bars=600')
+    expect(fetch.mock.calls[0][0]).toBe('/api/bars/MU?tf=D&bars=600')
     expect(memPeek('MU', 'D')).toEqual(daily)
     expect(idbState.put).toHaveBeenCalledWith('MU', 'D', daily)
+    expect(preloadMock.mock.calls[0][0]).toBe('/api/bars/MU?tf=D&bars=600')
   })
-  it('a shed answer stores nothing', async () => {
-    preloadMock.mockResolvedValue({ bars: [], error: 'warming' })
+  it('a shed answer stores nothing and is not handed to the chart', async () => {
+    respond({ error: 'warming' }, 503)
     await expect(prepareDailyForDisplay('MU', 'D')).resolves.toBe('error')
     expect(memPeek('MU', 'D')).toBeNull()
+    expect(preloadMock).not.toHaveBeenCalled()
   })
   it('an answer for another symbol is never stored under this one', async () => {
-    preloadMock.mockResolvedValue({ ticker: 'XYZ', bars: daily })
+    respond({ ticker: 'XYZ', bars: daily })
     await expect(prepareDailyForDisplay('MU', 'D')).resolves.toBe('error')
     expect(memPeek('MU', 'D')).toBeNull()
+    expect(preloadMock).not.toHaveBeenCalled()
   })
   it('a delta answer is never stored as a full set', async () => {
-    preloadMock.mockResolvedValue({ ticker: 'MU', delta: true, bars: daily })
+    respond({ ticker: 'MU', delta: true, bars: daily })
     await expect(prepareDailyForDisplay('MU', 'D')).resolves.toBe('nodata')
     expect(memPeek('MU', 'D')).toBeNull()
   })
