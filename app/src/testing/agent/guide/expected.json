@@ -376,8 +376,8 @@
   "from": "2026-11-05 matrix Guide feature"
  },
  "C1-123": {
-  "feature": "chartView",
-  "from": "2026-11-05 matrix Guide feature"
+  "feature": "chartMenu",
+  "from": "2026-11-10 owner-approved desktop row (ChartWidget ind-add, agent/pl/chart-menu-add-indicator); was chartView (2026-11-05 matrix)"
  },
  "C1-125": {
   "feature": "chartMenu",
