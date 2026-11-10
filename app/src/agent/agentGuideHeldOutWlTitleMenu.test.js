@@ -32,7 +32,10 @@ export const WL_TITLE_MENU_HELD_OUT = [
   ['how do I share my flagged list', 'Sharing a list'],
 ]
 // ⛔ THE ROWS ABOVE ARE NOT EDITED. A KNOWN MISS is asserted both ways and listed in testing/agent/guide/knownMisses.json.
-export const WL_TITLE_MENU_MISSES = {}
+export const WL_TITLE_MENU_MISSES = {
+  // NOT IN PRODUCT (C3-080): nothing in the product stars a ticker in a list, so Remove starred never shows and is not taught
+  'how do I clear out all the starred tickers in my watchlist': 'Using watchlists',
+}
 describe('held-out: the list actions on the widget\'s title menu', () => {
   it.each(WL_TITLE_MENU_HELD_OUT.filter(([q]) => !WL_TITLE_MENU_MISSES[q]))('%s → %s', (q, want) => { expect(seen(q)).toContain(want) })
   it.each(WL_TITLE_MENU_HELD_OUT.filter(([q]) => WL_TITLE_MENU_MISSES[q]))('a KNOWN MISS: %s (named %s)', (q, want) => {

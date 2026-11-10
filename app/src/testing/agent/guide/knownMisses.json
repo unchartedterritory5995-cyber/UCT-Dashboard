@@ -1,5 +1,5 @@
 {
- "note": "Held-out phrasings that do NOT reach what their held-out file named. Asserted both ways in that file (not what was named; what they reach today), so they pass as tests but are NOT passes. Kept in step with COV3_MISSES, COV4_MISSES, COV4B_MISSES and COV5_MISSES in the agentGuideHeldOutCov3/Cov4/Cov4b/Cov5 test files.",
+ "note": "Held-out phrasings that do NOT reach what their held-out file named. Asserted both ways in that file (not what was named; what they reach today), so they pass as tests but are NOT passes. Kept in step with COV3_MISSES, COV4_MISSES, COV4B_MISSES COV5_MISSES and WL_TITLE_MENU_MISSES in the agentGuideHeldOutCov3/Cov4/Cov4b/Cov5 test files.",
  "misses": [
   {
    "set": "cov-3",
@@ -56,6 +56,13 @@
    "named": "The magnet crosshair",
    "reaches": "Changing Crosshair",
    "why": "the magnet crosshair’s only toggles (StockChart’s region menu, ChartToolbar’s panel) are not opened by a desktop /charts right-click; the workspace chart menu has no such row"
+  },
+  {
+   "set": "wl title menu",
+   "say": "how do I clear out all the starred tickers in my watchlist",
+   "named": "Removing the starred tickers",
+   "reaches": "Using watchlists",
+   "why": "NOT IN PRODUCT (C3-080): nothing stars a ticker in a list (Watchlists.jsx toggleStar is never called), so Remove starred never shows; the walkthrough was withdrawn"
   }
  ]
 }

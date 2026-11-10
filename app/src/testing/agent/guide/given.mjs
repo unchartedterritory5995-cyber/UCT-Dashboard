@@ -26,6 +26,8 @@ const FIXTURE_NAMES = FIXTURE_WATCHLISTS.map(l => l.name).sort((a, b) => b.lengt
 const chart = (id, color, x, y, w, h, opts = {}) => ({ id, type: 'chart', color, x, y, w, h, opts: { tf: 'D', ...opts } })
 const GROUPS = { A: 'SPY', B: 'AAPL', C: 'AMD', D: 'MSFT' }
 const SCAN = { key: 'highest-volume-1y', name: 'Highest Volume In 1-Year' }
+// another member's public list, as GET /api/watchlists/public returns one (api/routers/watchlists.py public rows)
+const COMMUNITY = { id: 'c-teach', user_id: 2, name: 'Ravi Breakouts', description: '', is_public: 1, owner_name: 'Ravi', items: [{ id: 'c-teach-i1', watchlist_id: 'c-teach', sym: 'AMD', notes: '' }, { id: 'c-teach-i2', watchlist_id: 'c-teach', sym: 'MSFT', notes: '' }] }
 // pages/charts/CompareSymbolsPanel.jsx: { sym, color, enabled, group? } (a group is its name on each of its symbols)
 const COMPARED = [{ sym: 'AMD', color: '#f5a623', enabled: true }, { sym: 'NVDA', color: '#4fc3f7', enabled: true, group: 'Semis' }, { sym: 'AVGO', color: '#81c784', enabled: true, group: 'Semis' }]
 const watch = (extra = {}) => ({ id: 'w-watch', type: 'watchlist', color: 'A', x: 16, y: 0, w: 8, h: 20, opts: {}, ...extra })
@@ -41,6 +43,9 @@ const BOARDS = {
   // account's own volume_scan_lists pref)
   surge: [chart('w-chart-a', 'A', 0, 0, 12, 20), watch({ x: 12, w: 6 }), { id: 'w-surge', type: 'volumescan', color: 'A', x: 18, y: 0, w: 6, h: 20, opts: { volActive: 'teach-semis' } }],
   // a Scanner widget with a preset scan already open: pages/charts/widgets/ScannerWidget.jsx remembers it in opts.scanKey
+  // a community list open in the Watchlist widget (WatchlistWidget opts.watchKey 'community:<id>'; its rows come from
+  // GET /api/watchlists/public, answered by the community given's route)
+  community: [chart('w-chart-a', 'A', 0, 0, 16, 20), watch({ opts: { watchKey: 'community:' + COMMUNITY.id, watchName: COMMUNITY.name, watchTab: 'community' } })],
   scan: [chart('w-chart-a', 'A', 0, 0, 12, 20), watch({ x: 12, w: 6 }), { id: 'w-scan', type: 'scanner', color: 'A', x: 18, y: 0, w: 6, h: 20, opts: { scanKey: SCAN.key, scanName: SCAN.name } }],
 }
 // pages/charts/grid/gridLayouts.js makeDefaultState: the grid as the app saves it
@@ -67,6 +72,8 @@ export function givenFor(c) {
   if (/^(Renaming a list|Removing the starred tickers from a list|Copying a list to the clipboard|Exporting a list|Importing tickers into a list|A list’s version history|Sharing a list with the community|Publishing a list to Prebuilt)$/.test(c.title || '')) g.lists = true
   // a list's Version history shows only while the server's version store says it is on (ArtifactHistory probeArtifactVersions)
   if (/^A list’s version history$/.test(c.title || '')) g.versions = true
+  // Save to My Lists: a community list open in the widget, and the copy-or-link switch on for this member (auth/me's own flag)
+  if (/^Saving a community list to My Lists$/.test(c.title || '')) { g.board = 'community'; g.community = true }
   if (NEEDS_DRAWING(c)) g.drawing = drawingFor(c)
   if (NEEDS_ALERTS(c)) g.alerts = [{ sym: 'SPY', target_price: 200, direction: 'above' }, { sym: 'NVDA', target_price: 150, direction: 'below' }]
   // every Multi Chart row: the grid's own flyout shows its saved-grid controls only while the board IS a grid
@@ -136,6 +143,11 @@ function CALENDAR_DAYS() {
 export function fixturesFor(g) {
   const routes = []
   if (g.themes) routes.push({ match: '^GET /api/theme-performance', body: THEMES })
+  if (g.community) {
+    routes.push({ match: '^GET /api/watchlists/public', body: [COMMUNITY] })
+    // the harness's own auth stub (agentHarness.jsx), plus the one switch the Save to My Lists row reads (AuthContext)
+    routes.push({ match: '^GET /api/auth/me', body: { user: { id: 1, email: 'harness@local', role: 'admin', display_name: 'Harness' }, plan: 'pro', subscription: null, trial: null, watchlist_copy_or_link_enabled: true } })
+  }
   if (g.teFeed) routes.push({ match: '^GET /api/trade-exchange-news/recent', body: { items: TE_ITEMS(), epoch: 'teach', last_seq: 3, first_seq: 1, tickers_provisional: false } })
   if (g.calendar) routes.push({ match: '^GET /api/calendar[?]week=', body: { days: CALENDAR_DAYS() } })
   if (g.versions) routes.push({ match: '^GET /api/artifact-versions/status', body: { enabled: true } })

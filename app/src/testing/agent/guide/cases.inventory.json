@@ -1554,12 +1554,6 @@
   "title": "Removing a ticker from a list"
  },
  {
-  "id": "C3-080",
-  "say": "how do I remove all starred symbols from a list",
-  "feature": "watchlistAction",
-  "title": "Removing the starred tickers from a list"
- },
- {
   "id": "C3-082",
   "say": "how do I sort by a column",
   "feature": "watchlistAction",

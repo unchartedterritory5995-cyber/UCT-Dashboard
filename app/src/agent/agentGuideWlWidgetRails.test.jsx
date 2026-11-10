@@ -70,7 +70,6 @@ const CASES = [
   ['how do I download my watchlist as a spreadsheet', 'Exporting a list', /Click ⋯ \(List actions\)/],
   ['how do I get back an older version of my watchlist', 'A list’s version history', /Click ⋯ \(List actions\)/],
   ['how do I share my watchlist with everyone', 'Sharing a list with the community', /Click ⋯ \(List actions\)/],
-  ['how do I clear out all the starred tickers in my watchlist', 'Removing the starred tickers from a list', /Click ⋯ \(List actions\)/],
 ]
 
 describe('watchlist rows in the Charts widget: highlight, instruction, cancel, no write', () => {

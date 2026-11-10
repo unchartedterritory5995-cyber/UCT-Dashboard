@@ -1611,11 +1611,6 @@
   "title": "Renaming a list",
   "from": "title-menu row reviewed by hand 2026-11-09 (the list menu from the widget’s title (#1005): right-click the title or ⋯ List actions, then Rename, on Flagged)"
  },
- "C3-080": {
-  "feature": "watchlistAction",
-  "title": "Removing the starred tickers from a list",
-  "from": "title-menu row reviewed by hand 2026-11-09 (the list menu from the widget’s title (#1005): right-click the title or ⋯ List actions, then Remove starred)"
- },
  "C3-091": {
   "feature": "watchlistAction",
   "title": "Sharing a list with the community",
