@@ -43,6 +43,7 @@ const q = (s) => JSON.stringify(s)
 const TARGETS = {
   plot: { kind: 'a chart boundary (chart.plot, after arming the trendline tool)', feature: 'drawing', detail: 'trendline', say: 'how do I draw a trendline on this chart', sel: '[data-guide="chart.plot"]', steps: [['clickRinged', '[data-guide="chart.tool.trendline"]'], ['waitRingOn', '[data-guide="chart.plot"]']] },
   settings: { kind: 'a settings row inside the scrollable Chart Settings panel', feature: 'indicatorEdit', say: 'how do I change the settings of the 50 sma on this chart', sel: '[data-guide="chartSettings"] [data-guide], [data-guide="chartSettings"] label, [data-guide="chartSettings"] [role="row"], [data-guide="chartSettings"] input, [data-guide="chartSettings"] select, [data-guide="chartSettings"] button', steps: [['clickRing'], ['wait', 900], ['clickRing'], ['wait', 900], ['clickRing'], ['wait', 1200]], scrollOnly: true },
+  settingslist: { kind: 'an indicator row in the Chart Settings indicator list (the ringed row itself scrolls with its list)', feature: 'indicatorEdit', say: 'how do I change the settings of the 50 sma on this chart', sel: '[data-guide="chartSettings"] [data-guide], [data-guide="chartSettings"] li, [data-guide="chartSettings"] [role="row"], [data-guide="chartSettings"] button, [data-guide="chartSettings"] div', steps: [['clickRing'], ['wait', 900], ['clickRing'], ['wait', 1200]], scrollOnly: true },
   edge: { kind: 'a chart boundary (resize edge)', feature: 'widgetResize', say: 'how do I resize this chart', sel: '[data-guide="widget.resize.e"],[data-guide="workspace.seam"]', steps: [] },
   corner: { kind: 'a chart-resize corner', feature: 'widgetResize', say: 'how do I resize this chart', sel: '[data-guide="widget.resize.se"]', steps: [['next']], drag: true },
   toolbar: { kind: 'a toolbar button (timeframe)', feature: 'timeframe', say: 'how do I change the timeframe on this chart', sel: '[data-guide="chart.timeframe"]', steps: [] },
@@ -56,6 +57,7 @@ for (const [t, T] of Object.entries(TARGETS)) if (!T.scrollOnly) for (const v of
   cases.push({ id: `${t}-${b}-${v}-z${z}`, target: t, board: b, role, vp: v, zoom: z, scroll: false })
 for (const t of Object.keys(TARGETS)) cases.push({ id: `${t}-FOUR-XS-z100-scrolled`, target: t, board: 'FOUR', role: 'TL', vp: 'XS', zoom: 100, scroll: true })
 for (const v of ['L', 'S']) cases.push({ id: `settings-TWO-${v}-z100-scrolled`, target: 'settings', board: 'TWO', role: 'A', vp: v, zoom: 100, scroll: true })
+for (const v of ['S', 'XS']) cases.push({ id: `settingslist-TWO-${v}-z100-scrolled`, target: 'settingslist', board: 'TWO', role: 'A', vp: v, zoom: 100, scroll: true })
 // tracking must STOP: drag the corner, release, end it at once (Done, Exit, Escape) or take its target away (close the chart), then
 // count the guide's own callbacks over the next 2 s and what is still registered
 for (const how of ['done', 'exit', 'escape', 'unmount', 'drag']) cases.push({ id: `stop-${how}-TWO-L-z100`, target: 'corner', board: 'TWO', role: 'A', vp: 'L', zoom: 100, scroll: false, stop: how })
