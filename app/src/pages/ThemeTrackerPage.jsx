@@ -68,6 +68,9 @@ function fmtEtTime(iso) {
   } catch { return '' }
 }
 
+// The most rows one list prewarm may request from the open theme group.
+const THEME_PREWARM_ROW_CAP = 50
+
 // localStorage key holding the last /api/theme-performance response, used to
 // paint the tab instantly on load before the fresh (632KB) fetch returns.
 const THEME_PERF_CACHE_KEY = 'uct.themePerf.v1'
@@ -1134,7 +1137,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
         const bv = b.returns?.[activeKey] ?? (sortDir === 'desc' ? -Infinity : Infinity)
         return sortDir === 'desc' ? bv - av : av - bv
       })
-      return sorted.map(h => ({ sym: h.sym, name: h.name, themeTicker: theme.ticker, key: `${theme.ticker}::${h.sym}` }))
+      return sorted.map(h => ({ sym: h.sym, name: h.name, themeTicker: theme.ticker, themeKey: theme.custom_key || theme.ticker, key: `${theme.ticker}::${h.sym}` }))
     }), [filteredThemes, activeKey, sortDir])
 
   // ── Live percentages ── Stream real-time prices for the holdings of EXPANDED
@@ -1245,6 +1248,13 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   const allStockSyms = useMemo(() => allStocks.map(s => s.sym), [allStocks])
   useNeighborWarm(allStockSyms, selectedSym, warmTf)
 
+  // ⛔ THE OPEN GROUP ONLY, AND CAPPED. This used to pass `allStockSyms`, every holding of every
+  // theme whether its group was open or not: ~370 bar requests in 30 s on a fresh profile, on a page
+  // where all themes start closed and no row is showing. Collapsed groups render no rows.
+  const openRowSyms = useMemo(() => (
+    openTheme ? allStocks.filter(s => s.themeKey === openTheme).map(s => s.sym) : []
+  ), [allStocks, openTheme])
+
   // RE-WARM THE OPEN LIST WHEN THE LINKED CHART RETIMES. `toggleTheme` warms the
   // whole group at the timeframe in force WHEN IT WAS OPENED; retiming the chart
   // afterwards used to leave only the ±6 neighbours above covered, so the first
@@ -1253,9 +1263,9 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   // and backpressure-guarded inside prefetchBars — so a timeframe keypress can't
   // flood the origin.
   useEffect(() => {
-    if (!allStockSyms.length) return
-    prewarmVisibleList(allStockSyms, { chartTf: warmTf })
-  }, [allStockSyms, warmTf])
+    if (!openRowSyms.length) return
+    prewarmVisibleList(openRowSyms, { chartTf: warmTf, cap: THEME_PREWARM_ROW_CAP })
+  }, [openRowSyms, warmTf])
   const { isFlagged, toggle: toggleFlag } = useFlagged()
   const { getTag } = useTickerTags()
   const tickerActions = useTickerActions()
