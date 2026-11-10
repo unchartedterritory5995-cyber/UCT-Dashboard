@@ -178,7 +178,35 @@ const TO_PICKER = [
   { target: { widgetType: WL, guide: 'watchlist.lists' }, name: '‹ Lists', text: 'Click ‹ Lists on this widget: new lists start in the list picker.', optional: true, waitFor: PICKER },
   ...onBoard(WL, 'Watchlist', PICKER),
 ]
+// ⭐ the list's own menu, from its TITLE (pages/Watchlists.jsx, #1005, live): right-click the title, or ⋯ List actions beside it
+// (watchlist.title, watchlist.listMenu). The menu is the list menu (watchlist.rowMenu), its rows found by their own labels.
+// absent: a row offered only on some lists or for some members (your own lists, a community list, the version store) says so
+// and ends, rather than waiting on a row that will not come. Teaching only: the member clicks every control.
+const LIST_TITLE = { widgetType: WL, guide: 'watchlist.title' }
+const LIST_MENU_BTN = { widgetType: WL, guide: 'watchlist.listMenu' }
+const listRow = (label, lead = false) => ({ within: 'watchlist.rowMenu', [lead ? 'lead' : 'label']: label })
+const titleMenu = (rows, name, say, absent = null) => {
+  const t = [].concat(rows)
+  return [
+    ...OPEN_LIST,
+    { target: [LIST_MENU_BTN, LIST_TITLE], name: '⋯ List actions', text: 'Right-click the list’s title, or click ⋯ (List actions) beside it.', waitFor: t.length === 1 ? t[0] : t, ...(absent ? { absent } : {}) },
+    { target: t, name, text: say, endsOnClick: true },
+  ]
+}
+const OWN = 'That’s on your own lists only, so it isn’t in this list’s menu. Open one of your lists here (‹ Lists) and ask me again.'
+const TITLE_MENU_ACTIONS = [
+  { id: 'starred', label: 'Removing the starred tickers from a list', re: /\b(remove|clear|delete|drop|get rid of|take off)\b.*\b(starred|stars?)\b|\b(starred|stars?)\b.*\b(remove|clear|out|off)\b/, steps: titleMenu(listRow('Remove starred', true), 'Remove starred', 'Click Remove starred to take every starred ticker off this list.', 'Remove starred shows only on your own list while it has starred tickers. Star one first (☆ on its row).') },
+  { id: 'saveCommunity', label: 'Saving a community list to My Lists', re: /\b(save|copy|keep|add)\b.*\b(someone|somebody|community|shared|their|another person|public)\b|\bto my lists\b/, steps: titleMenu(listRow('Save to My Lists…'), 'Save to My Lists…', 'Click Save to My Lists…, then choose a copy (yours to edit) or a link (it follows its owner’s list).', 'Save to My Lists shows on a community list’s menu. Open one from ‹ Lists → Community, then ask me again.') },
+  { id: 'publishPrebuilt', label: 'Publishing a list to Prebuilt', re: /\b(publish|unpublish|mark|make|turn)\b.*\bpre-?built\b|\bpre-?built\b.*\b(publish|unpublish|mark)\b/, steps: titleMenu([listRow('Publish to Prebuilt (UCT)'), listRow('Unpublish from Prebuilt (UCT)')], 'Publish to Prebuilt (UCT)', 'Click Publish to Prebuilt (UCT) to list it for everyone under Prebuilt; the same row unpublishes it. This is for UCT admins.') },
+  { id: 'rename', label: 'Renaming a list', re: /\brenam\w*\b|\bchange\b.*\bname\b|\bcall\b.*\bsomething else\b|\bnew name\b/, steps: titleMenu(listRow('Rename'), 'Rename', 'Click Rename, type the new name and press Enter.', OWN) },
+  { id: 'history', label: 'A list’s version history', re: /\b(versions?|history|older|previous|earlier|restore|undo)\b|\bgo back to\b|\bget back\b/, steps: titleMenu(listRow('Version history'), 'Version history', 'Click Version history. Pick a version, and Restore brings it back.', 'Version history isn’t in this list’s menu for you right now: it shows on your own lists while list history is switched on.') },
+  { id: 'export', label: 'Exporting a list', re: /\b(export|download|csv|excel|xlsx|spreadsheet)\b/, steps: titleMenu([listRow('Export CSV'), listRow('Export Excel')], 'Export CSV', 'Click Export CSV, or Export Excel just below it where it shows, to download this list.') },
+  { id: 'import', label: 'Importing tickers into a list', re: /\b(import|paste|bulk|a bunch of|many)\b.*\b(tickers?|symbols?|stocks?|names?|list)\b|\bimport\b/, steps: titleMenu(listRow('Import tickers'), 'Import tickers', 'Click Import tickers and paste them in: one per line, or separated by commas.', OWN) },
+  { id: 'copyList', label: 'Copying a list to the clipboard', re: /\b(copy|clipboard)\b/, steps: titleMenu(listRow('Copy list to clipboard'), 'Copy list to clipboard', 'Click Copy list to clipboard: its tickers are copied, ready to paste.') },
+  { id: 'shareList', label: 'Sharing a list with the community', re: /\b(share|sharing|public|private|everyone|community|publish)\b/, steps: titleMenu([listRow('Share with community'), listRow('Make Private')], 'Share with community', 'Click Share with community to make the list public; the same row says Make Private once it is, and takes it back.') },
+]
 export const WATCHLIST_ACTIONS = [
+  ...TITLE_MENU_ACTIONS,
   // ⭐ cov-5 widget teaching: a new list that starts from a saved watchlist look (WatchlistPicker's create form → Template)
   { id: 'fromTemplate', label: 'Creating a list from a template', re: /\b(new|create|creating|make|making|start|starting|build)\b.*\btemplates?\b|\btemplates?\b.*\b(new|create|make|start)\b.*\b(watch ?)?lists?\b/, steps: [
     ...TO_PICKER,
