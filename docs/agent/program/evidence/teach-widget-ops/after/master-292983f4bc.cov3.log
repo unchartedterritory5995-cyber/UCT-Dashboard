@@ -1,0 +1,12 @@
+# cmd: npx vitest run src/agent/agentGuideHeldOutCov3.test.js | head=292983f4bc | start 16:38:20
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/w/pl-teach-base/app[39m
+
+ [32m✓[39m src/agent/agentGuideHeldOutCov3.test.js [2m([22m[2m21 tests[22m[2m)[22m[32m 43[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m21 passed[39m[22m[90m (21)[39m
+[2m   Start at [22m 16:38:20
+[2m   Duration [22m 6.11s[2m (transform 4.27s, setup 240ms, import 5.32s, tests 43ms, environment 390ms)[22m
+
+# exit=0 end 16:38:27
