@@ -1506,6 +1506,24 @@
   "title": "Creating a list from a template"
  },
  {
+  "id": "C3-072",
+  "say": "how do I save a community list to My Lists",
+  "feature": "watchlistAction",
+  "title": "Saving a community list to My Lists"
+ },
+ {
+  "id": "C3-073",
+  "say": "how do I rename a list",
+  "feature": "watchlistAction",
+  "title": "Renaming a list"
+ },
+ {
+  "id": "C3-074",
+  "say": "how do I rename the Flagged list",
+  "feature": "watchlistAction",
+  "title": "Renaming a list"
+ },
+ {
   "id": "C3-075",
   "say": "how do I delete a list",
   "feature": "control",
@@ -1534,6 +1552,12 @@
   "say": "show me how to remove NVDA from Momentum",
   "feature": "watchlistAction",
   "title": "Removing a ticker from a list"
+ },
+ {
+  "id": "C3-080",
+  "say": "how do I remove all starred symbols from a list",
+  "feature": "watchlistAction",
+  "title": "Removing the starred tickers from a list"
  },
  {
   "id": "C3-082",
@@ -1570,6 +1594,42 @@
   "say": "how do I write or edit a ticker note",
   "feature": "watchlistAction",
   "title": "A note on a ticker"
+ },
+ {
+  "id": "C3-091",
+  "say": "how do I share a tag colour or Flagged",
+  "feature": "watchlistAction",
+  "title": "Sharing a list with the community"
+ },
+ {
+  "id": "C3-092",
+  "say": "how do I make a list public",
+  "feature": "watchlistAction",
+  "title": "Sharing a list with the community"
+ },
+ {
+  "id": "C3-093",
+  "say": "how do I mark a list prebuilt (admin)",
+  "feature": "watchlistAction",
+  "title": "Publishing a list to Prebuilt"
+ },
+ {
+  "id": "C3-094",
+  "say": "how do I copy a list to the clipboard",
+  "feature": "watchlistAction",
+  "title": "Copying a list to the clipboard"
+ },
+ {
+  "id": "C3-095",
+  "say": "how do I export a list as CSV or Excel",
+  "feature": "watchlistAction",
+  "title": "Exporting a list"
+ },
+ {
+  "id": "C3-097",
+  "say": "how do I view or restore list version history",
+  "feature": "watchlistAction",
+  "title": "A list’s version history"
  },
  {
   "id": "C3-098",

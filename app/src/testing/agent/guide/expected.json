@@ -1595,5 +1595,55 @@
   "feature": "watchlistAction",
   "title": "Reordering a list’s columns",
   "from": "watchlist widget row reviewed by hand 2026-11-09 (not assigned before: drag a column’s title onto another in the Charts widget)"
+ },
+ "C3-072": {
+  "feature": "watchlistAction",
+  "title": "Saving a community list to My Lists",
+  "from": "title-menu row reviewed by hand 2026-11-09 (the list menu from the widget’s title (#1005): right-click the title or ⋯ List actions, then Save to My Lists…)"
+ },
+ "C3-073": {
+  "feature": "watchlistAction",
+  "title": "Renaming a list",
+  "from": "title-menu row reviewed by hand 2026-11-09 (the list menu from the widget’s title (#1005): right-click the title or ⋯ List actions, then Rename)"
+ },
+ "C3-074": {
+  "feature": "watchlistAction",
+  "title": "Renaming a list",
+  "from": "title-menu row reviewed by hand 2026-11-09 (the list menu from the widget’s title (#1005): right-click the title or ⋯ List actions, then Rename, on Flagged)"
+ },
+ "C3-080": {
+  "feature": "watchlistAction",
+  "title": "Removing the starred tickers from a list",
+  "from": "title-menu row reviewed by hand 2026-11-09 (the list menu from the widget’s title (#1005): right-click the title or ⋯ List actions, then Remove starred)"
+ },
+ "C3-091": {
+  "feature": "watchlistAction",
+  "title": "Sharing a list with the community",
+  "from": "title-menu row reviewed by hand 2026-11-09 (the list menu from the widget’s title (#1005): right-click the title or ⋯ List actions, then Flagged’s Share with community (a tag colour’s share is not in the widget))"
+ },
+ "C3-092": {
+  "feature": "watchlistAction",
+  "title": "Sharing a list with the community",
+  "from": "title-menu row reviewed by hand 2026-11-09 (the list menu from the widget’s title (#1005): right-click the title or ⋯ List actions, then Share with community)"
+ },
+ "C3-093": {
+  "feature": "watchlistAction",
+  "title": "Publishing a list to Prebuilt",
+  "from": "title-menu row reviewed by hand 2026-11-09 (the list menu from the widget’s title (#1005): right-click the title or ⋯ List actions, then Publish to Prebuilt (UCT), admins)"
+ },
+ "C3-094": {
+  "feature": "watchlistAction",
+  "title": "Copying a list to the clipboard",
+  "from": "title-menu row reviewed by hand 2026-11-09 (the list menu from the widget’s title (#1005): right-click the title or ⋯ List actions, then Copy list to clipboard)"
+ },
+ "C3-095": {
+  "feature": "watchlistAction",
+  "title": "Exporting a list",
+  "from": "title-menu row reviewed by hand 2026-11-09 (the list menu from the widget’s title (#1005): right-click the title or ⋯ List actions, then Export CSV / Export Excel)"
+ },
+ "C3-097": {
+  "feature": "watchlistAction",
+  "title": "A list’s version history",
+  "from": "title-menu row reviewed by hand 2026-11-09 (the list menu from the widget’s title (#1005): right-click the title or ⋯ List actions, then Version history)"
  }
 }
