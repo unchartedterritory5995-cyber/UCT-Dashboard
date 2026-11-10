@@ -1,0 +1,2594 @@
+[
+ {
+  "say": "how do I change ticker by search pick",
+  "id": "C1-001",
+  "feature": "symbol",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I flag current ticker (Shift+F)",
+  "id": "C1-005",
+  "feature": "chartView",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I pick preset timeframe on bar",
+  "id": "C1-006",
+  "feature": "timeframe",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I pick from full timeframe menu",
+  "id": "C1-007",
+  "feature": "timeframe",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I add custom interval",
+  "id": "C1-008",
+  "feature": "timeframeCustom",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I delete custom interval",
+  "id": "C1-009",
+  "feature": "panelAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I star a favourite timeframe",
+  "id": "C1-010",
+  "feature": "panelAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I timeframe keys with repeat-press cycle",
+  "id": "C1-011",
+  "feature": "timeframe",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I choose chart type in settings",
+  "id": "C1-013",
+  "feature": "chartType",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I candle colour mode",
+  "id": "C1-017",
+  "feature": "chartSetting",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I thin bars",
+  "id": "C1-018",
+  "feature": "chartSetting",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I regular/extended on intraday",
+  "id": "C1-019",
+  "feature": "chartView",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I regular/extended on D/W/M",
+  "id": "C1-020",
+  "feature": "chartView",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to log scale",
+  "id": "C1-022",
+  "feature": "chartView",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I toggle log (Shift+L)",
+  "id": "C1-023",
+  "feature": "chartKey",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to flip the chart upside down",
+  "id": "C1-024",
+  "feature": "chartView",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I auto-scale",
+  "id": "C1-025",
+  "feature": "chartView",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I reset view",
+  "id": "C1-027",
+  "feature": "chartMenu",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I zoom in/out (+/-)",
+  "id": "C1-028",
+  "feature": "chartView",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I range buttons (3M/6M/YTD/1Y/5Y)",
+  "id": "C1-029",
+  "feature": "chartView",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I type a date in Time Navigator",
+  "id": "C1-030",
+  "feature": "goToDate",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to go to 2020",
+  "id": "C1-031",
+  "feature": "goToDate",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I open date box (Alt+G)",
+  "id": "C1-033",
+  "feature": "chartKey",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to compare with AMD",
+  "id": "C1-034",
+  "feature": "compare",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to compare against the semis group",
+  "id": "C1-035",
+  "feature": "compareAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to remove the semis overlay",
+  "id": "C1-037",
+  "feature": "compareAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I clear all comparisons",
+  "id": "C1-038",
+  "feature": "compareAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I same/new scale per symbol",
+  "id": "C1-039",
+  "feature": "compareAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I same/new scale for a group",
+  "id": "C1-040",
+  "feature": "compareAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to show only the comparisons",
+  "id": "C1-041",
+  "feature": "compareAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to replay from Oct 15",
+  "id": "C1-042",
+  "feature": "replay",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I choose replay timeframe",
+  "id": "C1-043",
+  "feature": "replay",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I exit replay",
+  "id": "C1-045",
+  "feature": "panelAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I toggle grid",
+  "id": "C1-047",
+  "feature": "chartSetting",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I solid/gradient background",
+  "id": "C1-048",
+  "feature": "chartSetting",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I solid background colour",
+  "id": "C1-049",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I gradient colours",
+  "id": "C1-050",
+  "feature": "chartSetting",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I crosshair mode",
+  "id": "C1-051",
+  "feature": "chartSetting",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I crosshair colour/width/style",
+  "id": "C1-052",
+  "feature": "chartSetting",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I price labels / MA labels",
+  "id": "C1-054",
+  "feature": "chartSetting",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I scale text size and colour",
+  "id": "C1-055",
+  "feature": "chartSetting",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to hide the watermark",
+  "id": "C1-056",
+  "feature": "chartSetting",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I watermark lines",
+  "id": "C1-057",
+  "feature": "chartSetting",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I watermark alignment",
+  "id": "C1-058",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I watermark size/weight/colour/opacity",
+  "id": "C1-059",
+  "feature": "chartSetting",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I move watermark",
+  "id": "C1-060",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I reset watermark to centre",
+  "id": "C1-061",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I title shows ticker/company/both",
+  "id": "C1-062",
+  "feature": "chartSetting",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I day change beside title",
+  "id": "C1-063",
+  "feature": "chartSetting",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I legend mode",
+  "id": "C1-064",
+  "feature": "chartSetting",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I legend bar-info fields",
+  "id": "C1-065",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I header colours",
+  "id": "C1-067",
+  "feature": "chartSetting",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I swing labels on/off and sensitivity",
+  "id": "C1-068",
+  "feature": "chartSetting",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I swing label background, tint, colours",
+  "id": "C1-069",
+  "feature": "chartSetting",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to turn on earnings markers",
+  "id": "C1-070",
+  "feature": "chartSetting",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I earnings beat/miss and IPO colours",
+  "id": "C1-071",
+  "feature": "chartSetting",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to show the prior day high",
+  "id": "C1-072",
+  "feature": "chartSetting",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to dash the prior day low",
+  "id": "C1-073",
+  "feature": "chartSetting",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I dark-pool levels",
+  "id": "C1-074",
+  "feature": "chartSetting",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to show the countdown",
+  "id": "C1-075",
+  "feature": "chartSetting",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I restore defaults",
+  "id": "C1-076",
+  "feature": "panelAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to light chart",
+  "id": "C1-078",
+  "feature": "chartView",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I apply a theme to one chart",
+  "id": "C1-079",
+  "feature": "chartThemes",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I apply a theme to all charts",
+  "id": "C1-080",
+  "feature": "panelAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I apply a theme to all widgets",
+  "id": "C1-081",
+  "feature": "panelAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I apply a template",
+  "id": "C1-082",
+  "feature": "chartTemplate",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I save a template",
+  "id": "C1-083",
+  "feature": "chartTemplate",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I delete a template",
+  "id": "C1-084",
+  "feature": "chartTemplate",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to hide volume",
+  "id": "C1-086",
+  "feature": "chartView",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I remove volume",
+  "id": "C1-087",
+  "feature": "chartView",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to put volume in its own pane",
+  "id": "C1-088",
+  "feature": "chartMenu",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I resize volume pane by drag",
+  "id": "C1-089",
+  "feature": "chartView",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I hVC highlight",
+  "id": "C1-090",
+  "feature": "chartMenu",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I volume colours, MA, label, bar style",
+  "id": "C1-091",
+  "feature": "chartMenu",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I resize a pane",
+  "id": "C1-094",
+  "feature": "chartView",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I hide/show an indicator from chip",
+  "id": "C1-097",
+  "feature": "legendChip",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I display in another pane from chip",
+  "id": "C1-098",
+  "feature": "legendChip",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to duplicate the 20 EMA",
+  "id": "C1-099",
+  "feature": "legendChip",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to show RSI value in the header",
+  "id": "C1-100",
+  "feature": "legendChip",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I add alert from chip",
+  "id": "C1-101",
+  "feature": "legendChip",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I delete indicator from chip",
+  "id": "C1-102",
+  "feature": "legendChip",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to hide all my indicators",
+  "id": "C1-103",
+  "feature": "chartView",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to hide my moving averages",
+  "id": "C1-105",
+  "feature": "chartView",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I bars & Time",
+  "id": "C1-107",
+  "feature": "drawing",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I price Move",
+  "id": "C1-109",
+  "feature": "drawing",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to screenshot this",
+  "id": "C1-110",
+  "feature": "chartView",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I download PNG",
+  "id": "C1-111",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I copy image",
+  "id": "C1-112",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I copy share link",
+  "id": "C1-113",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I price alert at the cursor (Alt+N)",
+  "id": "C1-114",
+  "feature": "chartKey",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I alert on a line, following it",
+  "id": "C1-115",
+  "feature": "drawingEdit",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I alert at a line's fixed level",
+  "id": "C1-116",
+  "feature": "drawingEdit",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I pause/resume indicator alert",
+  "id": "C1-119",
+  "feature": "alertAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I delete indicator alert",
+  "id": "C1-120",
+  "feature": "alertAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I move a level line",
+  "id": "C1-121",
+  "feature": "drawingEdit",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I open indicator settings",
+  "id": "C1-124",
+  "feature": "indicatorEdit",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I clear all drawings",
+  "id": "C1-125",
+  "feature": "chartMenu",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I hide all drawings",
+  "id": "C1-126",
+  "feature": "hideDrawings",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to open chart settings",
+  "id": "C1-127",
+  "feature": "settings",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I trendline",
+  "id": "C1-128",
+  "feature": "drawing",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I extended line",
+  "id": "C1-130",
+  "feature": "drawing",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I horizontal line",
+  "id": "C1-131",
+  "feature": "drawing",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I horizontal ray",
+  "id": "C1-132",
+  "feature": "drawing",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I vertical line",
+  "id": "C1-133",
+  "feature": "drawing",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I rectangle",
+  "id": "C1-134",
+  "feature": "drawing",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I circle",
+  "id": "C1-135",
+  "feature": "drawing",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I arrow",
+  "id": "C1-136",
+  "feature": "drawing",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I fib retracement",
+  "id": "C1-137",
+  "feature": "drawing",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I fib extension",
+  "id": "C1-138",
+  "feature": "drawing",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I pitchfork",
+  "id": "C1-139",
+  "feature": "drawing",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I parallel channel",
+  "id": "C1-140",
+  "feature": "drawing",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I cup curve",
+  "id": "C1-141",
+  "feature": "drawing",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I anchored VWAP",
+  "id": "C1-142",
+  "feature": "drawing",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I text note",
+  "id": "C1-143",
+  "feature": "drawing",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I position calculator",
+  "id": "C1-144",
+  "feature": "drawing",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I eraser",
+  "id": "C1-145",
+  "feature": "drawingEdit",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to remove that trendline",
+  "id": "C1-146",
+  "feature": "drawingEdit",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to make that line pink",
+  "id": "C1-147",
+  "feature": "drawingEdit",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I width and line style",
+  "id": "C1-148",
+  "feature": "drawingEdit",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to shade that box blue",
+  "id": "C1-149",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to make the note bold",
+  "id": "C1-150",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I fib levels and fills",
+  "id": "C1-151",
+  "feature": "drawingEdit",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to reset the fib levels",
+  "id": "C1-152",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to hide bars on the measure",
+  "id": "C1-153",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to show the price on that line",
+  "id": "C1-154",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I edit anchors",
+  "id": "C1-155",
+  "feature": "drawingEdit",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to flatten that line",
+  "id": "C1-156",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to copy that line",
+  "id": "C1-157",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to lock that line",
+  "id": "C1-158",
+  "feature": "drawingEdit",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to hide that fib",
+  "id": "C1-159",
+  "feature": "drawingEdit",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I undo/redo a drawing",
+  "id": "C1-162",
+  "feature": "drawingEdit",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I magnet for drawing",
+  "id": "C1-163",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I repeat drawing mode",
+  "id": "C1-164",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I customise tool favourites",
+  "id": "C1-165",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I nudge selected with arrows",
+  "id": "C1-166",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I switch drawing board",
+  "id": "C1-167",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I create a board",
+  "id": "C1-168",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I rename a board",
+  "id": "C1-169",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I delete a board",
+  "id": "C1-170",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I add ticker to watchlist (Alt+Q)",
+  "id": "C1-171",
+  "feature": "chartKey",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I add indicator dialog (Alt+Shift+A)",
+  "id": "C1-172",
+  "feature": "chartKey",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to 2x2 grid",
+  "id": "C1-173",
+  "feature": "multiChart",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I keyboard help (?)",
+  "id": "C1-174",
+  "feature": "chartKey",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I open indicator library",
+  "id": "C2-001",
+  "feature": "indicators",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I search indicators by name or purpose",
+  "id": "C2-002",
+  "feature": "indicators",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to what momentum indicators do you have",
+  "id": "C2-003",
+  "feature": "indicators",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I add built-in indicator",
+  "id": "C2-004",
+  "feature": "indicators",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to add a 20 EMA",
+  "id": "C2-005",
+  "feature": "indicators",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to add another 20 EMA",
+  "id": "C2-006",
+  "feature": "indicatorManage",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I add own saved indicator",
+  "id": "C2-007",
+  "feature": "indicatorManage",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I add a symbol as a data series from search",
+  "id": "C2-008",
+  "feature": "indicatorManage",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I keyboard chord toggles RSI, MACD, BB, VWAP",
+  "id": "C2-010",
+  "feature": "chartView",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to turn on moving average 3",
+  "id": "C2-011",
+  "feature": "indicators",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I delete indicator from legend",
+  "id": "C2-014",
+  "feature": "legendChip",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to remove the 9 EMA",
+  "id": "C2-016",
+  "feature": "legendChip",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I remove an unavailable indicator",
+  "id": "C2-017",
+  "feature": "legendChip",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I hide indicator",
+  "id": "C2-018",
+  "feature": "legendChip",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I show indicator",
+  "id": "C2-019",
+  "feature": "legendChip",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I hide or show volume",
+  "id": "C2-020",
+  "feature": "chartView",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to what indicators are on this chart",
+  "id": "C2-022",
+  "feature": "indicatorManage",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to make RSI 7",
+  "id": "C2-024",
+  "feature": "indicatorEdit",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I change select setting (MA type, source)",
+  "id": "C2-025",
+  "feature": "indicatorEdit",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to turn off the signal line",
+  "id": "C2-026",
+  "feature": "indicatorEdit",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to calculate this RSI on the weekly",
+  "id": "C2-029",
+  "feature": "indicatorEdit",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to make MACD bars blue when rising",
+  "id": "C2-031",
+  "feature": "indicatorColor",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I change plot style",
+  "id": "C2-034",
+  "feature": "indicatorManage",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I resize pane by divider",
+  "id": "C2-039",
+  "feature": "chartView",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to show RSI's value in the header",
+  "id": "C2-041",
+  "feature": "legendChip",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to make my own copy of MACD",
+  "id": "C2-043",
+  "feature": "legendChip",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I indicator undo and redo buttons",
+  "id": "C2-048",
+  "feature": "indicatorManage",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I open Create Indicator",
+  "id": "C2-055",
+  "feature": "indicatorManage",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I describe an indicator, get a draft",
+  "id": "C2-056",
+  "feature": "indicatorManage",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I undo a draft step",
+  "id": "C2-059",
+  "feature": "builderAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I save draft, acknowledge warnings",
+  "id": "C2-061",
+  "feature": "builderAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I discard draft",
+  "id": "C2-062",
+  "feature": "builderAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I enter a formula",
+  "id": "C2-066",
+  "feature": "builderAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to put a green arrow under the bar when true",
+  "id": "C2-070",
+  "feature": "builderAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to paint the candles gold when true",
+  "id": "C2-071",
+  "feature": "builderAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I name the draft",
+  "id": "C2-072",
+  "feature": "builderAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I ask for an alert from the builder",
+  "id": "C2-073",
+  "feature": "builderAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I paste Pine or thinkScript",
+  "id": "C2-076",
+  "feature": "builderAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I open indicator alerts popover",
+  "id": "C2-088",
+  "feature": "alertIndicator",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to alert me when RSI goes above 70",
+  "id": "C2-089",
+  "feature": "alertIndicator",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I create MA cross alert",
+  "id": "C2-090",
+  "feature": "alertAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to alert on the MACD signal line",
+  "id": "C2-091",
+  "feature": "alertAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I alert on a yes/no signal with trigger policy",
+  "id": "C2-092",
+  "feature": "alertAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I alert on another timeframe",
+  "id": "C2-093",
+  "feature": "alertAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to the alert on the 9 EMA, left chart",
+  "id": "C2-096",
+  "feature": "alertIndicator",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to show my indicator alerts",
+  "id": "C2-097",
+  "feature": "alertAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I pause or resume alert",
+  "id": "C2-098",
+  "feature": "alertAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to delete the RSI alert",
+  "id": "C2-099",
+  "feature": "alertAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I see why an alert cannot fire",
+  "id": "C2-100",
+  "feature": "alertAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I add a widget from Widgets ▾",
+  "id": "C3-001",
+  "feature": "widgetAdd",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I drag a widget to move it, or nudge it",
+  "id": "C3-002",
+  "feature": "widgetMove",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I drag a widget edge or merged seam to resize",
+  "id": "C3-003",
+  "feature": "widgetResize",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I close a widget",
+  "id": "C3-004",
+  "feature": "widgetHeader",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I merge or unmerge widgets (lock board, drop borders)",
+  "id": "C3-005",
+  "feature": "widgetMerge",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I cycle a widget's link colour",
+  "id": "C3-006",
+  "feature": "link",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I change a tool panel's colour group",
+  "id": "C3-007",
+  "feature": "link",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I float a widget over another",
+  "id": "C3-008",
+  "feature": "widgetHeader",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I drag or resize a floating widget",
+  "id": "C3-009",
+  "feature": "widgetResize",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I move a floating widget into another widget's tabs",
+  "id": "C3-011",
+  "feature": "widgetMove",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I pop a widget into its own window",
+  "id": "C3-012",
+  "feature": "widgetHeader",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I close a popped widget",
+  "id": "C3-015",
+  "feature": "widgetHeader",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I add a widget as a tab",
+  "id": "C3-016",
+  "feature": "widgetHeader",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I switch a widget tab",
+  "id": "C3-017",
+  "feature": "tabAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I rename a widget tab",
+  "id": "C3-018",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I close a widget tab",
+  "id": "C3-019",
+  "feature": "tabAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I add a chart tab",
+  "id": "C3-020",
+  "feature": "chartTab",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I switch a chart tab",
+  "id": "C3-021",
+  "feature": "tabAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I rename a chart tab",
+  "id": "C3-022",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I change a chart tab's link colour",
+  "id": "C3-023",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I close a chart tab",
+  "id": "C3-024",
+  "feature": "tabAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I open a saved layout",
+  "id": "C3-025",
+  "feature": "layouts",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I see which layout is open",
+  "id": "C3-026",
+  "feature": "layoutAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I undo a layout switch from the toast",
+  "id": "C3-027",
+  "feature": "layoutAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I create a new layout from the dock",
+  "id": "C3-028",
+  "feature": "layouts",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I start a new blank board from the Layouts menu",
+  "id": "C3-029",
+  "feature": "layouts",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to save my layout",
+  "id": "C3-030",
+  "feature": "layoutSave",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I save as a new layout",
+  "id": "C3-031",
+  "feature": "layoutSave",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I rename a layout",
+  "id": "C3-033",
+  "feature": "layoutAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I duplicate a layout",
+  "id": "C3-034",
+  "feature": "layoutAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I delete a layout",
+  "id": "C3-035",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I pin a layout to the bar",
+  "id": "C3-037",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I remove a layout from the bar",
+  "id": "C3-039",
+  "feature": "layoutAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I view a layout's version history",
+  "id": "C3-040",
+  "feature": "layoutAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I restore a layout version",
+  "id": "C3-041",
+  "feature": "layoutAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to use the 3x3 multi chart",
+  "id": "C3-042",
+  "feature": "multiChart",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to multi chart 2 by 5",
+  "id": "C3-043",
+  "feature": "multiChart",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I exit Multi Chart",
+  "id": "C3-044",
+  "feature": "gridAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to sync the crosshairs",
+  "id": "C3-045",
+  "feature": "gridAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to sync the time range",
+  "id": "C3-046",
+  "feature": "gridAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I turn on Groups mode",
+  "id": "C3-047",
+  "feature": "gridAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I pick a group for the grid",
+  "id": "C3-048",
+  "feature": "gridAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to next group",
+  "id": "C3-049",
+  "feature": "gridAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I refresh the group",
+  "id": "C3-050",
+  "feature": "gridAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I exit Groups",
+  "id": "C3-051",
+  "feature": "gridAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I apply a saved grid",
+  "id": "C3-052",
+  "feature": "gridAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I save a grid",
+  "id": "C3-053",
+  "feature": "gridAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I save a grid as global (admin)",
+  "id": "C3-054",
+  "feature": "gridAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I delete a saved grid",
+  "id": "C3-055",
+  "feature": "gridAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I set a cell's timeframe",
+  "id": "C3-056",
+  "feature": "gridAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I set a cell's chart style",
+  "id": "C3-057",
+  "feature": "gridAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I toggle a cell's session",
+  "id": "C3-058",
+  "feature": "gridAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I reset a cell to my chart",
+  "id": "C3-059",
+  "feature": "gridAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I maximize or restore a cell",
+  "id": "C3-060",
+  "feature": "gridAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I open shared grid settings",
+  "id": "C3-061",
+  "feature": "gridAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I set an alert from a cell",
+  "id": "C3-062",
+  "feature": "gridAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to show my Momentum list",
+  "id": "C3-063",
+  "feature": "watchlistAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I open a prebuilt or community list",
+  "id": "C3-064",
+  "feature": "watchlistAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I open the Flagged list",
+  "id": "C3-065",
+  "feature": "watchlistAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I go back to the list picker",
+  "id": "C3-067",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I click a row to load the symbol",
+  "id": "C3-068",
+  "feature": "watchlistAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I walk the list with arrow keys or space",
+  "id": "C3-069",
+  "feature": "watchlistAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I create a list",
+  "id": "C3-070",
+  "feature": "watchlistCreate",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I delete a list",
+  "id": "C3-075",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I add to Flagged",
+  "id": "C3-077",
+  "feature": "watchlistAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I flag or unflag a row (star)",
+  "id": "C3-078",
+  "feature": "watchlistAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to sort my watchlist by RVOL",
+  "id": "C3-082",
+  "feature": "watchlistAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I set a price alert from a row",
+  "id": "C3-098",
+  "feature": "watchlistAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I delete an alert from the row popover",
+  "id": "C3-099",
+  "feature": "watchlistAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I open Full Research or AI from a row",
+  "id": "C3-100",
+  "feature": "watchlistAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I compare from a row",
+  "id": "C3-101",
+  "feature": "watchlistAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I pick a preset scan",
+  "id": "C3-107",
+  "feature": "widgetAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I leave a scan, back to the picker",
+  "id": "C3-108",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I read a scan's conditions",
+  "id": "C3-110",
+  "feature": "widgetAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I read a scan's results",
+  "id": "C3-111",
+  "feature": "widgetAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I refresh a scan",
+  "id": "C3-112",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I sort a scan",
+  "id": "C3-113",
+  "feature": "widgetAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I change scan columns",
+  "id": "C3-114",
+  "feature": "widgetAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I send a scan to Journal",
+  "id": "C3-120",
+  "feature": "widgetAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I create, rename or delete a scope list",
+  "id": "C3-122",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I add a ticker to a scope list",
+  "id": "C3-123",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to show logos on volume surge",
+  "id": "C3-125",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I see my alerts",
+  "id": "C3-127",
+  "feature": "widgetAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I create a price alert",
+  "id": "C3-128",
+  "feature": "alertPrice",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I delete an alert",
+  "id": "C3-129",
+  "feature": "widgetAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I change Alerts widget appearance",
+  "id": "C3-131",
+  "feature": "widgetSettings",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I send alerts to Journal",
+  "id": "C3-132",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I filter catalysts up, down or all",
+  "id": "C3-133",
+  "feature": "widgetAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I read stored headlines for a symbol",
+  "id": "C3-134",
+  "feature": "widgetAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I change News widget appearance",
+  "id": "C3-136",
+  "feature": "widgetSettings",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I send the feed to Journal",
+  "id": "C3-137",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I search headlines",
+  "id": "C3-138",
+  "feature": "widgetAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to only show headlines on my watchlist",
+  "id": "C3-139",
+  "feature": "widgetAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I save or unsave a headline",
+  "id": "C3-141",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I add a headline's ticker to a watchlist",
+  "id": "C3-144",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I explain a headline or ask about it",
+  "id": "C3-145",
+  "feature": "widgetAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to back to live news",
+  "id": "C3-146",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I send a headline to Notebook",
+  "id": "C3-147",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I ask who reports on a day from Charts",
+  "id": "C3-149",
+  "feature": "widgetAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I ask when a stock reports from Charts",
+  "id": "C3-150",
+  "feature": "dockAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I filter economic events by stars",
+  "id": "C3-151",
+  "feature": "widgetAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I click an earnings row",
+  "id": "C3-155",
+  "feature": "widgetAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I send a day to Journal",
+  "id": "C3-156",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I read breadth tiles",
+  "id": "C3-157",
+  "feature": "widgetAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to send breadth to journal",
+  "id": "C3-163",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to flow for this symbol only",
+  "id": "C3-164",
+  "feature": "widgetAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I read the flow",
+  "id": "C3-167",
+  "feature": "widgetAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to show themes by week",
+  "id": "C3-169",
+  "feature": "widgetAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to sort themes worst first",
+  "id": "C3-170",
+  "feature": "widgetAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to measure from the open",
+  "id": "C3-171",
+  "feature": "widgetAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I open a theme or pick a holding",
+  "id": "C3-172",
+  "feature": "widgetAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I search themes or tickers",
+  "id": "C3-173",
+  "feature": "widgetAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I pick, rename or delete a theme set",
+  "id": "C3-174",
+  "feature": "widgetAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I edit a set (add, hide, reset, custom theme)",
+  "id": "C3-175",
+  "feature": "widgetAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I send the ranking to Journal",
+  "id": "C3-177",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I read profile and earnings table",
+  "id": "C3-181",
+  "feature": "widgetAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I hide or restore an index",
+  "id": "C3-183",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to send index levels to journal",
+  "id": "C3-184",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to add the Nasdaq 100 to new highs",
+  "id": "C3-187",
+  "feature": "widgetAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to ask AI search about NVDA",
+  "id": "C3-196",
+  "feature": "widgetAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to save that answer",
+  "id": "C3-198",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I copy or speak an answer",
+  "id": "C3-199",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I send the conversation to Journal",
+  "id": "C3-200",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I open or search a note",
+  "id": "C3-201",
+  "feature": "widgetAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I edit a note's title or body",
+  "id": "C3-203",
+  "feature": "control",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I start a custom-period sort",
+  "id": "C3-205",
+  "feature": "periodSort",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I start replay at a date",
+  "id": "C3-209",
+  "feature": "replay",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I set replay timeframe",
+  "id": "C3-212",
+  "feature": "replay",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to hide the company panel",
+  "id": "C3-217",
+  "feature": "dockAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I open ETF holdings",
+  "id": "C3-219",
+  "feature": "dockAction",
+  "from": "pl-teach/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I invert scale (Alt+I)",
+  "id": "C1-024",
+  "feature": "chartView",
+  "from": "pl-teach-base/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I watermark on/off (Alt+Shift+W)",
+  "id": "C1-056",
+  "feature": "chartSetting",
+  "from": "pl-teach-base/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I bar-close countdown (Shift+C)",
+  "id": "C1-075",
+  "feature": "chartSetting",
+  "from": "pl-teach-base/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I light/dark palette (Shift+T)",
+  "id": "C1-078",
+  "feature": "chartView",
+  "from": "pl-teach-base/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I show/hide volume (Ctrl+V, menu)",
+  "id": "C1-086",
+  "feature": "chartView",
+  "from": "pl-teach-base/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I hide all indicators (Alt+Shift+I)",
+  "id": "C1-103",
+  "feature": "chartView",
+  "from": "pl-teach-base/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I toggle moving averages (Ctrl+M)",
+  "id": "C1-105",
+  "feature": "chartView",
+  "from": "pl-teach-base/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I open share popover (Alt+S)",
+  "id": "C1-110",
+  "feature": "chartView",
+  "from": "pl-teach-base/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I open chart settings (Alt+,, gear)",
+  "id": "C1-127",
+  "feature": "settings",
+  "from": "pl-teach-base/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I add an indicator from the right-click menu",
+  "id": "HA-1",
+  "feature": "chartMenu",
+  "from": "pl-teach-cmai/docs/agent/program/evidence/chart-menu-add-indicator/teach/cases.heldout.json"
+ },
+ {
+  "say": "show me how to right-click the chart to add an indicator",
+  "id": "HA-2",
+  "feature": "chartMenu",
+  "from": "pl-teach-cmai/docs/agent/program/evidence/chart-menu-add-indicator/teach/cases.heldout.json"
+ },
+ {
+  "say": "where is add indicator in the chart menu",
+  "id": "HA-3",
+  "feature": "chartMenu",
+  "from": "pl-teach-cmai/docs/agent/program/evidence/chart-menu-add-indicator/teach/cases.heldout.json"
+ },
+ {
+  "say": "how do I add indicator from menu",
+  "id": "HA-4",
+  "feature": "chartMenu",
+  "from": "pl-teach-cmai/docs/agent/program/evidence/chart-menu-add-indicator/teach/cases.heldout.json"
+ },
+ {
+  "say": "how do I add a study by right clicking the chart",
+  "id": "HA-5",
+  "feature": "chartMenu",
+  "from": "pl-teach-cmai/docs/agent/program/evidence/chart-menu-add-indicator/teach/cases.heldout.json"
+ },
+ {
+  "say": "how do I copy the AI search answer",
+  "id": "HG-01",
+  "feature": "control",
+  "from": "pl-teach-givens/app/src/testing/agent/guide/cases.givens.heldout.json"
+ },
+ {
+  "say": "show me how to keep this AI answer for later",
+  "id": "HG-02",
+  "feature": "control",
+  "from": "pl-teach-givens/app/src/testing/agent/guide/cases.givens.heldout.json"
+ },
+ {
+  "say": "show me how to copy what the AI search said",
+  "id": "HG-03",
+  "feature": "control",
+  "from": "pl-teach-givens/app/src/testing/agent/guide/cases.givens.heldout.json"
+ },
+ {
+  "say": "how do I send my AI search chat to the journal",
+  "id": "HG-04",
+  "feature": "control",
+  "from": "pl-teach-givens/app/src/testing/agent/guide/cases.givens.heldout.json"
+ },
+ {
+  "say": "how do I rename my note",
+  "id": "HG-05",
+  "feature": "control",
+  "from": "pl-teach-givens/app/src/testing/agent/guide/cases.givens.heldout.json"
+ },
+ {
+  "say": "how do I change the text of this note",
+  "id": "HG-06",
+  "feature": "control",
+  "from": "pl-teach-givens/app/src/testing/agent/guide/cases.givens.heldout.json"
+ },
+ {
+  "say": "how do I leave replay mode",
+  "id": "HG-07",
+  "feature": "panelAction",
+  "from": "pl-teach-givens/app/src/testing/agent/guide/cases.givens.heldout.json"
+ },
+ {
+  "say": "how do I stop the replay and go back to live",
+  "id": "HG-08",
+  "feature": "panelAction",
+  "from": "pl-teach-givens/app/src/testing/agent/guide/cases.givens.heldout.json"
+ },
+ {
+  "say": "how do I add one of my own indicators to the chart",
+  "id": "HG-09",
+  "feature": "indicatorManage",
+  "from": "pl-teach-givens/app/src/testing/agent/guide/cases.givens.heldout.json"
+ },
+ {
+  "say": "how do I put my saved indicator on this chart",
+  "id": "HG-10",
+  "feature": "indicatorManage",
+  "from": "pl-teach-givens/app/src/testing/agent/guide/cases.givens.heldout.json"
+ },
+ {
+  "say": "how do I set an alert on the MACD histogram",
+  "id": "HG-11",
+  "feature": "alertAction",
+  "from": "pl-teach-givens/app/src/testing/agent/guide/cases.givens.heldout.json"
+ },
+ {
+  "say": "how do I pick which line my alert watches",
+  "id": "HG-12",
+  "feature": "alertAction",
+  "from": "pl-teach-givens/app/src/testing/agent/guide/cases.givens.heldout.json"
+ },
+ {
+  "say": "how do I make an alert on a yes/no signal fire only once",
+  "id": "HG-13",
+  "feature": "alertAction",
+  "from": "pl-teach-givens/app/src/testing/agent/guide/cases.givens.heldout.json"
+ },
+ {
+  "say": "why won't my alert fire",
+  "id": "HG-14",
+  "feature": "alertAction",
+  "from": "pl-teach-givens/app/src/testing/agent/guide/cases.givens.heldout.json"
+ },
+ {
+  "say": "why is my indicator alert never going off",
+  "id": "HG-15",
+  "feature": "alertAction",
+  "from": "pl-teach-givens/app/src/testing/agent/guide/cases.givens.heldout.json"
+ },
+ {
+  "say": "how do I find out why my alert won't fire",
+  "id": "HG-16",
+  "feature": "alertAction",
+  "from": "pl-teach-givens/app/src/testing/agent/guide/cases.givens.heldout.json"
+ },
+ {
+  "say": "show me why my indicator alert can't fire",
+  "id": "HG-17",
+  "feature": "alertAction",
+  "from": "pl-teach-givens/app/src/testing/agent/guide/cases.givens.heldout.json"
+ },
+ {
+  "say": "how do I copy the AI search response",
+  "id": "HG-18",
+  "feature": "control",
+  "from": "pl-teach-givens/app/src/testing/agent/guide/cases.givens.heldout.json"
+ },
+ {
+  "say": "show me how to save the response I got from AI search",
+  "id": "HG-19",
+  "feature": "control",
+  "from": "pl-teach-givens/app/src/testing/agent/guide/cases.givens.heldout.json"
+ },
+ {
+  "say": "how do I copy what it wrote in AI search",
+  "id": "HG-20",
+  "feature": "control",
+  "from": "pl-teach-givens/app/src/testing/agent/guide/cases.givens.heldout.json"
+ },
+ {
+  "say": "how do I save what the AI told me",
+  "id": "HG-21",
+  "feature": "control",
+  "from": "pl-teach-givens/app/src/testing/agent/guide/cases.givens.heldout.json"
+ },
+ {
+  "say": "how do I put a dot above the bar when my formula is true",
+  "id": "HG-22",
+  "feature": "builderAction",
+  "from": "pl-teach-givens/app/src/testing/agent/guide/cases.givens.heldout.json"
+ },
+ {
+  "say": "how do I shade the background when the formula is true",
+  "id": "HG-23",
+  "feature": "builderAction",
+  "from": "pl-teach-givens/app/src/testing/agent/guide/cases.givens.heldout.json"
+ },
+ {
+  "say": "how do I rename a Volume Surge list",
+  "id": "HG-24",
+  "feature": "control",
+  "from": "pl-teach-givens/app/src/testing/agent/guide/cases.givens.heldout.json"
+ },
+ {
+  "say": "how do I delete one of my Volume Surge lists",
+  "id": "HG-25",
+  "feature": "control",
+  "from": "pl-teach-givens/app/src/testing/agent/guide/cases.givens.heldout.json"
+ },
+ {
+  "say": "how do I choose which line an alert follows",
+  "id": "HG-26",
+  "feature": "alertAction",
+  "from": "pl-teach-givens/app/src/testing/agent/guide/cases.givens.heldout.json"
+ },
+ {
+  "say": "how do I change which series my alert tracks",
+  "id": "HG-27",
+  "feature": "alertAction",
+  "from": "pl-teach-givens/app/src/testing/agent/guide/cases.givens.heldout.json"
+ },
+ {
+  "say": "how do I fill my grid with a stock’s group automatically",
+  "id": "GO-01",
+  "feature": "gridAction",
+  "from": "pl-teach-gops/docs/agent/program/evidence/teach-grid-ops/cases.heldout.json"
+ },
+ {
+  "say": "how do I stop using groups in multi chart",
+  "id": "GO-02",
+  "feature": "gridAction",
+  "from": "pl-teach-gops/docs/agent/program/evidence/teach-grid-ops/cases.heldout.json"
+ },
+ {
+  "say": "show me how to load the semiconductor group into the grid",
+  "id": "GO-03",
+  "feature": "gridAction",
+  "from": "pl-teach-gops/docs/agent/program/evidence/teach-grid-ops/cases.heldout.json"
+ },
+ {
+  "say": "how do I go to the previous group in my grid",
+  "id": "GO-04",
+  "feature": "gridAction",
+  "from": "pl-teach-gops/docs/agent/program/evidence/teach-grid-ops/cases.heldout.json"
+ },
+ {
+  "say": "how do I move on to the next group in multi chart",
+  "id": "GO-05",
+  "feature": "gridAction",
+  "from": "pl-teach-gops/docs/agent/program/evidence/teach-grid-ops/cases.heldout.json"
+ },
+ {
+  "say": "how do I switch the grid to another group this stock is also in",
+  "id": "GO-06",
+  "feature": "gridAction",
+  "from": "pl-teach-gops/docs/agent/program/evidence/teach-grid-ops/cases.heldout.json"
+ },
+ {
+  "say": "how do I re-rank the group in my grid right now",
+  "id": "GO-07",
+  "feature": "gridAction",
+  "from": "pl-teach-gops/docs/agent/program/evidence/teach-grid-ops/cases.heldout.json"
+ },
+ {
+  "say": "how do I save this grid so I can use it later",
+  "id": "GO-08",
+  "feature": "gridAction",
+  "from": "pl-teach-gops/docs/agent/program/evidence/teach-grid-ops/cases.heldout.json"
+ },
+ {
+  "say": "show me how to open one of my saved grids",
+  "id": "GO-09",
+  "feature": "gridAction",
+  "from": "pl-teach-gops/docs/agent/program/evidence/teach-grid-ops/cases.heldout.json"
+ },
+ {
+  "say": "how do I get rid of a grid I saved",
+  "id": "GO-10",
+  "feature": "gridAction",
+  "from": "pl-teach-gops/docs/agent/program/evidence/teach-grid-ops/cases.heldout.json"
+ },
+ {
+  "say": "where are the settings every chart in my grid shares",
+  "id": "GO-11",
+  "feature": "gridAction",
+  "from": "pl-teach-gops/docs/agent/program/evidence/teach-grid-ops/cases.heldout.json"
+ },
+ {
+  "say": "how do I get all the grid charts back on screen after maximizing one",
+  "id": "GO-12",
+  "feature": "gridAction",
+  "from": "pl-teach-gops/docs/agent/program/evidence/teach-grid-ops/cases.heldout.json"
+ },
+ {
+  "say": "how do I make one chart in the grid fill the whole grid",
+  "id": "GF-01",
+  "feature": "gridAction",
+  "from": "pl-teach-gops/docs/agent/program/evidence/teach-grid-widget/cases.heldout.json"
+ },
+ {
+  "say": "show me how to blow up a single grid chart to full size",
+  "id": "GF-02",
+  "feature": "gridAction",
+  "from": "pl-teach-gops/docs/agent/program/evidence/teach-grid-widget/cases.heldout.json"
+ },
+ {
+  "say": "how do I put a grid chart back to its normal size after maximizing it",
+  "id": "GF-03",
+  "feature": "gridAction",
+  "from": "pl-teach-gops/docs/agent/program/evidence/teach-grid-widget/cases.heldout.json"
+ },
+ {
+  "say": "how do I reset a grid chart to my own chart settings",
+  "id": "GF-04",
+  "feature": "gridAction",
+  "from": "pl-teach-gops/docs/agent/program/evidence/teach-grid-widget/cases.heldout.json"
+ },
+ {
+  "say": "show me how to drop the custom look on one chart in the grid",
+  "id": "GF-05",
+  "feature": "gridAction",
+  "from": "pl-teach-gops/docs/agent/program/evidence/teach-grid-widget/cases.heldout.json"
+ },
+ {
+  "say": "how do I change the grid to four by four",
+  "id": "GF-06",
+  "feature": "multiChart",
+  "from": "pl-teach-gops/docs/agent/program/evidence/teach-grid-widget/cases.heldout.json"
+ },
+ {
+  "say": "show me how to set up a 2x3 grid of charts",
+  "id": "GF-07",
+  "feature": "multiChart",
+  "from": "pl-teach-gops/docs/agent/program/evidence/teach-grid-widget/cases.heldout.json"
+ },
+ {
+  "say": "how do I go back from the grid to my normal board",
+  "id": "GF-08",
+  "feature": "gridAction",
+  "from": "pl-teach-gops/docs/agent/program/evidence/teach-grid-widget/cases.heldout.json"
+ },
+ {
+  "say": "how do I sync crosshairs across the grid",
+  "id": "GF-09",
+  "feature": "gridAction",
+  "from": "pl-teach-gops/docs/agent/program/evidence/teach-grid-widget/cases.heldout.json"
+ },
+ {
+  "say": "how do I turn off crosshair sync on my grid",
+  "id": "GF-10",
+  "feature": "gridAction",
+  "from": "pl-teach-gops/docs/agent/program/evidence/teach-grid-widget/cases.heldout.json"
+ },
+ {
+  "say": "show me how to keep every grid chart on the same time range",
+  "id": "GF-11",
+  "feature": "gridAction",
+  "from": "pl-teach-gops/docs/agent/program/evidence/teach-grid-widget/cases.heldout.json"
+ },
+ {
+  "say": "how do I send the chart to the journal and choose where it goes",
+  "id": "CM-1",
+  "feature": "chartMenu",
+  "from": "pl-teach-menu/docs/agent/program/evidence/teach-chart-menu/cases.heldout.json"
+ },
+ {
+  "say": "show me how to pick which journal entry a chart capture lands in",
+  "id": "CM-2",
+  "feature": "chartMenu",
+  "from": "pl-teach-menu/docs/agent/program/evidence/teach-chart-menu/cases.heldout.json"
+ },
+ {
+  "say": "how do I save this chart into a particular journal page",
+  "id": "CM-3",
+  "feature": "chartMenu",
+  "from": "pl-teach-menu/docs/agent/program/evidence/teach-chart-menu/cases.heldout.json"
+ },
+ {
+  "say": "how do I ask the AI about this stock from the chart",
+  "id": "CM-4",
+  "feature": "chartMenu",
+  "from": "pl-teach-menu/docs/agent/program/evidence/teach-chart-menu/cases.heldout.json"
+ },
+ {
+  "say": "show me how to ask AI about a bar on the chart",
+  "id": "CM-5",
+  "feature": "chartMenu",
+  "from": "pl-teach-menu/docs/agent/program/evidence/teach-chart-menu/cases.heldout.json"
+ },
+ {
+  "say": "how do I get an AI take on this ticker by right-clicking the chart",
+  "id": "CM-6",
+  "feature": "chartMenu",
+  "from": "pl-teach-menu/docs/agent/program/evidence/teach-chart-menu/cases.heldout.json"
+ },
+ {
+  "say": "how do I open candle settings by right-clicking a candle",
+  "id": "CM-7",
+  "feature": "chartMenu",
+  "from": "pl-teach-menu/docs/agent/program/evidence/teach-chart-menu/cases.heldout.json"
+ },
+ {
+  "say": "show me how to reach the canvas settings from the chart menu",
+  "id": "CM-8",
+  "feature": "chartMenu",
+  "from": "pl-teach-menu/docs/agent/program/evidence/teach-chart-menu/cases.heldout.json"
+ },
+ {
+  "say": "how do I right-click the watermark to open its settings",
+  "id": "CM-9",
+  "feature": "chartMenu",
+  "from": "pl-teach-menu/docs/agent/program/evidence/teach-chart-menu/cases.heldout.json"
+ },
+ {
+  "say": "show me how to draw the cup",
+  "id": "C1-141",
+  "feature": "drawing",
+  "from": "pl-teach-ship5/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to show theme groups in the grid",
+  "id": "C3-047",
+  "feature": "gridAction",
+  "from": "pl-teach-ship5/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I create a list from a template",
+  "id": "C3-071",
+  "feature": "watchlistAction",
+  "from": "pl-teach-wl2/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I save a community list to My Lists",
+  "id": "C3-072",
+  "feature": "watchlistAction",
+  "from": "pl-teach-wl2/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I rename a list",
+  "id": "C3-073",
+  "feature": "watchlistAction",
+  "from": "pl-teach-wl2/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I rename the Flagged list",
+  "id": "C3-074",
+  "feature": "watchlistAction",
+  "from": "pl-teach-wl2/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to add NVDA to Momentum",
+  "id": "C3-076",
+  "feature": "watchlistAddSymbol",
+  "from": "pl-teach-wl2/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "show me how to remove NVDA from Momentum",
+  "id": "C3-079",
+  "feature": "watchlistAction",
+  "from": "pl-teach-wl2/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I sort by a column",
+  "id": "C3-082",
+  "feature": "watchlistAction",
+  "from": "pl-teach-wl2/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I show or hide a column",
+  "id": "C3-083",
+  "feature": "watchlistAction",
+  "from": "pl-teach-wl2/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I reorder columns by drag",
+  "id": "C3-085",
+  "feature": "watchlistAction",
+  "from": "pl-teach-wl2/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I resize a column",
+  "id": "C3-086",
+  "feature": "control",
+  "from": "pl-teach-wl2/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I reset columns",
+  "id": "C3-087",
+  "feature": "control",
+  "from": "pl-teach-wl2/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I write or edit a ticker note",
+  "id": "C3-088",
+  "feature": "watchlistAction",
+  "from": "pl-teach-wl2/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I share a tag colour or Flagged",
+  "id": "C3-091",
+  "feature": "watchlistAction",
+  "from": "pl-teach-wl2/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I make a list public",
+  "id": "C3-092",
+  "feature": "watchlistAction",
+  "from": "pl-teach-wl2/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I mark a list prebuilt (admin)",
+  "id": "C3-093",
+  "feature": "watchlistAction",
+  "from": "pl-teach-wl2/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I copy a list to the clipboard",
+  "id": "C3-094",
+  "feature": "watchlistAction",
+  "from": "pl-teach-wl2/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I export a list as CSV or Excel",
+  "id": "C3-095",
+  "feature": "watchlistAction",
+  "from": "pl-teach-wl2/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I view or restore list version history",
+  "id": "C3-097",
+  "feature": "watchlistAction",
+  "from": "pl-teach-wl2/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I open a row's attention facts",
+  "id": "C3-102",
+  "feature": "watchlistAction",
+  "from": "pl-teach-wl2/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I change list appearance (canvas, text, tint)",
+  "id": "C3-103",
+  "feature": "watchlistAction",
+  "from": "pl-teach-wl2/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I save or load a watchlist look",
+  "id": "C3-104",
+  "feature": "watchlistAction",
+  "from": "pl-teach-wl2/app/src/testing/agent/guide/cases.inventory.json"
+ },
+ {
+  "say": "how do I rerun the scan in my scanner widget",
+  "id": "WO-01",
+  "feature": "widgetAction",
+  "from": "pl-teach-wops/docs/agent/program/evidence/teach-widget-ops/cases.heldout.json"
+ },
+ {
+  "say": "show me how to refresh the scanner results",
+  "id": "WO-02",
+  "feature": "widgetAction",
+  "from": "pl-teach-wops/docs/agent/program/evidence/teach-widget-ops/cases.heldout.json"
+ },
+ {
+  "say": "how do I refresh the period sort widget",
+  "id": "WO-03",
+  "feature": "widgetAction",
+  "from": "pl-teach-wops/docs/agent/program/evidence/teach-widget-ops/cases.heldout.json"
+ },
+ {
+  "say": "how do I get fresh results in period sort",
+  "id": "WO-04",
+  "feature": "widgetAction",
+  "from": "pl-teach-wops/docs/agent/program/evidence/teach-widget-ops/cases.heldout.json"
+ },
+ {
+  "say": "how do I make a watchlist column wider",
+  "id": "WO-05",
+  "feature": "watchlistAction",
+  "from": "pl-teach-wops/docs/agent/program/evidence/teach-widget-ops/cases.heldout.json"
+ },
+ {
+  "say": "show me how to resize the columns in my watchlist",
+  "id": "WO-06",
+  "feature": "watchlistAction",
+  "from": "pl-teach-wops/docs/agent/program/evidence/teach-widget-ops/cases.heldout.json"
+ },
+ {
+  "say": "how do I rename my flagged list",
+  "id": "WO-07",
+  "feature": "watchlistAction",
+  "from": "pl-teach-wops/docs/agent/program/evidence/teach-widget-ops/cases.heldout.json"
+ },
+ {
+  "say": "show me how to give the flagged list a different name",
+  "id": "WO-08",
+  "feature": "watchlistAction",
+  "from": "pl-teach-wops/docs/agent/program/evidence/teach-widget-ops/cases.heldout.json"
+ },
+ {
+  "say": "how do I show only calls in options flow",
+  "id": "WO-09",
+  "feature": "widgetAction",
+  "from": "pl-teach-wops/docs/agent/program/evidence/teach-widget-ops/cases.heldout.json"
+ },
+ {
+  "say": "how do I filter the options flow to puts",
+  "id": "WO-10",
+  "feature": "widgetAction",
+  "from": "pl-teach-wops/docs/agent/program/evidence/teach-widget-ops/cases.heldout.json"
+ },
+ {
+  "say": "show me how to see just sweeps in the flow widget",
+  "id": "WO-11",
+  "feature": "widgetAction",
+  "from": "pl-teach-wops/docs/agent/program/evidence/teach-widget-ops/cases.heldout.json"
+ },
+ {
+  "say": "how do I show only block trades in options flow",
+  "id": "WO-12",
+  "feature": "widgetAction",
+  "from": "pl-teach-wops/docs/agent/program/evidence/teach-widget-ops/cases.heldout.json"
+ },
+ {
+  "say": "how do I see only bullish flow",
+  "id": "WO-13",
+  "feature": "widgetAction",
+  "from": "pl-teach-wops/docs/agent/program/evidence/teach-widget-ops/cases.heldout.json"
+ },
+ {
+  "say": "how do I filter options flow to bearish prints",
+  "id": "WO-14",
+  "feature": "widgetAction",
+  "from": "pl-teach-wops/docs/agent/program/evidence/teach-widget-ops/cases.heldout.json"
+ }
+]
