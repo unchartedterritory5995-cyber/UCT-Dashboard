@@ -28,9 +28,10 @@ const COL_WORD = { left: 'first', first: 'first', right: 'last', last: 'last', m
 const WHOLE_LINE = /\b(?:the|my)\s+(top|bottom|upper|lower|middle|cent(?:er|re)|first|second|third|last|left|right)\s+(row|column)\b(?!['’]s)/gi
 const PLACE_BEFORE = /\b(?:first|second|third|last|middle|cent(?:er|re)|left(?:most)?|right(?:most)?|top(?:most)?|bottom(?:most)?|upper(?:most)?|lower(?:most)?)\s+(?:chart|one|cell|pane|panel|graph)\s+(?:in|of|on|along|from)\s*$/i
 // a relation whose anchor is NAMED (not "this / it / the selected one"): "beside the top-left chart", "above the NVDA chart"
-const REL_NAMED = /\b(beside|next to|alongside|above|over|on top of|below|under(?:neath)?|beneath|(?:to the |on the )?left of|(?:to the |on the )?right of)\s+(the\s+(?!(?:one|chart)\b)[a-z0-9 -]{1,30}?\s*(?:chart|one|cell|pane|graph))\b/gi
+const REL_NAMED = /\b(beside|next to|alongside|above|over|on top of|below|under(?:neath)?|beneath|(?:to the |on the )?left of|(?:to the |on the )?right of|(?:one\s+step\s+)?(?:in\s+)?diagonally(?:\s+in(?:wards?)?)?\s+from)\s+(the\s+(?!(?:one|chart)\b)[a-z0-9 -]{1,30}?\s*(?:chart|one|cell|pane|graph|corner))\b/gi
 const SIDES = (w) => {
   const s = w.toLowerCase()
+  if (/diagonal/.test(s)) return ['diag-in']                      // one step in, toward the board's centre (unseen14 g2-05)
   if (/beside|next to|alongside/.test(s)) return ['left', 'right']
   if (/above|over|on top of/.test(s)) return ['above']
   if (/below|under|beneath/.test(s)) return ['below']
@@ -63,6 +64,15 @@ function pickLine(lines, word, axis) {
 }
 /** The neighbours of `a` on `side` (the nearest cells sharing its row / column span). */
 function neighbours(charts, a, side) {
+  if (side === 'diag-in') {
+    // the diagonal neighbour toward the board's centre: one row toward it, then one column toward it (each step unique)
+    const all = withCell(charts)
+    const cx = (Math.min(...all.map(c => c.cell.x)) + Math.max(...all.map(c => c.cell.x + c.cell.w))) / 2
+    const cy = (Math.min(...all.map(c => c.cell.y)) + Math.max(...all.map(c => c.cell.y + c.cell.h))) / 2
+    const v = neighbours(charts, a, a.cell.y + a.cell.h / 2 < cy ? 'below' : 'above')
+    if (v.length !== 1) return []
+    return neighbours(charts, v[0], a.cell.x + a.cell.w / 2 < cx ? 'right' : 'left')
+  }
   const o = withCell(charts).filter(c => c.ref !== a.ref)
   const xo = (c) => overlaps(c.cell.x, c.cell.x + c.cell.w, a.cell.x, a.cell.x + a.cell.w)
   const yo = (c) => overlaps(c.cell.y, c.cell.y + c.cell.h, a.cell.y, a.cell.y + a.cell.h)
@@ -274,7 +284,8 @@ export function excludedCharts(text, charts = [], sel = null) {
 const ANAPHOR = /\b(?:its|it)\b/i
 /** The anchor a relation in the words is read from: a chart named in an earlier clause when the relation says "its / it", else the click. */
 export function relationAnchor(text, charts = [], sel = null) {
-  const parts = String(text || '').split(CLAUSES).map(s => s.trim()).filter(Boolean)
+  // ("X weekly AND the one to its right": a plain "and" separates the named chart from the relation too)
+  const parts = String(text || '').split(/[,;.!?]|\b(?:and|then|but|while|also|plus)\b/i).map(s => s.trim()).filter(Boolean)
   for (let i = 1; i < parts.length; i++) {
     if (!ANAPHOR.test(parts[i]) || /\bthis\b/i.test(parts[i])) continue
     for (let j = i - 1; j >= 0; j--) {
