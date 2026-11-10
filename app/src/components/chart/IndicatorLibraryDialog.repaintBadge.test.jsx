@@ -55,6 +55,7 @@ import { parseFormula } from './engine/ast/parse'
 import { buildDefinition } from './builder/BuilderSheet'
 import { evaluateFormula } from './builder/FormulaField'
 import { LIBRARY_HIDDEN_IDS } from './discoveryCatalog'
+import { isDefinitionOffered } from './engine/serverCompute'
 import { resultRows } from './__tests__/resultRows'
 
 const base = () => mergeChartSettings(null)
@@ -159,6 +160,10 @@ describe('🔴 the library row badges the LINTER\'S measurement, per plot', () =
       // nothing to brand. Skipped here rather than asserted, because the claim of
       // this case is about rows that EXIST and are unbranded.
       if (LIBRARY_HIDDEN_IDS.includes(def.id)) continue
+      // Same for a definition the live server has not listed yet (`meta.requiresServer`,
+      // UCT RS split U1/U6, 2026-11-09): under vitest nothing lands, so the three new RS
+      // definitions have no row either; the offer gate, not the badge, keeps them out.
+      if (!isDefinitionOffered(def)) continue
       const row = rowFor(def.id)
       expect(row, `${def.id} is missing from the library`).toBeTruthy()
       expect(badgeIn(row),
