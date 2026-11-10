@@ -338,7 +338,7 @@ describe('through the REAL panel with routing v2 on: a control request carries i
   it('⛔ a value the control does not have is refused: the Agent cannot set more than the chips', async () => {
     const { host, state } = makeBoard([w('of', 'optionsflow', 0, 0, {})], {})
     const before = JSON.stringify(state.widgets)
-    expect((await plan(host, [op({ widget: 'of', key: 'callPut', value: 'opt_net_premium_1d' })])).p.refusals[0]?.reason).toMatch(/“callPut” can be all, Calls, Puts/)
+    expect((await plan(host, [op({ widget: 'of', key: 'callPut', value: 'opt_net_premium_1d' })])).p.refusals[0]?.reason).toMatch(/“callPut” can be All, Calls, Puts/)
     expect((await plan(host, [op({ widget: 'of', key: 'filters', value: 'x' })])).p.refusals[0]?.reason).toMatch(/has no option “filters”/)
     expect(JSON.stringify(state.widgets)).toBe(before)
   })
