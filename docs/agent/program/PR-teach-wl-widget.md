@@ -97,3 +97,21 @@ https://claude.ai/code/session_01Dhm4qhJhGoto7iixuJEEzM
 - **Notebook bytes:** master `50302a62b8` 2,254,164 B → this head 2,254,173 B.
   - **+9 B**, inside the 2,260,793 B budget (PASS).
   - It is the same minifier naming in the entry chunk as #1011, where the Lead accepted it.
+
+## On master `388dee7fce` (#1011 merged): head `0d605b91fd` (SIMULATED)
+- **Merge:** one merge commit of master `388dee7fce`. The only conflict was the generated `CHARTS_TEACH_STATUS.md`.
+  This branch's own status was kept: it comes from this branch's newer full pass, and the cases file is identical.
+- **#1011's page-walk revert holds after the merge:**
+  - `git ls-tree -r HEAD`: neither `app/src/agent/guide/pageWalk.js` nor `agentGuideWatchlistsPage.test.jsx` is in the
+    tree.
+  - `grep -E "pageWalk|pageWalkOffer|watchlistPage|WATCHLIST_PAGE_ACTIONS|goToPageWalk|takePageWalk|guidePage"` over
+    `app/src`: no matches.
+  - `manifest.golden.json` has no `watchlistPage`.
+- **Related tests and guide tests** (guide, contracts, Sat1 requests, AgentPanel, useAgent, Watchlists, the widget):
+  1350 passed.
+  - The one failure is the pre-existing `Watchlists.entitykeys` master red.
+  - The regenerated cases are identical to the frozen 338.
+- **Notebook bytes:** master `388dee7fce` 2,254,173 B → this head 2,254,173 B. **Delta 0.**
+- **One locked full suite** at `0d605b91fd`:
+  - `Test Files 3 failed | 404 passed | 5 skipped (412)`, `Tests 4 failed | 10884 passed | 14 skipped (10902)`.
+  - All four failures are the pre-existing master reds (command ×3, entitykeys golden).
