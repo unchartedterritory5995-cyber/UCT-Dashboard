@@ -8,6 +8,8 @@ fingerprint, the same stamp the live sweeper and the count cache trust.
 Results must not move: a warm memo and a cold one return the identical answer.
 Every fixture is a tmp database; nothing reads C:\\data.
 """
+import sqlite3
+
 import pytest
 
 FRESH, DEAD = "20261014", "20260901"
@@ -39,9 +41,9 @@ def computed(monkeypatch):
     real = snapshot_builder.stale_row_gate
     calls = []
 
-    def counting(conn, table="screener_rows"):
+    def counting(conn, table="screener_rows", **kw):
         calls.append(table)
-        return real(conn, table=table)
+        return real(conn, table=table, **kw)
 
     monkeypatch.setattr(snapshot_builder, "stale_row_gate", counting)
     return calls
@@ -123,3 +125,36 @@ def test_the_scan_answers_identically_with_a_warm_and_a_cold_memo(seeded, monkey
     assert warm == cold
     assert cold_again == cold
     assert query.preview_count(spec)["count"] == cold["total"]
+
+
+class _FailingBarsRead:
+    """A connection whose MIN/MAX read of `bars_asof` fails, the way a locked or
+    busy database would; every other statement (the fingerprint) goes through."""
+
+    def __init__(self, conn):
+        self._conn = conn
+
+    def execute(self, sql, *a):
+        if sql.startswith('SELECT MAX(CAST("bars_asof"'):
+            raise sqlite3.OperationalError("database is locked")
+        return self._conn.execute(sql, *a)
+
+
+def test_a_failed_read_answers_as_it_would_without_the_memo_and_is_not_kept(seeded):
+    from api.services.screener import query, snapshot_builder
+    with seeded.connect() as conn:
+        assert snapshot_builder.stale_row_gate(_FailingBarsRead(conn)) is None
+        assert query.stale_gate(_FailingBarsRead(conn)) is None
+        assert query._STALE_GATE_MEMO is None
+        healthy = query.stale_gate(conn)
+    assert healthy is not None and healthy["max_sessions"] > 0
+
+
+def test_a_failed_read_after_a_good_one_does_not_replace_it(seeded):
+    from api.services.screener import query
+    with seeded.connect() as conn:
+        good = query.stale_gate(conn)
+    seeded.upsert_rows([_row("NEW", FRESH)])          # the fingerprint moves
+    with seeded.connect() as conn:
+        assert query.stale_gate(_FailingBarsRead(conn)) is None
+        assert query.stale_gate(conn) == good          # read again, not the failure

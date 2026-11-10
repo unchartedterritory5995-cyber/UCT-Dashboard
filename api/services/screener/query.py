@@ -504,7 +504,7 @@ def stale_gate(conn):
     the sweeper and the count cache already trust (every `upsert_rows` write moves
     `MAX(rowid)`; `bars_asof` has no other writer), plus the builder's threshold so a
     change to that knob is still honoured. A fingerprint it cannot read turns the memo
-    off for that call. The caller gets a copy.
+    off for that call, and a failed read is never kept. The caller gets a copy.
     """
     global _STALE_GATE_MEMO
     import copy
@@ -516,7 +516,10 @@ def stale_gate(conn):
     memo = _STALE_GATE_MEMO
     if key is not None and memo is not None and memo[0] == key:
         return copy.deepcopy(memo[1])
-    gate = snapshot_builder.stale_row_gate(conn, table=_ROWS)
+    try:
+        gate = snapshot_builder.stale_row_gate(conn, table=_ROWS, strict=True)
+    except snapshot_builder.StaleGateUnreadable:
+        return None  # what the gate answers for a failed read; never kept, so the next request reads again
     if key is not None:
         _STALE_GATE_MEMO = (key, copy.deepcopy(gate))
     return gate
