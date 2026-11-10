@@ -105,11 +105,46 @@ def _section(text: str, number: int) -> str:
     return rest[: nxt.start()] if nxt else rest
 
 
+SOURCE_NUM_ROW = re.compile(r"^\|\s*(\d+)\s*\|", re.M)
+SOURCE_NUM_ITEM = re.compile(r"^\s*(\d+)\.\s", re.M)
+SOURCE_MARK = re.compile(r"(?:\*\*|\[|^|\s)(S\d+)(?:\*\*|\]|[.:)])", re.M)
+
+
 def dossier_source_ids(dossier_path: pathlib.Path) -> Optional[set[str]]:
-    """`S<n>` ids from the dossier's section 11, or None when the dossier is missing."""
+    """`S<n>` ids from the dossier's section 11, or None when the dossier is missing.
+
+    The 44 dossiers number their sources four ways, so the reader accepts all of them, in this order:
+      1. explicit ids: `| S1 |` rows or `**S1**` / `[S1]` / `S1.` / `S1:` markers;
+      2. numbered rows `| 1 |` (read as S1);
+      3. numbered list items `1. ` at the start of a line (read as S1);
+      4. when the section numbers nothing, the position: S<n> is the n-th source in reading order, counting
+         every table body row (a `|` line that is not a header or a `|---|` rule) and every top-level bullet.
+    A card cites a source by the id this reader gives it.
+    """
     if not dossier_path.is_file():
         return None
-    return set(SOURCE_ROW.findall(_section(dossier_path.read_text(encoding="utf-8"), 11)))
+    body = _section(dossier_path.read_text(encoding="utf-8"), 11)
+    ids = set(SOURCE_ROW.findall(body)) | set(SOURCE_MARK.findall(body))
+    ids |= {f"S{n}" for n in SOURCE_NUM_ROW.findall(body)}
+    ids |= {f"S{n}" for n in SOURCE_NUM_ITEM.findall(body)}
+    if ids:
+        return ids
+    count = 0
+    prev_blank = True
+    for line in body.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("|"):
+            is_rule = re.fullmatch(r"\|[\s:|-]*\|", stripped) is not None
+            is_header = prev_blank or (count == 0 and not is_rule and "---" not in stripped and False)
+            # a table's first row after a blank line or a heading is its header; the `|---|` line is a rule
+            if not is_rule and not is_header:
+                count += 1
+            prev_blank = False
+            continue
+        if re.match(r"^[-*]\s+\S", line):
+            count += 1
+        prev_blank = stripped == "" or stripped.startswith("#") or stripped.startswith("**")
+    return {f"S{n}" for n in range(1, count + 1)}
 
 
 def house_rule_ids(repo_root: pathlib.Path = REPO) -> set[str]:
