@@ -1,0 +1,16 @@
+cpu at start: 
+PASS  GO-01  how do I fill my grid with a stock’s group automatically
+PASS  GO-02  how do I stop using groups in multi chart
+PASS  GO-03  show me how to load the semiconductor group into the grid
+PASS  GO-04  how do I go to the previous group in my grid
+PASS  GO-05  how do I move on to the next group in multi chart
+PASS  GO-06  how do I switch the grid to another group this stock is also in
+PASS  GO-07  how do I re-rank the group in my grid right now
+PASS  GO-08  how do I save this grid so I can use it later
+PASS  GO-09  show me how to open one of my saved grids
+PASS  GO-10  how do I get rid of a grid I saved
+PASS  GO-11  where are the settings every chart in my grid shares
+PASS  GO-12  how do I get all the grid charts back on screen after maximizing one
+
+12/12 pass → ../docs/agent/program/evidence/teach-grid-ops/heldout.attempt-2.results.json
+EXIT=0
