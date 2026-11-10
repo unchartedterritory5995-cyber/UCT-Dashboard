@@ -178,9 +178,24 @@ def test_flag_on_the_list_is_overlaid_and_sorted_best_first(tmp_db, fast_cache, 
     monkeypatch.setenv("RS_RANK_IBD_ENABLED", "1")
     _store_two_sessions()
     rows = svc.unified_rankings(svc.cached_rankings())
-    assert [r["ticker"] for r in rows] == ["NVDA", "AAPL", "SPY", "ONLYFAST", "INTC"]
-    assert [r["rs_rank"] for r in rows] == [94, 71, 66, 55, 9]
+    # F3 (2026-11-10): SPY, nightly-only, is no longer in the LIST (it was a blank
+    # row in the RS leaders panel); the single-ticker lookup below still serves it.
+    assert [r["ticker"] for r in rows] == ["NVDA", "AAPL", "ONLYFAST", "INTC"]
+    assert [r["rs_rank"] for r in rows] == [94, 71, 55, 9]
     assert svc.cached_rankings()[0]["rs_rank"] == 97, "the cached list itself is untouched"
+
+
+def test_flag_on_the_list_holds_hourly_names_only_and_the_map_still_holds_the_rest(tmp_db, fast_cache, monkeypatch):
+    """A nightly-only name (an ETF) has no score and no returns: a blank row in the
+    RS leaders panel. The list leaves it out; the badge's by-symbol map keeps it,
+    so the chart and the badge still agree on it (F3, 2026-11-10)."""
+    monkeypatch.setenv("RS_RANK_IBD_ENABLED", "1")
+    _store_two_sessions()
+    rows = svc.unified_rankings(svc.cached_rankings())
+    assert all(r["rs_score"] is not None for r in rows), "no blank row in the list"
+    assert {r["ticker"] for r in rows} == {r["ticker"] for r in FAST}
+    assert "SPY" in svc.cached_rank_map()
+    assert svc.get_rs_for_ticker("SPY")["rs_rank"] == 66
 
 
 def test_the_nightly_read_is_memoised_and_invalidation_re_reads(tmp_db, fast_cache, monkeypatch):
@@ -233,9 +248,11 @@ def test_the_badge_the_screener_column_and_the_groups_gate_print_one_number(tmp_
     gate = groups_gates.swing_metrics(["NVDA", "ONLYFAST"], rs_map, {})
     assert gate["NVDA"]["rs_rank"] == 94 and gate["NVDA"]["rs_rank_source"] == "ibd"
     assert gate["ONLYFAST"]["rs_rank"] == 55 and gate["ONLYFAST"]["rs_rank_source"] == "fast"
-    # and the list the RS leaders panel reads
+    # and the list the RS leaders panel reads (F3: without the nightly-only SPY,
+    # which the badge route above still answers by symbol)
     listed = {r["ticker"]: r["rs_rank"] for r in client.get("/api/rs-rankings").json()}
-    assert listed["NVDA"] == 94 and listed["SPY"] == 66 and listed["ONLYFAST"] == 55
+    assert listed["NVDA"] == 94 and listed["ONLYFAST"] == 55 and "SPY" not in listed
+    assert client.get("/api/rs-rankings/SPY").json()["rs_rank"] == 66
 
 
 def test_the_badge_route_still_never_computes(tmp_db, monkeypatch):

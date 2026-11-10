@@ -16,6 +16,13 @@
 // point is off the plot or the tag would not fit left of it
 // (`endLabel.endLabelPlacement`).
 //
+// ⭐ ON THE PHONE TOO (F3, 2026-11-10). The host used to read its chips off the
+// crosshair payload, and the phone shell keeps no payload off-hover
+// (`alwaysShowLegend: false`), so the tag only ever showed under a finger; it is
+// now hosted from `StockChart.offHoverEndTagChips` whenever the payload is
+// absent. Not hidden on phones by design: it is the number at the line's end,
+// like the axis' own last-value tag.
+//
 // ⭐ TYPE: the legend chips' family (11 px, 600, tabular numbers) on the pane
 // label's panel ground, so it reads as legend furniture, not as a drawing. The ink
 // is the plot's colour, set inline the way `IndicatorChip` sets a chip's.

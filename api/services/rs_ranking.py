@@ -388,17 +388,20 @@ def _ibd_latest() -> tuple:
     return out
 
 
-def _unify(items: list) -> list:
+def _unify(items: list, *, append_missing: bool = True) -> list:
     """The overlay itself: a NEW list of NEW dicts, never the cached objects.
 
     An entry with a nightly row gets ``rs_rank = ibd``, ``rs_rank_source = "ibd"``,
     ``rs_rank_asof = <session>`` and keeps its hourly value as ``rs_rank_fast``;
-    one without gets ``rs_rank_source = "fast"`` and nothing else changes. A name
-    rated in the nightly but absent from the hourly list (an ETF, which the
-    nightly rates by interpolation and the chart shows a rating for) is appended
-    with ``rs_score None`` and empty ``returns``, so the badge and the chart agree
-    on it too. Sorted best first like the hourly list (a stable sort, so equal
-    ratings keep the hourly order).
+    one without gets ``rs_rank_source = "fast"`` and nothing else changes. With
+    ``append_missing`` (the by-symbol MAP, :func:`cached_rank_map`), a name rated
+    in the nightly but absent from the hourly list (an ETF, which the nightly
+    rates by interpolation and the chart shows a rating for) is appended with
+    ``rs_score None`` and empty ``returns``, so the badge and the chart agree on
+    it too. The ranked LIST (:func:`unified_rankings`) passes ``False``: such a
+    row has no score and no returns, so in the RS leaders panel it is a blank
+    line (RS split F3, 2026-11-10). Sorted best first like the hourly list (a
+    stable sort, so equal ratings keep the hourly order).
     """
     session, ibd = _ibd_latest()
     out = []
@@ -417,9 +420,10 @@ def _unify(items: list) -> list:
         if sym:
             seen.add(sym)
         out.append(row)
-    for sym in sorted(set(ibd) - seen):
-        out.append({"ticker": sym, "rs_score": None, "rs_rank": ibd[sym], "returns": {},
-                    "rs_rank_source": SOURCE_IBD, "rs_rank_asof": session})
+    if append_missing:
+        for sym in sorted(set(ibd) - seen):
+            out.append({"ticker": sym, "rs_score": None, "rs_rank": ibd[sym], "returns": {},
+                        "rs_rank_source": SOURCE_IBD, "rs_rank_asof": session})
     out.sort(key=lambda r: (r.get("rs_rank") is None, -(r.get("rs_rank") or 0)))
     return out
 
@@ -427,10 +431,16 @@ def _unify(items: list) -> list:
 def unified_rankings(items: list) -> list:
     """The ranked LIST as the site should show it: ``items`` untouched (the same
     object) when the flag is off or the list is empty; the overlay otherwise.
-    ``/api/rs-rankings`` and the groups gate's list read go through here."""
+    ``/api/rs-rankings`` and the groups gate's list read go through here.
+
+    ⛔ The hourly list's NAMES ONLY (RS split F3): a nightly-only name (an ETF)
+    is a row with no score and no returns, which the RS leaders panel shows as a
+    blank line. It still answers the single-ticker lookup (the chart's badge)
+    through :func:`cached_rank_map`, where the chart and the badge must agree.
+    """
     if not items or not rs_rank_ibd_enabled():
         return items
-    return _unify(items)
+    return _unify(items, append_missing=False)
 
 
 def cached_rank_map() -> dict:

@@ -440,8 +440,14 @@ export const PLOT_ROLES = Object.freeze(['primary', 'secondary', 'context', 'sig
 /** ⭐ `compact` JOINED THEM 2026-09-16. It says "this output is a MAGNITUDE" —
  *  print it the way an axis does (`4.61B`) rather than with `decimals`. The
  *  definition is the only thing that can know that: 4,609,414,802 and 4609.41 are
- *  the same shape to a formatter. `readout.chipValueText` is the one reader. */
-export const LEGEND_FIELDS = Object.freeze(['label', 'decimals', 'hide', 'compact'])
+ *  the same shape to a formatter. `readout.chipValueText` is the one reader.
+ *  ⭐ `showValue` JOINED THEM 2026-11-10 (UCT RS split, F3). `false` says "this
+ *  plot's chip NAMES the line and prints no number": the chip, its pane suffix
+ *  (` · SPY · 82`), its line-end tag and its readout rows all stay; only the
+ *  value is withheld, on every surface that reads `chipValueText`. The slim RS
+ *  line is the case: its ratio (`0.4378`) means nothing to a member, while the
+ *  rating beside it does. Unlike `hide`, the chip is still emitted. */
+export const LEGEND_FIELDS = Object.freeze(['label', 'decimals', 'hide', 'compact', 'showValue'])
 
 /**
  * Line styles an AUTHOR may declare on a plot.
@@ -3041,6 +3047,9 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors, presentationKe
       }
       if (plot.legend.hide !== undefined && typeof plot.legend.hide !== 'boolean') {
         errors.push(`${path}.legend.hide: expected true or false, got ${fmt(plot.legend.hide)}`)
+      }
+      if (plot.legend.showValue !== undefined && typeof plot.legend.showValue !== 'boolean') {
+        errors.push(`${path}.legend.showValue: expected true or false, got ${fmt(plot.legend.showValue)}`)
       }
 
     }
