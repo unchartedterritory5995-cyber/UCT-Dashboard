@@ -32,3 +32,8 @@
 | cov-3 pins follow the new reach (`dc4b67d574`, the COV3_MISSES map only, rows not edited) | LOCAL, jsdom | cov-3 + HeldOutWidgetOps + HeldOutWlTitleMenu: 3 passed (3), 52 tests (scoped, 3 files, no lock) (`74271c9e03`) |
 | Guide files, attempt-3 at dc4b67d574 | LOCAL, jsdom | **36 passed (36); 1147 passed, 8 skipped (1155)** (scoped, on the lock), raw (`1388a08ad1`) |
 | Scoped suite `src/agent` + `src/testing/agent` (scoped, not full) at f03176fc70 (= eeb10ae8a7 code) | LOCAL, jsdom | 1 failed, 316 passed, 5 skipped (322); 2 failed, 9935 passed, 14 skipped, 24 todo (9975). The only failing file is `agentGuideHeldOutCov3.test.js` (the same 2 pins, fixed in dc4b67d574; master passes it). Raw (`3d85c3566f`). Not re-run after dc4b67d574, which changes only that test file. |
+
+## Known limits
+- "how do I only see call options with a big premium" asks for two things (calls AND a big premium). Since the Flow
+  filters ring one button at a time, it walks the Calls half; before, it walked the minimum premium. cov-3 pins the new
+  reach (`dc4b67d574`), so any later change shows.
