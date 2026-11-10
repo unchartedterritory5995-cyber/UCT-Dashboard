@@ -15229,13 +15229,20 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "The shared `make_levels` (`uct_setups_common.py`) puts the targets at 2R and 3R from that stop.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Each of our setup detectors returns its own trigger, which is the entry, and its own stop. Our plans put the targets at 2R and 3R, sized off the setup's own stop."
+    "summary": "Each of our setup detectors returns its own trigger, which is the entry, and its own stop. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. After the first third at 3R, we sell another third at 5R and trail the last third."
    },
    "facts": {
     "given": "In our setup plans, what is a setup's trigger? The setup's entry price The setup's stop price The first profit target The news that moved it"
@@ -15244,7 +15251,7 @@
    "unit": "V.05",
    "why": "The setup's entry price. Each setup's plan comes with its own trigger, the entry, and its own stop.",
    "wrong": {
-    "The first profit target": "Targets come later, at 2R and 3R, sized off your entry-to-stop risk.",
+    "The first profit target": "Trims come later: a third at 3R and at 5R, sized off your entry-to-stop risk.",
     "The news that moved it": "News can be why a stock moves. The trigger is a price on the chart.",
     "The setup's stop price": "The stop is the other price each setup gives you. The trigger is where you get in."
    }
@@ -15289,13 +15296,13 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "Trim is where to take some off: the detectors put the targets at 2R and 3R. They do not say how much to sell at each, so the course names the levels and does not invent a fraction.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "In the owner's words, every setup is taught as Entry, Stop, Trim, Trail, Advance. Trim means taking some off. Our plans trim at 2R and 3R and name no fixed amount to sell at each."
+    "summary": "In the owner's words, every setup is taught as Entry, Stop, Trim, Trail, Advance. After the first third at 3R, we sell another third at 5R and trail the last third."
    },
    "facts": {
     "given": "Fill in the order our setup plans run in. Entry, Stop, ___, Trail."
@@ -15396,14 +15403,14 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "the prior close, reclaimed during the day | the day's low | 2R, 3R | under each higher low",
+      "quote": "the prior close, reclaimed during the day | the day's low | a third at 3R, a third at 5R | under each higher low",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "a cent over the red day's high, on the Kicker day (his JBI example: \"11.05 over THE previous day high\", the red day's high 11.04)",
+      "quote": "over the red day's high, on the Kicker day, at market as it trades through (his JBI example: \"11.05 over THE previous day high\", the red day's high 11.04)",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -15422,7 +15429,7 @@
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      }
     ],
-    "summary": "Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, trims at 2R and 3R and trails under each higher low. Our Kicker entry is a cent over the red day's high, on the Kicker day: in the JBI example, $11.05 over an $11.04 high. Our Slingshot enters on the close back over the 4-day average of the highs. Our Launchpad enters on the close out of a tight cluster of moving averages."
+    "summary": "Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, sells a third at 3R and a third at 5R, and trails under each higher low. Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through: in the JBI example, $11.05 over an $11.04 high. Our Slingshot enters on the close back over the 4-day average of the highs. Our Launchpad enters on the close out of a tight cluster of moving averages."
    },
    "facts": {
     "given": "In our setup list, what is an Oops Reversal? The prior close, reclaimed intraday A gap up off a red day A close back over a 4-day high average A close out of a tight MA cluster"
@@ -15688,7 +15695,7 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "a cent over the red day's high, on the Kicker day (his JBI example: \"11.05 over THE previous day high\", the red day's high 11.04)",
+      "quote": "over the red day's high, on the Kicker day, at market as it trades through (his JBI example: \"11.05 over THE previous day high\", the red day's high 11.04)",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -15707,7 +15714,7 @@
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      }
     ],
-    "summary": "The Go Signal is an intraday entry in a stock that has already moved: it opens weak, sweeps nearby support, and buyers turn it. Our Kicker entry is a cent over the red day's high, on the Kicker day: in the JBI example, $11.05 over an $11.04 high. Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower. Our Launchpad enters on the close out of a tight cluster of moving averages."
+    "summary": "The Go Signal is an intraday entry in a stock that has already moved: it opens weak, sweeps nearby support, and buyers turn it. Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through: in the JBI example, $11.05 over an $11.04 high. Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower. Our Launchpad enters on the close out of a tight cluster of moving averages."
    },
    "facts": {
     "given": "What is our Go Signal? Weak open sweeps support, then turns up A gap up off a red day A pullback that holds an old gap A close out of a tight MA cluster"
@@ -15768,7 +15775,7 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "the prior close, reclaimed during the day | the day's low | 2R, 3R | under each higher low",
+      "quote": "the prior close, reclaimed during the day | the day's low | a third at 3R, a third at 5R | under each higher low",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -15780,7 +15787,7 @@
       "url": "repo:docs/study/TRADE_PLANS.md#the-go-signal"
      }
     ],
-    "summary": "Our Slingshot enters on the close back over the 4-day average of the highs. Our Launchpad enters on the close out of a tight cluster of moving averages. Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, trims at 2R and 3R and trails under each higher low. Go Signal entry: the prior close when it trades that session (red to green), otherwise the close; the stop is the session's low."
+    "summary": "Our Slingshot enters on the close back over the 4-day average of the highs. Our Launchpad enters on the close out of a tight cluster of moving averages. Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, sells a third at 3R and a third at 5R, and trails under each higher low. Go Signal entry: the prior close when it trades that session (red to green), otherwise the close; the stop is the session's low."
    },
    "facts": {
     "given": "Which of our setups enters on the close back over the 4-day average of the highs? Slingshot Launchpad Oops Reversal Go Signal"
@@ -15825,12 +15832,12 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "the prior close, reclaimed during the day | the day's low | 2R, 3R | under each higher low",
+      "quote": "the prior close, reclaimed during the day | the day's low | a third at 3R, a third at 5R | under each higher low",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      }
     ],
-    "summary": "Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, trims at 2R and 3R and trails under each higher low."
+    "summary": "Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, sells a third at 3R and a third at 5R, and trails under each higher low."
    },
    "facts": {
     "given": "Our Oops Reversal plan puts the stop at the day's low."
@@ -15879,13 +15886,13 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "Trim is where to take some off: the detectors put the targets at 2R and 3R. They do not say how much to sell at each, so the course names the levels and does not invent a fraction.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Our rule for winners: sell partials into strength and trail the rising moving averages. Trim means taking some off. Our plans trim at 2R and 3R and name no fixed amount to sell at each."
+    "summary": "Our rule for winners: sell partials into strength and trail the rising moving averages. After the first third at 3R, we sell another third at 5R and trail the last third."
    },
    "facts": {
     "given": "Fill in our line on holding winners. Hold your winners by selling ___ into strength and trailing the rising moving averages."
@@ -15895,7 +15902,7 @@
    "why": "Partials. You sell some of the position as it runs, not all of it. The rest stays on, with the stop trailing the rising averages.",
    "wrong": {
     "everything": "Selling it all at the first pop ends the trade. The line keeps part of it on and trails it.",
-    "half": "Our plans name where to trim, 2R and 3R, but not a fixed fraction like half.",
+    "half": "Our first trim is a third at 3R, not half.",
     "losers": "This line is about winners: take some off into strength and trail the rest."
    }
   },
@@ -15965,7 +15972,7 @@
   "difficulty": 1,
   "id": "si_df0b5852b0db",
   "lesson_origin": "session",
-  "lesson_text": "Taking some shares off. Our plans trim at the 2R and 3R targets and keep the rest working. Trim means some, not all.",
+  "lesson_text": "Taking some shares off. Our plan sells a third at 3R, another third at 5R, and keeps the last third working. Trim means some, not all.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -15983,10 +15990,10 @@
     "sources": [
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "Trim is where to take some off: the detectors put the targets at 2R and 3R. They do not say how much to sell at each, so the course names the levels and does not invent a fraction.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
@@ -16003,14 +16010,14 @@
       "url": "repo:docs/study/sizing_rule.md#6-management-so-the-sizing-drills-can-go-full-circle"
      }
     ],
-    "summary": "Trim means taking some off. Our plans trim at 2R and 3R and name no fixed amount to sell at each. In the owner's words, every setup is taught as Entry, Stop, Trim, Trail, Advance. Our rule for winners: sell partials into strength and trail the rising moving averages."
+    "summary": "After the first third at 3R, we sell another third at 5R and trail the last third. In the owner's words, every setup is taught as Entry, Stop, Trim, Trail, Advance. Our rule for winners: sell partials into strength and trail the rising moving averages."
    },
    "facts": {
     "given": "In our trade plans, what does Trim mean? Taking some shares off Selling the whole position Raising your stop Cutting size before you buy"
    },
    "lesson_line": "Trim means some, not all.",
    "unit": "V.05",
-   "why": "Taking some shares off. Our plans trim at the 2R and 3R targets and keep the rest working.",
+   "why": "Taking some shares off. Our plan sells a third at 3R, another third at 5R, and keeps the last third working.",
    "wrong": {
     "Cutting size before you buy": "That's sizing. A trim happens after you're in and it's working.",
     "Raising your stop": "That's the trail.",
@@ -16151,7 +16158,7 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "the prior close, reclaimed during the day | the day's low | 2R, 3R | under each higher low",
+      "quote": "the prior close, reclaimed during the day | the day's low | a third at 3R, a third at 5R | under each higher low",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -16191,7 +16198,7 @@
       "url": "repo:docs/study/skill_map.json#setups"
      }
     ],
-    "summary": "Our catalog files the Oops Reversal under Reversals & Reclaims. Our catalog files the Slingshot under Reversals & Reclaims. Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, trims at 2R and 3R and trails under each higher low. Our Slingshot enters on the close back over the 4-day average of the highs. Our catalog files the Go Signal under Intraday. Our catalog files the Kicker under Gaps & Catalysts. Our catalog files the High Volume Edge under Gaps & Catalysts. Our catalog files Gap Support under Gaps & Catalysts."
+    "summary": "Our catalog files the Oops Reversal under Reversals & Reclaims. Our catalog files the Slingshot under Reversals & Reclaims. Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, sells a third at 3R and a third at 5R, and trails under each higher low. Our Slingshot enters on the close back over the 4-day average of the highs. Our catalog files the Go Signal under Intraday. Our catalog files the Kicker under Gaps & Catalysts. Our catalog files the High Volume Edge under Gaps & Catalysts. Our catalog files Gap Support under Gaps & Catalysts."
    },
    "facts": {
     "given": "The Oops Reversal and the Slingshot share one family in our catalog. Which? Reversals & Reclaims Momentum & Trend Gaps & Catalysts Intraday"
@@ -16289,7 +16296,7 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "a cent over the red day's high, on the Kicker day (his JBI example: \"11.05 over THE previous day high\", the red day's high 11.04)",
+      "quote": "over the red day's high, on the Kicker day, at market as it trades through (his JBI example: \"11.05 over THE previous day high\", the red day's high 11.04)",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -16301,7 +16308,7 @@
       "url": "repo:docs/study/OWNER_PRINCIPLES.md#b-teaching"
      }
     ],
-    "summary": "Our Kicker entry is a cent over the red day's high, on the Kicker day: in the JBI example, $11.05 over an $11.04 high. The owner's Kicker entry: over the previous day's high, or the day-one Kicker ORB on the 30-minute chart."
+    "summary": "Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through: in the JBI example, $11.05 over an $11.04 high. The owner's Kicker entry: over the previous day's high, or the day-one Kicker ORB on the 30-minute chart."
    },
    "facts": {
     "calc": {
@@ -16414,12 +16421,12 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "a cent over the red day's high, on the Kicker day (his JBI example: \"11.05 over THE previous day high\", the red day's high 11.04)",
+      "quote": "over the red day's high, on the Kicker day, at market as it trades through (his JBI example: \"11.05 over THE previous day high\", the red day's high 11.04)",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      }
     ],
-    "summary": "The Bear gap is a short-side lesson with no trade defined: a close must stay under the gap day's high, and the fall is measured, not traded. Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower. Our Kicker entry is a cent over the red day's high, on the Kicker day: in the JBI example, $11.05 over an $11.04 high."
+    "summary": "The Bear gap is a short-side lesson with no trade defined: a close must stay under the gap day's high, and the fall is measured, not traded. Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower. Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through: in the JBI example, $11.05 over an $11.04 high."
    },
    "facts": {
     "given": "Which of our setups does this line belong to? In our ___ lesson, a close must stay under the gap day's high."
@@ -16619,7 +16626,7 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "a cent over the red day's high, on the Kicker day (his JBI example: \"11.05 over THE previous day high\", the red day's high 11.04)",
+      "quote": "over the red day's high, on the Kicker day, at market as it trades through (his JBI example: \"11.05 over THE previous day high\", the red day's high 11.04)",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -16647,7 +16654,7 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "the prior close, reclaimed during the day | the day's low | 2R, 3R | under each higher low",
+      "quote": "the prior close, reclaimed during the day | the day's low | a third at 3R, a third at 5R | under each higher low",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -16659,7 +16666,7 @@
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      }
     ],
-    "summary": "The Kicker's other entry is the break of the 30-minute opening range on day one. The owner's Kicker entry: over the previous day's high, or the day-one Kicker ORB on the 30-minute chart. Our Kicker entry is a cent over the red day's high, on the Kicker day: in the JBI example, $11.05 over an $11.04 high. Our catalog files the ORB (Opening Range Break) under Intraday. Day traders often use the first half hour's range and buy a break above it. Our Slingshot enters on the close back over the 4-day average of the highs. Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, trims at 2R and 3R and trails under each higher low. Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower."
+    "summary": "The Kicker's other entry is the break of the 30-minute opening range on day one. The owner's Kicker entry: over the previous day's high, or the day-one Kicker ORB on the 30-minute chart. Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through: in the JBI example, $11.05 over an $11.04 high. Our catalog files the ORB (Opening Range Break) under Intraday. Day traders often use the first half hour's range and buy a break above it. Our Slingshot enters on the close back over the 4-day average of the highs. Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, sells a third at 3R and a third at 5R, and trails under each higher low. Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower."
    },
    "facts": {
     "given": "Our Kicker has two entries. Besides the break over the red day's high, what is the other? A break of day one's 30-minute range A close over the 4-day average of highs The prior close, reclaimed intraday A pullback that holds the gap"
@@ -16838,12 +16845,12 @@
  },
  {
   "answer_json": {
-   "answer": "False"
+   "answer": "True"
   },
   "difficulty": 2,
   "id": "si_763b1827cd81",
   "lesson_origin": "session",
-  "lesson_text": "False. They name the levels, 2R and 3R, but not how much to sell at each. We name where to trim, not a fixed fraction.",
+  "lesson_text": "True. The hard rule is a third at 3R. Another third goes at 5R, and the last third trails. A third at 3R, a third at 5R. The plan names the size, not just the level.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -16851,7 +16858,7 @@
     "False"
    ],
    "kind": "tf",
-   "q": "Our plans say exactly how much to sell at 2R and at 3R.",
+   "q": "Our plan names the size of the first trim, not just the level: a third at 3R.",
    "subject": "Trim"
   },
   "reveal_json": {
@@ -16859,20 +16866,27 @@
     "sources": [
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "Trim is where to take some off: the detectors put the targets at 2R and 3R. They do not say how much to sell at each, so the course names the levels and does not invent a fraction.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Trim means taking some off. Our plans trim at 2R and 3R and name no fixed amount to sell at each."
+    "summary": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. After the first third at 3R, we sell another third at 5R and trail the last third."
    },
    "facts": {
-    "given": "Our plans say exactly how much to sell at 2R and at 3R."
+    "given": "Our plan names the size of the first trim, not just the level: a third at 3R."
    },
-   "lesson_line": "We name where to trim, not a fixed fraction.",
+   "lesson_line": "A third at 3R, a third at 5R. The plan names the size, not just the level.",
    "unit": "V.05",
-   "why": "False. They name the levels, 2R and 3R, but not how much to sell at each."
+   "why": "True. The hard rule is a third at 3R. Another third goes at 5R, and the last third trails."
   },
   "review_status": "draft",
   "skill_id": "vocab.setup_terms",
@@ -16996,7 +17010,7 @@
   "difficulty": 2,
   "id": "si_609ed423e623",
   "lesson_origin": "session",
-  "lesson_text": "Kicker. A red day, then a gap up over its close and a push through its high. Our entry is a cent over that high. Red day, gap up, through its high: that's a Kicker.",
+  "lesson_text": "Kicker. A red day, then a gap up over its close and a push through its high. Our entry is over that high, at market as it trades through. Red day, gap up, through its high: that's a Kicker.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -17016,7 +17030,7 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "a cent over the red day's high, on the Kicker day (his JBI example: \"11.05 over THE previous day high\", the red day's high 11.04)",
+      "quote": "over the red day's high, on the Kicker day, at market as it trades through (his JBI example: \"11.05 over THE previous day high\", the red day's high 11.04)",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -17030,7 +17044,7 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "the prior close, reclaimed during the day | the day's low | 2R, 3R | under each higher low",
+      "quote": "the prior close, reclaimed during the day | the day's low | a third at 3R, a third at 5R | under each higher low",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -17049,14 +17063,14 @@
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      }
     ],
-    "summary": "Our Kicker entry is a cent over the red day's high, on the Kicker day: in the JBI example, $11.05 over an $11.04 high. A bullish kicker is a down candle followed by a gap up; the bearish kicker is the mirror image. Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, trims at 2R and 3R and trails under each higher low. Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower. Our Slingshot enters on the close back over the 4-day average of the highs."
+    "summary": "Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through: in the JBI example, $11.05 over an $11.04 high. A bullish kicker is a down candle followed by a gap up; the bearish kicker is the mirror image. Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, sells a third at 3R and a third at 5R, and trails under each higher low. Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower. Our Slingshot enters on the close back over the 4-day average of the highs."
    },
    "facts": {
     "given": "Which of our setups is this? Yesterday a stock opened at $20.50 and closed red at $20.00, near its low. Its high was $20.60. Today it opens at $20.55 and trades up through $20.60. Kicker Oops Reversal Gap Support Slingshot"
    },
    "lesson_line": "Red day, gap up, through its high: that's a Kicker.",
    "unit": "V.05",
-   "why": "Kicker. A red day, then a gap up over its close and a push through its high. Our entry is a cent over that high.",
+   "why": "Kicker. A red day, then a gap up over its close and a push through its high. Our entry is over that high, at market as it trades through.",
    "wrong": {
     "Gap Support": "Gap Support is a later pullback that holds an old gap. This is the gap day itself.",
     "Oops Reversal": "The Oops trades under the prior close and reclaims it. This one opened above it.",
@@ -17097,14 +17111,14 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "the prior close, reclaimed during the day | the day's low | 2R, 3R | under each higher low",
+      "quote": "the prior close, reclaimed during the day | the day's low | a third at 3R, a third at 5R | under each higher low",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "a cent over the red day's high, on the Kicker day (his JBI example: \"11.05 over THE previous day high\", the red day's high 11.04)",
+      "quote": "over the red day's high, on the Kicker day, at market as it trades through (his JBI example: \"11.05 over THE previous day high\", the red day's high 11.04)",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -17123,7 +17137,7 @@
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      }
     ],
-    "summary": "Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, trims at 2R and 3R and trails under each higher low. Our Kicker entry is a cent over the red day's high, on the Kicker day: in the JBI example, $11.05 over an $11.04 high. The Bear gap is a short-side lesson with no trade defined: a close must stay under the gap day's high, and the fall is measured, not traded. Our Launchpad enters on the close out of a tight cluster of moving averages."
+    "summary": "Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, sells a third at 3R and a third at 5R, and trails under each higher low. Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through: in the JBI example, $11.05 over an $11.04 high. The Bear gap is a short-side lesson with no trade defined: a close must stay under the gap day's high, and the fall is measured, not traded. Our Launchpad enters on the close out of a tight cluster of moving averages."
    },
    "facts": {
     "given": "Which of our setups fits? A stock closed at $30.00 yesterday, with a low of $29.20. Today it opens at $29.60 and trades down to $29.00. By midday it's back at $30.05. Oops Reversal Kicker Bear gap Launchpad"
@@ -17147,38 +17161,38 @@
  {
   "answer_json": {
    "accept": [
-    "32",
-    "32.0",
-    "32.00",
-    "32.000"
+    "33",
+    "33.0",
+    "33.00",
+    "33.000"
    ],
-   "answer": 32.0
+   "answer": 33.0
   },
   "difficulty": 2,
   "id": "si_3dbb8116816f",
   "lesson_origin": "session",
-  "lesson_text": "$32.00. Entry minus stop is a dollar a share. Two of those on top of $30.00 is the 2R target. 2R is two times your entry-to-stop risk, added to the entry.",
+  "lesson_text": "$33.00. Entry minus stop is a dollar a share. Three of those on top of $30.00 is 3R, where a third comes off. 3R is three times your entry-to-stop risk, added to the entry.",
   "module": "V",
   "prompt_json": {
    "kind": "fill_numeric",
    "prefix": "$",
-   "q": "Oops Reversal: you buy the reclaim of yesterday's $30.00 close. The day's low is $29.00. Where is our 2R target?",
-   "subject": "2R"
+   "q": "Oops Reversal: you buy the reclaim of yesterday's $30.00 close. The day's low is $29.00. Where is our first trim, 3R?",
+   "subject": "3R"
   },
   "reveal_json": {
    "depth": {
     "sources": [
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "The shared `make_levels` (`uct_setups_common.py`) puts the targets at 2R and 3R from that stop.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "the prior close, reclaimed during the day | the day's low | 2R, 3R | under each higher low",
+      "quote": "the prior close, reclaimed during the day | the day's low | a third at 3R, a third at 5R | under each higher low",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -17197,23 +17211,23 @@
       "url": "https://vantharp.com/tharp-think-trading-concepts/"
      }
     ],
-    "summary": "Our plans put the targets at 2R and 3R, sized off the setup's own stop. Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, trims at 2R and 3R and trails under each higher low. Investopedia: traders may take profits at a multiple of risk, such as a 60-cent target on a 30-cent stop. R is your initial risk per share."
+    "summary": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, sells a third at 3R and a third at 5R, and trails under each higher low. Investopedia: traders may take profits at a multiple of risk, such as a 60-cent target on a 30-cent stop. R is your initial risk per share."
    },
    "facts": {
     "calc": {
      "args": {
       "entry": 30,
-      "expr": "entry + 2 * (entry - stop)",
+      "expr": "entry + 3 * (entry - stop)",
       "stop": 29
      },
      "fn": "arith",
-     "result": 32.0
+     "result": 33.0
     },
-    "given": "Oops Reversal: you buy the reclaim of yesterday's $30.00 close. The day's low is $29.00. Where is our 2R target?"
+    "given": "Oops Reversal: you buy the reclaim of yesterday's $30.00 close. The day's low is $29.00. Where is our first trim, 3R?"
    },
-   "lesson_line": "2R is two times your entry-to-stop risk, added to the entry.",
+   "lesson_line": "3R is three times your entry-to-stop risk, added to the entry.",
    "unit": "V.05",
-   "why": "$32.00. Entry minus stop is a dollar a share. Two of those on top of $30.00 is the 2R target."
+   "why": "$33.00. Entry minus stop is a dollar a share. Three of those on top of $30.00 is 3R, where a third comes off."
   },
   "review_status": "draft",
   "skill_id": "vocab.setup_terms",
@@ -17713,20 +17727,20 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "The shared `make_levels` (`uct_setups_common.py`) puts the targets at 2R and 3R from that stop.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "a cent over the red day's high, on the Kicker day (his JBI example: \"11.05 over THE previous day high\", the red day's high 11.04)",
+      "quote": "over the red day's high, on the Kicker day, at market as it trades through (his JBI example: \"11.05 over THE previous day high\", the red day's high 11.04)",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      }
     ],
-    "summary": "The first time price comes back to the high-volume close is the cleanest place to decide. The High Volume Edge enters at the high-volume close; the stop is the edge bar's low, or its high when the bar closed down. Our plans put the targets at 2R and 3R, sized off the setup's own stop. Our Kicker entry is a cent over the red day's high, on the Kicker day: in the JBI example, $11.05 over an $11.04 high."
+    "summary": "The first time price comes back to the high-volume close is the cleanest place to decide. The High Volume Edge enters at the high-volume close; the stop is the edge bar's low, or its high when the bar closed down. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through: in the JBI example, $11.05 over an $11.04 high."
    },
    "facts": {
     "given": "In our High Volume Edge plan, what is this spot? Weeks ago a stock closed at $64 on its heaviest volume in a year. It ran to $75. Now, for the first time, it's back at $64.20. The cleanest decision point A failed setup: sell now The 3R target A new Kicker"
@@ -17780,10 +17794,10 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "Trim is where to take some off: the detectors put the targets at 2R and 3R. They do not say how much to sell at each, so the course names the levels and does not invent a fraction.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
@@ -17793,7 +17807,7 @@
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      }
     ],
-    "summary": "In Gap Support, the high made after the gap is the first place to take some off. Trim means taking some off. Our plans trim at 2R and 3R and name no fixed amount to sell at each. Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower."
+    "summary": "In Gap Support, the high made after the gap is the first place to take some off. After the first third at 3R, we sell another third at 5R and trail the last third. Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower."
    },
    "facts": {
     "given": "What does our plan say about $90? You bought Gap Support at $82 as the gap held. Since the gap, the stock's best price was $90. It's heading back up there now. The first place to take some off Where to move the stop Where to add more shares Sell everything there"
@@ -17862,12 +17876,12 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "a cent over the red day's high, on the Kicker day (his JBI example: \"11.05 over THE previous day high\", the red day's high 11.04)",
+      "quote": "over the red day's high, on the Kicker day, at market as it trades through (his JBI example: \"11.05 over THE previous day high\", the red day's high 11.04)",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      }
     ],
-    "summary": "Go Signal entry: the prior close when it trades that session (red to green), otherwise the close; the stop is the session's low. On a Go Signal day the stock opens under the prior close. The day's low sweeps a support: the prior low, the 5-bar low, or a 9, 20 or 50-day average. Our Kicker entry is a cent over the red day's high, on the Kicker day: in the JBI example, $11.05 over an $11.04 high."
+    "summary": "Go Signal entry: the prior close when it trades that session (red to green), otherwise the close; the stop is the session's low. On a Go Signal day the stock opens under the prior close. The day's low sweeps a support: the prior low, the 5-bar low, or a 9, 20 or 50-day average. Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through: in the JBI example, $11.05 over an $11.04 high."
    },
    "facts": {
     "given": "Where is our Go Signal entry? A strong stock closed at $40.00 yesterday. Today it opens at $39.10, dips under yesterday's low, then climbs. By 11 a.m. it trades $40.00. $40.00, the prior close $39.10, today's open Today's close, wherever it ends A cent over yesterday's high"
@@ -17954,40 +17968,47 @@
  },
  {
   "answer_json": {
-   "answer": "At 2R: the first target"
+   "answer": "At 3R: the first trim"
   },
   "difficulty": 3,
   "id": "si_419b25c8779b",
   "lesson_origin": "session",
-  "lesson_text": "At 2R. The risk was $3 a share, $60 down to $57. It's up $6, two times that risk. That's the first target, where we trim. Count in R: the gain divided by your entry-to-stop risk.",
+  "lesson_text": "At 3R. The risk was $3 a share, $60 down to $57. It's up $9, three times that risk. That's the first trim: a third off, stop to breakeven. Count in R: the gain divided by your entry-to-stop risk.",
   "module": "V",
   "prompt_json": {
    "choices": [
-    "At 2R: the first target",
-    "At 3R: the second target",
-    "At 6R: six dollars up"
+    "At 3R: the first trim",
+    "At 5R: the second trim",
+    "At 9R: nine dollars up"
    ],
    "kind": "mcq",
    "q": "Counting in R, where is it on our plan?",
-   "story": "You buy a setup at $60 with its stop at $57. It reaches $66 and keeps going.",
-   "subject": "2R target"
+   "story": "You buy a setup at $60 with its stop at $57. It reaches $69 and keeps going.",
+   "subject": "3R"
   },
   "reveal_json": {
    "depth": {
     "sources": [
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "The shared `make_levels` (`uct_setups_common.py`) puts the targets at 2R and 3R from that stop.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "Trim is where to take some off: the detectors put the targets at 2R and 3R. They do not say how much to sell at each, so the course names the levels and does not invent a fraction.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Move the stop to breakeven at 2R to 5R, ideally.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
@@ -18004,27 +18025,27 @@
       "url": "https://vantharp.com/tharp-think-trading-concepts/"
      }
     ],
-    "summary": "Our plans put the targets at 2R and 3R, sized off the setup's own stop. Trim means taking some off. Our plans trim at 2R and 3R and name no fixed amount to sell at each. Investopedia: traders may take profits at a multiple of risk, such as a 60-cent target on a 30-cent stop. R is your initial risk per share."
+    "summary": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. After the first third at 3R, we sell another third at 5R and trail the last third. Our stop moves up to breakeven once the trade is 2R to 5R ahead; we teach it at the first trim. Investopedia: traders may take profits at a multiple of risk, such as a 60-cent target on a 30-cent stop. R is your initial risk per share."
    },
    "facts": {
     "calc": {
      "args": {
       "entry": 60,
       "expr": "(price - entry) / (entry - stop)",
-      "price": 66,
+      "price": 69,
       "stop": 57
      },
      "fn": "arith",
-     "result": 2.0
+     "result": 3.0
     },
-    "given": "Counting in R, where is it on our plan? You buy a setup at $60 with its stop at $57. It reaches $66 and keeps going. At 2R: the first target At 3R: the second target At 6R: six dollars up"
+    "given": "Counting in R, where is it on our plan? You buy a setup at $60 with its stop at $57. It reaches $69 and keeps going. At 3R: the first trim At 5R: the second trim At 9R: nine dollars up"
    },
    "lesson_line": "Count in R: the gain divided by your entry-to-stop risk.",
    "unit": "V.05",
-   "why": "At 2R. The risk was $3 a share, $60 down to $57. It's up $6, two times that risk. That's the first target, where we trim.",
+   "why": "At 3R. The risk was $3 a share, $60 down to $57. It's up $9, three times that risk. That's the first trim: a third off, stop to breakeven.",
    "wrong": {
-    "At 3R: the second target": "3R needs three times the risk. This is two.",
-    "At 6R: six dollars up": "That's dollars, not R. Divide the $6 gain by the $3 risk."
+    "At 5R: the second trim": "5R needs five times the risk. This is three.",
+    "At 9R: nine dollars up": "That's dollars, not R. Divide the $9 gain by the $3 risk."
    }
   },
   "review_status": "draft",
@@ -18130,10 +18151,10 @@
     "sources": [
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "The shared `make_levels` (`uct_setups_common.py`) puts the targets at 2R and 3R from that stop.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
@@ -18150,7 +18171,7 @@
       "url": "https://vantharp.com/tharp-think-trading-concepts/"
      }
     ],
-    "summary": "Our plans put the targets at 2R and 3R, sized off the setup's own stop. Each of our setup detectors returns its own trigger, which is the entry, and its own stop. R is your initial risk per share."
+    "summary": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. Each of our setup detectors returns its own trigger, which is the entry, and its own stop. R is your initial risk per share."
    },
    "facts": {
     "calc": {
@@ -18524,7 +18545,7 @@
    "choices": [
     "Tighten it to just under the gap top",
     "Widen it to give the trade room",
-    "Leave it and wait for 2R"
+    "Leave it and wait for 3R"
    ],
    "kind": "mcq",
    "q": "What does our plan do with the stop?",
@@ -18550,22 +18571,22 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "The shared `make_levels` (`uct_setups_common.py`) puts the targets at 2R and 3R from that stop.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "If a Gap Support trade drifts sideways at the gap, the stop tightens to just under the gap top. Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower. Our plans put the targets at 2R and 3R, sized off the setup's own stop."
+    "summary": "If a Gap Support trade drifts sideways at the gap, the stop tightens to just under the gap top. Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R."
    },
    "facts": {
-    "given": "What does our plan do with the stop? Your Gap Support trade hasn't gone anywhere. For a week the stock drifts sideways right at the gap. Tighten it to just under the gap top Widen it to give the trade room Leave it and wait for 2R"
+    "given": "What does our plan do with the stop? Your Gap Support trade hasn't gone anywhere. For a week the stock drifts sideways right at the gap. Tighten it to just under the gap top Widen it to give the trade room Leave it and wait for 3R"
    },
    "lesson_line": "A trade going nowhere at the gap gets a tighter stop, not more room.",
    "unit": "V.05",
    "why": "Tighten it to just under the gap top. When it drifts sideways at the gap, our plan tightens the stop there.",
    "wrong": {
-    "Leave it and wait for 2R": "The plan says to tighten when it drifts at the gap. Waiting with the wide stop keeps more risk on.",
+    "Leave it and wait for 3R": "The plan says to tighten when it drifts at the gap. Waiting with the wide stop keeps more risk on.",
     "Widen it to give the trade room": "Widening adds risk to a trade that isn't working."
    }
   },
@@ -18610,14 +18631,14 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "a cent over the red day's high, on the Kicker day (his JBI example: \"11.05 over THE previous day high\", the red day's high 11.04)",
+      "quote": "over the red day's high, on the Kicker day, at market as it trades through (his JBI example: \"11.05 over THE previous day high\", the red day's high 11.04)",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "the prior close, reclaimed during the day | the day's low | 2R, 3R | under each higher low",
+      "quote": "the prior close, reclaimed during the day | the day's low | a third at 3R, a third at 5R | under each higher low",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -18636,7 +18657,7 @@
       "url": "https://thepatternsite.com/gaps.html"
      }
     ],
-    "summary": "Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower. Our Kicker entry is a cent over the red day's high, on the Kicker day: in the JBI example, $11.05 over an $11.04 high. Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, trims at 2R and 3R and trails under each higher low. The Bear gap is a short-side lesson with no trade defined: a close must stay under the gap day's high, and the fall is measured, not traded. A gap is weak support, but it works as a stop location: a few cents below an up gap."
+    "summary": "Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower. Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through: in the JBI example, $11.05 over an $11.04 high. Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, sells a third at 3R and a third at 5R, and trails under each higher low. The Bear gap is a short-side lesson with no trade defined: a close must stay under the gap day's high, and the fall is measured, not traded. A gap is weak support, but it works as a stop location: a few cents below an up gap."
    },
    "facts": {
     "given": "Which of our setups is this? Six weeks ago a stock gapped up on big volume and never filled the gap. Now it has pulled back to the top of the gap and is holding. Gap Support Kicker Oops Reversal Bear gap"
@@ -18790,7 +18811,7 @@
   "difficulty": 3,
   "id": "si_2e565a5a65f7",
   "lesson_origin": "session",
-  "lesson_text": "False. 2R is the first target, where we trim, taking some off. 3R is the second, and the rest trails. 2R is a trim, not the finish line.",
+  "lesson_text": "False. 3R is the first trim: a third comes off and the stop moves to breakeven. Another third goes at 5R, and the last third trails. 3R is a trim, not the finish line.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -18798,25 +18819,32 @@
     "False"
    ],
    "kind": "tf",
-   "q": "On our plan, a setup that reaches 2R is done: you sell it all there.",
-   "subject": "2R"
+   "q": "On our plan, a setup that reaches 3R is done: you sell it all there.",
+   "subject": "3R"
   },
   "reveal_json": {
    "depth": {
     "sources": [
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "Trim is where to take some off: the detectors put the targets at 2R and 3R. They do not say how much to sell at each, so the course names the levels and does not invent a fraction.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "The shared `make_levels` (`uct_setups_common.py`) puts the targets at 2R and 3R from that stop.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Move the stop to breakeven at 2R to 5R, ideally.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
@@ -18826,14 +18854,14 @@
       "url": "repo:docs/study/OWNER_PRINCIPLES.md#b-teaching"
      }
     ],
-    "summary": "Trim means taking some off. Our plans trim at 2R and 3R and name no fixed amount to sell at each. Our plans put the targets at 2R and 3R, sized off the setup's own stop. In the owner's words, every setup is taught as Entry, Stop, Trim, Trail, Advance."
+    "summary": "After the first third at 3R, we sell another third at 5R and trail the last third. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. Our stop moves up to breakeven once the trade is 2R to 5R ahead; we teach it at the first trim. In the owner's words, every setup is taught as Entry, Stop, Trim, Trail, Advance."
    },
    "facts": {
-    "given": "On our plan, a setup that reaches 2R is done: you sell it all there."
+    "given": "On our plan, a setup that reaches 3R is done: you sell it all there."
    },
-   "lesson_line": "2R is a trim, not the finish line.",
+   "lesson_line": "3R is a trim, not the finish line.",
    "unit": "V.05",
-   "why": "False. 2R is the first target, where we trim, taking some off. 3R is the second, and the rest trails."
+   "why": "False. 3R is the first trim: a third comes off and the stop moves to breakeven. Another third goes at 5R, and the last third trails."
   },
   "review_status": "draft",
   "skill_id": "vocab.setup_terms",
@@ -19048,7 +19076,7 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "the prior close, reclaimed during the day | the day's low | 2R, 3R | under each higher low",
+      "quote": "the prior close, reclaimed during the day | the day's low | a third at 3R, a third at 5R | under each higher low",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -19060,7 +19088,7 @@
       "url": "repo:docs/study/TRADE_PLANS.md#the-go-signal"
      }
     ],
-    "summary": "Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, trims at 2R and 3R and trails under each higher low. Buyers stepping in shows as a lower wick of 40% of the range, or a low under the open with the close in the upper half."
+    "summary": "Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, sells a third at 3R and a third at 5R, and trails under each higher low. Buyers stepping in shows as a lower wick of 40% of the range, or a low under the open with the close in the upper half."
    },
    "facts": {
     "given": "Did our Oops Reversal trigger? A stock closed at $50.00 yesterday. Today it opens at $49.20, dips to $48.80, and closes at $49.60. It never trades back to $50.00. No: it never reclaimed $50.00 Yes: it bounced off the low Yes: it closed in the upper half"
@@ -19096,7 +19124,7 @@
    "q": "Every setup carries a plan",
    "steps": [
     "Every trade plan we teach hands you two prices: the trigger, which is the entry, and the stop.",
-    "R is your risk per share, entry to stop. Targets sit at 2R and 3R, where you trim some off.",
+    "R is your risk per share, entry to stop. A third comes off at 3R and another at 5R.",
     "Then you trail. The stop follows the stock up, under each higher low or a rising average."
    ],
    "subject": "V.05#w1"
@@ -19113,17 +19141,17 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "The shared `make_levels` (`uct_setups_common.py`) puts the targets at 2R and 3R from that stop.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "Trim is where to take some off: the detectors put the targets at 2R and 3R. They do not say how much to sell at each, so the course names the levels and does not invent a fraction.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
@@ -19156,7 +19184,7 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup, section: The levels",
-      "quote": "Each lesson's levels are the plan's: the entry, the stop, and the targets at 2R and 3R",
+      "quote": "Each lesson's levels are the plan's: the entry, the stop, and the trims at 3R and 5R",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#the-levels"
      }
@@ -19269,7 +19297,7 @@
   "difficulty": 1,
   "id": "si_b4380fbeb863",
   "lesson_origin": "session",
-  "lesson_text": "So I don't trade the name. I trade the plan: our entry, our stop, and the trims at 2R and 3R.",
+  "lesson_text": "So I don't trade the name. I trade the plan: our entry, our stop, a third off at 3R and at 5R.",
   "module": "V",
   "prompt_json": {
    "order": 3,
@@ -19279,7 +19307,7 @@
    "steps": [
     "The textbook kicker is a down candle, then a gap up the other way.",
     "Investopedia calls it highly reliable. Bulkowski's tests found it reversed the trend 53% of the time, almost random.",
-    "So I don't trade the name. I trade the plan: our entry, our stop, and the trims at 2R and 3R."
+    "So I don't trade the name. I trade the plan: our entry, our stop, a third off at 3R and at 5R."
    ],
    "subject": "V.05#w3"
   },
@@ -19309,10 +19337,17 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "The shared `make_levels` (`uct_setups_common.py`) puts the targets at 2R and 3R from that stop.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ]
    },
@@ -19899,21 +19934,21 @@
  },
  {
   "answer_json": {
-   "answer": "At 2R and 3R"
+   "answer": "At 3R and 5R"
   },
   "difficulty": 1,
   "id": "si_67b288c342b7",
   "lesson_origin": "session",
-  "lesson_text": "At 2R and 3R. Our detectors measure R from the setup's own stop, then put the targets at two and three times that distance. Our targets are counted in R from the stop: 2R first, then 3R.",
+  "lesson_text": "At 3R and 5R. R is the entry-to-stop distance. A third comes off at three times it, another third at five, and the last third trails. Our trims are counted in R from the stop: a third at 3R, a third at 5R.",
   "module": "V",
   "prompt_json": {
    "choices": [
-    "At 2R and 3R",
+    "At 3R and 5R",
     "At 1R and 2R",
     "At 10% and 20% gains"
    ],
    "kind": "mcq",
-   "q": "Our trade plans set two profit targets. Where do they sit?",
+   "q": "Our plan sells in thirds. Where do the two trims sit?",
    "subject": "R-multiple"
   },
   "reveal_json": {
@@ -19921,23 +19956,30 @@
     "sources": [
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (targets from make_levels; the setup table)",
-      "quote": "The shared `make_levels` (`uct_setups_common.py`) puts the targets at 2R and 3R from that stop.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Our trade plans put the targets at 2R and 3R from the setup's own stop."
+    "summary": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. After the first third at 3R, we sell another third at 5R and trail the last third."
    },
    "facts": {
-    "given": "Our trade plans set two profit targets. Where do they sit? At 2R and 3R At 1R and 2R At 10% and 20% gains"
+    "given": "Our plan sells in thirds. Where do the two trims sit? At 3R and 5R At 1R and 2R At 10% and 20% gains"
    },
-   "lesson_line": "Our targets are counted in R from the stop: 2R first, then 3R.",
+   "lesson_line": "Our trims are counted in R from the stop: a third at 3R, a third at 5R.",
    "unit": "V.06",
-   "why": "At 2R and 3R. Our detectors measure R from the setup's own stop, then put the targets at two and three times that distance.",
+   "why": "At 3R and 5R. R is the entry-to-stop distance. A third comes off at three times it, another third at five, and the last third trails.",
    "wrong": {
-    "At 10% and 20% gains": "Our targets come from the stop distance, not a flat percent.",
-    "At 1R and 2R": "Our first target is 2R, twice the risk to the stop."
+    "At 10% and 20% gains": "Our trims come from the stop distance, not a flat percent.",
+    "At 1R and 2R": "Our first trim is a third at 3R, three times the risk to the stop."
    }
   },
   "review_status": "draft",
@@ -23246,7 +23288,7 @@
     "sources": [
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (targets from make_levels; the setup table)",
+      "name": "UCT house rule: Study: the trade plan for every setup (the setup table)",
       "quote": "under the 21-day and 50-day averages, a quarter of an ATR below the lower one",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"

@@ -167,7 +167,7 @@
    "id": "s20",
    "tier": 3,
    "publisher": "UCT house rule",
-   "title": "The trade plan for every setup: Kicker and Launchpad rows, targets at 2R and 3R",
+   "title": "The trade plan for every setup: Kicker and Launchpad rows (entry, stop, trail)",
    "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup",
    "accessed": "2026-11-09"
   },
@@ -185,6 +185,14 @@
    "publisher": "UCT house rule",
    "title": "The house sizing rule, section 3: size from the stop (owner quoted)",
    "url": "repo:docs/study/sizing_rule.md#3-size-from-the-stop",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s23",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-09"
   }
  ],
@@ -582,8 +590,8 @@
   {
    "id": "h1",
    "source": "s20",
-   "quote": "a cent over the red day's high, on the Kicker day",
-   "claim": "The Kicker's first entry is a cent over the red day's high, on the Kicker day: a daily-chart setup."
+   "quote": "over the red day's high, on the Kicker day, at market as it trades through",
+   "claim": "The Kicker's first entry is over the red day's high, on the Kicker day, at market as it trades through: a daily-chart setup."
   },
   {
    "id": "h2",
@@ -605,9 +613,9 @@
   },
   {
    "id": "h5",
-   "source": "s20",
-   "quote": "puts the targets at 2R and 3R from that stop.",
-   "claim": "Our setups take profits at 2R and 3R."
+   "source": "s23",
+   "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+   "claim": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R."
   },
   {
    "id": "h6",
@@ -626,6 +634,12 @@
    "source": "s22",
    "quote": "if it's a 1% stop then technically a 50% size would be 0.5% risk.",
    "claim": "The owner sizes from the stop: the risk is the stop distance times the position size."
+  },
+  {
+   "id": "h8",
+   "source": "s23",
+   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+   "claim": "After the first third at 3R, we sell another third at 5R and trail the last third."
   }
  ],
  "walkthroughs": [
@@ -1073,7 +1087,7 @@
    "rung": 7,
    "format": "scenario",
    "house": true,
-   "story": "You buy our Kicker on the day-one 30-minute opening-range break. At 3:55 p.m. it's up, short of your first target, and well above your stop.",
+   "story": "You buy our Kicker on the day-one 30-minute opening-range break. At 3:55 p.m. it's up, short of 3R, your first trim, and well above your stop.",
    "q": "What does the plan say to do?",
    "choices": [
     "Hold it and trail on the daily chart",
@@ -1081,18 +1095,19 @@
     "Sell half before the close"
    ],
    "answer": "Hold it and trail on the daily chart",
-   "why": "Hold it. The 30-minute break was only the entry. The plan trails under each higher low or the 10-day average, and takes some off at 2R and 3R.",
+   "why": "Hold it. The 30-minute break was only the entry. The plan trails under each higher low or the 10-day average, and sells a third at 3R and another at 5R.",
    "lesson_line": "The entry chart times the buy. The trail sets the clock.",
    "facts": [
     "h2",
     "h6",
     "h3",
     "h5",
+    "h8",
     "f36"
    ],
    "wrong": {
     "Sell, it was an intraday entry": "The entry chart doesn't set the clock. Swing traders often take a daily setup and time the entry on a shorter chart.",
-    "Sell half before the close": "Our trims are at 2R and 3R. Nothing in the plan sells at the close."
+    "Sell half before the close": "Our first trim is a third at 3R. Nothing in the plan sells at the close."
    }
   },
   {
@@ -1247,9 +1262,9 @@
   },
   "w3": {
    "status": "pass",
-   "notes": "f57 (Investopedia, 'Ideally ... above and below it'), f36, h1-h3, h6 match TRADE_PLANS.md and OWNER_PRINCIPLES.md word for word.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Checker 2026-11-09: h1's quote refreshed to TRADE_PLANS.md's current Kicker row ('over the red day's high, on the Kicker day, at market as it trades through'); the 'a cent over' wording left that page on 2026-11-09 (3556ebf263). The step's own text needed no change. Earlier note: f57 (Investopedia, 'Ideally ... above and below it'), f36, h1-h3, h6 match TRADE_PLANS.md and OWNER_PRINCIPLES.md word for word."
   },
   "q01": {
    "status": "pass",
@@ -1349,9 +1364,9 @@
   },
   "q17": {
    "status": "pass",
-   "notes": "h2/h6 (owner: day-1 30-minute ORB), h3 (trail under higher lows or 10-day), h5 (targets 2R, 3R) match the repo pages. Story now says the trade is short of its first target, so 'sell half' cannot be read as a 2R trim. Track audit 2026-11-09: '3:55 pm' now '3:55 p.m.', the time style of the rest of the track. Agrees with F11.03 q16: a trade built on a daily plan holds on that plan; a true day trade becomes a longer hold only on a new plan.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Checker 2026-11-09: h5 (B19) and h8 (E51) verbatim in section 9; h2/h3/h6 (TRADE_PLANS, the Kicker row) still on the page. Key 'Hold it and trail on the daily chart' follows: the story is short of 3R and above the stop, so nothing in the plan sells. Notes hold. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19, E51); awaiting cold check. 'takes some off at 2R and 3R' now the thirds at 3R and 5R; the story names 3R as the first trim. Old house fact was TRADE_PLANS.md 'Trim is where to take some off: the detectors put the targets at 2R and 3R' (the detectors' plan, no fraction); replaced by the rulebook"
   },
   "q18": {
    "status": "pass",

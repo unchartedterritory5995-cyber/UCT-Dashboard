@@ -4571,22 +4571,22 @@
  {
   "answer_json": {
    "accept": [
-    "44",
-    "44.0",
-    "44.00",
-    "44.000"
+    "46",
+    "46.0",
+    "46.00",
+    "46.000"
    ],
-   "answer": 44.0
+   "answer": 46.0
   },
   "difficulty": 2,
   "id": "si_0fa8d0d4935a",
   "lesson_origin": "session",
-  "lesson_text": "$44. Your risk is $2 a share, entry to stop. 2R is twice that, added above the entry. Stop first. The targets are multiples of that risk: 2R, then 3R.",
+  "lesson_text": "$46. Your risk is the $40 to $38 distance. 3R is three times that, added above the entry. A third of the position comes off there. Stop first. The trims are multiples of that risk: 3R, then 5R.",
   "module": "F10",
   "prompt_json": {
    "kind": "fill_numeric",
    "prefix": "$",
-   "q": "Entry $40, stop $38. Our plans put the first target at 2R. What price is that?",
+   "q": "Entry $40, stop $38. Our first trim is a third at 3R. What price is that?",
    "subject": "F10.03#q11"
   },
   "reveal_json": {
@@ -4594,17 +4594,17 @@
     "sources": [
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (targets the app's detectors compute)",
-      "quote": "puts the targets at 2R and 3R from that stop.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (targets the app's detectors compute)",
-      "quote": "Trim is where to take some off: the detectors put the targets at 2R and 3R.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
@@ -4621,24 +4621,24 @@
       "url": "https://www.investopedia.com/terms/t/take-profitorder.asp"
      }
     ],
-    "summary": "Our plans set the targets at 2R and 3R, measured from the stop: two and three times the entry-to-stop risk. Our plans take some off at the 2R and 3R targets. Your risk per share is the distance from the entry to the stop. The distances from your price to the stop and to the target set the trade's risk-to-reward."
+    "summary": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. After the first third at 3R, we sell another third at 5R and trail the last third. Your risk per share is the distance from the entry to the stop. The distances from your price to the stop and to the target set the trade's risk-to-reward."
    },
    "facts": {
     "calc": {
      "args": {
       "entry": 40,
       "expr": "entry + r * (entry - stop)",
-      "r": 2,
+      "r": 3,
       "stop": 38
      },
      "fn": "arith",
-     "result": 44.0
+     "result": 46.0
     },
-    "given": "Entry $40, stop $38. Our plans put the first target at 2R. What price is that?"
+    "given": "Entry $40, stop $38. Our first trim is a third at 3R. What price is that?"
    },
-   "lesson_line": "Stop first. The targets are multiples of that risk: 2R, then 3R.",
+   "lesson_line": "Stop first. The trims are multiples of that risk: 3R, then 5R.",
    "unit": "F10.03",
-   "why": "$44. Your risk is $2 a share, entry to stop. 2R is twice that, added above the entry."
+   "why": "$46. Your risk is the $40 to $38 distance. 3R is three times that, added above the entry. A third of the position comes off there."
   },
   "review_status": "draft",
   "skill_id": "orders.brackets",
@@ -5307,7 +5307,7 @@
   "difficulty": 3,
   "id": "si_7b3089640061",
   "lesson_origin": "session",
-  "lesson_text": "Sell partials, trail the rest. Our plans trim at 2R and 3R. In our words: hold your winners by selling partials into strength and trailing the rising moving averages. One target for every share caps your best winners. Trim into strength and trail the rest.",
+  "lesson_text": "Sell partials, trail the rest. Our plan sells a third at 3R, a third at 5R and trails the last third. In our words: hold your winners by selling partials into strength and trailing the rising moving averages. One target for every share caps your best winners. Trim into strength and trail the rest.",
   "module": "F10",
   "prompt_json": {
    "choices": [
@@ -5318,7 +5318,7 @@
    ],
    "kind": "mcq",
    "q": "How do we set up the exits on a trade like this?",
-   "story": "Your bracket sold all 300 shares at the 2R target. The stock kept climbing for weeks, far past that price.",
+   "story": "Your bracket sold all 300 shares at the 3R level. The stock kept climbing for weeks, far past that price.",
    "subject": "F10.03#q23"
   },
   "reveal_json": {
@@ -5333,10 +5333,10 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (targets the app's detectors compute)",
-      "quote": "Trim is where to take some off: the detectors put the targets at 2R and 3R.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
@@ -5353,16 +5353,16 @@
       "url": "https://toslc.thinkorswim.com/center/howToTos/thinkManual/Trade/Order-Entry-Tools/Order-Types.html"
      }
     ],
-    "summary": "In the owner's words: hold winners by selling partials into strength and trailing the rising moving averages. Our plans take some off at the 2R and 3R targets. A take-profit can sell you out early just as a stock starts to run. You can split the exits: buy 200 shares, then sell them in two 100-share OCO pairs."
+    "summary": "In the owner's words: hold winners by selling partials into strength and trailing the rising moving averages. After the first third at 3R, we sell another third at 5R and trail the last third. A take-profit can sell you out early just as a stock starts to run. You can split the exits: buy 200 shares, then sell them in two 100-share OCO pairs."
    },
    "facts": {
-    "given": "How do we set up the exits on a trade like this? Your bracket sold all 300 shares at the 2R target. The stock kept climbing for weeks, far past that price. Sell partials, trail the rest One bigger target for all shares No targets, hold every share Tighten the stop on all shares"
+    "given": "How do we set up the exits on a trade like this? Your bracket sold all 300 shares at the 3R level. The stock kept climbing for weeks, far past that price. Sell partials, trail the rest One bigger target for all shares No targets, hold every share Tighten the stop on all shares"
    },
    "lesson_line": "One target for every share caps your best winners. Trim into strength and trail the rest.",
    "unit": "F10.03",
-   "why": "Sell partials, trail the rest. Our plans trim at 2R and 3R. In our words: hold your winners by selling partials into strength and trailing the rising moving averages.",
+   "why": "Sell partials, trail the rest. Our plan sells a third at 3R, a third at 5R and trails the last third. In our words: hold your winners by selling partials into strength and trailing the rising moving averages.",
    "wrong": {
-    "No targets, hold every share": "That banks nothing into strength. We trim at the targets and let the rest run.",
+    "No targets, hold every share": "That banks nothing into strength. We take a third at 3R and 5R and let the rest run.",
     "One bigger target for all shares": "Then nothing gets banked if it stalls short of that price. We take some off along the way.",
     "Tighten the stop on all shares": "That still exits everything at once. We trim into strength and trail the rest under the rising moving averages."
    }
@@ -7637,7 +7637,7 @@
   "difficulty": 1,
   "id": "si_98a249d25088",
   "lesson_origin": "session",
-  "lesson_text": "False. Pyramiding adds to a position that is working, usually in smaller and smaller pieces. Buying more as it falls is averaging down. You pyramid on a winner. Adding to a loser has another name: averaging down.",
+  "lesson_text": "False. Pyramiding adds to a position that is working, usually in smaller and smaller pieces. Buying more as it falls is averaging down. Pyramiding means adding to a winner. Adding to a loser has another name: averaging down.",
   "module": "F10",
   "prompt_json": {
    "choices": [
@@ -7678,7 +7678,7 @@
    "facts": {
     "given": "Pyramiding means buying more of a stock as it falls below your first buy."
    },
-   "lesson_line": "You pyramid on a winner. Adding to a loser has another name: averaging down.",
+   "lesson_line": "Pyramiding means adding to a winner. Adding to a loser has another name: averaging down.",
    "unit": "F10.05",
    "why": "False. Pyramiding adds to a position that is working, usually in smaller and smaller pieces. Buying more as it falls is averaging down."
   },
@@ -7748,7 +7748,7 @@
   "difficulty": 1,
   "id": "si_eeb09f65d91d",
   "lesson_origin": "session",
-  "lesson_text": "Up. O'Neil's advice on averaging down was don't do it: it's throwing good money after bad. You add to stocks that are proving you right. O'Neil's rule: average up, never down.",
+  "lesson_text": "Up. O'Neil's advice on averaging down was don't do it: it's throwing good money after bad. Our own rule goes further: the full size at one price, and no adding either way. O'Neil's rule: average up, never down.",
   "module": "F10",
   "prompt_json": {
    "bank": [
@@ -7792,73 +7792,28 @@
       "quote": "I almost never average down on my trading positions. All that does is make the loss grow when you throw in the towel and sell just days before price turns higher.",
       "tier": 2,
       "url": "https://thepatternsite.com/ScalingIn.html"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The full size at one price with one stop; no adding.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "O'Neil's advice on buying more of a stock after it drops: don't. O'Neil calls averaging down throwing good money after bad; the only averaging he accepts is averaging up. Hirsch lists averaging down into losing positions first among the deadly sins of managing positions. Bulkowski almost never averages down on trades: it makes the loss bigger."
+    "summary": "O'Neil's advice on buying more of a stock after it drops: don't. O'Neil calls averaging down throwing good money after bad; the only averaging he accepts is averaging up. Hirsch lists averaging down into losing positions first among the deadly sins of managing positions. Bulkowski almost never averages down on trades: it makes the loss bigger. Our rule: the whole position goes on at one price with one stop, and we never add to it."
    },
    "facts": {
     "given": "Finish O'Neil's rule. The only averaging that makes sense is averaging ___."
    },
    "lesson_line": "O'Neil's rule: average up, never down.",
    "unit": "F10.05",
-   "why": "Up. O'Neil's advice on averaging down was don't do it: it's throwing good money after bad. You add to stocks that are proving you right."
+   "why": "Up. O'Neil's advice on averaging down was don't do it: it's throwing good money after bad. Our own rule goes further: the full size at one price, and no adding either way."
   },
   "review_status": "draft",
   "skill_id": "orders.scaling",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F10/F10.05.json#q04",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "True"
-  },
-  "difficulty": 1,
-  "id": "si_d5b21322c858",
-  "lesson_origin": "session",
-  "lesson_text": "True. Every share you buy above your average pulls the average up. IBD keeps adds smaller than the first buy so it doesn't run up too far. Adds raise your average cost. Keep them small so it stays close to your first buy.",
-  "module": "F10",
-  "prompt_json": {
-   "choices": [
-    "True",
-    "False"
-   ],
-   "kind": "tf",
-   "q": "Adding to a winner at a higher price raises your average cost per share.",
-   "subject": "F10.05#q05"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Average Up in Stock Trading: Strategy and Benefits (Lucas Downey, updated 2026-03-09)",
-      "quote": "Average up refers to the process of buying additional shares of a stock that an investor already owns, but at a higher price. This raises the average price that the investor has paid for all their shares.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/a/averageup.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investor's Business Daily: IBD University, How To Buy: Additional Buy Points (Add-On and Alternative Buy Points)",
-      "quote": "In that case, you always want to buy fewer shares than you purchased in the initial breakout. That keeps you from running up your average purchase price too much.",
-      "tier": 2,
-      "url": "https://www.investors.com/ibd-university/how-to-buy/additional-buy-points/"
-     }
-    ],
-    "summary": "Averaging up is buying more of a stock you own at a higher price, which raises your average cost. When you add to a stock you already own, IBD buys fewer shares than the first breakout buy, so the average cost doesn't run up too far."
-   },
-   "facts": {
-    "given": "Adding to a winner at a higher price raises your average cost per share."
-   },
-   "lesson_line": "Adds raise your average cost. Keep them small so it stays close to your first buy.",
-   "unit": "F10.05",
-   "why": "True. Every share you buy above your average pulls the average up. IBD keeps adds smaller than the first buy so it doesn't run up too far."
-  },
-  "review_status": "draft",
-  "skill_id": "orders.scaling",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F10/F10.05.json#q05",
   "type": "recall",
   "version": 1
  },
@@ -7985,93 +7940,22 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "41",
-    "41.0",
-    "41.00",
-    "41.000"
-   ],
-   "answer": 41.0
-  },
-  "difficulty": 1,
-  "id": "si_3a9e2414c049",
-  "lesson_origin": "session",
-  "lesson_text": "$41. The 100-share add is a third the size of your first buy, so your average only moves a little toward $44. A small add barely moves your average cost. That's why IBD keeps adds smaller than the first buy.",
-  "module": "F10",
-  "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
-   "q": "You own 300 shares at $40. You add 100 shares at $44. What's your new average cost per share?",
-   "subject": "F10.05#q08"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "Investor's Business Daily: IBD University, How To Buy: Additional Buy Points (Add-On and Alternative Buy Points)",
-      "quote": "In that case, you always want to buy fewer shares than you purchased in the initial breakout. That keeps you from running up your average purchase price too much.",
-      "tier": 2,
-      "url": "https://www.investors.com/ibd-university/how-to-buy/additional-buy-points/"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Average Up in Stock Trading: Strategy and Benefits (Lucas Downey, updated 2026-03-09)",
-      "quote": "Average up refers to the process of buying additional shares of a stock that an investor already owns, but at a higher price. This raises the average price that the investor has paid for all their shares.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/a/averageup.asp"
-     }
-    ],
-    "summary": "When you add to a stock you already own, IBD buys fewer shares than the first breakout buy, so the average cost doesn't run up too far. Averaging up is buying more of a stock you own at a higher price, which raises your average cost."
-   },
-   "facts": {
-    "calc": {
-     "args": {
-      "fills": [
-       [
-        300,
-        40
-       ],
-       [
-        100,
-        44
-       ]
-      ]
-     },
-     "fn": "avg_price",
-     "result": 41.0
-    },
-    "given": "You own 300 shares at $40. You add 100 shares at $44. What's your new average cost per share?"
-   },
-   "lesson_line": "A small add barely moves your average cost. That's why IBD keeps adds smaller than the first buy.",
-   "unit": "F10.05",
-   "why": "$41. The 100-share add is a third the size of your first buy, so your average only moves a little toward $44."
-  },
-  "review_status": "draft",
-  "skill_id": "orders.scaling",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F10/F10.05.json#q08",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "At 2R and 3R"
+   "answer": "A third at 3R"
   },
   "difficulty": 1,
   "id": "si_f717308b7a7a",
   "lesson_origin": "session",
-  "lesson_text": "At 2R and 3R: two and three times what you risk to your stop, measured up from your entry. The plans name those levels, not how much to sell at each. Our trims sit at 2R and 3R. Know both prices before you buy.",
+  "lesson_text": "A third at 3R: three times your entry-to-stop risk, above the entry. That's the hard rule, and the stop moves to breakeven there. First trim: a third at 3R. Know that price before you buy.",
   "module": "F10",
   "prompt_json": {
    "choices": [
-    "At 2R and 3R",
-    "At 20% to 25% gains",
-    "At a 10% gain",
-    "Where it feels extended"
+    "A third at 3R",
+    "Half at 2R",
+    "A third at 20% to 25%",
+    "Some, where it feels extended"
    ],
    "kind": "mcq",
-   "q": "Our setup trade plans mark where to take some off. Where do those trims sit?",
+   "q": "Our plan marks where to take some off. Where is the first trim, and how much?",
    "subject": "F10.05#q09"
   },
   "reveal_json": {
@@ -8079,10 +7963,17 @@
     "sources": [
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the app's own detectors: targets at 2R and 3R)",
-      "quote": "Trim is where to take some off: the detectors put the targets at 2R and 3R. They do not say how much to sell at each, so the course names the levels and does not invent a fraction.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Move the stop to breakeven at 2R to 5R, ideally.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
@@ -8099,168 +7990,24 @@
       "url": "https://www.investors.com/ibd-university/how-to-sell/taking-profits/"
      }
     ],
-    "summary": "Our trade plans mark the trims at 2R and 3R, and name no fixed amount to sell at each. One exit rule Fidelity gives as an example: a profit target two or three times the planned loss. IBD's own profit-taking zone is a 20% to 25% advance."
+    "summary": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. Our stop moves up to breakeven once the trade is 2R to 5R ahead; we teach it at the first trim. One exit rule Fidelity gives as an example: a profit target two or three times the planned loss. IBD's own profit-taking zone is a 20% to 25% advance."
    },
    "facts": {
-    "given": "Our setup trade plans mark where to take some off. Where do those trims sit? At 2R and 3R At 20% to 25% gains At a 10% gain Where it feels extended"
+    "given": "Our plan marks where to take some off. Where is the first trim, and how much? A third at 3R Half at 2R A third at 20% to 25% Some, where it feels extended"
    },
-   "lesson_line": "Our trims sit at 2R and 3R. Know both prices before you buy.",
+   "lesson_line": "First trim: a third at 3R. Know that price before you buy.",
    "unit": "F10.05",
-   "why": "At 2R and 3R: two and three times what you risk to your stop, measured up from your entry. The plans name those levels, not how much to sell at each.",
+   "why": "A third at 3R: three times your entry-to-stop risk, above the entry. That's the hard rule, and the stop moves to breakeven there.",
    "wrong": {
-    "At 20% to 25% gains": "That's IBD's profit-taking zone. Our plans measure trims in R, from your own stop.",
-    "At a 10% gain": "A flat percent ignores where your stop is. Our plans measure trims from your risk.",
-    "Where it feels extended": "A feeling isn't a level. The plan marks the trims before you buy."
+    "A third at 20% to 25%": "That's IBD's profit-taking zone, a percent gain. Ours is measured in R, from your own stop.",
+    "Half at 2R": "2R is inside the window where the stop goes to breakeven, but the first trim waits for 3R, and it's a third.",
+    "Some, where it feels extended": "A feeling isn't a level, and 'some' isn't a size. The plan marks a third at 3R before you buy."
    }
   },
   "review_status": "draft",
   "skill_id": "orders.scaling",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F10/F10.05.json#q09",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "accept": [
-    "200",
-    "200.0",
-    "200.00",
-    "200.000"
-   ],
-   "answer": 200.0
-  },
-  "difficulty": 2,
-  "id": "si_79f2a948d149",
-  "lesson_origin": "session",
-  "lesson_text": "$200, if it fills at your stop. Only the 100-share starter was on, not the full 400. The flip side: if it runs at once, you own less of the move. Start small and the trade has to prove itself before your full size is on.",
-  "module": "F10",
-  "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
-   "q": "Your full plan is 400 shares, stop $2 under entry. You start with 100 and the stop hits before you add. What do you lose?",
-   "subject": "F10.05#q10"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Scale In: Overview of the Trading Strategy (Will Kenton, updated 2026-10-18)",
-      "quote": "when an investor can start off their trade with smaller trade sizes and only add to a trade when it's winning, they are able to start off the trade by risking a little",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/s/scale-in.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Scale In: Overview of the Trading Strategy (Will Kenton, updated 2026-10-18)",
-      "quote": "it also reduces risk by starting with a smaller trade, only adding to the trade after it's profitable.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/s/scale-in.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Mastering Pyramiding (Will Kenton, updated 2026-06-21)",
-      "quote": "Pyramid trading starts with a small position, adding more when the asset performs well and shows growth potential.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/p/pyramiding.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Thomas Bulkowski, ThePatternSite.com: Bulkowski on Scaling In",
-      "quote": "according to an article in the October 2009 issue of Active Trader magazine titled, \"Scaling in as an entry technique,\" by Howard Bandy, the technique lowers profit.",
-      "tier": 2,
-      "url": "https://thepatternsite.com/ScalingIn.html"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Stop Orders: Factors to Consider During Volatile Markets (March 26, 2025)",
-      "quote": "A stop order becomes a market order once the stop price is reached. The price you receive upon execution, though, could be markedly different than your stop price.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/stop-orders-factors-consider-during-volatile-markets"
-     }
-    ],
-    "summary": "Start smaller and add only when the trade is winning, and you begin by risking a little. Starting small and adding only after the trade is in profit lowers the risk of the first stage. Pyramiding adds to a position as it performs well. Bulkowski reports Howard Bandy's finding (Active Trader, October 2009) that scaling in lowers profit. A triggered stop is a market order, and the fill can be far from the stop price."
-   },
-   "facts": {
-    "calc": {
-     "args": {
-      "expr": "shares * per_share",
-      "per_share": 2,
-      "shares": 100
-     },
-     "fn": "arith",
-     "result": 200.0
-    },
-    "given": "Your full plan is 400 shares, stop $2 under entry. You start with 100 and the stop hits before you add. What do you lose?"
-   },
-   "lesson_line": "Start small and the trade has to prove itself before your full size is on.",
-   "unit": "F10.05",
-   "why": "$200, if it fills at your stop. Only the 100-share starter was on, not the full 400. The flip side: if it runs at once, you own less of the move."
-  },
-  "review_status": "draft",
-  "skill_id": "orders.scaling",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F10/F10.05.json#q10",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "False"
-  },
-  "difficulty": 2,
-  "id": "si_b39cdcde21a0",
-  "lesson_origin": "session",
-  "lesson_text": "False. An add is a whole new setup with its own risk. If the stock turns, the new shares lose, and they can eat the gain on your first shares. A profit on your first shares doesn't protect the new ones.",
-  "module": "F10",
-  "prompt_json": {
-   "choices": [
-    "True",
-    "False"
-   ],
-   "kind": "tf",
-   "q": "Once your trade shows a profit, an add on top of it carries no real risk.",
-   "subject": "F10.05#q11"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com: StockCharts Insider: The Anatomy of a Trading Setup (Karl Montevirgen, 2026-09-23)",
-      "quote": "Insider Tip #2: Adding to a position isn't free upside. It's a whole new setup.",
-      "tier": 2,
-      "url": "https://articles.stockcharts.com/article/stockcharts-insider-the-anatomy-of-a-trading-setup/"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Average Up in Stock Trading: Strategy and Benefits (Lucas Downey, updated 2026-03-09)",
-      "quote": "Investors following an average-up strategy could expose themselves to increased losses if they wind up buying company shares just before they fall sharply or if the stock price hits a peak.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/a/averageup.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com: StockCharts Insider: The Anatomy of a Trading Setup (Karl Montevirgen, 2026-09-23)",
-      "quote": "And if your original entry point is still close, meaning you might lose some profit or take a smaller loss if you get stopped out, you will have to take that position into consideration.",
-      "tier": 2,
-      "url": "https://articles.stockcharts.com/article/stockcharts-insider-the-anatomy-of-a-trading-setup/"
-     }
-    ],
-    "summary": "An add is not free upside; it is a whole new setup. Adding to a winner raises what you lose if the stock then turns down hard. When you add, work out what the whole position does at the stop, old shares and new."
-   },
-   "facts": {
-    "given": "Once your trade shows a profit, an add on top of it carries no real risk."
-   },
-   "lesson_line": "A profit on your first shares doesn't protect the new ones.",
-   "unit": "F10.05",
-   "why": "False. An add is a whole new setup with its own risk. If the stock turns, the new shares lose, and they can eat the gain on your first shares."
-  },
-  "review_status": "draft",
-  "skill_id": "orders.scaling",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F10/F10.05.json#q11",
   "type": "recall",
   "version": 1
  },
@@ -8466,9 +8213,16 @@
       "quote": "If you're more concerned about protecting your profits than you are about potentially getting stopped out, consider using a trailing stop",
       "tier": 2,
       "url": "https://www.schwab.com/learn/story/how-traders-can-take-advantage-volatile-markets"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The full size at one price with one stop; no adding.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "When a stock runs sharply higher, sell part of the position and let the rest ride. Selling a winner too early hurts too, so harvest some gains and then trail a stop on the rest. Scaling out means closing a trade in pieces so the rest of the shares can keep riding. When protecting profits matters more to you than getting stopped out, Schwab suggests a trailing stop."
+    "summary": "When a stock runs sharply higher, sell part of the position and let the rest ride. Selling a winner too early hurts too, so harvest some gains and then trail a stop on the rest. Scaling out means closing a trade in pieces so the rest of the shares can keep riding. When protecting profits matters more to you than getting stopped out, Schwab suggests a trailing stop. Our rule: the whole position goes on at one price with one stop, and we never add to it."
    },
    "facts": {
     "given": "You just sold part of a winner into strength. What's the plan for the shares you kept? Let them ride on a trailing stop Keep the original stop under them Buy more on the next dip Hold them with no stop at all"
@@ -8477,7 +8231,7 @@
    "unit": "F10.05",
    "why": "Let them ride on a trailing stop. The partial banks some gain, and the rest stays on for more of the move. Hirsch's version: harvest gains, then set trailing stops.",
    "wrong": {
-    "Buy more on the next dip": "That's a new trade, and only on a real setup. It isn't the job of the shares you kept.",
+    "Buy more on the next dip": "We don't add to a position. The shares you kept have one job: ride the trail.",
     "Hold them with no stop at all": "A winner can still reverse. The rest needs a stop that rises with it.",
     "Keep the original stop under them": "On a winner, that stop sits well below. Leave it there and a reversal hands back the gain on the rest."
    }
@@ -8601,80 +8355,6 @@
  },
  {
   "answer_json": {
-   "accept": [
-    "900",
-    "900.0",
-    "900.00",
-    "900.000"
-   ],
-   "answer": 900.0
-  },
-  "difficulty": 3,
-  "id": "si_90b049bf84c7",
-  "lesson_origin": "session",
-  "lesson_text": "$900, if it fills at $48. The add from $55 rides all the way down to $48 too. Leaving the stop where it was turned a small risk into a big one. Before you add, check what the whole position loses at the stop, not just the new shares.",
-  "module": "F10",
-  "prompt_json": {
-   "kind": "fill_numeric",
-   "prefix": "$",
-   "q": "You bought 100 at $50, stop $48. At $55 you add 100 and leave the stop at $48. What does the whole position lose at the stop?",
-   "subject": "F10.05#q18"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com: StockCharts Insider: The Anatomy of a Trading Setup (Karl Montevirgen, 2026-09-23)",
-      "quote": "And if your original entry point is still close, meaning you might lose some profit or take a smaller loss if you get stopped out, you will have to take that position into consideration.",
-      "tier": 2,
-      "url": "https://articles.stockcharts.com/article/stockcharts-insider-the-anatomy-of-a-trading-setup/"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Average Up in Stock Trading: Strategy and Benefits (Lucas Downey, updated 2026-03-09)",
-      "quote": "Investors following an average-up strategy could expose themselves to increased losses if they wind up buying company shares just before they fall sharply or if the stock price hits a peak.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/a/averageup.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "FINRA: Concentrate on Concentration Risk (2022-06-15)",
-      "quote": "the risk of amplified losses that may occur from having a large portion of your holdings in a particular investment, asset class or market segment relative to your overall portfolio.",
-      "tier": 1,
-      "url": "https://www.finra.org/investors/insights/concentration-risk"
-     }
-    ],
-    "summary": "When you add, work out what the whole position does at the stop, old shares and new. Adding to a winner raises what you lose if the stock then turns down hard. A big position in one stock amplifies the loss when it falls."
-   },
-   "facts": {
-    "calc": {
-     "args": {
-      "e1": 50,
-      "e2": 55,
-      "expr": "s1 * (e1 - stop) + s2 * (e2 - stop)",
-      "s1": 100,
-      "s2": 100,
-      "stop": 48
-     },
-     "fn": "arith",
-     "result": 900.0
-    },
-    "given": "You bought 100 at $50, stop $48. At $55 you add 100 and leave the stop at $48. What does the whole position lose at the stop?"
-   },
-   "lesson_line": "Before you add, check what the whole position loses at the stop, not just the new shares.",
-   "unit": "F10.05",
-   "why": "$900, if it fills at $48. The add from $55 rides all the way down to $48 too. Leaving the stop where it was turned a small risk into a big one."
-  },
-  "review_status": "draft",
-  "skill_id": "orders.scaling",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F10/F10.05.json#q18",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "Your friend, by $250"
   },
   "difficulty": 3,
@@ -8754,159 +8434,6 @@
  },
  {
   "answer_json": {
-   "answer": "After it bounces and turns up"
-  },
-  "difficulty": 3,
-  "id": "si_484d4e3f955a",
-  "lesson_origin": "session",
-  "lesson_text": "After it bounces and turns up. IBD's rule: never buy a stock as it's moving down. IBD also wants light volume on a pullback, and this one is on rising volume. Add on strength, never into a falling stock.",
-  "module": "F10",
-  "prompt_json": {
-   "choices": [
-    "After it bounces and turns up",
-    "Buy the dip while it's falling",
-    "Add today with a wider stop",
-    "Double up to catch the low"
-   ],
-   "kind": "mcq",
-   "q": "You want to add. When do you buy?",
-   "story": "You own a winner that broke out a few weeks ago. It's pulling back toward its 50-day moving average. Today it's still falling, on rising volume.",
-   "subject": "F10.05#q20"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "Investor's Business Daily: IBD University, How To Buy: Additional Buy Points (Add-On and Alternative Buy Points)",
-      "quote": "Never buy a stock as it's moving down.",
-      "tier": 2,
-      "url": "https://www.investors.com/ibd-university/how-to-buy/additional-buy-points/"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investor's Business Daily: IBD University, How To Buy: Additional Buy Points (Add-On and Alternative Buy Points)",
-      "quote": "Make sure the stock bounces off the moving average line and heads higher on heavy volume You want the stock to rebound and show strength, not weakness, before you buy.",
-      "tier": 2,
-      "url": "https://www.investors.com/ibd-university/how-to-buy/additional-buy-points/"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investor's Business Daily: IBD University, How To Buy: Additional Buy Points (Add-On and Alternative Buy Points)",
-      "quote": "Look for light volume on the pullback This shows professional investors are not aggressively selling shares.",
-      "tier": 2,
-      "url": "https://www.investors.com/ibd-university/how-to-buy/additional-buy-points/"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Thomas Bulkowski, ThePatternSite.com: Bulkowski on Scaling In",
-      "quote": "Others like to buy more stock as additional trading signals occur when price rises.",
-      "tier": 2,
-      "url": "https://thepatternsite.com/ScalingIn.html"
-     }
-    ],
-    "summary": "IBD's rule: never buy a stock while it is falling. On a pullback add, IBD waits for the stock to bounce and head higher on heavy volume before buying. IBD wants light volume on a pullback, a sign big investors are not selling hard. Some traders buy more as new buy signals appear while the price rises."
-   },
-   "facts": {
-    "given": "You want to add. When do you buy? You own a winner that broke out a few weeks ago. It's pulling back toward its 50-day moving average. Today it's still falling, on rising volume. After it bounces and turns up Buy the dip while it's falling Add today with a wider stop Double up to catch the low"
-   },
-   "lesson_line": "Add on strength, never into a falling stock.",
-   "unit": "F10.05",
-   "why": "After it bounces and turns up. IBD's rule: never buy a stock as it's moving down. IBD also wants light volume on a pullback, and this one is on rising volume.",
-   "wrong": {
-    "Add today with a wider stop": "A wider stop makes the add riskier, and the stock is still falling.",
-    "Buy the dip while it's falling": "That's buying weakness. Wait for the stock to show strength first.",
-    "Double up to catch the low": "Nobody can call the low. Doubling up before the turn is a guess, sized big."
-   }
-  },
-  "review_status": "draft",
-  "skill_id": "orders.scaling",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F10/F10.05.json#q20",
-  "type": "scenario",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "A $100 loss"
-  },
-  "difficulty": 3,
-  "id": "si_f5997f04f7e8",
-  "lesson_origin": "session",
-  "lesson_text": "A $100 loss. Your first 100 shares make money at $52, but the add from $55 loses more. With your first buy still close to the new stop, a stop-out turns the whole trade red. Before you add, check where the whole position ends if the new stop hits.",
-  "module": "F10",
-  "prompt_json": {
-   "choices": [
-    "A $100 loss",
-    "A $200 gain",
-    "A $300 loss",
-    "Break even"
-   ],
-   "kind": "mcq",
-   "q": "If the stop fills at $52, where does the whole trade end?",
-   "story": "You own 100 shares from $50. It runs to $56 and pulls back. You add 100 at $55 and raise the stop on all 200 to $52.",
-   "subject": "F10.05#q21"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com: StockCharts Insider: The Anatomy of a Trading Setup (Karl Montevirgen, 2026-09-23)",
-      "quote": "And if your original entry point is still close, meaning you might lose some profit or take a smaller loss if you get stopped out, you will have to take that position into consideration.",
-      "tier": 2,
-      "url": "https://articles.stockcharts.com/article/stockcharts-insider-the-anatomy-of-a-trading-setup/"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com: StockCharts Insider: The Anatomy of a Trading Setup (Karl Montevirgen, 2026-09-23)",
-      "quote": "Insider Tip #2: Adding to a position isn't free upside. It's a whole new setup.",
-      "tier": 2,
-      "url": "https://articles.stockcharts.com/article/stockcharts-insider-the-anatomy-of-a-trading-setup/"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Average Up in Stock Trading: Strategy and Benefits (Lucas Downey, updated 2026-03-09)",
-      "quote": "Investors following an average-up strategy could expose themselves to increased losses if they wind up buying company shares just before they fall sharply or if the stock price hits a peak.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/a/averageup.asp"
-     }
-    ],
-    "summary": "When you add, work out what the whole position does at the stop, old shares and new. An add is not free upside; it is a whole new setup. Adding to a winner raises what you lose if the stock then turns down hard."
-   },
-   "facts": {
-    "calc": {
-     "args": {
-      "e1": 50,
-      "e2": 55,
-      "expr": "s2 * (e2 - stop) - s1 * (stop - e1)",
-      "s1": 100,
-      "s2": 100,
-      "stop": 52
-     },
-     "fn": "arith",
-     "result": 100.0
-    },
-    "given": "If the stop fills at $52, where does the whole trade end? You own 100 shares from $50. It runs to $56 and pulls back. You add 100 at $55 and raise the stop on all 200 to $52. A $100 loss A $200 gain A $300 loss Break even"
-   },
-   "lesson_line": "Before you add, check where the whole position ends if the new stop hits.",
-   "unit": "F10.05",
-   "why": "A $100 loss. Your first 100 shares make money at $52, but the add from $55 loses more. With your first buy still close to the new stop, a stop-out turns the whole trade red.",
-   "wrong": {
-    "A $200 gain": "That counts only your first 100 shares. The add loses money at $52.",
-    "A $300 loss": "That counts only the add. Your first 100 shares are in profit at $52.",
-    "Break even": "The two lots don't offset here. The add loses more than the first buy makes."
-   }
-  },
-  "review_status": "draft",
-  "skill_id": "orders.scaling",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F10/F10.05.json#q21",
-  "type": "scenario",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "Made you $250 more"
   },
   "difficulty": 3,
@@ -8974,83 +8501,6 @@
   "skill_id": "orders.scaling",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F10/F10.05.json#q22",
-  "type": "scenario",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "100 shares"
-  },
-  "difficulty": 3,
-  "id": "si_1a9c3e88c328",
-  "lesson_origin": "session",
-  "lesson_text": "100 shares. The add is a new trade, so it gets sized from its own stop: $300 of risk over the distance from $50 to $47. An add gets its own stop and its own size, like any new trade.",
-  "module": "F10",
-  "prompt_json": {
-   "choices": [
-    "100 shares",
-    "200 shares",
-    "300 shares",
-    "None, you already own it"
-   ],
-   "kind": "mcq",
-   "q": "What's the most the add can be?",
-   "story": "You own 200 shares from $40. It's at $50 and a new setup fires there, with its own stop at $47. You risk $300 per trade.",
-   "subject": "F10.05#q23"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com: StockCharts Insider: The Anatomy of a Trading Setup (Karl Montevirgen, 2026-09-23)",
-      "quote": "Are you going to risk the same amount, go lighter, or go heavier? Whatever you decide, treat this as a new trade.",
-      "tier": 2,
-      "url": "https://articles.stockcharts.com/article/stockcharts-insider-the-anatomy-of-a-trading-setup/"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com: StockCharts Insider: The Anatomy of a Trading Setup (Karl Montevirgen, 2026-09-23)",
-      "quote": "Dividing your risk-per-trade by your risk-per-share tells you exactly how many shares you can hold in your position.",
-      "tier": 2,
-      "url": "https://articles.stockcharts.com/article/stockcharts-insider-the-anatomy-of-a-trading-setup/"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investor's Business Daily: IBD University, How To Buy: Additional Buy Points (Add-On and Alternative Buy Points)",
-      "quote": "You can use those entries to add to your existing position or, in some cases, initiate a new one.",
-      "tier": 2,
-      "url": "https://www.investors.com/ibd-university/how-to-buy/additional-buy-points/"
-     }
-    ],
-    "summary": "Size an add as a new trade, with its own risk decision. Shares equal the dollars you risk divided by the risk per share. A later buy point in a winning stock can be used to add to a position you already hold."
-   },
-   "facts": {
-    "calc": {
-     "args": {
-      "entry": 50,
-      "expr": "risk / (entry - stop)",
-      "risk": 300,
-      "stop": 47
-     },
-     "fn": "arith",
-     "result": 100.0
-    },
-    "given": "What's the most the add can be? You own 200 shares from $40. It's at $50 and a new setup fires there, with its own stop at $47. You risk $300 per trade. 100 shares 200 shares 300 shares None, you already own it"
-   },
-   "lesson_line": "An add gets its own stop and its own size, like any new trade.",
-   "unit": "F10.05",
-   "why": "100 shares. The add is a new trade, so it gets sized from its own stop: $300 of risk over the distance from $50 to $47.",
-   "wrong": {
-    "200 shares": "That copies your first buy. From this stop it risks double your plan.",
-    "300 shares": "That reads your risk dollars as shares. It risks three times your plan.",
-    "None, you already own it": "Owning it isn't the test. A new buy point in a winner is a chance to add."
-   }
-  },
-  "review_status": "draft",
-  "skill_id": "orders.scaling",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F10/F10.05.json#q23",
   "type": "scenario",
   "version": 1
  },
@@ -9211,125 +8661,686 @@
  },
  {
   "answer_json": {
-   "unscored": true
+   "answer": "True"
   },
   "difficulty": 1,
-  "id": "si_e659e03407ee",
+  "id": "si_39e528e6b2c8",
   "lesson_origin": "session",
-  "lesson_text": "Every add is a new trade. It gets its own stop and its own size.",
+  "lesson_text": "True. The whole size goes on at one price with one stop. We don't build it in pieces and we don't add to it. Full size, one price, one stop. No adding.",
   "module": "F10",
   "prompt_json": {
-   "order": 1,
-   "part": 1,
-   "parts": 3,
-   "q": "Add only to a winner",
-   "steps": [
-    "You can build a position in steps. Each new step comes only after the last one is working.",
-    "Adding to a loser is averaging down. O'Neil's advice on that was simple: don't do it.",
-    "Every add is a new trade. It gets its own stop and its own size."
+   "choices": [
+    "True",
+    "False"
    ],
-   "subject": "F10.05#w1"
+   "kind": "tf",
+   "q": "Our rule is to buy the full position at one price, with one stop.",
+   "subject": "F10.05#q26"
   },
   "reveal_json": {
    "depth": {
     "sources": [
      {
       "accessed": "2026-11-09",
-      "name": "Investopedia: Scale In: Overview of the Trading Strategy (Will Kenton, updated 2026-10-18)",
-      "quote": "when an investor can start off their trade with smaller trade sizes and only add to a trade when it's winning, they are able to start off the trade by risking a little",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/s/scale-in.asp"
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The full size at one price with one stop; no adding.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
-      "name": "Investopedia: Mastering Pyramiding (Will Kenton, updated 2026-06-21)",
-      "quote": "Pyramid trading starts with a small position, adding more when the asset performs well and shows growth potential.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/p/pyramiding.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "AAII Journal: Sell Rules to Build Your Stock Investing Performance (William J. O'Neil, September 1999)",
-      "quote": "What about the 'averaging down' strategy of buying more shares in a stock if the price drops? My advice is, don't do it",
-      "tier": 2,
-      "url": "https://www.aaii.com/journal/article/sell-rules-to-build-your-stock-investing-performance"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "AAII Journal: Sell Rules to Build Your Stock Investing Performance (William J. O'Neil, September 1999)",
-      "quote": "it is throwing good money after bad. The only averaging that makes sense is 'averaging up' in your purchasing.",
-      "tier": 2,
-      "url": "https://www.aaii.com/journal/article/sell-rules-to-build-your-stock-investing-performance"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com: StockCharts Insider: The Anatomy of a Trading Setup (Karl Montevirgen, 2026-09-23)",
-      "quote": "Insider Tip #2: Adding to a position isn't free upside. It's a whole new setup.",
-      "tier": 2,
-      "url": "https://articles.stockcharts.com/article/stockcharts-insider-the-anatomy-of-a-trading-setup/"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com: StockCharts Insider: The Anatomy of a Trading Setup (Karl Montevirgen, 2026-09-23)",
-      "quote": "Are you going to risk the same amount, go lighter, or go heavier? Whatever you decide, treat this as a new trade.",
-      "tier": 2,
-      "url": "https://articles.stockcharts.com/article/stockcharts-insider-the-anatomy-of-a-trading-setup/"
+      "name": "UCT house rule: The house sizing rule, section 5: Portfolio layer (the owner quoted, 2026-11-09)",
+      "quote": "I do not scale into trade i buy full at one spot with one stop.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#5-portfolio-layer"
      }
-    ]
+    ],
+    "summary": "Our rule: the whole position goes on at one price with one stop, and we never add to it. The owner's words: he does not scale in; the full size goes on at one spot with one stop."
    },
-   "unit": "F10.05"
+   "facts": {
+    "given": "Our rule is to buy the full position at one price, with one stop."
+   },
+   "lesson_line": "Full size, one price, one stop. No adding.",
+   "unit": "F10.05",
+   "why": "True. The whole size goes on at one price with one stop. We don't build it in pieces and we don't add to it."
   },
   "review_status": "draft",
   "skill_id": "orders.scaling",
   "source_kind": "course",
-  "source_ref": "docs/study/courses/F10/F10.05.json#w1",
-  "type": "walkthrough",
+  "source_ref": "docs/study/courses/F10/F10.05.json#q26",
+  "type": "recall",
   "version": 1
  },
  {
   "answer_json": {
-   "unscored": true
+   "answer": "At the first trim, 3R"
   },
   "difficulty": 1,
-  "id": "si_c7dbd71a578b",
+  "id": "si_d094871bf4fe",
   "lesson_origin": "session",
-  "lesson_text": "More shares also means a stop-out costs more. Check what the whole position loses at the stop before you add.",
+  "lesson_text": "At the first trim. Our rule puts the breakeven move at 2R to 5R, and we teach it at the first trim, 3R. From there the rest rides with no planned loss. Stop to breakeven at the first trim. The rest rides with no planned loss.",
   "module": "F10",
   "prompt_json": {
-   "order": 2,
-   "part": 2,
-   "parts": 3,
-   "q": "What an add does to your numbers",
-   "steps": [
-    "Buy more above your first price and your average cost goes up.",
-    "IBD buys fewer shares on an add than on the first buy, so the average doesn't run up too far.",
-    "More shares also means a stop-out costs more. Check what the whole position loses at the stop before you add."
+   "choices": [
+    "At the first trim, 3R",
+    "The day after you buy",
+    "Never, the stop never moves",
+    "As soon as it's 1R up"
    ],
-   "subject": "F10.05#w2"
+   "kind": "mcq",
+   "q": "When does our stop move up to breakeven?",
+   "subject": "F10.05#q27"
   },
   "reveal_json": {
    "depth": {
     "sources": [
      {
       "accessed": "2026-11-09",
-      "name": "Investopedia: Average Up in Stock Trading: Strategy and Benefits (Lucas Downey, updated 2026-03-09)",
-      "quote": "Average up refers to the process of buying additional shares of a stock that an investor already owns, but at a higher price. This raises the average price that the investor has paid for all their shares.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/a/averageup.asp"
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Move the stop to breakeven at 2R to 5R, ideally.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
-      "name": "Investor's Business Daily: IBD University, How To Buy: Additional Buy Points (Add-On and Alternative Buy Points)",
-      "quote": "In that case, you always want to buy fewer shares than you purchased in the initial breakout. That keeps you from running up your average purchase price too much.",
-      "tier": 2,
-      "url": "https://www.investors.com/ibd-university/how-to-buy/additional-buy-points/"
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
-      "name": "StockCharts.com: StockCharts Insider: The Anatomy of a Trading Setup (Karl Montevirgen, 2026-09-23)",
-      "quote": "And if your original entry point is still close, meaning you might lose some profit or take a smaller loss if you get stopped out, you will have to take that position into consideration.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20).",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Investopedia: Scale In: Overview of the Trading Strategy (Will Kenton, updated 2026-10-18)",
+      "quote": "It is also common to move your stop loss to break even or beyond when an initial profit target is hit. That way, the remaining position you have open is almost 'risk-free.'",
       "tier": 2,
-      "url": "https://articles.stockcharts.com/article/stockcharts-insider-the-anatomy-of-a-trading-setup/"
+      "url": "https://www.investopedia.com/terms/s/scale-in.asp"
+     }
+    ],
+    "summary": "Our stop moves up to breakeven once the trade is 2R to 5R ahead; we teach it at the first trim. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. Our stop only moves up, never down or wider; the gap rule is the one exception. Moving the stop to breakeven after the first target is common, and Investopedia itself only calls the rest almost risk-free."
+   },
+   "facts": {
+    "given": "When does our stop move up to breakeven? At the first trim, 3R The day after you buy Never, the stop never moves As soon as it's 1R up"
+   },
+   "lesson_line": "Stop to breakeven at the first trim. The rest rides with no planned loss.",
+   "unit": "F10.05",
+   "why": "At the first trim. Our rule puts the breakeven move at 2R to 5R, and we teach it at the first trim, 3R. From there the rest rides with no planned loss.",
+   "wrong": {
+    "As soon as it's 1R up": "Too early for us. Our window is 2R to 5R. At 1R a normal pullback can still tag your entry and knock you out of a trade that was working.",
+    "Never, the stop never moves": "The stop only moves up, never down. At the first trim it moves up to breakeven.",
+    "The day after you buy": "Too early. The stop moves to breakeven once the trade is well ahead, 2R to 5R, not on the calendar."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "orders.scaling",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F10/F10.05.json#q27",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "third"
+  },
+  "difficulty": 1,
+  "id": "si_116e71f1ab9c",
+  "lesson_origin": "session",
+  "lesson_text": "A third. The hard rule is a third at 3R, another third at 5R, and the last third trails. A third at 3R, a third at 5R, trail the rest.",
+  "module": "F10",
+  "prompt_json": {
+   "bank": [
+    "third",
+    "half",
+    "quarter",
+    "tenth"
+   ],
+   "kind": "fill",
+   "q": "Finish our trim rule.",
+   "sentence": "At 3R we sell a ___ of the position.",
+   "subject": "F10.05#q28"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "New trims rules are what I like for hard rule can say trim 1/3 at 3R but I rarely actually do that and mostly wait for 5R.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. After the first third at 3R, we sell another third at 5R and trail the last third. The owner's words on the first trim: a third at 3R is the hard rule, though he mostly waits for 5R."
+   },
+   "facts": {
+    "given": "Finish our trim rule. At 3R we sell a ___ of the position."
+   },
+   "lesson_line": "A third at 3R, a third at 5R, trail the rest.",
+   "unit": "F10.05",
+   "why": "A third. The hard rule is a third at 3R, another third at 5R, and the last third trails."
+  },
+  "review_status": "draft",
+  "skill_id": "orders.scaling",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F10/F10.05.json#q28",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "57.5",
+    "57.50",
+    "57.500"
+   ],
+   "answer": 57.5
+  },
+  "difficulty": 2,
+  "id": "si_ec95e28970a8",
+  "lesson_origin": "session",
+  "lesson_text": "$57.50. One R is the $50 to $47.50 distance. Three of those above the entry is the first trim, where a third comes off and the stop goes to breakeven. Know the 3R price before you buy. That's where the first third comes off.",
+  "module": "F10",
+  "prompt_json": {
+   "kind": "fill_numeric",
+   "prefix": "$",
+   "q": "Entry $50, stop $47.50. Where is 3R, our first trim?",
+   "subject": "F10.05#q29"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Move the stop to breakeven at 2R to 5R, ideally.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Fidelity: What you need to know about exit strategies",
+      "quote": "You can set profit and loss targets from a purchase price. For example, a rule could be a 2:1 or 3:1 profit/loss target.",
+      "tier": 2,
+      "url": "https://www.fidelity.com/learning-center/trading-investing/trading/exit-strategies"
+     }
+    ],
+    "summary": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. Our stop moves up to breakeven once the trade is 2R to 5R ahead; we teach it at the first trim. One exit rule Fidelity gives as an example: a profit target two or three times the planned loss."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "entry": 50,
+      "expr": "entry + 3 * (entry - stop)",
+      "stop": 47.5
+     },
+     "fn": "arith",
+     "result": 57.5
+    },
+    "given": "Entry $50, stop $47.50. Where is 3R, our first trim?"
+   },
+   "lesson_line": "Know the 3R price before you buy. That's where the first third comes off.",
+   "unit": "F10.05",
+   "why": "$57.50. One R is the $50 to $47.50 distance. Three of those above the entry is the first trim, where a third comes off and the stop goes to breakeven."
+  },
+  "review_status": "draft",
+  "skill_id": "orders.scaling",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F10/F10.05.json#q29",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "62.5",
+    "62.50",
+    "62.500"
+   ],
+   "answer": 62.5
+  },
+  "difficulty": 2,
+  "id": "si_6201c76353d8",
+  "lesson_origin": "session",
+  "lesson_text": "$62.50. Five times the entry-to-stop risk above the $50 entry. Another third comes off here, and the last third trails. 5R: the second third comes off. The last third trails.",
+  "module": "F10",
+  "prompt_json": {
+   "kind": "fill_numeric",
+   "prefix": "$",
+   "q": "Entry $50, stop $47.50. Where is 5R, our second trim?",
+   "subject": "F10.05#q30"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "After the first third at 3R, we sell another third at 5R and trail the last third. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "entry": 50,
+      "expr": "entry + 5 * (entry - stop)",
+      "stop": 47.5
+     },
+     "fn": "arith",
+     "result": 62.5
+    },
+    "given": "Entry $50, stop $47.50. Where is 5R, our second trim?"
+   },
+   "lesson_line": "5R: the second third comes off. The last third trails.",
+   "unit": "F10.05",
+   "why": "$62.50. Five times the entry-to-stop risk above the $50 entry. Another third comes off here, and the last third trails."
+  },
+  "review_status": "draft",
+  "skill_id": "orders.scaling",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F10/F10.05.json#q30",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The 10 or 21-day; a close below it"
+  },
+  "difficulty": 2,
+  "id": "si_2f90e3399b9e",
+  "lesson_origin": "session",
+  "lesson_text": "The 10-day or 21-day average, and a close below it. The 10-day for fast movers, the 21-day for steadier ones. An intraday dip under the line is not a sale. Trail the 10-day or 21-day. A close below it sells the last third.",
+  "module": "F10",
+  "prompt_json": {
+   "choices": [
+    "The 10 or 21-day; a close below it",
+    "The 50-day; any dip below it",
+    "The 200-day; a close below it",
+    "No line; sell when it feels tired"
+   ],
+   "kind": "mcq",
+   "q": "Your last third is trailing. Which line do we trail under, and what makes us sell?",
+   "subject": "F10.05#q31"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The house sizing rule, section 6: Management (owner quoted, 2026-06-14)",
+      "quote": "Hold your winners by selling partials into strength and trailing the rising moving averages.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#6-management-so-the-sizing-drills-can-go-full-circle"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Fidelity: Managing positions: When to cut and run, when to take profits (Jeffrey A. Hirsch)",
+      "quote": "Selling too soon can be almost as detrimental to long-term returns as money-losing trades. This is why it can be important to harvest gains and then set trailing stop losses.",
+      "tier": 2,
+      "url": "https://www.fidelity.com/learning-center/trading-investing/trading/managing-positions"
+     }
+    ],
+    "summary": "Our trail is the 10-day average for fast movers or the 21-day for steadier ones; a close below it sells the last third. Our rule for winners: sell partials into strength and trail the rest under the rising moving averages. Selling a winner too early hurts too, so harvest some gains and then trail a stop on the rest."
+   },
+   "facts": {
+    "given": "Your last third is trailing. Which line do we trail under, and what makes us sell? The 10 or 21-day; a close below it The 50-day; any dip below it The 200-day; a close below it No line; sell when it feels tired"
+   },
+   "lesson_line": "Trail the 10-day or 21-day. A close below it sells the last third.",
+   "unit": "F10.05",
+   "why": "The 10-day or 21-day average, and a close below it. The 10-day for fast movers, the 21-day for steadier ones. An intraday dip under the line is not a sale.",
+   "wrong": {
+    "No line; sell when it feels tired": "A feeling isn't a rule. The line is picked before the trade, and a close below it decides.",
+    "The 200-day; a close below it": "Our default lines are the 10-day and the 21-day. The 200-day runs far below a stock in a strong uptrend, so it isn't the line we trail the last third under.",
+    "The 50-day; any dip below it": "Our default lines are the 10-day and 21-day. And a dip isn't a close."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "orders.scaling",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F10/F10.05.json#q31",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Sell it at the open"
+  },
+  "difficulty": 2,
+  "id": "si_dfcc6bc99dbf",
+  "lesson_origin": "session",
+  "lesson_text": "Sell it at the open. The stock opened above the trim level, so the trim is taken at the open. The stop on the rest goes to breakeven. When the stock opens above a trim level, take that trim at the open.",
+  "module": "F10",
+  "prompt_json": {
+   "choices": [
+    "Sell it at the open",
+    "Wait for a pullback to $23",
+    "Hold all of it, it's running",
+    "Sell everything at the open"
+   ],
+   "kind": "mcq",
+   "q": "What do you do with the first third?",
+   "story": "You bought at $20 with the stop at $19. Your first trim sits at $23, 3R. Today the stock opens at $24.10 on news.",
+   "subject": "F10.05#q32"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "If a stock opens above a trim level (3R, 5R), take that trim at the open.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Move the stop to breakeven at 2R to 5R, ideally.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "If the stock opens above a trim level, we take that trim at the open. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. Our stop moves up to breakeven once the trade is 2R to 5R ahead; we teach it at the first trim. After the first third at 3R, we sell another third at 5R and trail the last third."
+   },
+   "facts": {
+    "given": "What do you do with the first third? You bought at $20 with the stop at $19. Your first trim sits at $23, 3R. Today the stock opens at $24.10 on news. Sell it at the open Wait for a pullback to $23 Hold all of it, it's running Sell everything at the open"
+   },
+   "lesson_line": "When the stock opens above a trim level, take that trim at the open.",
+   "unit": "F10.05",
+   "why": "Sell it at the open. The stock opened above the trim level, so the trim is taken at the open. The stop on the rest goes to breakeven.",
+   "wrong": {
+    "Hold all of it, it's running": "The plan sells a third at 3R. The stock gapping past that level doesn't cancel the trim.",
+    "Sell everything at the open": "That's the whole position for a one-third rule. Two thirds stay on: one for 5R, one for the trail.",
+    "Wait for a pullback to $23": "The level is already behind you. A pullback may never come, and the rule says take it at the open."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "orders.scaling",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F10/F10.05.json#q32",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Sell it, the time stop hit"
+  },
+  "difficulty": 3,
+  "id": "si_8d25b67457b2",
+  "lesson_origin": "session",
+  "lesson_text": "Sell it. Under 1R after 10 trading days is our time stop. The money goes back to work on a setup that is moving. Under 1R after 10 trading days: sell. Dead money has a cost.",
+  "module": "F10",
+  "prompt_json": {
+   "choices": [
+    "Sell it, the time stop hit",
+    "Hold until the stop or 3R",
+    "Add shares to wake it up",
+    "Widen the stop and wait"
+   ],
+   "kind": "mcq",
+   "q": "What does our rule say?",
+   "story": "You bought a setup 10 trading days ago. It never hit the stop, but it's only up about half an R and going nowhere.",
+   "subject": "F10.05#q33"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Time stop: a trade still under 1R after 10 trading days is sold, freeing the money.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The full size at one price with one stop; no adding.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "Our time stop: a trade still under 1R after 10 trading days is sold. Our rule: the whole position goes on at one price with one stop, and we never add to it."
+   },
+   "facts": {
+    "given": "What does our rule say? You bought a setup 10 trading days ago. It never hit the stop, but it's only up about half an R and going nowhere. Sell it, the time stop hit Hold until the stop or 3R Add shares to wake it up Widen the stop and wait"
+   },
+   "lesson_line": "Under 1R after 10 trading days: sell. Dead money has a cost.",
+   "unit": "F10.05",
+   "why": "Sell it. Under 1R after 10 trading days is our time stop. The money goes back to work on a setup that is moving.",
+   "wrong": {
+    "Add shares to wake it up": "We never add to a position, and more shares don't make a stock move.",
+    "Hold until the stop or 3R": "That's the plan for a trade that moves. After 10 trading days under 1R, the time stop ends it.",
+    "Widen the stop and wait": "The stop never moves down or wider. And waiting is the problem, not the fix."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "orders.scaling",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F10/F10.05.json#q33",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "True"
+  },
+  "difficulty": 3,
+  "id": "si_1a987970923d",
+  "lesson_origin": "session",
+  "lesson_text": "True. The first 30 minutes of the gap-down day decide. The first 30-minute low is the new stop, and if the loss is already past 2R, you get out. Gap through the stop: the first 30-minute low is the new stop. Past 2R, you're out.",
+  "module": "F10",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "A stock gaps down through your stop at the open. Our rule: the low of the first 30-minute bar becomes the new stop.",
+   "subject": "F10.05#q34"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "A gap against the stop: the first 30 minutes of the gap-down day decide. The low of the first 30-minute bar is the new stop.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "With a ceiling: if the first 30 minutes take the loss past 2R, get out.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20).",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "When a stock gaps down through our stop, the low of the first 30-minute bar becomes the new stop. If the first 30 minutes of the gap day already put the loss past 2R, we get out. Our stop only moves up, never down or wider; the gap rule is the one exception."
+   },
+   "facts": {
+    "given": "A stock gaps down through your stop at the open. Our rule: the low of the first 30-minute bar becomes the new stop."
+   },
+   "lesson_line": "Gap through the stop: the first 30-minute low is the new stop. Past 2R, you're out.",
+   "unit": "F10.05",
+   "why": "True. The first 30 minutes of the gap-down day decide. The first 30-minute low is the new stop, and if the loss is already past 2R, you get out."
+  },
+  "review_status": "draft",
+  "skill_id": "orders.scaling",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F10/F10.05.json#q34",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "False"
+  },
+  "difficulty": 1,
+  "id": "si_754eabcde46a",
+  "lesson_origin": "session",
+  "lesson_text": "False. Our entries are market orders. The trigger fires, the order goes in at market, and the stop order sits with the broker. Entries at market. The stop is the order that waits.",
+  "module": "F10",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "We enter with a limit order a few cents under the trigger, to get a better price.",
+   "subject": "F10.05#q35"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Entries are market orders.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Every position has a real stop order with the broker, not a stop kept in your head.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "Our entries are market orders. Every position carries a real stop order with the broker."
+   },
+   "facts": {
+    "given": "We enter with a limit order a few cents under the trigger, to get a better price."
+   },
+   "lesson_line": "Entries at market. The stop is the order that waits.",
+   "unit": "F10.05",
+   "why": "False. Our entries are market orders. The trigger fires, the order goes in at market, and the stop order sits with the broker."
+  },
+  "review_status": "draft",
+  "skill_id": "orders.scaling",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F10/F10.05.json#q35",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Add nothing, manage the trade"
+  },
+  "difficulty": 3,
+  "id": "si_14443063bb41",
+  "lesson_origin": "session",
+  "lesson_text": "Add nothing. The whole size went on at $30 with one stop, and we don't add. Manage the trade: the first third comes off at 3R, where the stop goes to breakeven. Full size at one price. An add is not our trade.",
+  "module": "F10",
+  "prompt_json": {
+   "choices": [
+    "Add nothing, manage the trade",
+    "Add half, it's proving you right",
+    "Add half, raise the stop on all",
+    "Sell it all and rebuy bigger"
+   ],
+   "kind": "mcq",
+   "q": "What do you do?",
+   "story": "You bought your full size at $30, stop $28.50. It's at $33 and a friend says add half again, it's working.",
+   "subject": "F10.05#q36"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The full size at one price with one stop; no adding.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The house sizing rule, section 5: Portfolio layer (the owner quoted, 2026-11-09)",
+      "quote": "I do not scale into trade i buy full at one spot with one stop.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#5-portfolio-layer"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Move the stop to breakeven at 2R to 5R, ideally.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
@@ -9338,15 +9349,116 @@
       "tier": 2,
       "url": "https://www.investopedia.com/terms/a/averageup.asp"
      }
-    ]
+    ],
+    "summary": "Our rule: the whole position goes on at one price with one stop, and we never add to it. The owner's words: he does not scale in; the full size goes on at one spot with one stop. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. Our stop moves up to breakeven once the trade is 2R to 5R ahead; we teach it at the first trim. Adding to a winner raises what you lose if the stock then turns down hard."
    },
-   "unit": "F10.05"
+   "facts": {
+    "given": "What do you do? You bought your full size at $30, stop $28.50. It's at $33 and a friend says add half again, it's working. Add nothing, manage the trade Add half, it's proving you right Add half, raise the stop on all Sell it all and rebuy bigger"
+   },
+   "lesson_line": "Full size at one price. An add is not our trade.",
+   "unit": "F10.05",
+   "why": "Add nothing. The whole size went on at $30 with one stop, and we don't add. Manage the trade: the first third comes off at 3R, where the stop goes to breakeven.",
+   "wrong": {
+    "Add half, it's proving you right": "Averaging up is a real method and other traders use it. It isn't ours: the full size went on at one price, with one stop.",
+    "Add half, raise the stop on all": "Raising the stop is fine on its own. Adding isn't, and more shares bought higher raise what a reversal costs.",
+    "Sell it all and rebuy bigger": "That's an add with extra steps. Our size was set from the stop at the entry."
+   }
   },
   "review_status": "draft",
   "skill_id": "orders.scaling",
   "source_kind": "course",
-  "source_ref": "docs/study/courses/F10/F10.05.json#w2",
-  "type": "walkthrough",
+  "source_ref": "docs/study/courses/F10/F10.05.json#q36",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "100 at $46, 100 at $50, trail 100"
+  },
+  "difficulty": 3,
+  "id": "si_806faab27241",
+  "lesson_origin": "session",
+  "lesson_text": "100 at $46, 100 at $50, trail 100. $46 is 3R: a third off and the stop to breakeven. $50 is 5R: another third. The last 100 ride the 10-day and sell on a close below it. Entry, stop, a third at 3R, a third at 5R, trail the rest. That's the whole ladder.",
+  "module": "F10",
+  "prompt_json": {
+   "choices": [
+    "100 at $46, 100 at $50, trail 100",
+    "All 300 at $46",
+    "150 at $46, 150 at $50",
+    "Trail all 300 from the start"
+   ],
+   "kind": "mcq",
+   "q": "In order, what does our plan do?",
+   "story": "You bought 300 shares at $40, stop $38, in one order. It runs: $46, then $50, then on for weeks above its rising 10-day average.",
+   "subject": "F10.05#q37"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Move the stop to breakeven at 2R to 5R, ideally.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The full size at one price with one stop; no adding.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. Our stop moves up to breakeven once the trade is 2R to 5R ahead; we teach it at the first trim. After the first third at 3R, we sell another third at 5R and trail the last third. Our trail is the 10-day average for fast movers or the 21-day for steadier ones; a close below it sells the last third. Our rule: the whole position goes on at one price with one stop, and we never add to it."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "entry": 40,
+      "expr": "entry + 3 * (entry - stop)",
+      "stop": 38
+     },
+     "fn": "arith",
+     "result": 46.0
+    },
+    "given": "In order, what does our plan do? You bought 300 shares at $40, stop $38, in one order. It runs: $46, then $50, then on for weeks above its rising 10-day average. 100 at $46, 100 at $50, trail 100 All 300 at $46 150 at $46, 150 at $50 Trail all 300 from the start"
+   },
+   "lesson_line": "Entry, stop, a third at 3R, a third at 5R, trail the rest. That's the whole ladder.",
+   "unit": "F10.05",
+   "why": "100 at $46, 100 at $50, trail 100. $46 is 3R: a third off and the stop to breakeven. $50 is 5R: another third. The last 100 ride the 10-day and sell on a close below it.",
+   "wrong": {
+    "150 at $46, 150 at $50": "Halves leave nothing to trail. The rule is thirds, and the last third rides the average.",
+    "All 300 at $46": "3R is a trim, not the exit. Two thirds stay on for 5R and the trail.",
+    "Trail all 300 from the start": "That banks nothing into strength. We take a third at 3R and a third at 5R, then trail what's left."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "orders.scaling",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F10/F10.05.json#q37",
+  "type": "scenario",
   "version": 1
  },
  {
@@ -9361,11 +9473,11 @@
   "prompt_json": {
    "order": 3,
    "part": 3,
-   "parts": 3,
+   "parts": 4,
    "q": "Scaling out, and what it costs",
    "steps": [
     "Scaling out means selling part of a winner and letting the rest ride.",
-    "Our rule: sell partials into strength and trail the rest under the rising moving averages.",
+    "Our ladder: a third at 3R, stop to breakeven; a third at 5R; the last third trails a rising average.",
     "It isn't free. In Bulkowski's tests, scaling out made less when the stock ran all the way.",
     "It pays when the stock comes back before your target. You're trading some upside for a gain in hand."
    ],
@@ -9397,6 +9509,34 @@
      },
      {
       "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Move the stop to breakeven at 2R to 5R, ideally.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
       "name": "Thomas Bulkowski, ThePatternSite.com: Scaling Out",
       "quote": "If you want to make less profit, then scale out of a trade.",
       "tier": 2,
@@ -9424,6 +9564,76 @@
   "skill_id": "orders.scaling",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F10/F10.05.json#w3",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_ae10ac21f49f",
+  "lesson_origin": "session",
+  "lesson_text": "What we scale is the exit: a third off at 3R, a third at 5R, the last third on a trail.",
+  "module": "F10",
+  "prompt_json": {
+   "order": 4,
+   "part": 4,
+   "parts": 4,
+   "q": "One price, one stop",
+   "steps": [
+    "We buy the full size at one price, with one stop. No starter piece, no adding as it works.",
+    "The size is set before the buy, from the stop, and goes in as one market order.",
+    "What we scale is the exit: a third off at 3R, a third at 5R, the last third on a trail."
+   ],
+   "subject": "F10.05#w4"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The full size at one price with one stop; no adding.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The house sizing rule, section 5: Portfolio layer (the owner quoted, 2026-11-09)",
+      "quote": "I do not scale into trade i buy full at one spot with one stop.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#5-portfolio-layer"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Entries are market orders.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ]
+   },
+   "unit": "F10.05"
+  },
+  "review_status": "draft",
+  "skill_id": "orders.scaling",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F10/F10.05.json#w4",
   "type": "walkthrough",
   "version": 1
  }

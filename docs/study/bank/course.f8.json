@@ -4046,7 +4046,7 @@
   "difficulty": 2,
   "id": "si_bb496e383931",
   "lesson_origin": "session",
-  "lesson_text": "Cutting a winner early. It was nowhere near your $38 stop or your $44 target. Fear of giving back the gain made the call. Stay in until price gives you a reason to get out, not your nerves.",
+  "lesson_text": "Cutting a winner early. It was nowhere near your $38 stop or your $46 trim. Fear of giving back the gain made the call. Stay in until price gives you a reason to get out, not your nerves.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -4057,7 +4057,7 @@
    ],
    "kind": "mcq",
    "q": "What was that sale?",
-   "story": "You bought at $40. Stop $38, first target $44. It runs to $41.20, then dips to $40.80. You sell it all to lock in the gain.",
+   "story": "You bought at $40. Stop $38, first trim $46. It runs to $41.20, then dips to $40.80. You sell it all to lock in the gain.",
    "subject": "F8.03#q10"
   },
   "reveal_json": {
@@ -4088,11 +4088,11 @@
     "summary": "Fear of loss leads investors to hold losers too long and sell winners too quickly. People tend to grab quick profits and sell a stock as soon as it shows a gain. Stay in the trade until price action gives you a reason to exit."
    },
    "facts": {
-    "given": "What was that sale? You bought at $40. Stop $38, first target $44. It runs to $41.20, then dips to $40.80. You sell it all to lock in the gain. Cutting a winner early Freezing at the trigger A planned partial sale Respecting your stop"
+    "given": "What was that sale? You bought at $40. Stop $38, first trim $46. It runs to $41.20, then dips to $40.80. You sell it all to lock in the gain. Cutting a winner early Freezing at the trigger A planned partial sale Respecting your stop"
    },
    "lesson_line": "Stay in until price gives you a reason to get out, not your nerves.",
    "unit": "F8.03",
-   "why": "Cutting a winner early. It was nowhere near your $38 stop or your $44 target. Fear of giving back the gain made the call.",
+   "why": "Cutting a winner early. It was nowhere near your $38 stop or your $46 trim. Fear of giving back the gain made the call.",
    "wrong": {
     "A planned partial sale": "A partial is a piece sold into strength at a level you set. This was all of it, on a dip.",
     "Freezing at the trigger": "Freezing happens before you're in. You were already in the trade.",
@@ -4609,7 +4609,7 @@
   "difficulty": 3,
   "id": "si_7a715244d663",
   "lesson_origin": "session",
-  "lesson_text": "Sell a partial, trail the rest. Our rule: hold winners by selling partials into strength and trailing the rising moving averages. 2R is where our plans take some off. Pay yourself into strength, then let the trail decide when the rest is done.",
+  "lesson_text": "Sell a partial, trail the rest. Our rule: hold winners by selling partials into strength and trailing the rising moving averages. 3R is where a third comes off. Pay yourself into strength, then let the trail decide when the rest is done.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -4620,7 +4620,7 @@
    ],
    "kind": "mcq",
    "q": "What does our rule say?",
-   "story": "Your swing trade just reached 2R, your plan's first target. It's still above its rising moving averages. You want to sell it all.",
+   "story": "Your swing trade just reached 3R, your plan's first trim. It's still above its rising moving averages. You want to sell it all.",
    "subject": "F8.03#q19"
   },
   "reveal_json": {
@@ -4635,10 +4635,10 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: The trade plan for every setup (the targets the app's own detectors compute)",
-      "quote": "Trim is where to take some off: the detectors put the targets at 2R and 3R.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
@@ -4662,16 +4662,16 @@
       "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-stop-stop-limit-trailing-stop"
      }
     ],
-    "summary": "Our rule: hold winners by selling partials into strength and trailing the rising moving averages. Our trade plans take some off at the 2R and 3R targets. Selling too soon can hurt returns almost as much as losing trades; take some gains, then trail a stop. In Hirsch's view, selling half on a double is one of the simplest ways to lock in profits and still let the winner ride. A trailing stop moves up behind the price as the trade goes your way."
+    "summary": "Our rule: hold winners by selling partials into strength and trailing the rising moving averages. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. Selling too soon can hurt returns almost as much as losing trades; take some gains, then trail a stop. In Hirsch's view, selling half on a double is one of the simplest ways to lock in profits and still let the winner ride. A trailing stop moves up behind the price as the trade goes your way."
    },
    "facts": {
-    "given": "What does our rule say? Your swing trade just reached 2R, your plan's first target. It's still above its rising moving averages. You want to sell it all. Sell a partial, trail the rest Sell it all, a profit is a profit Hold it all, skip the target Sell it all, buy back on a dip"
+    "given": "What does our rule say? Your swing trade just reached 3R, your plan's first trim. It's still above its rising moving averages. You want to sell it all. Sell a partial, trail the rest Sell it all, a profit is a profit Hold it all, skip the target Sell it all, buy back on a dip"
    },
    "lesson_line": "Pay yourself into strength, then let the trail decide when the rest is done.",
    "unit": "F8.03",
-   "why": "Sell a partial, trail the rest. Our rule: hold winners by selling partials into strength and trailing the rising moving averages. 2R is where our plans take some off.",
+   "why": "Sell a partial, trail the rest. Our rule: hold winners by selling partials into strength and trailing the rising moving averages. 3R is where a third comes off.",
    "wrong": {
-    "Hold it all, skip the target": "Our plans take some off at the target. Skipping it leaves the whole gain riding on one exit.",
+    "Hold it all, skip the target": "Our plan takes a third off at 3R. Skipping it leaves the whole gain riding on one exit.",
     "Sell it all, a profit is a profit": "That cuts the winner. Selling too soon can hurt almost as much as a losing trade.",
     "Sell it all, buy back on a dip": "That's timing a dip you can't know is coming. A trailing stop handles the exit for you."
    }

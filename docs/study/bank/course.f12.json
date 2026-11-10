@@ -349,7 +349,7 @@
   "difficulty": 1,
   "id": "si_8750f2217c23",
   "lesson_origin": "session",
-  "lesson_text": "Where to take some profit off. In our plans the targets sit at 2R and 3R, and Trim is where you take some off. Entry, Stop, Trim, Trail. Trim is where you sell some into strength.",
+  "lesson_text": "Where to take some profit off. In our plan a third comes off at 3R and another third at 5R. Trim is where you take some off. Entry, Stop, Trim, Trail. Trim is where you sell some into strength.",
   "module": "F12",
   "prompt_json": {
    "choices": [
@@ -374,10 +374,17 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the Entry, Stop, Trim and Trail columns the app's detectors compute)",
-      "quote": "Trim is where to take some off: the detectors put the targets at 2R and 3R.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
@@ -394,14 +401,14 @@
       "url": "https://www.investopedia.com/articles/trading/04/042104.asp"
      }
     ],
-    "summary": "We lay out each trade we teach as Entry, Stop, Trim, Trail and the advance. In our plans, Trim is where you take some off, at the 2R and 3R targets. One of our Trail lines (the Kicker's): the stop goes under each higher low, or under the 10-day average. The plan covers managing the open trade: moving the stop, taking partial profits, getting out."
+    "summary": "We lay out each trade we teach as Entry, Stop, Trim, Trail and the advance. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. After the first third at 3R, we sell another third at 5R and trail the last third. One of our Trail lines (the Kicker's): the stop goes under each higher low, or under the 10-day average. The plan covers managing the open trade: moving the stop, taking partial profits, getting out."
    },
    "facts": {
     "given": "Our trade plans list Entry, Stop, Trim and Trail. What does the Trim line tell you? Where to take some profit off Where you get out if you're wrong How the stop follows it higher How many shares to buy"
    },
    "lesson_line": "Entry, Stop, Trim, Trail. Trim is where you sell some into strength.",
    "unit": "F12.01",
-   "why": "Where to take some profit off. In our plans the targets sit at 2R and 3R, and Trim is where you take some off.",
+   "why": "Where to take some profit off. In our plan a third comes off at 3R and another third at 5R. Trim is where you take some off.",
    "wrong": {
     "How many shares to buy": "That's your size, worked out from the stop. Trim is about selling some, not buying.",
     "How the stop follows it higher": "That's the Trail line, like moving the stop up under each higher low.",
@@ -1499,10 +1506,10 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the Entry, Stop, Trim and Trail columns the app's detectors compute)",
-      "quote": "Trim is where to take some off: the detectors put the targets at 2R and 3R.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
@@ -1510,6 +1517,13 @@
       "quote": "under each higher low, or under the 10-day average",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ]
    },
@@ -9613,21 +9627,21 @@
  {
   "answer_json": {
    "accept": [
-    "21.4",
-    "21.40",
-    "21.400"
+    "22.1",
+    "22.10",
+    "22.100"
    ],
-   "answer": 21.4
+   "answer": 22.1
   },
   "difficulty": 2,
   "id": "si_4273ac05d702",
   "lesson_origin": "session",
-  "lesson_text": "$21.40. Our targets sit at 2R and 3R from the stop: twice the entry-to-stop risk, added to the $20.00 entry. Write the trim prices on the page in dollars, not just as 2R and 3R.",
+  "lesson_text": "$22.10. Three times the entry-to-stop risk, added to the $20.00 entry. A third of the position comes off there. Write the trim prices on the page in dollars, not just as 3R and 5R.",
   "module": "F12",
   "prompt_json": {
    "kind": "fill_numeric",
    "prefix": "$",
-   "q": "Your Kicker page: entry $20.00, stop $19.30. Our first trim is at 2R. At what price is it?",
+   "q": "Your Kicker page: entry $20.00, stop $19.30. Our first trim is a third at 3R. At what price is it?",
    "subject": "F12.06#q11"
   },
   "reveal_json": {
@@ -9635,36 +9649,36 @@
     "sources": [
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the app's detectors; the owner's Kicker rulings)",
-      "quote": "puts the targets at 2R and 3R from that stop.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the app's detectors; the owner's Kicker rulings)",
-      "quote": "Trim is where to take some off: the detectors put the targets at 2R and 3R.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Our setups put the targets at 2R and 3R from the stop. Our trims are where you take some off: 2R, then 3R."
+    "summary": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. After the first third at 3R, we sell another third at 5R and trail the last third."
    },
    "facts": {
     "calc": {
      "args": {
       "entry": 20,
-      "expr": "entry + 2 * (entry - stop)",
+      "expr": "entry + 3 * (entry - stop)",
       "stop": 19.3
      },
      "fn": "arith",
-     "result": 21.4
+     "result": 22.1
     },
-    "given": "Your Kicker page: entry $20.00, stop $19.30. Our first trim is at 2R. At what price is it?"
+    "given": "Your Kicker page: entry $20.00, stop $19.30. Our first trim is a third at 3R. At what price is it?"
    },
-   "lesson_line": "Write the trim prices on the page in dollars, not just as 2R and 3R.",
+   "lesson_line": "Write the trim prices on the page in dollars, not just as 3R and 5R.",
    "unit": "F12.06",
-   "why": "$21.40. Our targets sit at 2R and 3R from the stop: twice the entry-to-stop risk, added to the $20.00 entry."
+   "why": "$22.10. Three times the entry-to-stop risk, added to the $20.00 entry. A third of the position comes off there."
   },
   "review_status": "draft",
   "skill_id": "process.playbook",
@@ -10383,7 +10397,7 @@
   "difficulty": 1,
   "id": "si_28ce7d692d89",
   "lesson_origin": "session",
-  "lesson_text": "Trims at 2R and 3R. Trail under each higher low or the 10-day average. Now the page tells you what to do.",
+  "lesson_text": "Trims: a third at 3R, a third at 5R. Trail under each higher low or the 10-day average. That's the page.",
   "module": "F12",
   "prompt_json": {
    "order": 3,
@@ -10392,8 +10406,8 @@
    "q": "Make it yours: our Kicker page",
    "steps": [
     "Bellafiore trades intraday and says you may trade a different time frame. Build the page in a format that works for you.",
-    "Kicker entry: a cent over the red day's high. Stop: under the Kicker candle's low, or 3.5% under entry if closer.",
-    "Trims at 2R and 3R. Trail under each higher low or the 10-day average. Now the page tells you what to do."
+    "Kicker entry: over the red day's high, at market. Stop: under the Kicker candle's low, or 3.5% under entry if closer.",
+    "Trims: a third at 3R, a third at 5R. Trail under each higher low or the 10-day average. That's the page."
    ],
    "subject": "F12.06#w3"
   },
@@ -10424,7 +10438,7 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the app's detectors; the owner's Kicker rulings)",
-      "quote": "a cent over the red day's high, on the Kicker day",
+      "quote": "over the red day's high, on the Kicker day, at market as it trades through",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -10437,10 +10451,10 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the app's detectors; the owner's Kicker rulings)",
-      "quote": "puts the targets at 2R and 3R from that stop.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
@@ -10448,6 +10462,13 @@
       "quote": "under each higher low, or under the 10-day average",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ]
    },
@@ -10629,7 +10650,7 @@
   "difficulty": 1,
   "id": "si_08b54fefdc0c",
   "lesson_origin": "session",
-  "lesson_text": "Line 2. That's averaging down: adding to a trade that's going against you. It doubled the shares riding down to the stop. Never add to a loser. Add only to a trade that's working.",
+  "lesson_text": "Line 2. That's averaging down: adding to a trade that's going against you. It doubled the shares riding down to the stop. Never add to a losing trade.",
   "module": "F12",
   "prompt_json": {
    "choices": [
@@ -10687,7 +10708,7 @@
    "facts": {
     "given": "Which line breaks the plan? 1. Bought 300 shares at $40, stop at $38, under the base. 2. Next day it slipped to $39, so I bought 300 more to lower my cost. 3. It traded down to $38 and my stop sold it all. 4. Logged the trade that night with a chart. Line 1 Line 2 Line 3 Line 4"
    },
-   "lesson_line": "Never add to a loser. Add only to a trade that's working.",
+   "lesson_line": "Never add to a losing trade.",
    "unit": "F12.07",
    "why": "Line 2. That's averaging down: adding to a trade that's going against you. It doubled the shares riding down to the stop.",
    "wrong": {
@@ -10721,7 +10742,7 @@
    ],
    "kind": "mcq",
    "q": "Which line breaks the plan?",
-   "story": "1. Size: 1,000 shares, then I'll find a stop that fits. 2. Setup: pullback to the rising 21-day average. 3. Entry: over the prior day's high. 4. Target: take some off at 2R.",
+   "story": "1. Size: 1,000 shares, then I'll find a stop that fits. 2. Setup: pullback to the rising 21-day average. 3. Entry: over the prior day's high. 4. Trim: a third off at 3R.",
    "subject": "F12.07#q04"
   },
   "reveal_json": {
@@ -10750,10 +10771,10 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: The trade plan for every setup (targets at 2R and 3R, the trails)",
-      "quote": "Trim is where to take some off: the detectors put the targets at 2R and 3R.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
@@ -10763,10 +10784,10 @@
       "url": "https://www.fidelity.com/learning-center/trading-investing/trading/exit-strategies"
      }
     ],
-    "summary": "Choosing a size before measuring entry to stop is the mistake StockCharts calls the biggest; it risks losing big or winning too small. In a plan, the size is the one number you calculate, from the entry-to-stop distance and your risk limit. The stop goes where the trade idea is proven wrong. Our setups' targets, where you take some off, are 2R and 3R. A profit target of 2 or 3 times the risk is one example of an exit rule."
+    "summary": "Choosing a size before measuring entry to stop is the mistake StockCharts calls the biggest; it risks losing big or winning too small. In a plan, the size is the one number you calculate, from the entry-to-stop distance and your risk limit. The stop goes where the trade idea is proven wrong. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. A profit target of 2 or 3 times the risk is one example of an exit rule."
    },
    "facts": {
-    "given": "Which line breaks the plan? 1. Size: 1,000 shares, then I'll find a stop that fits. 2. Setup: pullback to the rising 21-day average. 3. Entry: over the prior day's high. 4. Target: take some off at 2R. Line 1 Line 2 Line 3 Line 4"
+    "given": "Which line breaks the plan? 1. Size: 1,000 shares, then I'll find a stop that fits. 2. Setup: pullback to the rising 21-day average. 3. Entry: over the prior day's high. 4. Trim: a third off at 3R. Line 1 Line 2 Line 3 Line 4"
    },
    "lesson_line": "Pick the stop from the chart. Let the math pick the shares.",
    "unit": "F12.07",
@@ -10774,7 +10795,7 @@
    "wrong": {
     "Line 2": "Line 2 is fine. A pullback to a rising average is a plain setup you can plan.",
     "Line 3": "Line 3 is fine. Over the prior day's high is a clear entry trigger.",
-    "Line 4": "Line 4 is fine. 2R is the first of the two targets our setups use."
+    "Line 4": "Line 4 is fine. A third at 3R is our first trim."
    }
   },
   "review_status": "draft",
@@ -11337,7 +11358,7 @@
    ],
    "kind": "mcq",
    "q": "Which line breaks the plan?",
-   "story": "1. Bought at $25.40 with the stop at $24.60, the day's low. 2. By noon it traded at $24.80, close to my stop. 3. Moved the stop down to $23.90 to give it more room. 4. Set an alert at 2R to take some off.",
+   "story": "1. Bought at $25.40 with the stop at $24.60, the day's low. 2. By noon it traded at $24.80, close to my stop. 3. Moved the stop down to $23.90 to give it more room. 4. Set an alert at 3R to sell a third.",
    "subject": "F12.07#q12"
   },
   "reveal_json": {
@@ -11380,16 +11401,16 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: The trade plan for every setup (targets at 2R and 3R, the trails)",
-      "quote": "Trim is where to take some off: the detectors put the targets at 2R and 3R.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Moving the goal posts on a loser is a named mistake; take the small loss instead of digging in. Don't change the plan as a knee-jerk reaction when the price drops. Pulling a stop is usually a way to avoid admitting you were wrong, and the stock can keep falling. A plan should not change every time a trade goes against you. Our default stop is the low of the day or the prior day's low. Our setups' targets, where you take some off, are 2R and 3R."
+    "summary": "Moving the goal posts on a loser is a named mistake; take the small loss instead of digging in. Don't change the plan as a knee-jerk reaction when the price drops. Pulling a stop is usually a way to avoid admitting you were wrong, and the stock can keep falling. A plan should not change every time a trade goes against you. Our default stop is the low of the day or the prior day's low. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R."
    },
    "facts": {
-    "given": "Which line breaks the plan? 1. Bought at $25.40 with the stop at $24.60, the day's low. 2. By noon it traded at $24.80, close to my stop. 3. Moved the stop down to $23.90 to give it more room. 4. Set an alert at 2R to take some off. Line 1 Line 2 Line 3 Line 4"
+    "given": "Which line breaks the plan? 1. Bought at $25.40 with the stop at $24.60, the day's low. 2. By noon it traded at $24.80, close to my stop. 3. Moved the stop down to $23.90 to give it more room. 4. Set an alert at 3R to sell a third. Line 1 Line 2 Line 3 Line 4"
    },
    "lesson_line": "A stop can move up behind a winner. It never moves down to rescue a loser.",
    "unit": "F12.07",
@@ -11397,7 +11418,7 @@
    "wrong": {
     "Line 1": "Line 1 is fine. The day's low is our default stop.",
     "Line 2": "Line 2 is fine. That's only where the price is. The stop hasn't been hit, so nothing changes.",
-    "Line 4": "Line 4 is fine. 2R is the first of our two targets."
+    "Line 4": "Line 4 is fine. A third at 3R is our first trim."
    }
   },
   "review_status": "draft",
@@ -11584,7 +11605,7 @@
    ],
    "kind": "mcq",
    "q": "Which line breaks the plan?",
-   "story": "1. Setup: tight flag, entry over $48.50, the flag's high. 2. Size: as many shares as my cash buys. 3. Stop: $46.90, under the flag's low. 4. Target: take some off at 2R.",
+   "story": "1. Setup: tight flag, entry over $48.50, the flag's high. 2. Size: as many shares as my cash buys. 3. Stop: $46.90, under the flag's low. 4. Trim: a third off at 3R.",
    "subject": "F12.07#q15"
   },
   "reveal_json": {
@@ -11627,16 +11648,16 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: The trade plan for every setup (targets at 2R and 3R, the trails)",
-      "quote": "Trim is where to take some off: the detectors put the targets at 2R and 3R.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Position size is the dollars you will risk divided by the risk per share. Choosing a size before measuring entry to stop is the mistake StockCharts calls the biggest; it risks losing big or winning too small. A common guide: risk up to 1% to 2% of the account per trade, and hold up to 5% to 10% in one position. No single position should be big enough to decide the whole account's future. The stop goes where the trade idea is proven wrong. Our setups' targets, where you take some off, are 2R and 3R."
+    "summary": "Position size is the dollars you will risk divided by the risk per share. Choosing a size before measuring entry to stop is the mistake StockCharts calls the biggest; it risks losing big or winning too small. A common guide: risk up to 1% to 2% of the account per trade, and hold up to 5% to 10% in one position. No single position should be big enough to decide the whole account's future. The stop goes where the trade idea is proven wrong. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R."
    },
    "facts": {
-    "given": "Which line breaks the plan? 1. Setup: tight flag, entry over $48.50, the flag's high. 2. Size: as many shares as my cash buys. 3. Stop: $46.90, under the flag's low. 4. Target: take some off at 2R. Line 1 Line 2 Line 3 Line 4"
+    "given": "Which line breaks the plan? 1. Setup: tight flag, entry over $48.50, the flag's high. 2. Size: as many shares as my cash buys. 3. Stop: $46.90, under the flag's low. 4. Trim: a third off at 3R. Line 1 Line 2 Line 3 Line 4"
    },
    "lesson_line": "What you can afford is not the test. Your risk and the stop set the size.",
    "unit": "F12.07",
@@ -11644,7 +11665,7 @@
    "wrong": {
     "Line 1": "Line 1 is fine. A named setup with a clear entry.",
     "Line 3": "Line 3 is fine. Under the flag's low is where the idea fails.",
-    "Line 4": "Line 4 is fine. 2R is the first of our two targets."
+    "Line 4": "Line 4 is fine. A third at 3R is our first trim."
    }
   },
   "review_status": "draft",
@@ -11661,7 +11682,7 @@
   "difficulty": 2,
   "id": "si_5ed99fb5936b",
   "lesson_origin": "session",
-  "lesson_text": "Line 3. Buying more as it slips toward the stop is averaging down. You add only when the trade is working, like Line 4. Each new buy should be higher than the last.",
+  "lesson_text": "Line 3. Buying more as it slips toward the stop is averaging down. Our size goes on at one price with one stop; we never add, least of all to a loser. Never add to a losing trade. Our size is on at one price.",
   "module": "F12",
   "prompt_json": {
    "choices": [
@@ -11672,7 +11693,7 @@
    ],
    "kind": "mcq",
    "q": "Which line breaks the plan?",
-   "story": "1. Setup: breakout from a flat base, entry over $50, the base's high. 2. Stop: $47.50, under the base's last low. 3. Add: if it slips to $48.50, buy more to lower my cost. 4. Add: if it works, add once on a pullback that holds over $50.",
+   "story": "1. Setup: breakout from a flat base, entry over $50, the base's high. 2. Stop: $47.50, under the base's last low. 3. Add: if it slips to $48.50, buy more to lower my cost. 4. Trim: a third off at 3R, the stop to breakeven.",
    "subject": "F12.07#q16"
   },
   "reveal_json": {
@@ -11687,13 +11708,6 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "StockCharts.com: ChartSchool: Richard Rhodes' Trading Rules",
-      "quote": "If you are buying, then each new buy price must be higher than the previous buy price.",
-      "tier": 2,
-      "url": "https://chartschool.stockcharts.com/table-of-contents/overview/richard-rhodes-trading-rules"
-     },
-     {
-      "accessed": "2026-11-09",
       "name": "AAII Journal (American Association of Individual Investors): Sell Rules to Build Your Stock Investing Performance (William J. O'Neil, September 1999)",
       "quote": "The only averaging that makes sense is “averaging up” in your purchasing.",
       "tier": 2,
@@ -11701,24 +11715,10 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "Investopedia: Scale In: Overview of the Trading Strategy (Will Kenton, updated 2026-10-18)",
-      "quote": "only add to a trade when it’s winning, they are able to start off the trade by risking a little and end the trade with potential for a greater return.",
+      "name": "Investopedia: Average Down: Definition, How It Works, and Example (Gordon Scott, CMT, updated 2026-04-23)",
+      "quote": "is that the average investor has very little ability to distinguish between a temporary drop in price and a warning signal that prices are about to go much lower.",
       "tier": 2,
-      "url": "https://www.investopedia.com/terms/s/scale-in.asp"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com: ChartSchool: Richard Rhodes' Trading Rules",
-      "quote": "In bull markets, add to the trade on minor corrections back into support levels.",
-      "tier": 2,
-      "url": "https://chartschool.stockcharts.com/table-of-contents/overview/richard-rhodes-trading-rules"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com: StockCharts Insider: Why Position Sizing Sometimes Matters More Than Stock Picking (Karl Montevirgen, 2026-05-29)",
-      "quote": "Determine where your trade thesis fails (this is where you place your stop-loss)",
-      "tier": 2,
-      "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/"
+      "url": "https://www.investopedia.com/terms/a/averagedown.asp"
      },
      {
       "accessed": "2026-11-09",
@@ -11729,24 +11729,45 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "Investopedia: Average Down: Definition, How It Works, and Example (Gordon Scott, CMT, updated 2026-04-23)",
-      "quote": "is that the average investor has very little ability to distinguish between a temporary drop in price and a warning signal that prices are about to go much lower.",
+      "name": "StockCharts.com: StockCharts Insider: Why Position Sizing Sometimes Matters More Than Stock Picking (Karl Montevirgen, 2026-05-29)",
+      "quote": "Determine where your trade thesis fails (this is where you place your stop-loss)",
       "tier": 2,
-      "url": "https://www.investopedia.com/terms/a/averagedown.asp"
+      "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The full size at one price with one stop; no adding.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Move the stop to breakeven at 2R to 5R, ideally.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Never add to a losing trade. When you add, each new buy should be higher than the last. O'Neil: only average up, adding as the stock goes your way. Start small and add only once the trade is winning. Add to a working trade on small pullbacks into support. The stop goes where the trade idea is proven wrong. Buying more of a losing position to get even is an emotional trading mistake. The problem with averaging down: a dip and the start of a much bigger fall look the same at the time."
+    "summary": "Never add to a losing trade. O'Neil: only average up, adding as the stock goes your way. The problem with averaging down: a dip and the start of a much bigger fall look the same at the time. Buying more of a losing position to get even is an emotional trading mistake. The stop goes where the trade idea is proven wrong. Our rule: the whole position goes on at one price with one stop, and we never add to it. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. Our stop moves up to breakeven once the trade is 2R to 5R ahead; we teach it at the first trim."
    },
    "facts": {
-    "given": "Which line breaks the plan? 1. Setup: breakout from a flat base, entry over $50, the base's high. 2. Stop: $47.50, under the base's last low. 3. Add: if it slips to $48.50, buy more to lower my cost. 4. Add: if it works, add once on a pullback that holds over $50. Line 1 Line 2 Line 3 Line 4"
+    "given": "Which line breaks the plan? 1. Setup: breakout from a flat base, entry over $50, the base's high. 2. Stop: $47.50, under the base's last low. 3. Add: if it slips to $48.50, buy more to lower my cost. 4. Trim: a third off at 3R, the stop to breakeven. Line 1 Line 2 Line 3 Line 4"
    },
-   "lesson_line": "Each new buy should be higher than the last.",
+   "lesson_line": "Never add to a losing trade. Our size is on at one price.",
    "unit": "F12.07",
-   "why": "Line 3. Buying more as it slips toward the stop is averaging down. You add only when the trade is working, like Line 4.",
+   "why": "Line 3. Buying more as it slips toward the stop is averaging down. Our size goes on at one price with one stop; we never add, least of all to a loser.",
    "wrong": {
     "Line 1": "Line 1 is fine. A base breakout with a set entry.",
     "Line 2": "Line 2 is fine. Under the base's last low is where the idea fails.",
-    "Line 4": "Line 4 is fine. That's averaging up: adding once the trade is in profit."
+    "Line 4": "Line 4 is fine. A third at 3R with the stop to breakeven is our first trim."
    }
   },
   "review_status": "draft",
@@ -11912,7 +11933,7 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: The trade plan for every setup (targets at 2R and 3R, the trails)",
+      "name": "UCT house rule: The trade plan for every setup (the trails)",
       "quote": "under each higher low, or under the 10-day average",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
@@ -11957,7 +11978,7 @@
    ],
    "kind": "mcq",
    "q": "Which line breaks the plan?",
-   "story": "1. Bought 500 shares at $40 on the breakout. 2. My plan: risk 1% of my $50,000 account, $500 a trade. 3. My stop is $38, a $2 risk per share. 4. Set an alert at 2R to take some off.",
+   "story": "1. Bought 500 shares at $40 on the breakout. 2. My plan: risk 1% of my $50,000 account, $500 a trade. 3. My stop is $38, a $2 risk per share. 4. Set an alert at 3R to sell a third.",
    "subject": "F12.07#q19"
   },
   "reveal_json": {
@@ -11993,16 +12014,16 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: The trade plan for every setup (targets at 2R and 3R, the trails)",
-      "quote": "Trim is where to take some off: the detectors put the targets at 2R and 3R.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Position size is the dollars you will risk divided by the risk per share. Shares to buy are your risk per trade divided by your risk per share. Risk per share is the distance from your entry to your stop. Our rule: risk 0.25% to 2% of the account on a trade, never more than 2%. Our setups' targets, where you take some off, are 2R and 3R."
+    "summary": "Position size is the dollars you will risk divided by the risk per share. Shares to buy are your risk per trade divided by your risk per share. Risk per share is the distance from your entry to your stop. Our rule: risk 0.25% to 2% of the account on a trade, never more than 2%. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R."
    },
    "facts": {
-    "given": "Which line breaks the plan? 1. Bought 500 shares at $40 on the breakout. 2. My plan: risk 1% of my $50,000 account, $500 a trade. 3. My stop is $38, a $2 risk per share. 4. Set an alert at 2R to take some off. Line 1 Line 2 Line 3 Line 4"
+    "given": "Which line breaks the plan? 1. Bought 500 shares at $40 on the breakout. 2. My plan: risk 1% of my $50,000 account, $500 a trade. 3. My stop is $38, a $2 risk per share. 4. Set an alert at 3R to sell a third. Line 1 Line 2 Line 3 Line 4"
    },
    "lesson_line": "Check the shares against the stop before you buy. Risk dollars divided by risk per share.",
    "unit": "F12.07",
@@ -12010,7 +12031,7 @@
    "wrong": {
     "Line 2": "Line 2 is fine. 1% is a sound risk, inside our 0.25% to 2% range.",
     "Line 3": "Line 3 is fine. A set stop, $2 under the entry.",
-    "Line 4": "Line 4 is fine. 2R is the first of our two targets."
+    "Line 4": "Line 4 is fine. A third at 3R is our first trim."
    }
   },
   "review_status": "draft",
@@ -12104,7 +12125,7 @@
    ],
    "kind": "mcq",
    "q": "Which line breaks the plan?",
-   "story": "1. Bought at $62.30, stop at $60.90, under the prior day's low. 2. At 2R I sold some and raised the stop to breakeven. 3. It dipped to $62.50, so I moved the stop back down to $60.90 for room. 4. Planned to trail the rest under the rising 10-day average.",
+   "story": "1. Bought at $62.30, stop at $60.90, under the prior day's low. 2. At 3R I sold a third and raised the stop to breakeven. 3. It dipped to $62.50, so I moved the stop back down to $60.90 for room. 4. Planned to trail the rest under the rising 10-day average.",
    "subject": "F12.07#q21"
   },
   "reveal_json": {
@@ -12147,30 +12168,37 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: The trade plan for every setup (targets at 2R and 3R, the trails)",
-      "quote": "Trim is where to take some off: the detectors put the targets at 2R and 3R.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: The trade plan for every setup (targets at 2R and 3R, the trails)",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Move the stop to breakeven at 2R to 5R, ideally.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The trade plan for every setup (the trails)",
       "quote": "under each higher low, or under the 10-day average",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      }
     ],
-    "summary": "Moving the goal posts on a loser is a named mistake; take the small loss instead of digging in. Don't change the plan as a knee-jerk reaction when the price drops. Raising the stop to breakeven once the first target hits is a common move. Our default stop is the low of the day or the prior day's low. Our rule: hold winners by selling some into strength and trailing the rest under the rising moving averages. Our setups' targets, where you take some off, are 2R and 3R. Our trail: under each higher low, or under the 10-day average."
+    "summary": "Moving the goal posts on a loser is a named mistake; take the small loss instead of digging in. Don't change the plan as a knee-jerk reaction when the price drops. Raising the stop to breakeven once the first target hits is a common move. Our default stop is the low of the day or the prior day's low. Our rule: hold winners by selling some into strength and trailing the rest under the rising moving averages. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. Our stop moves up to breakeven once the trade is 2R to 5R ahead; we teach it at the first trim. Our trail: under each higher low, or under the 10-day average."
    },
    "facts": {
-    "given": "Which line breaks the plan? 1. Bought at $62.30, stop at $60.90, under the prior day's low. 2. At 2R I sold some and raised the stop to breakeven. 3. It dipped to $62.50, so I moved the stop back down to $60.90 for room. 4. Planned to trail the rest under the rising 10-day average. Line 1 Line 2 Line 3 Line 4"
+    "given": "Which line breaks the plan? 1. Bought at $62.30, stop at $60.90, under the prior day's low. 2. At 3R I sold a third and raised the stop to breakeven. 3. It dipped to $62.50, so I moved the stop back down to $60.90 for room. 4. Planned to trail the rest under the rising 10-day average. Line 1 Line 2 Line 3 Line 4"
    },
    "lesson_line": "A raised stop only moves up. Lowering it again hands back the protection you earned.",
    "unit": "F12.07",
    "why": "Line 3. Moving the stop back down undoes Line 2 and puts the loss back on the table. That's moving the goal posts.",
    "wrong": {
     "Line 1": "Line 1 is fine. Under the prior day's low is our default stop.",
-    "Line 2": "Line 2 is fine. Taking some at 2R and raising the stop to breakeven is a common, sound move.",
+    "Line 2": "Line 2 is fine. A third off at 3R and the stop to breakeven is our first trim.",
     "Line 4": "Line 4 is fine. Trailing a rising average is how we hold winners."
    }
   },

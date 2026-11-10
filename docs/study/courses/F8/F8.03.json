@@ -197,8 +197,8 @@
    "id": "s27",
    "tier": 3,
    "publisher": "UCT house rule",
-   "title": "The trade plan for every setup (the targets the app's own detectors compute)",
-   "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-09"
   },
   {
@@ -541,8 +541,8 @@
   {
    "id": "h02",
    "source": "s27",
-   "quote": "Trim is where to take some off: the detectors put the targets at 2R and 3R.",
-   "claim": "Our trade plans take some off at the 2R and 3R targets."
+   "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+   "claim": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R."
   }
  ],
  "walkthroughs": [
@@ -802,7 +802,7 @@
    "skill": "psych.fear",
    "rung": 4,
    "format": "scenario",
-   "story": "You bought at $40. Stop $38, first target $44. It runs to $41.20, then dips to $40.80. You sell it all to lock in the gain.",
+   "story": "You bought at $40. Stop $38, first trim $46. It runs to $41.20, then dips to $40.80. You sell it all to lock in the gain.",
    "q": "What was that sale?",
    "choices": [
     "Cutting a winner early",
@@ -811,7 +811,7 @@
     "Respecting your stop"
    ],
    "answer": "Cutting a winner early",
-   "why": "Cutting a winner early. It was nowhere near your $38 stop or your $44 target. Fear of giving back the gain made the call.",
+   "why": "Cutting a winner early. It was nowhere near your $38 stop or your $46 trim. Fear of giving back the gain made the call.",
    "lesson_line": "Stay in until price gives you a reason to get out, not your nerves.",
    "facts": [
     "f11",
@@ -1037,7 +1037,7 @@
    "rung": 8,
    "format": "scenario",
    "house": true,
-   "story": "Your swing trade just reached 2R, your plan's first target. It's still above its rising moving averages. You want to sell it all.",
+   "story": "Your swing trade just reached 3R, your plan's first trim. It's still above its rising moving averages. You want to sell it all.",
    "q": "What does our rule say?",
    "choices": [
     "Sell a partial, trail the rest",
@@ -1046,7 +1046,7 @@
     "Sell it all, buy back on a dip"
    ],
    "answer": "Sell a partial, trail the rest",
-   "why": "Sell a partial, trail the rest. Our rule: hold winners by selling partials into strength and trailing the rising moving averages. 2R is where our plans take some off.",
+   "why": "Sell a partial, trail the rest. Our rule: hold winners by selling partials into strength and trailing the rising moving averages. 3R is where a third comes off.",
    "lesson_line": "Pay yourself into strength, then let the trail decide when the rest is done.",
    "facts": [
     "h01",
@@ -1057,7 +1057,7 @@
    ],
    "wrong": {
     "Sell it all, a profit is a profit": "That cuts the winner. Selling too soon can hurt almost as much as a losing trade.",
-    "Hold it all, skip the target": "Our plans take some off at the target. Skipping it leaves the whole gain riding on one exit.",
+    "Hold it all, skip the target": "Our plan takes a third off at 3R. Skipping it leaves the whole gain riding on one exit.",
     "Sell it all, buy back on a dip": "That's timing a dip you can't know is coming. A trailing stop handles the exit for you."
    }
   },
@@ -1257,9 +1257,9 @@
   },
   "q10": {
    "status": "pass",
-   "notes": "Same leading wording fixed: now 'What was that sale?'. f35 (unreadable page) replaced by f11 (Investopedia: fear of loss makes investors sell winners too quickly); f25 Fidelity and f32 Investopedia confirmed live. $40.80 sits $2.80 above the $38 stop and $3.20 under the $44 target.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Checker 2026-11-09: Story's $46 is 3R on $40 / $38 (40 + 3 x 2), a given, and the why repeats only givens ($38, $46). Key 'Cutting a winner early' unchanged, on f11, f25, f32. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19); awaiting cold check. Story's 'first target $44' (2R on $40 / $38, the old plan) now 'first trim $46' (3R); $40.80 sits $2.80 above the $38 stop and $5.20 under the $46 trim. Key unchanged. Earlier checker note: Same leading wording fixed: now 'What was that sale?'. f35 (unreadable page) replaced by f11 (Investopedia: fear of loss makes investors sell winners too quickly); f25 Fidelity and f32 Investopedia confirmed live. $40.80 sits $2.80 above the $38 stop and $3.20 under the $44 target."
   },
   "q11": {
    "status": "pass",
@@ -1311,9 +1311,9 @@
   },
   "q19": {
    "status": "pass",
-   "notes": "House: h01 is the owner's quoted line in sizing_rule.md section 6; h02 is in TRADE_PLANS.md ('Trim is where to take some off: the detectors put the targets at 2R and 3R'); no fraction is invented. f41 and f37 (unreadable pages) replaced by f57 (Fidelity, Hirsch: sell half on a double, let winners ride); f26 and f56 (investor.gov trailing stop) confirmed.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Checker 2026-11-09: h01 (owner, section 6) and h02 (B19) verbatim; 'a third comes off' at 3R follows. Key 'Sell a partial, trail the rest' unchanged; Hirsch's half-on-a-double (f57) stays his. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19); awaiting cold check. Story's 'reached 2R, your plan's first target' now 'reached 3R, your plan's first trim'. Old house fact was TRADE_PLANS.md 'Trim is where to take some off: the detectors put the targets at 2R and 3R' (the detectors' plan, no fraction); replaced by the rulebook"
   },
   "q20": {
    "status": "pass",

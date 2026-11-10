@@ -135,8 +135,8 @@
    "id": "s16",
    "tier": 3,
    "publisher": "UCT house rule",
-   "title": "Study: the trade plan for every setup (targets the app's detectors compute)",
-   "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-09"
   },
   {
@@ -610,14 +610,14 @@
   {
    "id": "h1",
    "source": "s16",
-   "quote": "puts the targets at 2R and 3R from that stop.",
-   "claim": "Our plans set the targets at 2R and 3R, measured from the stop: two and three times the entry-to-stop risk."
+   "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+   "claim": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R."
   },
   {
    "id": "h2",
    "source": "s16",
-   "quote": "Trim is where to take some off: the detectors put the targets at 2R and 3R.",
-   "claim": "Our plans take some off at the 2R and 3R targets."
+   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+   "claim": "After the first third at 3R, we sell another third at 5R and trail the last third."
   },
   {
    "id": "h3",
@@ -950,20 +950,20 @@
    "rung": 5,
    "format": "numeric",
    "house": true,
-   "q": "Entry $40, stop $38. Our plans put the first target at 2R. What price is that?",
-   "answer": 44,
+   "q": "Entry $40, stop $38. Our first trim is a third at 3R. What price is that?",
+   "answer": 46,
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "entry + r * (entry - stop)",
      "entry": 40,
      "stop": 38,
-     "r": 2
+     "r": 3
     }
    },
    "prefix": "$",
-   "why": "$44. Your risk is $2 a share, entry to stop. 2R is twice that, added above the entry.",
-   "lesson_line": "Stop first. The targets are multiples of that risk: 2R, then 3R.",
+   "why": "$46. Your risk is the $40 to $38 distance. 3R is three times that, added above the entry. A third of the position comes off there.",
+   "lesson_line": "Stop first. The trims are multiples of that risk: 3R, then 5R.",
    "facts": [
     "h1",
     "h2",
@@ -1265,7 +1265,7 @@
    "rung": 9,
    "format": "scenario",
    "house": true,
-   "story": "Your bracket sold all 300 shares at the 2R target. The stock kept climbing for weeks, far past that price.",
+   "story": "Your bracket sold all 300 shares at the 3R level. The stock kept climbing for weeks, far past that price.",
    "q": "How do we set up the exits on a trade like this?",
    "choices": [
     "Sell partials, trail the rest",
@@ -1274,7 +1274,7 @@
     "Tighten the stop on all shares"
    ],
    "answer": "Sell partials, trail the rest",
-   "why": "Sell partials, trail the rest. Our plans trim at 2R and 3R. In our words: hold your winners by selling partials into strength and trailing the rising moving averages.",
+   "why": "Sell partials, trail the rest. Our plan sells a third at 3R, a third at 5R and trails the last third. In our words: hold your winners by selling partials into strength and trailing the rising moving averages.",
    "lesson_line": "One target for every share caps your best winners. Trim into strength and trail the rest.",
    "facts": [
     "h3",
@@ -1284,7 +1284,7 @@
    ],
    "wrong": {
     "One bigger target for all shares": "Then nothing gets banked if it stalls short of that price. We take some off along the way.",
-    "No targets, hold every share": "That banks nothing into strength. We trim at the targets and let the rest run.",
+    "No targets, hold every share": "That banks nothing into strength. We take a third at 3R and 5R and let the rest run.",
     "Tighten the stop on all shares": "That still exits everything at once. We trim into strength and trail the rest under the rising moving averages."
    }
   }
@@ -1297,12 +1297,12 @@
   "Stops outside regular hours: Schwab accepts only limit orders in extended hours (f38), and Fidelity's risk PDF says conditional and trailing stop orders are monitored 9:30 AM to 4:00 PM Eastern. I did not read Interactive Brokers' outside-regular-hours settings, so no question keys when a stop leg can act after hours; q13's after-hours note cites Schwab only ('for one').",
   "Fidelity's risk PDF (s7) carries a 2012 copyright line, but it is the document the current Active Trader Pro help page links for these orders' risks. Its both-legs-can-fill warning (f30) agrees with Interactive Brokers' current page (f53) and with the 'best efforts' line on Fidelity's current help page (f26).",
   "Reward vs risk wording: Investopedia's take-profit page writes 'risk-to-reward' and a '5:15' ratio; Schwab's trade-plan page defines its 'risk-to-reward ratio' as dollars gained per dollar 'you commit to the position', which mixes position size with risk. The file never uses either phrase as a term; q09 asks for reward per dollar of risk and is computed by its calc.",
-  "Interactive Brokers says brackets 'lock in a profit', and both sample brackets on its page are 1 to 1 (q09). The SEC says a stop price is a trigger, not a guaranteed price (f09), so the file never says a bracket locks in a price. Our plans' first target is 2R (h1, q11); q09 states the 1 to 1 as a measurement and does not call it wrong.",
+  "Interactive Brokers says brackets 'lock in a profit', and both sample brackets on its page are 1 to 1 (q09). The SEC says a stop price is a trigger, not a guaranteed price (f09), so the file never says a bracket locks in a price. Our first trim is a third at 3R (h1, q11; the account rulebook B19, 2026-11-09); q09 states the 1 to 1 as a measurement and does not call it wrong.",
   "Investopedia's bracketed buy page says bracketed SELL orders 'can only be made on margin'. Not used: shorting mechanics belong to F10b, and q12 asks only where a short bracket's exits sit (IBKR f47, SEC f04, Investopedia f62 agree).",
   "The trail (q18, w3, q22): TRADE_PLANS.md's Trail column says 'under each higher low' for the Kicker (the owner's rulings, which also allow 'under the 10-day average'), the Oops Reversal, the Slingshot and the Launchpad (the last two also name the 10-day or the rising 21-day average). The High Volume Edge trail is 'not named by the detector' and Gap Support names 'a tighter stop just under the gap top'. q18's long setup is generic, so it keys the higher-low trail the four plans share and never names a moving-average trail.",
-  "Schwab's thinkorswim example splits 200 shares into two 100-share OCO pairs (f34). That split is Schwab's example, not a UCT rule: TRADE_PLANS.md says our detectors name the 2R and 3R trims but not how much to sell at each, so q15 uses the split as the member's own choice and q23 never states a fraction.",
+  "Schwab's thinkorswim example splits 200 shares into two 100-share OCO pairs (f34). That split is Schwab's example, not a UCT rule. Until 2026-11-09 TRADE_PLANS.md said our detectors named the 2R and 3R trims but not how much to sell; the account rulebook (sizing_rule.md section 9, B19, E51) now names thirds at 3R and 5R, and q11 and q23 teach that. q15 still uses Schwab's split as the member's own choice.",
   "f53 and f54 sit in Interactive Brokers' One-Cancels-All (OCA) section, written for OCA groups. Two linked exits at IBKR are an OCA group of two, so the file applies them to an OCO pair and always names IBKR (q19, q21, w2).",
-  "q18's numbers were changed by the checker: with entry $50 and stop $47, our 2R target ($56) is under the old $58 price, so the target leg would already have sold. Now stop $46 (2R = $58), price $57, higher low $53."
+  "q18's numbers were changed by the checker: with entry $50 and stop $47, our 2R target ($56) is under the old $58 price, so the target leg would already have sold. Now stop $46 (2R = $58), price $57, higher low $53. Under the 2026-11-09 rulebook the first trim is 3R, $62 on the $50 / $46 plan, still above the $57 price, so the story holds unchanged."
  ],
  "verify": {
   "w1": {
@@ -1385,9 +1385,9 @@
   },
   "q11": {
    "status": "pass",
-   "notes": "h1/h2 read in TRADE_PLANS.md: make_levels 'puts the targets at 2R and 3R from that stop'. Recomputed 40 + 2 x (40 - 38) = 44; calc agrees. Asked as ours (house: true); f45 (Schwab) teaches risk per share as entry minus stop.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Checker 2026-11-09: Recomputed 40 + 3 x (40 - 38) = 46; calc agrees. B19 (h1) verbatim; the lesson line's 'then 5R' is E51 (h2). Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19); awaiting cold check. Was the first target at 2R ($44); now the first trim, a third at 3R ($46). Old house fact was TRADE_PLANS.md 'Trim is where to take some off: the detectors put the targets at 2R and 3R' (the detectors' plan, no fraction); replaced by the rulebook"
   },
   "q12": {
    "status": "pass",
@@ -1457,9 +1457,9 @@
   },
   "q23": {
    "status": "pass",
-   "notes": "h3 is the owner's quoted line (sizing_rule.md s6, 2026-06-14); h2 (TRADE_PLANS.md: trim at 2R and 3R, no fraction given, and none is stated). f74 (Investopedia) supports a single target selling early. The key is our standing plan, not a hindsight call.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Checker 2026-11-09: h3 (owner, section 6) and h2 (E51) verbatim. Key 'Sell partials, trail the rest' follows; the story's 'all 300 at the 3R level' is the mistake the ladder avoids. Wrong notes hold. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19, E51); awaiting cold check. Story's 'sold all 300 shares at the 2R target' now 'at the 3R level'; the why names the thirds ladder"
   }
  }
 }

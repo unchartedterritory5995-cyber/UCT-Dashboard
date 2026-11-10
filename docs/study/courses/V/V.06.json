@@ -417,7 +417,7 @@
    "id": "h1",
    "tier": 3,
    "publisher": "UCT house rule",
-   "title": "Study: the trade plan for every setup (targets from make_levels; the setup table)",
+   "title": "Study: the trade plan for every setup (the setup table)",
    "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup",
    "accessed": "2026-11-09"
   },
@@ -435,6 +435,14 @@
    "publisher": "UCT house rule",
    "title": "The house sizing rule, section 6: Management (owner quoted, Sunday Scans 2026-06-14)",
    "url": "repo:docs/study/sizing_rule.md#6-management-so-the-sizing-drills-can-go-full-circle",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "h4",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-09"
   }
  ],
@@ -1311,9 +1319,9 @@
   },
   {
    "id": "h01",
-   "source": "h1",
-   "quote": "The shared `make_levels` (`uct_setups_common.py`) puts the targets at 2R and 3R from that stop.",
-   "claim": "Our trade plans put the targets at 2R and 3R from the setup's own stop."
+   "source": "h4",
+   "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+   "claim": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R."
   },
   {
    "id": "h02",
@@ -1332,6 +1340,12 @@
    "source": "h3",
    "quote": "Hold your winners by selling partials into strength and trailing the rising moving averages.",
    "claim": "In the owner's words: sell partials into strength and trail the rising moving averages."
+  },
+  {
+   "id": "h09",
+   "source": "h4",
+   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+   "claim": "After the first third at 3R, we sell another third at 5R and trail the last third."
   }
  ],
  "walkthroughs": [
@@ -1626,21 +1640,22 @@
    "rung": 3,
    "format": "mcq",
    "term": "R-multiple",
-   "q": "Our trade plans set two profit targets. Where do they sit?",
+   "q": "Our plan sells in thirds. Where do the two trims sit?",
    "choices": [
-    "At 2R and 3R",
+    "At 3R and 5R",
     "At 1R and 2R",
     "At 10% and 20% gains"
    ],
-   "answer": "At 2R and 3R",
-   "why": "At 2R and 3R. Our detectors measure R from the setup's own stop, then put the targets at two and three times that distance.",
-   "lesson_line": "Our targets are counted in R from the stop: 2R first, then 3R.",
+   "answer": "At 3R and 5R",
+   "why": "At 3R and 5R. R is the entry-to-stop distance. A third comes off at three times it, another third at five, and the last third trails.",
+   "lesson_line": "Our trims are counted in R from the stop: a third at 3R, a third at 5R.",
    "facts": [
-    "h01"
+    "h01",
+    "h09"
    ],
    "wrong": {
-    "At 1R and 2R": "Our first target is 2R, twice the risk to the stop.",
-    "At 10% and 20% gains": "Our targets come from the stop distance, not a flat percent."
+    "At 1R and 2R": "Our first trim is a third at 3R, three times the risk to the stop.",
+    "At 10% and 20% gains": "Our trims come from the stop distance, not a flat percent."
    },
    "house": true
   },
@@ -3205,9 +3220,9 @@
   },
   "q10": {
    "status": "pass",
-   "notes": "House: docs/study/TRADE_PLANS.md line 6, verbatim 'make_levels ... puts the targets at 2R and 3R from that stop'; the setup table lists 2R, 3R for every long setup.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Checker 2026-11-09: h01 (B19) and h09 (E51) verbatim in section 9. Key 'At 3R and 5R' follows; the stem says 'in thirds' so it does not lead to the levels. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19, E51); awaiting cold check. Was 'At 2R and 3R' (two profit targets); now the thirds at 3R and 5R. Old house fact was TRADE_PLANS.md make_levels 'puts the targets at 2R and 3R'"
   },
   "q11": {
    "status": "pass",

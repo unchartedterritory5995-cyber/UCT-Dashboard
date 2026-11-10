@@ -2108,7 +2108,7 @@
     "sources": [
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: The trade plan for every setup: Kicker and Launchpad rows, targets at 2R and 3R",
+      "name": "UCT house rule: The trade plan for every setup: Kicker and Launchpad rows (entry, stop, trail)",
       "quote": "under the rising 21-day average, or under each higher low",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
@@ -2812,7 +2812,7 @@
   "difficulty": 3,
   "id": "si_6d3b7e92a915",
   "lesson_origin": "session",
-  "lesson_text": "Hold it. The 30-minute break was only the entry. The plan trails under each higher low or the 10-day average, and takes some off at 2R and 3R. The entry chart times the buy. The trail sets the clock.",
+  "lesson_text": "Hold it. The 30-minute break was only the entry. The plan trails under each higher low or the 10-day average, and sells a third at 3R and another at 5R. The entry chart times the buy. The trail sets the clock.",
   "module": "F11",
   "prompt_json": {
    "choices": [
@@ -2822,7 +2822,7 @@
    ],
    "kind": "mcq",
    "q": "What does the plan say to do?",
-   "story": "You buy our Kicker on the day-one 30-minute opening-range break. At 3:55 p.m. it's up, short of your first target, and well above your stop.",
+   "story": "You buy our Kicker on the day-one 30-minute opening-range break. At 3:55 p.m. it's up, short of 3R, your first trim, and well above your stop.",
    "subject": "F11.02#q17"
   },
   "reveal_json": {
@@ -2830,7 +2830,7 @@
     "sources": [
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: The trade plan for every setup: Kicker and Launchpad rows, targets at 2R and 3R",
+      "name": "UCT house rule: The trade plan for every setup: Kicker and Launchpad rows (entry, stop, trail)",
       "quote": "or the day-1 30-minute opening-range break",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
@@ -2844,17 +2844,24 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: The trade plan for every setup: Kicker and Launchpad rows, targets at 2R and 3R",
+      "name": "UCT house rule: The trade plan for every setup: Kicker and Launchpad rows (entry, stop, trail)",
       "quote": "under each higher low, or under the 10-day average",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: The trade plan for every setup: Kicker and Launchpad rows, targets at 2R and 3R",
-      "quote": "puts the targets at 2R and 3R from that stop.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
@@ -2864,16 +2871,16 @@
       "url": "https://www.schwab.com/learn/story/swing-trading-strategies"
      }
     ],
-    "summary": "The Kicker's other entry is the day-one 30-minute opening-range break. The owner's Kicker entry: over the prior day's high, or the day-one 30-minute range break. The Kicker trails under each higher low, or under the 10-day average. Our setups take profits at 2R and 3R. A swing trader may find the setup on the daily chart and time the entry on an hourly chart."
+    "summary": "The Kicker's other entry is the day-one 30-minute opening-range break. The owner's Kicker entry: over the prior day's high, or the day-one 30-minute range break. The Kicker trails under each higher low, or under the 10-day average. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. After the first third at 3R, we sell another third at 5R and trail the last third. A swing trader may find the setup on the daily chart and time the entry on an hourly chart."
    },
    "facts": {
-    "given": "What does the plan say to do? You buy our Kicker on the day-one 30-minute opening-range break. At 3:55 p.m. it's up, short of your first target, and well above your stop. Hold it and trail on the daily chart Sell, it was an intraday entry Sell half before the close"
+    "given": "What does the plan say to do? You buy our Kicker on the day-one 30-minute opening-range break. At 3:55 p.m. it's up, short of 3R, your first trim, and well above your stop. Hold it and trail on the daily chart Sell, it was an intraday entry Sell half before the close"
    },
    "lesson_line": "The entry chart times the buy. The trail sets the clock.",
    "unit": "F11.02",
-   "why": "Hold it. The 30-minute break was only the entry. The plan trails under each higher low or the 10-day average, and takes some off at 2R and 3R.",
+   "why": "Hold it. The 30-minute break was only the entry. The plan trails under each higher low or the 10-day average, and sells a third at 3R and another at 5R.",
    "wrong": {
-    "Sell half before the close": "Our trims are at 2R and 3R. Nothing in the plan sells at the close.",
+    "Sell half before the close": "Our first trim is a third at 3R. Nothing in the plan sells at the close.",
     "Sell, it was an intraday entry": "The entry chart doesn't set the clock. Swing traders often take a daily setup and time the entry on a shorter chart."
    }
   },
@@ -3483,14 +3490,14 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: The trade plan for every setup: Kicker and Launchpad rows, targets at 2R and 3R",
-      "quote": "a cent over the red day's high, on the Kicker day",
+      "name": "UCT house rule: The trade plan for every setup: Kicker and Launchpad rows (entry, stop, trail)",
+      "quote": "over the red day's high, on the Kicker day, at market as it trades through",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: The trade plan for every setup: Kicker and Launchpad rows, targets at 2R and 3R",
+      "name": "UCT house rule: The trade plan for every setup: Kicker and Launchpad rows (entry, stop, trail)",
       "quote": "or the day-1 30-minute opening-range break",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
@@ -3504,7 +3511,7 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: The trade plan for every setup: Kicker and Launchpad rows, targets at 2R and 3R",
+      "name": "UCT house rule: The trade plan for every setup: Kicker and Launchpad rows (entry, stop, trail)",
       "quote": "under each higher low, or under the 10-day average",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
@@ -3744,7 +3751,7 @@
   "difficulty": 1,
   "id": "si_c5d893a73a99",
   "lesson_origin": "session",
-  "lesson_text": "True. Our plans put the targets at 2R and 3R from the stop. Same entry, same stop, same targets, however long you hold. Targets are measured from the stop, not from the calendar.",
+  "lesson_text": "True. Our first trim is a third at 3R, measured from the stop. Same entry, same stop, same trim price, however long you hold. Trims are measured from the stop, not from the calendar.",
   "module": "F11",
   "prompt_json": {
    "choices": [
@@ -3752,7 +3759,7 @@
     "False"
    ],
    "kind": "tf",
-   "q": "On our plans, two trades with the same entry and stop get the same 2R target, even if one is held longer.",
+   "q": "On our plan, two trades with the same entry and stop get the same 3R trim, even if one is held longer.",
    "subject": "F11.03#q05"
   },
   "reveal_json": {
@@ -3760,17 +3767,17 @@
     "sources": [
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: The trade plan for every setup: the app's own detector levels and the setup table (owner rulings 2026-11-02 and 2026-11-08)",
-      "quote": "puts the targets at 2R and 3R from that stop.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: The trade plan for every setup: the app's own detector levels and the setup table (owner rulings 2026-11-02 and 2026-11-08)",
-      "quote": "Trim is where to take some off: the detectors put the targets at 2R and 3R.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
@@ -3780,14 +3787,14 @@
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      }
     ],
-    "summary": "Our plans measure the 2R and 3R targets from the plan's own stop. Our plans put the targets at 2R and 3R from the stop. Each of our setups comes with its own entry and stop."
+    "summary": "After the first third at 3R, we sell another third at 5R and trail the last third. Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. Each of our setups comes with its own entry and stop."
    },
    "facts": {
-    "given": "On our plans, two trades with the same entry and stop get the same 2R target, even if one is held longer."
+    "given": "On our plan, two trades with the same entry and stop get the same 3R trim, even if one is held longer."
    },
-   "lesson_line": "Targets are measured from the stop, not from the calendar.",
+   "lesson_line": "Trims are measured from the stop, not from the calendar.",
    "unit": "F11.03",
-   "why": "True. Our plans put the targets at 2R and 3R from the stop. Same entry, same stop, same targets, however long you hold."
+   "why": "True. Our first trim is a third at 3R, measured from the stop. Same entry, same stop, same trim price, however long you hold."
   },
   "review_status": "draft",
   "skill_id": "styles.method_by_style",
@@ -4203,21 +4210,21 @@
  {
   "answer_json": {
    "accept": [
-    "41.6",
-    "41.60",
-    "41.600"
+    "42.4",
+    "42.40",
+    "42.400"
    ],
-   "answer": 41.6
+   "answer": 42.4
   },
   "difficulty": 2,
   "id": "si_d54a8df31bd1",
   "lesson_origin": "session",
-  "lesson_text": "$41.60. Our first target is 2R: twice the distance from your entry down to the session low, added to $40.00. 2R is twice your risk per share, added to the entry.",
+  "lesson_text": "$42.40. Our first trim is a third at 3R: three times the distance from your entry down to the session low, added to $40.00. 3R is three times your risk per share, added to the entry.",
   "module": "F11",
   "prompt_json": {
    "kind": "fill_numeric",
    "prefix": "$",
-   "q": "A Go Signal: you buy at $40.00, the prior close, with the stop at the session low of $39.20. Where is our first target?",
+   "q": "A Go Signal: you buy at $40.00, the prior close, with the stop at the session low of $39.20. Where is our first trim, 3R?",
    "subject": "F11.03#q11"
   },
   "reveal_json": {
@@ -4225,10 +4232,10 @@
     "sources": [
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: The trade plan for every setup: the app's own detector levels and the setup table (owner rulings 2026-11-02 and 2026-11-08)",
-      "quote": "Trim is where to take some off: the detectors put the targets at 2R and 3R.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
@@ -4238,23 +4245,23 @@
       "url": "repo:docs/study/TRADE_PLANS.md#the-go-signal"
      }
     ],
-    "summary": "Our plans put the targets at 2R and 3R from the stop. Go Signal plan: buy the prior close when it trades that session (else the close); stop at the session's low."
+    "summary": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R. Go Signal plan: buy the prior close when it trades that session (else the close); stop at the session's low."
    },
    "facts": {
     "calc": {
      "args": {
       "entry": 40,
-      "expr": "entry + 2 * (entry - stop)",
+      "expr": "entry + 3 * (entry - stop)",
       "stop": 39.2
      },
      "fn": "arith",
-     "result": 41.6
+     "result": 42.4
     },
-    "given": "A Go Signal: you buy at $40.00, the prior close, with the stop at the session low of $39.20. Where is our first target?"
+    "given": "A Go Signal: you buy at $40.00, the prior close, with the stop at the session low of $39.20. Where is our first trim, 3R?"
    },
-   "lesson_line": "2R is twice your risk per share, added to the entry.",
+   "lesson_line": "3R is three times your risk per share, added to the entry.",
    "unit": "F11.03",
-   "why": "$41.60. Our first target is 2R: twice the distance from your entry down to the session low, added to $40.00."
+   "why": "$42.40. Our first trim is a third at 3R: three times the distance from your entry down to the session low, added to $40.00."
   },
   "review_status": "draft",
   "skill_id": "styles.method_by_style",
@@ -5097,7 +5104,7 @@
   "difficulty": 1,
   "id": "si_21b53815053c",
   "lesson_origin": "session",
-  "lesson_text": "Each setup plan has its own stop. Its 2R and 3R targets are measured from that stop.",
+  "lesson_text": "Each setup plan has its own stop. Our trims, a third at 3R and at 5R, are measured from it.",
   "module": "F11",
   "prompt_json": {
    "order": 2,
@@ -5107,7 +5114,7 @@
    "steps": [
     "Our risk on any trade is 0.25% to 2% of the account. 2% is the hard ceiling.",
     "Our default stop is the low of the day, or the prior day's low.",
-    "Each setup plan has its own stop. Its 2R and 3R targets are measured from that stop."
+    "Each setup plan has its own stop. Our trims, a third at 3R and at 5R, are measured from it."
    ],
    "subject": "F11.03#w2"
   },
@@ -5137,17 +5144,17 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: The trade plan for every setup: the app's own detector levels and the setup table (owner rulings 2026-11-02 and 2026-11-08)",
-      "quote": "Trim is where to take some off: the detectors put the targets at 2R and 3R.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
       "accessed": "2026-11-09",
-      "name": "UCT house rule: The trade plan for every setup: the app's own detector levels and the setup table (owner rulings 2026-11-02 and 2026-11-08)",
-      "quote": "puts the targets at 2R and 3R from that stop.",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ]
    },

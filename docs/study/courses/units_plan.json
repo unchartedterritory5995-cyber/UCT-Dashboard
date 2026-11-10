@@ -373,9 +373,9 @@
  {
   "id": "F10.05",
   "track": "F10",
-  "title": "Scaling in and out",
+  "title": "Trims, trails and scaling out",
   "skill": "orders.scaling",
-  "hint": "Average price via calc avg_price; open risk after adding via calcs. Pyramiding into winners vs averaging down (named authors: O'Neil via IBD, plus a second publisher). Our rules only from docs/study (house)."
+  "hint": "Teaches: the full size at one price with one stop, never add (account rulebook A5); scale OUT: a third at 3R with the stop to breakeven, a third at 5R, trail the last third under the 10 or 21-day (B19, E51, E52); never average down; what scaling out costs and buys. Trim prices via calc arith; average cost via calc avg_price. Averaging down vs up from named authors (O'Neil via IBD, plus a second publisher). Our rules only from docs/study/sizing_rule.md section 9 (house)."
  },
  {
   "id": "F10b.01",

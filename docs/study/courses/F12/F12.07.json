@@ -241,8 +241,16 @@
    "id": "s29",
    "tier": 3,
    "publisher": "UCT house rule",
-   "title": "The trade plan for every setup (targets at 2R and 3R, the trails)",
+   "title": "The trade plan for every setup (the trails)",
    "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s30",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-09"
   }
  ],
@@ -506,12 +514,6 @@
    "claim": "Averaging down is favored by long-term and value investors who manage the risk carefully."
   },
   {
-   "id": "f44",
-   "source": "s16",
-   "quote": "only add to a trade when it’s winning, they are able to start off the trade by risking a little and end the trade with potential for a greater return.",
-   "claim": "Start small and add only once the trade is winning."
-  },
-  {
    "id": "f45",
    "source": "s16",
    "quote": "It is also common to move your stop loss to break even or beyond when an initial profit target is hit.",
@@ -711,15 +713,27 @@
   },
   {
    "id": "h04",
-   "source": "s29",
-   "quote": "Trim is where to take some off: the detectors put the targets at 2R and 3R.",
-   "claim": "Our setups' targets, where you take some off, are 2R and 3R."
+   "source": "s30",
+   "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+   "claim": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R."
   },
   {
    "id": "h05",
    "source": "s29",
    "quote": "under each higher low, or under the 10-day average",
    "claim": "Our trail: under each higher low, or under the 10-day average."
+  },
+  {
+   "id": "h06",
+   "source": "s30",
+   "quote": "The full size at one price with one stop; no adding.",
+   "claim": "Our rule: the whole position goes on at one price with one stop, and we never add to it."
+  },
+  {
+   "id": "h07",
+   "source": "s30",
+   "quote": "Move the stop to breakeven at 2R to 5R, ideally.",
+   "claim": "Our stop moves up to breakeven once the trade is 2R to 5R ahead; we teach it at the first trim."
   }
  ],
  "walkthroughs": [
@@ -844,7 +858,7 @@
    ],
    "answer": "Line 2",
    "why": "Line 2. That's averaging down: adding to a trade that's going against you. It doubled the shares riding down to the stop.",
-   "lesson_line": "Never add to a loser. Add only to a trade that's working.",
+   "lesson_line": "Never add to a losing trade.",
    "facts": [
     "f61",
     "f67",
@@ -864,7 +878,7 @@
    "rung": 3,
    "format": "scenario",
    "house": true,
-   "story": "1. Size: 1,000 shares, then I'll find a stop that fits. 2. Setup: pullback to the rising 21-day average. 3. Entry: over the prior day's high. 4. Target: take some off at 2R.",
+   "story": "1. Size: 1,000 shares, then I'll find a stop that fits. 2. Setup: pullback to the rising 21-day average. 3. Entry: over the prior day's high. 4. Trim: a third off at 3R.",
    "q": "Which line breaks the plan?",
    "choices": [
     "Line 1",
@@ -885,7 +899,7 @@
    "wrong": {
     "Line 2": "Line 2 is fine. A pullback to a rising average is a plain setup you can plan.",
     "Line 3": "Line 3 is fine. Over the prior day's high is a clear entry trigger.",
-    "Line 4": "Line 4 is fine. 2R is the first of the two targets our setups use."
+    "Line 4": "Line 4 is fine. A third at 3R is our first trim."
    }
   },
   {
@@ -1053,7 +1067,7 @@
    "rung": 5,
    "format": "scenario",
    "house": true,
-   "story": "1. Bought at $25.40 with the stop at $24.60, the day's low. 2. By noon it traded at $24.80, close to my stop. 3. Moved the stop down to $23.90 to give it more room. 4. Set an alert at 2R to take some off.",
+   "story": "1. Bought at $25.40 with the stop at $24.60, the day's low. 2. By noon it traded at $24.80, close to my stop. 3. Moved the stop down to $23.90 to give it more room. 4. Set an alert at 3R to sell a third.",
    "q": "Which line breaks the plan?",
    "choices": [
     "Line 1",
@@ -1075,7 +1089,7 @@
    "wrong": {
     "Line 1": "Line 1 is fine. The day's low is our default stop.",
     "Line 2": "Line 2 is fine. That's only where the price is. The stop hasn't been hit, so nothing changes.",
-    "Line 4": "Line 4 is fine. 2R is the first of our two targets."
+    "Line 4": "Line 4 is fine. A third at 3R is our first trim."
    }
   },
   {
@@ -1138,7 +1152,7 @@
    "rung": 6,
    "format": "scenario",
    "house": true,
-   "story": "1. Setup: tight flag, entry over $48.50, the flag's high. 2. Size: as many shares as my cash buys. 3. Stop: $46.90, under the flag's low. 4. Target: take some off at 2R.",
+   "story": "1. Setup: tight flag, entry over $48.50, the flag's high. 2. Size: as many shares as my cash buys. 3. Stop: $46.90, under the flag's low. 4. Trim: a third off at 3R.",
    "q": "Which line breaks the plan?",
    "choices": [
     "Line 1",
@@ -1160,7 +1174,7 @@
    "wrong": {
     "Line 1": "Line 1 is fine. A named setup with a clear entry.",
     "Line 3": "Line 3 is fine. Under the flag's low is where the idea fails.",
-    "Line 4": "Line 4 is fine. 2R is the first of our two targets."
+    "Line 4": "Line 4 is fine. A third at 3R is our first trim."
    }
   },
   {
@@ -1168,7 +1182,7 @@
    "skill": "process.mistakes",
    "rung": 6,
    "format": "scenario",
-   "story": "1. Setup: breakout from a flat base, entry over $50, the base's high. 2. Stop: $47.50, under the base's last low. 3. Add: if it slips to $48.50, buy more to lower my cost. 4. Add: if it works, add once on a pullback that holds over $50.",
+   "story": "1. Setup: breakout from a flat base, entry over $50, the base's high. 2. Stop: $47.50, under the base's last low. 3. Add: if it slips to $48.50, buy more to lower my cost. 4. Trim: a third off at 3R, the stop to breakeven.",
    "q": "Which line breaks the plan?",
    "choices": [
     "Line 1",
@@ -1177,23 +1191,24 @@
     "Line 4"
    ],
    "answer": "Line 3",
-   "why": "Line 3. Buying more as it slips toward the stop is averaging down. You add only when the trade is working, like Line 4.",
-   "lesson_line": "Each new buy should be higher than the last.",
+   "why": "Line 3. Buying more as it slips toward the stop is averaging down. Our size goes on at one price with one stop; we never add, least of all to a loser.",
+   "lesson_line": "Never add to a losing trade. Our size is on at one price.",
    "facts": [
     "f61",
-    "f62",
     "f68",
-    "f44",
-    "f66",
-    "f59",
+    "f42",
     "f17",
-    "f42"
+    "f59",
+    "h06",
+    "h04",
+    "h07"
    ],
    "wrong": {
     "Line 1": "Line 1 is fine. A base breakout with a set entry.",
     "Line 2": "Line 2 is fine. Under the base's last low is where the idea fails.",
-    "Line 4": "Line 4 is fine. That's averaging up: adding once the trade is in profit."
-   }
+    "Line 4": "Line 4 is fine. A third at 3R with the stop to breakeven is our first trim."
+   },
+   "house": true
   },
   {
    "key": "q17",
@@ -1263,7 +1278,7 @@
    "rung": 7,
    "format": "scenario",
    "house": true,
-   "story": "1. Bought 500 shares at $40 on the breakout. 2. My plan: risk 1% of my $50,000 account, $500 a trade. 3. My stop is $38, a $2 risk per share. 4. Set an alert at 2R to take some off.",
+   "story": "1. Bought 500 shares at $40 on the breakout. 2. My plan: risk 1% of my $50,000 account, $500 a trade. 3. My stop is $38, a $2 risk per share. 4. Set an alert at 3R to sell a third.",
    "q": "Which line breaks the plan?",
    "choices": [
     "Line 1",
@@ -1284,7 +1299,7 @@
    "wrong": {
     "Line 2": "Line 2 is fine. 1% is a sound risk, inside our 0.25% to 2% range.",
     "Line 3": "Line 3 is fine. A set stop, $2 under the entry.",
-    "Line 4": "Line 4 is fine. 2R is the first of our two targets."
+    "Line 4": "Line 4 is fine. A third at 3R is our first trim."
    }
   },
   {
@@ -1309,7 +1324,7 @@
    "rung": 8,
    "format": "scenario",
    "house": true,
-   "story": "1. Bought at $62.30, stop at $60.90, under the prior day's low. 2. At 2R I sold some and raised the stop to breakeven. 3. It dipped to $62.50, so I moved the stop back down to $60.90 for room. 4. Planned to trail the rest under the rising 10-day average.",
+   "story": "1. Bought at $62.30, stop at $60.90, under the prior day's low. 2. At 3R I sold a third and raised the stop to breakeven. 3. It dipped to $62.50, so I moved the stop back down to $60.90 for room. 4. Planned to trail the rest under the rising 10-day average.",
    "q": "Which line breaks the plan?",
    "choices": [
     "Line 1",
@@ -1327,11 +1342,12 @@
     "h02",
     "h03",
     "h04",
+    "h07",
     "h05"
    ],
    "wrong": {
     "Line 1": "Line 1 is fine. Under the prior day's low is our default stop.",
-    "Line 2": "Line 2 is fine. Taking some at 2R and raising the stop to breakeven is a common, sound move.",
+    "Line 2": "Line 2 is fine. A third off at 3R and the stop to breakeven is our first trim.",
     "Line 4": "Line 4 is fine. Trailing a rising average is how we hold winners."
    }
   },
@@ -1471,7 +1487,8 @@
   "The AAII article (s24) is from September 1999 and the IBD page (s25) is a 2022 page whose body is behind a paywall; only its open first paragraph is quoted. Both are O'Neil's rule, so every chase key also cites Schwab (f18) or Fidelity (f51) as an independent publisher.",
   "q23 Line 2 says a gap cost 2% against a 1% plan. That fits Investopedia (f32: gaps can make a loss bigger than planned) and is presented as the market's doing, not a rule broken.",
   "Checker, 2026-11-09: q18 had the trade up 9% with the stop 2% under the price, a profit cushion over the entry. Some position traders do hold a winner with a cushion through a report, so 'full size into earnings' was a less clear mistake there. Line 1 now says up 3%, so the stop sits near the entry and Line 4's belief that the stop caps the loss is the plain error. The earnings keys (q18, q24) now say 'I'd cut the size', in the first person, because Investopedia (f35, 'might halve') and Schwab (f22, 'may be best to avoid') hedge.",
-  "Track audit, 2026-11-09, source check: the quote checker shows f33, f34 and f35 (Investopedia, Master Position Sizing) 'unreachable'. The live page refused every allowed client today (plain curl HTTP 402, WebFetch blocked, the quote checker's cache holds a 403). f33 and f35 are word for word on the Wayback Machine capture of 2026-04-19 (page then 'Updated October 05, 2025', James Chen). f34 is on that capture in older wording ('To work out the correct position size from this information, the investor simply needs to divide the account risk, which is $500, by the trade risk, which is $20'), same rule and numbers; the wording quoted here, from the 2026-07-01 update this file cites, is identical to F9.02 f02, which F9.02's checker confirmed on the live page on 2026-11-08. f34 never carries a key alone: in q09, q15, q17 and q19 it sits beside StockCharts f58 / f59 / f60 (found live today), and in q02 it backs only Line 4's wrong note."
+  "Track audit, 2026-11-09, source check: the quote checker shows f33, f34 and f35 (Investopedia, Master Position Sizing) 'unreachable'. The live page refused every allowed client today (plain curl HTTP 402, WebFetch blocked, the quote checker's cache holds a 403). f33 and f35 are word for word on the Wayback Machine capture of 2026-04-19 (page then 'Updated October 05, 2025', James Chen). f34 is on that capture in older wording ('To work out the correct position size from this information, the investor simply needs to divide the account risk, which is $500, by the trade risk, which is $20'), same rule and numbers; the wording quoted here, from the 2026-07-01 update this file cites, is identical to F9.02 f02, which F9.02's checker confirmed on the live page on 2026-11-08. f34 never carries a key alone: in q09, q15, q17 and q19 it sits beside StockCharts f58 / f59 / f60 (found live today), and in q02 it backs only Line 4's wrong note.",
+  "Replaced 2026-11-09: the 'Line 4' lines in q04, q12, q15, q19 and q21 took some off at 2R (TRADE_PLANS.md, the detectors' targets); the account rulebook (sizing_rule.md section 9, B19) makes the first trim a third at 3R with the stop to breakeven. q16's Line 4 taught adding to a winner, which A5 rules out ('The full size at one price with one stop; no adding'); it now carries the trim instead. f44 (Investopedia, start small and add) was removed; Rhodes' f62 and f66 (add higher, add on corrections) stay in the file for the record but nothing live cites them."
  ],
  "verify": {
   "w1": {
@@ -1506,15 +1523,15 @@
   },
   "q03": {
    "status": "pass",
-   "notes": "Recomputed: 300 x $2 + 300 x $1 = $900 against $600 planned; 300 to 600 shares, so 'doubled the shares' is right. f61 Rhodes, f67 O'Neil, f47 Hirsch, f17 Schwab agree adding to a loser in a trade is a mistake; the long-term exception is in conflicts and the item never quizzes it.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Checker 2026-11-09: Lesson line 'Never add to a losing trade.' is f61's words; key Line 2 (averaging down) unchanged and backed by f61, f67, f47, f17. The item cites no house fact and claims none. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, A5); awaiting cold check. lesson_line 'Never add to a loser. Add only to a trade that's working.' -> 'Never add to a losing trade.' (the owner's wording, already ruled for q05)"
   },
   "q04": {
    "status": "pass",
-   "notes": "f58 (StockCharts) and f37 (Investopedia, size 'is the only unknown and must be calculated') are two publishers that agree size comes last, from the stop distance. Line 4: h04 (TRADE_PLANS.md, targets at 2R and 3R) with f72 (Fidelity). 'Then I'll find a stop that fits' is the mistake, fairly stated.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Checker 2026-11-09: Line 4 'a third off at 3R' is B19 (h04, verbatim); its note calls it our first trim, which it is. Key Line 1 (size before stop) unchanged, on f58, f37, f59. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19); awaiting cold check. Line 4 of the story said 'take some off at 2R' (the detectors' first target); now 'a third off at 3R', with its wrong note. Key unchanged"
   },
   "q05": {
    "status": "pass",
@@ -1560,9 +1577,9 @@
   },
   "q12": {
    "status": "pass",
-   "notes": "Entry $25.40, stop $24.60 = h02's day's low. Lowering the stop is Schwab's 'moving the goal posts' (f19, f20); Fidelity f55 and Investopedia f73 agree. lesson_line's 'never' is scoped to rescuing a loser, which three publishers back.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Checker 2026-11-09: Line 4 now the 3R third (h04 verbatim). Key Line 3 (stop moved lower) unchanged; h02 for the day's-low stop still in section 2. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19); awaiting cold check. Line 4 of the story said 'take some off at 2R' (the detectors' first target); now 'a third off at 3R', with its wrong note. Key unchanged"
   },
   "q13": {
    "status": "pass",
@@ -1578,15 +1595,15 @@
   },
   "q15": {
    "status": "pass",
-   "notes": "Stop distance $48.50 - $46.90 = $1.60. f34 (Investopedia) and f58 (StockCharts): size = risk / distance, set after the stop; buying what cash allows skips both. f50 (Hirsch) and f12 (Schwab) back not sizing by what you can afford. Line 4 is h04.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Checker 2026-11-09: Line 4 now the 3R third (h04 verbatim). Key Line 2 (cash is not a size) unchanged, on f34, f58. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19); awaiting cold check. Line 4 of the story said 'take some off at 2R' (the detectors' first target); now 'a third off at 3R', with its wrong note. Key unchanged"
   },
   "q16": {
    "status": "pass",
-   "notes": "f61/f62 (Rhodes), f68 (O'Neil), f44 (Investopedia) confirmed: add only to a winner, each buy higher. Line 4's 'pullback that holds' could hold under the $50 entry, breaking f62's 'each new buy price must be higher'; now 'holds over $50', so the Line 4 note ('in profit') and lesson_line are true.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Checker 2026-11-09: Line 3 (buy more as it slips) is averaging down: f61, f17, f42 plus A5 (h06 verbatim). Line 4 (a third at 3R, stop to breakeven) is B19 (h04, h07 verbatim), so it is really fine. The why and lesson no longer teach adding. Same mistake as q03 but a plan at rung 6 against a journal at rung 3, the unit's pattern (q12 and q21 share a mistake the same way). Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, A5, B19); awaiting cold check. Line 4 taught adding to a winner ('add once on a pullback'); now the first trim. The why and lesson no longer say 'add only when working'. f44 (start small, add when winning) and f62 / f66 (Rhodes: each buy higher, add on corrections) dropped from the item; f44 removed from the file"
   },
   "q17": {
    "status": "pass",
@@ -1602,9 +1619,9 @@
   },
   "q19": {
    "status": "pass",
-   "notes": "Recomputed: 1% of $50,000 = $500; $40 - $38 = $2; 500 x $2 = $1,000, double $500 and exactly 2% of $50,000; 250 shares fit the plan. 'Still inside our 2% ceiling' now 'within' (it is at the ceiling, which h01 allows).",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Checker 2026-11-09: Line 4 now the 3R third (h04 verbatim). Recomputed 500 x $2 = $1,000 against the $500 plan; 1,000 / 50,000 = 2%, the ceiling (h01), so 'still within' holds. Key Line 1 unchanged. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19); awaiting cold check. Line 4 of the story said 'take some off at 2R' (the detectors' first target); now 'a third off at 3R', with its wrong note. Key unchanged"
   },
   "q20": {
    "status": "pass",
@@ -1614,9 +1631,9 @@
   },
   "q21": {
    "status": "pass",
-   "notes": "R = $62.30 - $60.90 = $1.40, 2R = $65.10; the dip to $62.50 stays over breakeven, so the story holds. f45 (Investopedia: breakeven stop after the first target is common), h03 (owner: trail the rising averages), h02. lesson_line 'Once you raise a stop, leave it' could forbid trailing it higher; now 'A raised stop only moves up.' Track audit 2026-11-09: h03's claim (shown in the reveal) began 'In the owner's words'; every other house claim in F12.07 says 'our', so it now reads 'Our rule: hold winners by ...', same quote. Question unchanged.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Checker 2026-11-09: Recomputed R = 62.30 - 60.90 = 1.40; 3R = 66.50; the $62.50 dip sits over the $62.30 breakeven, so Line 3 is a stop moved down (A4). Line 2 is B19 plus the breakeven move (h04, h07 verbatim); Line 4 the 10-day trail (h05). Key unchanged. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19); awaiting cold check. Line 2 'At 2R I sold some' now 'At 3R I sold a third'; R = $1.40 so 3R = $66.50 and the $62.50 dip still sits over breakeven. Key unchanged"
   },
   "q22": {
    "status": "pass",

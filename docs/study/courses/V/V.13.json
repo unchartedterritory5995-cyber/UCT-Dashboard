@@ -332,8 +332,8 @@
    "id": "s37",
    "tier": 3,
    "publisher": "UCT house rule",
-   "title": "Study: the trade plan for every setup (trim and targets)",
-   "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-09"
   },
   {
@@ -1047,20 +1047,20 @@
   {
    "id": "h1",
    "source": "s37",
-   "quote": "Trim is where to take some off: the detectors put the targets at 2R and 3R.",
-   "claim": "In our setup plans, a trim takes some of the position off, at targets of 2R and 3R."
+   "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+   "claim": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R."
   },
   {
    "id": "h2",
    "source": "s38",
-   "quote": "Each lesson's levels are the plan's: the entry, the stop, and the targets at 2R and 3R",
-   "claim": "Our plan's levels are the entry, the stop, and targets at 2R and 3R."
+   "quote": "Each lesson's levels are the plan's: the entry, the stop, and the trims at 3R and 5R",
+   "claim": "Our plan's levels are the entry, the stop, and the trims at 3R and 5R."
   },
   {
    "id": "h4",
    "source": "s37",
-   "quote": "puts the targets at 2R and 3R from that stop.",
-   "claim": "Our setup targets are R-multiples, with R set by the setup's own stop."
+   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+   "claim": "After the first third at 3R, we sell another third at 5R and trail the last third."
   },
   {
    "id": "h3",
@@ -2633,7 +2633,7 @@
     "Add shares as it works"
    ],
    "answer": "Take some off at a target",
-   "why": "Take some off at a target. In our setup plans, trim is where to take some off: the detectors put the targets at 2R and 3R.",
+   "why": "Take some off at a target. In our plan, trim is where to take some off: a third at 3R, another third at 5R.",
    "lesson_line": "Trim into strength at the targets. The rest of the position keeps working.",
    "facts": [
     "h1",
@@ -2653,11 +2653,11 @@
    "rung": 4,
    "format": "tf",
    "house": true,
-   "term": "Trim targets",
-   "q": "In our setup trade plans, the trim targets sit at 2R and 3R.",
+   "term": "Trims",
+   "q": "In our setup plans, the trims sit at 3R and 5R.",
    "answer": "True",
-   "why": "True. Our setup plans put the targets at 2R and 3R. R is your initial risk, entry to stop, so the 2R target is a gain of twice what you risked.",
-   "lesson_line": "Targets at 2R and 3R: gains of twice and three times what you risked.",
+   "why": "True. Our plan sells a third at 3R and another third at 5R. R is your initial risk, entry to stop, so 3R is a gain of three times what you risked.",
+   "lesson_line": "Trims at 3R and 5R: a third off at three times and five times what you risked.",
    "facts": [
     "h1",
     "h2",
@@ -2678,7 +2678,7 @@
   "House words: 'trim' (q63, q64) is UCT's own word from docs/study/TRADE_PLANS.md and the owner's quote in OWNER_PRINCIPLES rule 8; TRADE_PLANS says the detectors do not say how much to sell at each target, so no question keys a fraction to trim.",
   "Outcome bias (q33): s31's definition line is The Learner Lab's episode description (host Trevor Ragan) reposted on annieduke.com, not Duke's own words, and the page never uses 'resulting'. No reliable page found states that 'resulting' and 'outcome bias' are one term, so the checker re-keyed q33 to the definition of outcome bias from Baron and Hershey's 1988 paper (s40) and only says, in the reveal, that Duke's resulting (f84, f87) describes the same trap, which both definitions show.",
   "Payoff ratio (q43, q44): only Fidelity's backtesting glossary (s6) uses the name 'payoff ratio' among the sources found; TradingView's Strategy Tester help (s41) defines the same average win over average loss ratio as the strategy's 'payoff' measure. Some trading sites call this ratio the win/loss ratio or even the profit factor; the file keys only the Fidelity and TradingView meaning and teaches profit factor separately.",
-  "Targets at 2R and 3R (q63, q64): TRADE_PLANS.md says make_levels puts the targets 'at 2R and 3R from that stop'. The code (api/services/pattern_engine/detectors/uct/uct_setups_common.py, make_levels) computes risk = entry - stop and the targets as entry + 2 x risk and entry + 3 x risk: R comes from the stop, the targets are counted from the entry. The writer's 'measured from the stop' would put the 2R target only 1R above entry; the checker removed that wording."
+  "Trims (q63, q64, both cut as duplicates): until 2026-11-09 TRADE_PLANS.md put the detectors' targets at 2R and 3R (entry + 2 x risk, entry + 3 x risk, R from the stop); the owner's account rulebook (sizing_rule.md section 9, B19, E51) replaces it with a third at 3R and a third at 5R, and the house facts here now quote it."
  ],
  "verify": {
   "w1": {
@@ -3073,13 +3073,13 @@
   },
   "q63": {
    "status": "cut",
-   "notes": "duplicate of V.05#q13. Track audit 2026-11-09: the same question ('In our trade plans, what does trim mean?') on the same house source (TRADE_PLANS.md), keyed 'take some off'. V.05, the setup-plan unit, owns trim.",
+   "notes": "Still cut (duplicate). Text updated 2026-11-09 so the dead item no longer carries the old 2R / 3R targets (account rulebook B19, E51). duplicate of V.05#q13. Track audit 2026-11-09: the same question ('In our trade plans, what does trim mean?') on the same house source (TRADE_PLANS.md), keyed 'take some off'. V.05, the setup-plan unit, owns trim.",
    "fixed": false,
    "by": "track-auditor"
   },
   "q64": {
    "status": "cut",
-   "notes": "duplicate of V.06#q10. Track audit 2026-11-09: both key the same house fact, our trade plans put the targets at 2R and 3R (TRADE_PLANS.md, make_levels). V.06 asks it as a choice whose wrong answers teach. V.05 also uses the 2R and 3R targets in q30, q43, q46 and q56.",
+   "notes": "Still cut (duplicate). Text updated 2026-11-09 so the dead item no longer carries the old 2R / 3R targets (account rulebook B19, E51). duplicate of V.06#q10. Track audit 2026-11-09: both key the same house fact, our trade plans put the targets at 2R and 3R (TRADE_PLANS.md, make_levels). V.06 asks it as a choice whose wrong answers teach. V.05 also uses the 2R and 3R targets in q30, q43, q46 and q56.",
    "fixed": false,
    "by": "track-auditor"
   }

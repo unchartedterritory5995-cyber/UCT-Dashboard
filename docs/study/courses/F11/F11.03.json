@@ -203,6 +203,14 @@
    "title": "The house sizing rule, section 6: Management (owner quoted, Sunday Scans 2026-06-14)",
    "url": "repo:docs/study/sizing_rule.md#6-management-so-the-sizing-drills-can-go-full-circle",
    "accessed": "2026-11-09"
+  },
+  {
+   "id": "s26",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-09"
   }
  ],
  "facts": [
@@ -502,15 +510,15 @@
   },
   {
    "id": "h02",
-   "source": "s20",
-   "quote": "Trim is where to take some off: the detectors put the targets at 2R and 3R.",
-   "claim": "Our plans put the targets at 2R and 3R from the stop."
+   "source": "s26",
+   "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+   "claim": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R."
   },
   {
    "id": "h14",
-   "source": "s20",
-   "quote": "puts the targets at 2R and 3R from that stop.",
-   "claim": "Our plans measure the 2R and 3R targets from the plan's own stop."
+   "source": "s26",
+   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+   "claim": "After the first third at 3R, we sell another third at 5R and trail the last third."
   },
   {
    "id": "h03",
@@ -603,7 +611,7 @@
    "steps": [
     "Our risk on any trade is 0.25% to 2% of the account. 2% is the hard ceiling.",
     "Our default stop is the low of the day, or the prior day's low.",
-    "Each setup plan has its own stop. Its 2R and 3R targets are measured from that stop."
+    "Each setup plan has its own stop. Our trims, a third at 3R and at 5R, are measured from it."
    ],
    "facts": [
     "h10",
@@ -729,10 +737,10 @@
    "rung": 2,
    "format": "tf",
    "house": true,
-   "q": "On our plans, two trades with the same entry and stop get the same 2R target, even if one is held longer.",
+   "q": "On our plan, two trades with the same entry and stop get the same 3R trim, even if one is held longer.",
    "answer": "True",
-   "why": "True. Our plans put the targets at 2R and 3R from the stop. Same entry, same stop, same targets, however long you hold.",
-   "lesson_line": "Targets are measured from the stop, not from the calendar.",
+   "why": "True. Our first trim is a third at 3R, measured from the stop. Same entry, same stop, same trim price, however long you hold.",
+   "lesson_line": "Trims are measured from the stop, not from the calendar.",
    "facts": [
     "h14",
     "h02",
@@ -873,19 +881,19 @@
    "rung": 5,
    "format": "numeric",
    "house": true,
-   "q": "A Go Signal: you buy at $40.00, the prior close, with the stop at the session low of $39.20. Where is our first target?",
-   "answer": 41.6,
+   "q": "A Go Signal: you buy at $40.00, the prior close, with the stop at the session low of $39.20. Where is our first trim, 3R?",
+   "answer": 42.4,
    "calc": {
     "fn": "arith",
     "args": {
-     "expr": "entry + 2 * (entry - stop)",
+     "expr": "entry + 3 * (entry - stop)",
      "entry": 40,
      "stop": 39.2
     }
    },
    "prefix": "$",
-   "why": "$41.60. Our first target is 2R: twice the distance from your entry down to the session low, added to $40.00.",
-   "lesson_line": "2R is twice your risk per share, added to the entry.",
+   "why": "$42.40. Our first trim is a third at 3R: three times the distance from your entry down to the session low, added to $40.00.",
+   "lesson_line": "3R is three times your risk per share, added to the entry.",
    "facts": [
     "h02",
     "h08"
@@ -1174,7 +1182,7 @@
   "q10 (which average fits a hold of up to a year): Schwab names the 200-day for a position trader and ChartSchool says long-term investors use 100 or more periods. Other position-style authors use the 50-day or a 10-week or 30-week line; none of those is offered as a choice, so the key is the only long average on the list and is never called our trail.",
   "q20 (day trade with a 0.25% stop): sizing_rule.md section 3's worked line ('0.5% risk, 1% stop -> 50% position, which the ceiling (section 4) then caps') and section 4's position-cap table (the app's houseSizing.json) are not marked as the owner's, so no house cap number is keyed. The key is only 'cap the size', from Schwab (risk per trade and position size are separate limits, 5%-10% per position for 'some traders'), Fidelity/Hirsch (no position so big it decides the portfolio) and FINRA (fast-market fills). The 400% is the calc, shown in the choices. Checker, 2026-11-09: sizing_rule.md section 4 now quotes the owner on the normal max position ('20-25% is max yeah', 2026-11-09). It was given about Size It's swing sizing and names no day trade, so it is still not keyed here; the key stays 'cap the size'.",
   "q19 (same 25% size carried from 2% stops to 10% stops): keyed with the calc (25 x 10 / 100 = 2.5) against our 2% hard ceiling (sizing_rule.md section 1) and the owner's own size-times-stop line (section 3). The 25% day-trade size is a given in the story, not a recommended size.",
-  "q11 (Go Signal 2R target): TRADE_PLANS.md says every UCT detector's targets are 2R and 3R from its own stop and gives the Go Signal's entry (prior close, red to green) and stop (the session's low). A read-only look at api/services/pattern_engine/detectors/uct/uct_go_signal.py confirms it calls the shared make_levels with entry = that trigger and stop = the low (2R = entry + 2 x risk). The code is not cited; the key rests on TRADE_PLANS.md and the calc. q06 keys the Go Signal's stop (the session's low) from the same page.",
+  "q11 (Go Signal first trim): until 2026-11-09 TRADE_PLANS.md put every detector's targets at 2R and 3R and q11 asked the 2R price; the account rulebook (sizing_rule.md section 9, B19) makes the first trim a third at 3R, so q11 now asks the 3R price. The Go Signal's entry (prior close, red to green) and stop (the session's low) are unchanged (TRADE_PLANS.md). q06 keys the Go Signal's stop from the same page.",
   "q18 (Kicker stop): keys only the stop rule as TRADE_PLANS.md states it ('under the Kicker's low, or 3.5% under the entry if that is closer'; the owner's words 'Under the kicker candle low or entry with a 3.5% stop'). The story gives only the entry and the candle's low, so the key does not depend on how a Kicker is defined; F8.02 owns the Kicker's entries.",
   "q12 (a six-month hold meets reports): Investor.gov says US issuers file an annual 10-K and a 10-Q for each of the first three fiscal quarters, so a report comes every quarter. The earnings release that moves the stock usually comes around those filings. Checker, 2026-11-09: the story used to say the company 'must file a report every quarter', which gave the key away, so that fact now sits only in the why; the question asks what this plan covers that a day trade plan 'can skip' (not 'never'), because a day trade can still be taken on a report day. Nothing keys an exact count of reports in the hold (filing dates vary). What to do at a report (hold, trim, step aside) is F5.06's ground.",
   "Stop orders after hours: Schwab's order page says its stop orders trigger only in the 9:30 to 4 ET session; that is one broker's policy, so it is not cited. The general facts used are that gaps between sessions can carry price past a stop (Schwab, two pages) and Fidelity's overnight-earnings example (a 95 stop that sold near 90). Schwab's day-trading page also notes a 'trading day' for day-trade counting starts at 8 p.m. ET, so no question claims a day trade can never meet an overnight gap; q07 keys only that intraday stops can fill below the stop (FINRA, SEC).",
@@ -1192,9 +1200,9 @@
   },
   "w2": {
    "status": "pass",
-   "notes": "h10, h11, h01, h02 match sizing_rule.md sections 1-2 and TRADE_PLANS.md word for word. Changed: the title 'What never changes for us' listed the default stop as fixed, which contradicts w3 and q08 (the stop moves with the timeframe); now 'What our rules set'. Step 3 measured the targets 'from that stop' (the default stop), but each setup plan has its own stop (h01); now says so, with new house fact h14 ('puts the targets at 2R and 3R from that stop', TRADE_PLANS.md line 6).",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Checker 2026-11-09: h02 (B19) and h14 (E51) verbatim in section 9; h10 and h11 still in sections 1 and 2. Step 3's 'a third at 3R and at 5R' follows. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19, E51); awaiting cold check. Step 3's '2R and 3R targets' now the thirds at 3R and 5R"
   },
   "w3": {
    "status": "pass",
@@ -1228,9 +1236,9 @@
   },
   "q05": {
    "status": "pass",
-   "notes": "Rewritten. The old False statement ('how long you hold sets how far away the 2R target is') was arguable: this unit teaches that longer holds use wider stops, which pushes 2R out. Now a precise True statement: same entry and stop give the same 2R target however long you hold (h14, h02: targets at 2R and 3R from the plan's stop). It also ends the all-False pattern across the unit's four true/false items.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Checker 2026-11-09: True follows from B19 (h02): the trim is a multiple of the entry-to-stop distance, so the same entry and stop give the same 3R price whatever the holding time. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19); awaiting cold check. 'the same 2R target' now 'the same 3R trim'; key True unchanged. Old house fact was TRADE_PLANS.md 'Trim is where to take some off: the detectors put the targets at 2R and 3R' (the detectors' plan, no fraction); replaced by the rulebook"
   },
   "q06": {
    "status": "pass",
@@ -1264,9 +1272,9 @@
   },
   "q11": {
    "status": "pass",
-   "notes": "h08 (Go Signal entry and stop) and h02 (targets at 2R and 3R). Recomputed 40 + 2 x (40 - 39.20) = 41.60; calc matches. First target = 2R is right.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Checker 2026-11-09: Recomputed 40.00 + 3 x (40.00 - 39.20) = 42.40; calc agrees. Go Signal entry and stop (h08) still on TRADE_PLANS.md; B19 (h02) verbatim. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19); awaiting cold check. Was the first target at 2R ($41.60); now the first trim, a third at 3R ($42.40)"
   },
   "q12": {
    "status": "pass",

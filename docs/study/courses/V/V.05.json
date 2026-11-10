@@ -2,7 +2,7 @@
  "unit": "V.05",
  "track": "V",
  "title": "Setup words",
- "teaches": "The names on our setup list and what each one means: the Kicker, Oops Reversal, Slingshot, Launchpad, High Volume Edge (HVC), Gap Support and the Go Signal, the catalog family each sits in, the Bear gap lesson, and the plan words every setup carries: trigger, stop, R, trim at 2R and 3R, partials, trail.",
+ "teaches": "The names on our setup list and what each one means: the Kicker, Oops Reversal, Slingshot, Launchpad, High Volume Edge (HVC), Gap Support and the Go Signal, the catalog family each sits in, the Bear gap lesson, and the plan words every setup carries: trigger, stop, R, a third off at 3R and at 5R, the stop to breakeven, partials, trail.",
  "skills": [
   {
    "id": "vocab.setup_terms",
@@ -147,6 +147,14 @@
    "title": "The house sizing rule, 6. Management (owner quoted, Sunday Scans 2026-06-14)",
    "url": "repo:docs/study/sizing_rule.md#6-management-so-the-sizing-drills-can-go-full-circle",
    "accessed": "2026-11-09"
+  },
+  {
+   "id": "s18",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-09"
   }
  ],
  "facts": [
@@ -158,21 +166,21 @@
   },
   {
    "id": "h02",
-   "source": "s1",
-   "quote": "The shared `make_levels` (`uct_setups_common.py`) puts the targets at 2R and 3R from that stop.",
-   "claim": "Our plans put the targets at 2R and 3R, sized off the setup's own stop."
+   "source": "s18",
+   "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+   "claim": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R."
   },
   {
    "id": "h03",
-   "source": "s1",
-   "quote": "Trim is where to take some off: the detectors put the targets at 2R and 3R. They do not say how much to sell at each, so the course names the levels and does not invent a fraction.",
-   "claim": "Trim means taking some off. Our plans trim at 2R and 3R and name no fixed amount to sell at each."
+   "source": "s18",
+   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+   "claim": "After the first third at 3R, we sell another third at 5R and trail the last third."
   },
   {
    "id": "h05",
    "source": "s1",
-   "quote": "a cent over the red day's high, on the Kicker day (his JBI example: \"11.05 over THE previous day high\", the red day's high 11.04)",
-   "claim": "Our Kicker entry is a cent over the red day's high, on the Kicker day: in the JBI example, $11.05 over an $11.04 high."
+   "quote": "over the red day's high, on the Kicker day, at market as it trades through (his JBI example: \"11.05 over THE previous day high\", the red day's high 11.04)",
+   "claim": "Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through: in the JBI example, $11.05 over an $11.04 high."
   },
   {
    "id": "h06",
@@ -195,8 +203,8 @@
   {
    "id": "h09",
    "source": "s1",
-   "quote": "the prior close, reclaimed during the day | the day's low | 2R, 3R | under each higher low",
-   "claim": "Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, trims at 2R and 3R and trails under each higher low."
+   "quote": "the prior close, reclaimed during the day | the day's low | a third at 3R, a third at 5R | under each higher low",
+   "claim": "Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, sells a third at 3R and a third at 5R, and trails under each higher low."
   },
   {
    "id": "h11",
@@ -333,8 +341,8 @@
   {
    "id": "l01",
    "source": "s3",
-   "quote": "Each lesson's levels are the plan's: the entry, the stop, and the targets at 2R and 3R",
-   "claim": "Every setup lesson draws the same levels: the entry, the stop, and targets at 2R and 3R."
+   "quote": "Each lesson's levels are the plan's: the entry, the stop, and the trims at 3R and 5R",
+   "claim": "Every setup lesson draws the same levels: the entry, the stop, and the trims at 3R and 5R."
   },
   {
    "id": "o01",
@@ -557,6 +565,12 @@
    "source": "s17",
    "quote": "Hold your winners by selling partials into strength and trailing the rising moving averages.",
    "claim": "Our rule for winners: sell partials into strength and trail the rising moving averages."
+  },
+  {
+   "id": "h24",
+   "source": "s18",
+   "quote": "Move the stop to breakeven at 2R to 5R, ideally.",
+   "claim": "Our stop moves up to breakeven once the trade is 2R to 5R ahead; we teach it at the first trim."
   }
  ],
  "walkthroughs": [
@@ -565,7 +579,7 @@
    "title": "Every setup carries a plan",
    "steps": [
     "Every trade plan we teach hands you two prices: the trigger, which is the entry, and the stop.",
-    "R is your risk per share, entry to stop. Targets sit at 2R and 3R, where you trim some off.",
+    "R is your risk per share, entry to stop. A third comes off at 3R and another at 5R.",
     "Then you trail. The stop follows the stock up, under each higher low or a rising average."
    ],
    "facts": [
@@ -604,13 +618,14 @@
    "steps": [
     "The textbook kicker is a down candle, then a gap up the other way.",
     "Investopedia calls it highly reliable. Bulkowski's tests found it reversed the trend 53% of the time, almost random.",
-    "So I don't trade the name. I trade the plan: our entry, our stop, and the trims at 2R and 3R."
+    "So I don't trade the name. I trade the plan: our entry, our stop, a third off at 3R and at 5R."
    ],
    "facts": [
     "t01",
     "t03",
     "t06",
-    "h02"
+    "h02",
+    "h03"
    ]
   }
  ],
@@ -634,11 +649,12 @@
    "lesson_line": "Trigger means entry. Every setup hands you one, plus a stop.",
    "facts": [
     "h01",
-    "h02"
+    "h02",
+    "h03"
    ],
    "wrong": {
     "The setup's stop price": "The stop is the other price each setup gives you. The trigger is where you get in.",
-    "The first profit target": "Targets come later, at 2R and 3R, sized off your entry-to-stop risk.",
+    "The first profit target": "Trims come later: a third at 3R and at 5R, sized off your entry-to-stop risk.",
     "The news that moved it": "News can be why a stock moves. The trigger is a price on the chart."
    }
   },
@@ -903,7 +919,7 @@
    ],
    "wrong": {
     "everything": "Selling it all at the first pop ends the trade. The line keeps part of it on and trails it.",
-    "half": "Our plans name where to trim, 2R and 3R, but not a fixed fraction like half.",
+    "half": "Our first trim is a third at 3R, not half.",
     "losers": "This line is about winners: take some off into strength and trail the rest."
    }
   },
@@ -938,7 +954,7 @@
     "Cutting size before you buy"
    ],
    "answer": "Taking some shares off",
-   "why": "Taking some shares off. Our plans trim at the 2R and 3R targets and keep the rest working.",
+   "why": "Taking some shares off. Our plan sells a third at 3R, another third at 5R, and keeps the last third working.",
    "lesson_line": "Trim means some, not all.",
    "facts": [
     "h03",
@@ -1244,11 +1260,12 @@
    "rung": 4,
    "format": "tf",
    "house": true,
-   "q": "Our plans say exactly how much to sell at 2R and at 3R.",
-   "answer": "False",
-   "why": "False. They name the levels, 2R and 3R, but not how much to sell at each.",
-   "lesson_line": "We name where to trim, not a fixed fraction.",
+   "q": "Our plan names the size of the first trim, not just the level: a third at 3R.",
+   "answer": "True",
+   "why": "True. The hard rule is a third at 3R. Another third goes at 5R, and the last third trails.",
+   "lesson_line": "A third at 3R, a third at 5R. The plan names the size, not just the level.",
    "facts": [
+    "h02",
     "h03"
    ],
    "term": "Trim"
@@ -1303,7 +1320,7 @@
     "Slingshot"
    ],
    "answer": "Kicker",
-   "why": "Kicker. A red day, then a gap up over its close and a push through its high. Our entry is a cent over that high.",
+   "why": "Kicker. A red day, then a gap up over its close and a push through its high. Our entry is over that high, at market as it trades through.",
    "lesson_line": "Red day, gap up, through its high: that's a Kicker.",
    "facts": [
     "h05",
@@ -1354,26 +1371,26 @@
    "rung": 5,
    "format": "numeric",
    "house": true,
-   "q": "Oops Reversal: you buy the reclaim of yesterday's $30.00 close. The day's low is $29.00. Where is our 2R target?",
-   "answer": 32,
+   "q": "Oops Reversal: you buy the reclaim of yesterday's $30.00 close. The day's low is $29.00. Where is our first trim, 3R?",
+   "answer": 33,
    "calc": {
     "fn": "arith",
     "args": {
-     "expr": "entry + 2 * (entry - stop)",
+     "expr": "entry + 3 * (entry - stop)",
      "entry": 30,
      "stop": 29
     }
    },
    "prefix": "$",
-   "why": "$32.00. Entry minus stop is a dollar a share. Two of those on top of $30.00 is the 2R target.",
-   "lesson_line": "2R is two times your entry-to-stop risk, added to the entry.",
+   "why": "$33.00. Entry minus stop is a dollar a share. Three of those on top of $30.00 is 3R, where a third comes off.",
+   "lesson_line": "3R is three times your entry-to-stop risk, added to the entry.",
    "facts": [
     "h02",
     "h09",
     "t10",
     "r01"
    ],
-   "term": "2R"
+   "term": "3R"
   },
   {
    "key": "q31",
@@ -1702,36 +1719,37 @@
    "skill": "vocab.setup_terms",
    "rung": 7,
    "format": "scenario",
-   "term": "2R target",
+   "term": "3R",
    "house": true,
-   "story": "You buy a setup at $60 with its stop at $57. It reaches $66 and keeps going.",
+   "story": "You buy a setup at $60 with its stop at $57. It reaches $69 and keeps going.",
    "q": "Counting in R, where is it on our plan?",
    "choices": [
-    "At 2R: the first target",
-    "At 3R: the second target",
-    "At 6R: six dollars up"
+    "At 3R: the first trim",
+    "At 5R: the second trim",
+    "At 9R: nine dollars up"
    ],
-   "answer": "At 2R: the first target",
+   "answer": "At 3R: the first trim",
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "(price - entry) / (entry - stop)",
-     "price": 66,
+     "price": 69,
      "entry": 60,
      "stop": 57
     }
    },
-   "why": "At 2R. The risk was $3 a share, $60 down to $57. It's up $6, two times that risk. That's the first target, where we trim.",
+   "why": "At 3R. The risk was $3 a share, $60 down to $57. It's up $9, three times that risk. That's the first trim: a third off, stop to breakeven.",
    "lesson_line": "Count in R: the gain divided by your entry-to-stop risk.",
    "facts": [
     "h02",
     "h03",
+    "h24",
     "t10",
     "r01"
    ],
    "wrong": {
-    "At 3R: the second target": "3R needs three times the risk. This is two.",
-    "At 6R: six dollars up": "That's dollars, not R. Divide the $6 gain by the $3 risk."
+    "At 5R: the second trim": "5R needs five times the risk. This is three.",
+    "At 9R: nine dollars up": "That's dollars, not R. Divide the $9 gain by the $3 risk."
    }
   },
   {
@@ -1767,7 +1785,7 @@
    "format": "mcq",
    "term": "1R",
    "house": true,
-   "q": "Our targets sit at 2R and 3R. What is 1R?",
+   "q": "Our trims sit at 3R and 5R. What is 1R?",
    "choices": [
     "Your risk per share, entry to stop",
     "1% of your account",
@@ -1775,7 +1793,7 @@
     "A 1% move in the stock"
    ],
    "answer": "Your risk per share, entry to stop",
-   "why": "Your risk per share, entry to stop. Tharp's example: buy at $50 with the exit at $40, and 1R is $10. Our 2R and 3R targets count in those units.",
+   "why": "Your risk per share, entry to stop. Tharp's example: buy at $50 with the exit at $40, and 1R is $10. Our 3R and 5R trims count in those units.",
    "lesson_line": "1R is your risk per share. The targets count up in those units.",
    "facts": [
     "r01",
@@ -1784,7 +1802,7 @@
    ],
    "wrong": {
     "1% of your account": "That's an account-risk number. R is per share: the gap from your entry to your stop.",
-    "The first profit target": "That's 2R in our plans. 1R is the unit the targets are measured in.",
+    "The first profit target": "That's 3R in our plan, the first trim. 1R is the unit the trims are measured in.",
     "A 1% move in the stock": "R isn't a percent move. It's the dollars per share between entry and stop."
    }
   },
@@ -1970,7 +1988,7 @@
    "choices": [
     "Tighten it to just under the gap top",
     "Widen it to give the trade room",
-    "Leave it and wait for 2R"
+    "Leave it and wait for 3R"
    ],
    "answer": "Tighten it to just under the gap top",
    "why": "Tighten it to just under the gap top. When it drifts sideways at the gap, our plan tightens the stop there.",
@@ -1982,7 +2000,7 @@
    ],
    "wrong": {
     "Widen it to give the trade room": "Widening adds risk to a trade that isn't working.",
-    "Leave it and wait for 2R": "The plan says to tighten when it drifts at the gap. Waiting with the wide stop keeps more risk on."
+    "Leave it and wait for 3R": "The plan says to tighten when it drifts at the gap. Waiting with the wide stop keeps more risk on."
    }
   },
   {
@@ -2068,16 +2086,17 @@
    "rung": 8,
    "format": "tf",
    "house": true,
-   "q": "On our plan, a setup that reaches 2R is done: you sell it all there.",
+   "q": "On our plan, a setup that reaches 3R is done: you sell it all there.",
    "answer": "False",
-   "why": "False. 2R is the first target, where we trim, taking some off. 3R is the second, and the rest trails.",
-   "lesson_line": "2R is a trim, not the finish line.",
+   "why": "False. 3R is the first trim: a third comes off and the stop moves to breakeven. Another third goes at 5R, and the last third trails.",
+   "lesson_line": "3R is a trim, not the finish line.",
    "facts": [
     "h03",
     "h02",
+    "h24",
     "o01"
    ],
-   "term": "2R"
+   "term": "3R"
   },
   {
    "key": "q57",
@@ -2195,16 +2214,16 @@
   "The Oops Reversal and the Go Signal share the same entry mechanic (the prior close, reclaimed in the session). TRADE_PLANS.md lists the Go Signal's checks but not the Oops's, so no question says what one needs that the other does not, and no question offers both as choices where both would fit.",
   "HVC: skill_map.json lists HVC only as an alias of the High Volume Edge. q07 reads it as the high-volume close from TRADE_PLANS.md's entry wording; the detector's docstring (uct_hve.py, not a citable source) says the same: 'the high-volume close (HVC)'.",
   "Gap top: TRADE_PLANS.md uses 'the gap top' without defining it (uct_gap_support.py takes it as the prior day's high, the top of the range before the gap). No question asks what the gap top is; questions give it as a price.",
-  "R: TRADE_PLANS.md puts the targets 'at 2R and 3R from that stop' and does not define R. R is taken from the Van Tharp Institute (initial risk per share, entry to stop); make_levels computes entry + 2 x (entry - stop) and entry + 3 x (entry - stop), which is what every target calc here does.",
+  "R and the trims: until 2026-11-09 TRADE_PLANS.md put the detectors' targets 'at 2R and 3R from that stop' and named no fraction; the owner's account rulebook (sizing_rule.md section 9, B19, E51) replaces it with a third at 3R (stop to breakeven), a third at 5R, the last third trailed, and TRADE_PLANS.md was rewritten to match. R is still taken from the Van Tharp Institute (initial risk per share, entry to stop); every trim calc here is entry + 3 x (entry - stop).",
   "Checker, 2026-11-09: q24 now names the down-close stop as a short's stop. TRADE_PLANS.md puts the stop at the edge bar's high on a down close with the entry at the close, which only works as a short; Investor.gov (t22, t23) says a buy stop sits above the price and guards a short. Without that line a member could read it as a stop above a long entry.",
   "Gap, two senses (track audit 2026-11-09): V.02 q50 defines a chart gap as no overlap between two days' ranges (ChartSchool, Bulkowski). Our Kicker detector (uct_kicker.py, rule K2) calls an open over the prior close a gap up, even inside the prior range, and q28's open ($20.55) sits over the $20.00 close but under the $20.60 high. q28's why now says 'a gap up over its close' so the sense is named; V.02 q50's wrong note now says 'On a chart'."
  ],
  "verify": {
   "w1": {
    "status": "pass",
-   "notes": "h01, h02, h03, h08, h16, l01 confirmed in TRADE_PLANS.md, p01 in sizing_rule.md section 6 (owner, 2026-06-14), r01 on the live Van Tharp page. Changed step 1 from 'each of our setups' hands you a trigger and stop to 'every trade plan we teach': the Bear gap has no trade. Tightened the h01 and h02 claims (detectors; targets sized off the stop, as make_levels computes entry + 2R / 3R).",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Checker 2026-11-09: h02 (B19) and h03 (E51) verbatim in section 9; l01 and h09 match TRADE_PLANS.md as rewritten on 2026-11-09. Step 2's thirds and step 3's trail (h08, h16) each rest on a quote. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19, E51); awaiting cold check. Step 2's 'Targets sit at 2R and 3R, where you trim some off' now the thirds at 3R and 5R. Old house fact was TRADE_PLANS.md 'Trim is where to take some off: the detectors put the targets at 2R and 3R ... does not invent a fraction' (the detectors' plan); replaced by the rulebook"
   },
   "w2": {
    "status": "pass",
@@ -2214,15 +2233,15 @@
   },
   "w3": {
    "status": "pass",
-   "notes": "t01 and t03 (Investopedia, updated 2026-02-03) and t06 (Bulkowski) confirmed in context. 'Highly reliable' vs '53%, almost random' is credited to each source, not taught as a prediction. 'Trade the plan, not the name' is sound, risk-first judgment.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Checker 2026-11-09: Step 3's thirds are B19 and E51 (h02, h03 verbatim). Kicker facts t01, t03, t06 unchanged from the last check. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19, E51); awaiting cold check. Step 3's 'the trims at 2R and 3R' now 'a third off at 3R and at 5R'"
   },
   "q01": {
    "status": "pass",
-   "notes": "h01 confirmed. The why said 'each of our setups' (the Bear gap has no trade): now 'each setup's plan'. The target wrong note said '2R and 3R measured from the stop', which reads as stop + 2R: now 'sized off your entry-to-stop risk' (make_levels: entry + 2 x risk).",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Checker 2026-11-09: Only the 'first profit target' note changed; it names 3R and 5R, so h03 (E51) added to the facts beside h02. Key 'The setup's entry price' unchanged (h01). Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19, E51); awaiting cold check. Only the 'first profit target' wrong note changed (2R and 3R targets -> thirds at 3R and 5R); key unchanged"
   },
   "q02": {
    "status": "pass",
@@ -2280,9 +2299,9 @@
   },
   "q11": {
    "status": "pass",
-   "notes": "p01 is the owner's own quoted line (sizing_rule.md section 6, 2026-06-14). The 'half' wrong note matches h03 (no fixed fraction).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Checker 2026-11-09: The 'half' note now rests on B19 via h03's 'first third at 3R'. Key 'partials' is p01 verbatim (owner, section 6). Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19); awaiting cold check. Only the 'half' wrong note changed: it said our plans name no fraction; the rule is a third at 3R. Key unchanged"
   },
   "q12": {
    "status": "pass",
@@ -2292,9 +2311,9 @@
   },
   "q13": {
    "status": "pass",
-   "notes": "h03 confirmed ('Trim is where to take some off'). Wrong notes are fair: exit, trail, sizing.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Checker 2026-11-09: h03 (E51) verbatim; the why's thirds follow. Key 'Taking some shares off' unchanged (o01, p01). Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19, E51); awaiting cold check. The why's 'trim at the 2R and 3R targets' now the thirds ladder; key unchanged"
   },
   "q14": {
    "status": "pass",
@@ -2316,9 +2335,9 @@
   },
   "q17": {
    "status": "pass",
-   "notes": "h05 (the owner's JBI example: 11.05 over the 11.04 high) and o02 confirmed. Recomputed 11.04 + 0.01 = 11.05; the calc agrees.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Checker 2026-11-09: Re-checked after h05's quote was refreshed to TRADE_PLANS.md's current Kicker row; the JBI example (11.05 over the 11.04 high) is still in the quote, so $11.05 holds and the calc agrees. Earlier note: h05 (the owner's JBI example: 11.05 over the 11.04 high) and o02 confirmed. Recomputed 11.04 + 0.01 = 11.05; the calc agrees."
   },
   "q18": {
    "status": "pass",
@@ -2370,9 +2389,9 @@
   },
   "q26": {
    "status": "pass",
-   "notes": "h03 confirmed: the detectors do not say how much to sell at each target.",
-   "fixed": false,
-   "by": "checker"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Checker 2026-11-09: h02 (B19) and h03 (E51) verbatim; True follows. Reworded the statement ('Our plan names the size of the first trim, not just the level: a third at 3R') so it is not the same sentence as F9.06 q07. The flip from False was right: the old statement rested on TRADE_PLANS wording that no longer exists. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19, E51); awaiting cold check. Was keyed False ('our plans say exactly how much to sell at 2R and 3R'); the rulebook names a third at 3R, so the statement is rewritten and keyed True. Old house fact was TRADE_PLANS.md 'Trim is where to take some off: the detectors put the targets at 2R and 3R ... does not invent a fraction' (the detectors' plan); replaced by the rulebook"
   },
   "q27": {
    "status": "pass",
@@ -2382,9 +2401,9 @@
   },
   "q28": {
    "status": "pass",
-   "notes": "h05 and t01 confirmed. Story checked against uct_kicker.py: a red day closing near its low (weak close), an open at $20.55, over the $20.00 close by more than a tenth of the range, and a trade through the $20.60 high. It also opens over the prior open (Investopedia's shape). Wrong notes are fair. Track auditor, 2026-11-09: the why said 'a gap up the other way'. The $20.55 open is over the $20.00 red close but under its $20.60 high, which V.02 q50 would not call a chart gap, so the why now says 'a gap up over its close', the sense our Kicker uses. Key, choices and numbers unchanged; h05 and t01 still carry it.",
+   "by": "checker",
    "fixed": true,
-   "by": "checker"
+   "notes": "Checker 2026-11-09: h05's quote refreshed to TRADE_PLANS.md's current Kicker row (the 'a cent over' wording left the page on 2026-11-09, 3556ebf263); the why now says 'over that high, at market as it trades through'. Key, story and numbers unchanged. Earlier note: h05 and t01 confirmed. Story checked against uct_kicker.py: a red day closing near its low (weak close), an open at $20.55, over the $20.00 close by more than a tenth of the range, and a trade through the $20.60 high. It also opens over the prior open (Investopedia's shape). Wrong notes are fair. Track auditor, 2026-11-09: the why said 'a gap up the other way'. The $20.55 open is over the $20.00 red close but under its $20.60 high, which V.02 q50 would not call a chart gap, so the why now says 'a gap up over its close', the sense our Kicker uses. Key, choices and numbers unchanged; h05 and t01 still carry it."
   },
   "q29": {
    "status": "pass",
@@ -2394,9 +2413,9 @@
   },
   "q30": {
    "status": "pass",
-   "notes": "h02 and h09 confirmed. Recomputed 30 + 2 x (30 - 29) = 32, as make_levels does; the calc agrees.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Checker 2026-11-09: Recomputed 30 + 3 x (30 - 29) = 33; calc agrees. Entry and stop match the Oops row (h09, TRADE_PLANS as rewritten); B19 (h02) verbatim. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19); awaiting cold check. Was the 2R target ($32.00); now the first trim, a third at 3R ($33.00); term 2R -> 3R"
   },
   "q31": {
    "status": "pass",
@@ -2472,9 +2491,9 @@
   },
   "q43": {
    "status": "pass",
-   "notes": "h02, h03, r01 confirmed. Recomputed (66 - 60) / (60 - 57) = 2R; the calc agrees.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Checker 2026-11-09: Recomputed (69 - 60) / (60 - 57) = 3; calc agrees. 'First trim: a third off, stop to breakeven' is B19 plus the breakeven move (h02, h24 verbatim). Wrong picks are 5R and dollars-for-R, both real. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19); awaiting cold check. Story's $66 (2R) is now $69 (3R, the first trim); choices and notes recomputed; term '2R target' -> '3R'"
   },
   "q44": {
    "status": "pass",
@@ -2484,7 +2503,7 @@
   },
   "q45": {
    "status": "cut",
-   "notes": "duplicate of V.06#q01. Track audit 2026-11-09: both ask what R (1R) means and key the risk per share from entry to stop, both on Tharp's definition of R as the initial risk per share (this item also used his $50 / $40 example). V.06, the risk unit, owns R. This unit still applies R in q30, q43 and q46.",
+   "notes": "Still cut (duplicate of V.06#q01). Text updated 2026-11-09 so the dead item no longer carries the old 2R / 3R targets. duplicate of V.06#q01. Track audit 2026-11-09: both ask what R (1R) means and key the risk per share from entry to stop, both on Tharp's definition of R as the initial risk per share (this item also used his $50 / $40 example). V.06, the risk unit, owns R. This unit still applies R in q30, q43 and q46.",
    "fixed": false,
    "by": "track-auditor"
   },
@@ -2526,9 +2545,9 @@
   },
   "q52": {
    "status": "pass",
-   "notes": "h21 confirmed: drifting sideways at the gap gets a tighter stop just under the gap top.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Checker 2026-11-09: Only the wrong choice's level changed (3R, B19 via h02). Key 'tighten under the gap top' is h21 (TRADE_PLANS Gap Support row), still on the page. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19); awaiting cold check. Only the wrong choice 'Leave it and wait for 2R' is now '... for 3R'; key unchanged"
   },
   "q53": {
    "status": "pass",
@@ -2550,9 +2569,9 @@
   },
   "q56": {
    "status": "pass",
-   "notes": "h02, h03, o01 confirmed: 2R is a trim, not an exit.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Checker 2026-11-09: False follows from h02, h03, h24 (B19, E51, the breakeven move), all verbatim: 3R is the first third, not the exit. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19, E51); awaiting cold check. 'reaches 2R is done' now 'reaches 3R is done', still False: 3R is the first trim (a third off, stop to breakeven), 5R the second, the rest trails"
   },
   "q57": {
    "status": "pass",

@@ -107,7 +107,7 @@
    "id": "h1",
    "tier": 3,
    "publisher": "UCT house rule",
-   "title": "Study: the trade plan for every setup (the setup table and the trim note)",
+   "title": "Study: the trade plan for every setup (the setup table: the Trail column)",
    "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup",
    "accessed": "2026-11-09"
   },
@@ -117,6 +117,14 @@
    "publisher": "UCT house rule",
    "title": "The house sizing rule, section 6: Management (owner quoted, 2026-06-14)",
    "url": "repo:docs/study/sizing_rule.md#6-management-so-the-sizing-drills-can-go-full-circle",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "h3",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-09"
   }
  ],
@@ -357,15 +365,15 @@
   },
   {
    "id": "h01",
-   "source": "h1",
-   "quote": "The shared `make_levels` (`uct_setups_common.py`) puts the targets at 2R and 3R from that stop.",
-   "claim": "Our setup plans put the profit targets at 2R and 3R, measured from the setup's own stop."
+   "source": "h3",
+   "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+   "claim": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R."
   },
   {
    "id": "h02",
-   "source": "h1",
-   "quote": "Trim is where to take some off: the detectors put the targets at 2R and 3R. They do not say how much to sell at each, so the course names the levels and does not invent a fraction.",
-   "claim": "Our plans say where to take some off (2R, 3R), not how much to sell there."
+   "source": "h3",
+   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+   "claim": "After the first third at 3R, we sell another third at 5R and trail the last third."
   },
   {
    "id": "h03",
@@ -396,6 +404,12 @@
    "source": "h2",
    "quote": "Hold your winners by selling partials into strength and trailing the rising moving averages.",
    "claim": "The owner's rule: sell partials into strength and trail the rest under the rising moving averages."
+  },
+  {
+   "id": "h08",
+   "source": "h3",
+   "quote": "Move the stop to breakeven at 2R to 5R, ideally.",
+   "claim": "Our stop moves up to breakeven once the trade is 2R to 5R ahead; we teach it at the first trim."
   }
  ],
  "walkthroughs": [
@@ -610,11 +624,12 @@
    "rung": 3,
    "format": "tf",
    "house": true,
-   "q": "Our trade plans set exactly how much of the position to sell at each target.",
-   "answer": "False",
-   "why": "False. Our plans set where to take some off, at 2R and 3R. How much you sell there is your call, so plan it before you buy.",
-   "lesson_line": "Our plan sets where to trim. You set how much, before the trade.",
+   "q": "Our plan says how much to sell at the first trim: a third of the position at 3R.",
+   "answer": "True",
+   "why": "True. The hard rule is a third at 3R, then another third at 5R, and the last third trails. Plan those prices before you buy.",
+   "lesson_line": "A third at 3R, a third at 5R. Plan the prices before you buy.",
    "facts": [
+    "h01",
     "h02",
     "f37"
    ]
@@ -711,25 +726,26 @@
    "skill": "risk.partials",
    "rung": 5,
    "format": "numeric",
-   "q": "You buy 600 at $20, stop $19. You sell 200 at $22 and leave the stop. The rest stops out at $19. What did the trade make?",
-   "answer": 0,
+   "q": "You buy 600 at $20, stop $19. At 3R, $23, you sell 200 and move the stop to $20. The rest stops out there. What did the trade make?",
+   "answer": 600,
    "prefix": "$",
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "sold * (sale - entry) - kept * (entry - stop)",
      "sold": 200,
-     "sale": 22,
+     "sale": 23,
      "entry": 20,
      "kept": 400,
-     "stop": 19
+     "stop": 20
     }
    },
-   "why": "$0. The 200 you sold made $400, and the 400 left lost $400 at the stop. Selling a third at 2R paid for the risk on the rest.",
-   "lesson_line": "Sell a third at 2R, and a stop-out on the rest leaves you about even.",
+   "why": "$600. The 200 you sold made $3 a share, $600. The rest went out at breakeven, $20, for nothing. The first trim banked the gain and the breakeven stop kept it.",
+   "lesson_line": "A third off at 3R and the stop at breakeven: the gain is banked before the rest can hurt you.",
    "facts": [
     "f23",
     "h01",
+    "h08",
     "f02",
     "f28"
    ]
@@ -1088,7 +1104,7 @@
   "Breakeven stops. The SEC, FINRA, Schwab, Investopedia and O'Neil all present raising a sell stop as a way to protect a profit, and O'Neil says not to let a stock with a worthwhile profit fall back below the purchase price. Dave Mabe (IBKR Campus) never moves a stop to breakeven, and Bulkowski's thepatternsite.com/ScalingOut.html reports Howard Bandy's Active Trader test where a breakeven stop 'dramatically reduces profit'. The file never keys WHEN to move to breakeven or that you always should; q20 teaches the cost (normal swings shake you out) and q17/q24 the gap risk.",
   "Bulkowski (thepatternsite.com, a contract Tier 2 source) was read but NOT cited: its footer says the site 'shall not be used to train artificial intelligence (AI) systems', and docs/study/TRAINING_CORPUS.md marks the Study module as training material. Owner to decide whether short attributed quotes from it are acceptable.",
   "Scaling out. Schwab presents selling part as a way to lock in gains while the rest rides (f28, f29); Mabe (IBKR Campus, f40) says it costs profit when the stock keeps running, and so do Bulkowski and, per the writer, Investopedia's criticism section (not cited, see the checker note below). The file keys both halves (q03 / q08) and does not claim scaling out raises returns.",
-  "UCT's own trim size. docs/study/TRADE_PLANS.md says the detectors put targets at 2R and 3R and 'do not say how much to sell at each'. Questions that sell 'a third' or 'half' state it as a given, never as our rule; q07 keys that our plans do not fix the fraction.",
+  "UCT's own trim size, settled 2026-11-09: the account rulebook (sizing_rule.md section 9, B19, E51) names it, a third at 3R (the hard rule; the owner mostly waits for 5R in practice), another third at 5R, the last third trails. Until today TRADE_PLANS.md said the detectors 'do not say how much to sell at each'; q07 and q12 now teach the thirds as ours. Questions that sell 'half' elsewhere in the unit state it as a given or as a named author's rule, never as ours.",
   "The unit row (UNITS-foundations.md F9.06) and docs/study/sizing_rule.md section 6 name 'the 10/20-day for episodic pivots (dossier CORRECTIONS)' as our trail and a 'breakeven rule (dossier M10)'. Both come from the model-drafted dossier, not the owner, so neither is used. The trails asked as ours come only from TRADE_PLANS.md's setup table (q18: the Kicker, Oops Reversal, Slingshot and Launchpad rows all name 'under each higher low'; HVE and Gap Support do not) plus the owner's quoted 'trailing the rising moving averages' (q06).",
   "Investopedia, terms/t/trailingstop.asp, NVDA example: it writes the first trailing stop as '$99 (110 - (11 x 0.10))'; the arithmetic should be 110 - (110 x 0.10). Not cited. Investopedia articles/trading/08/trailing-stop-loss.asp says a 10% trail from $10.05 gives an 'immediate effective stop-loss value' of $9.85 (10% would be about $9.05); that page is not cited at all.",
   "Elder's 6% cap (f41, f43) is quoted only to show that total open risk is added up across positions and that raising stops lowers it. The 6% number is never keyed; q19 uses the member's own limit as a given. UCT's heat cap in sizing_rule.md section 5 is marked 'App cap', not an owner answer, and belongs to F9.05.",
@@ -1152,9 +1168,9 @@
   },
   "q07": {
    "status": "pass",
-   "notes": "h02 is verbatim in TRADE_PLANS.md: the detectors set 2R and 3R and do not say how much to sell. Fidelity f37 (plan the exit before entry) confirmed. Key False is right.",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Checker 2026-11-09: h01 (B19) and h02 (E51) verbatim in section 9. True follows: the rule names the size (a third) and the level (3R). The flip from the old False was right: the old statement rested on TRADE_PLANS wording that no longer exists. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19, E51); awaiting cold check. Was keyed False ('our plans do not set how much to sell'); the rulebook names a third at 3R, so the statement is rewritten and keyed True. Old house fact was TRADE_PLANS.md 'Trim is where to take some off: the detectors put the targets at 2R and 3R' (the detectors' plan, no fraction); replaced by the rulebook"
   },
   "q08": {
    "status": "pass",
@@ -1182,9 +1198,9 @@
   },
   "q12": {
    "status": "pass",
-   "notes": "200 x $2 - 400 x $1 = $0 (calc). $22 is 2R on a $1 risk and 200 of 600 is a third, so the why's numbers hold; h01 (2R) verbatim in TRADE_PLANS.md. Only change: f17 swapped for f28.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Checker 2026-11-09: Recomputed: 200 x (23 - 20) = 600; 400 x (20 - 20) = 0; total 600; calc agrees. 3R on $20 / $19 is $23 (given). B19 (h01) and the breakeven move (h08) verbatim; f02 keeps 'if it fills there' honest. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19); awaiting cold check. Was 'sell a third at 2R, leave the stop, the rest stops out at $19' = $0; now the real rule: a third at 3R ($23) with the stop to breakeven ($20) = $600 (calc)"
   },
   "q13": {
    "status": "cut",

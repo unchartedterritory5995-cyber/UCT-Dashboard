@@ -100,6 +100,14 @@
    "title": "Study: the trade plan for every setup (the Entry, Stop, Trim and Trail columns the app's detectors compute)",
    "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup",
    "accessed": "2026-11-09"
+  },
+  {
+   "id": "s12",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-09"
   }
  ],
  "facts": [
@@ -399,15 +407,21 @@
   },
   {
    "id": "h2",
-   "source": "s11",
-   "quote": "Trim is where to take some off: the detectors put the targets at 2R and 3R.",
-   "claim": "In our plans, Trim is where you take some off, at the 2R and 3R targets."
+   "source": "s12",
+   "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+   "claim": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R."
   },
   {
    "id": "h3",
    "source": "s11",
    "quote": "under each higher low, or under the 10-day average",
    "claim": "One of our Trail lines (the Kicker's): the stop goes under each higher low, or under the 10-day average."
+  },
+  {
+   "id": "h4",
+   "source": "s12",
+   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+   "claim": "After the first third at 3R, we sell another third at 5R and trail the last third."
   }
  ],
  "walkthroughs": [
@@ -442,7 +456,8 @@
     "f44",
     "h1",
     "h2",
-    "h3"
+    "h3",
+    "h4"
    ]
   },
   {
@@ -590,11 +605,12 @@
     "How many shares to buy"
    ],
    "answer": "Where to take some profit off",
-   "why": "Where to take some profit off. In our plans the targets sit at 2R and 3R, and Trim is where you take some off.",
+   "why": "Where to take some profit off. In our plan a third comes off at 3R and another third at 5R. Trim is where you take some off.",
    "lesson_line": "Entry, Stop, Trim, Trail. Trim is where you sell some into strength.",
    "facts": [
     "h1",
     "h2",
+    "h4",
     "h3",
     "f33"
    ],
@@ -997,9 +1013,9 @@
   },
   "w2": {
    "status": "pass",
-   "notes": "f06/f07 are Schwab's 'Why this trade now' questions, f43/f44 IBKR's plan components, f14 Schwab, h1-h3 in OWNER_PRINCIPLES rule 8 and TRADE_PLANS.md. 'Trail: how the stop follows a winner up' stays general (h3 claim narrowed to the Kicker row).",
+   "by": "checker",
    "fixed": false,
-   "by": "checker"
+   "notes": "Checker 2026-11-09: Re-checked after the 2026-11-09 fact change: h2 (B19) and h4 (E51) verbatim in section 9; step 4 names Entry, Stop, Trim, Trail (h1) and defines Trim and Trail in plain words, no numbers. Earlier note: f06/f07 are Schwab's 'Why this trade now' questions, f43/f44 IBKR's plan components, f14 Schwab, h1-h3 in OWNER_PRINCIPLES rule 8 and TRADE_PLANS.md. 'Trail: how the stop follows a winner up' stays general (h3 claim narrowed to the Kicker row)."
   },
   "w3": {
    "status": "pass",
@@ -1045,9 +1061,9 @@
   },
   "q07": {
    "status": "pass",
-   "notes": "House item: h1 owner quote in OWNER_PRINCIPLES rule 8; h2 'Trim is where to take some off ... 2R and 3R' in TRADE_PLANS.md; R is taught in F9.03. Fixed: the Trail note claimed the Kicker's trail (higher low or 10-day) for all our plans; Launchpad trails the 21-day and HVE names none. Track audit 2026-11-09: h1's claim (shown in the reveal) said 'The owner wants ...'; members never meet 'the owner' anywhere else in F12, so it now reads 'We lay out each trade we teach as ...', same meaning, matching F12.06 h01.",
-   "fixed": true,
-   "by": "checker"
+   "by": "checker",
+   "fixed": false,
+   "notes": "Checker 2026-11-09: h1 (owner, Entry Stop Trim Trail), h2 (B19), h4 (E51), h3 (TRADE_PLANS Kicker trail) verbatim. Key follows; the three wrong choices are the other lines of the plan. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19, E51); awaiting cold check. The why's 'targets sit at 2R and 3R' now the thirds at 3R and 5R. Old house fact was TRADE_PLANS.md 'Trim is where to take some off: the detectors put the targets at 2R and 3R' (the detectors' plan, no fraction); replaced by the rulebook"
   },
   "q08": {
    "status": "pass",
