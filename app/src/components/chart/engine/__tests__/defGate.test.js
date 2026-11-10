@@ -213,14 +213,23 @@ describe('⭐ an instance of a hidden definition is NOT an offer: it validates a
   })
 })
 
-describe('the byte-identical CONTROL — no shipped definition carries the flag today', () => {
-  it('every shipped definition is offered with nothing landed, so every offer list is what it was', () => {
+describe('the byte-identical CONTROL — exactly the RS split\'s three carry the flag, and nothing else moves', () => {
+  // ⭐ U6 (2026-11-09) landed `rsRating`, `rsPhases` and `rsVsEma` with the flag.
+  // Spelled by name: a fourth definition picking the flag up is a decision this
+  // case fails first, and a definition losing it reaches members a deploy early.
+  const GATED_SHIPPED = ['rsRating', 'rsPhases', 'rsVsEma']
+
+  it('every shipped definition but the three is offered with nothing landed, so every other offer list is what it was', () => {
+    expect(engineRegistry.listDefinitions().filter((d) => definitionRequiresServer(d)).map((d) => d.id)).toEqual(GATED_SHIPPED)
     for (const def of engineRegistry.listDefinitions()) {
-      expect(definitionRequiresServer(def), `${def.id} declares meta.requiresServer — U6 lands it with its rail changes`).toBe(false)
-      expect(isDefinitionOffered(def)).toBe(true)
+      expect(isDefinitionOffered(def), def.id).toBe(!GATED_SHIPPED.includes(def.id))
     }
     const shipped = engineRegistry.listDefinitions().map((d) => d.id)
-    expect(libraryRows(engineRegistry).filter((r) => r.kind === 'technical' && !r.carvedOut).map((r) => r.id))
-      .toEqual(shipped.filter((id) => !['dataSeries'].includes(id)))
+    const offered = () => libraryRows(engineRegistry).filter((r) => r.kind === 'technical' && !r.carvedOut).map((r) => r.id)
+    expect(offered()).toEqual(shipped.filter((id) => !['dataSeries', ...GATED_SHIPPED].includes(id)))
+    // …and the gate is the ONLY thing hiding them: once the live server lists the
+    // ids, the library offers the whole shipped catalogue (minus `dataSeries`, as ever).
+    primeServerDefinitions(body('rsLine', ...GATED_SHIPPED))
+    expect(offered()).toEqual(shipped.filter((id) => id !== 'dataSeries'))
   })
 })

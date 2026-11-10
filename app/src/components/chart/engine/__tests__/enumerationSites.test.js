@@ -9,6 +9,7 @@ import { uctDefaultChartSettings } from '../../../../pages/charts/ChartsWorkspac
 import * as engineRegistry from '../nativeRegistry'
 import { REGISTRY_SIZES } from '../registrySizes'
 import { enumOptionRequiresServer } from '../defSchema'
+import { primeServerDefinitions, clearServerDefinitions } from '../serverCompute'
 import { stripComments, stripPyComments } from './sourceScan'
 // ⭐ maAdoption.js (2026-09-28): the four default averages are engine instances.
 // This suite measures other things, so its blobs delete them unless they name `overlays`.
@@ -473,6 +474,26 @@ const LEDGER = [
   { file: 'api/services/indicator_compute.py',
     region: '_CASE_COLUMNS — the golden-fixture kind→columns dispatch',
     anchor: '_CASE_COLUMNS: Dict[str, Tuple[str, ...]] = {', fate: 'keep' },
+  // ⭐⭐ UCT RS SPLIT, UNIT U6 (2026-11-09) — THE SERVER LANE'S OWN REGISTRY. The
+  // three new chart definitions are `compute.kind: 'server'`, so the rows the
+  // server computes from live in Python: `registry_defs.RS_SPLIT_DEFS` is to the
+  // server lane what `RAW_DEFS` is to this one (`keep`, the same reason), and the
+  // router's `RS_SPLIT_PROVIDERS` binds each id to its provider the way the
+  // closed table binds a name to a function. Neither can be derived from the JS
+  // definition — the JS side READS them (`tests/test_rs_split_js_rows.py` diffs
+  // the two). `rs_provider.py` is an OVER-MATCH, said so here: each `rs_*_envelope`
+  // names its own id once for the rev lookup and once for the cache key, which
+  // is three functions and no list; it is ledgered because the scan sees four
+  // ids and the ledger is the place that says why.
+  { file: 'api/services/signature/registry_defs.py',
+    region: 'RS_SPLIT_DEFS — the server lane`s own row registry for the RS split (rsRating, rsPhases, rsVsEma)',
+    anchor: 'RS_SPLIT_DEFS: tuple[dict, ...] = (', fate: 'keep' },
+  { file: 'api/routers/signature.py',
+    region: 'RS_SPLIT_PROVIDERS — the RS split rows` id → provider map, plugged in under RS_SPLIT_ENABLED',
+    anchor: 'RS_SPLIT_PROVIDERS: dict = {', fate: 'keep' },
+  { file: 'api/services/signature/rs_provider.py',
+    region: 'rs_*_envelope — one provider per RS split row, each naming its own id (an over-match: no list)',
+    anchor: 'def rs_rating_envelope(', fate: 'keep' },
 
   // ── the engine ───────────────────────────────────────────────────────────
   // ⭐⭐⭐ PHASE D TASK 1 — THE CLOSED TABLE. Fate `keep`, and the reason is the
@@ -1213,7 +1234,13 @@ const RETIRED_BY_B4_ALERTS = [
 // same question on two surfaces, and if one is ever derived the other must be.
 // ⭐ 16 -> 17 AT PHASE 4 (Unified Editing): `builder/builtinForks.js::SPECS`, the
 // parity-proven formula equivalent of each customizable built-in. See its row.
-const SITE_COUNT = 17
+// ⭐ 17 -> 20 AT THE UCT RS SPLIT (unit U6, 2026-11-09): three more registry ids
+// (`rsRating`, `rsPhases`, `rsVsEma`) put three server-side modules over the
+// four-id threshold — the server lane's own row registry (`registry_defs.py`),
+// the router's id → provider map (`signature.py`) and the provider module
+// (`rs_provider.py`, an over-match: each envelope names its own id, no list).
+// All three `keep`; see their rows.
+const SITE_COUNT = 20
 
 describe('the enumeration ledger — the count is a test, not a comment', () => {
   it(`holds ${SITE_COUNT} live sites, and every one of them is still where it says it is`, () => {
@@ -1394,7 +1421,9 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // ⭐ `{keep: 14}` -> `{keep: 15}` AT MOBILE WAVE 4: the phone ƒx sheet's
     // `QUICK_STUDY_IDS` roster joins as a `keep`. See its LEDGER row.
     // ⭐ 16 -> 17 AT PHASE 4: `builtinForks.js::SPECS` joins as `keep` (see its row).
-    expect(counts).toEqual({ keep: 17 })
+    // ⭐ `{keep: 17}` -> `{keep: 20}` AT THE UCT RS SPLIT (U6, 2026-11-09): the three
+    // server-side rows above, every one `keep`.
+    expect(counts).toEqual({ keep: 20 })
     // …and by NAME, because a histogram cannot tell an absent bucket from a
     // bucket somebody renamed.
     expect(LEDGER.filter(s2 => s2.fate === 'phase'),
@@ -1483,10 +1512,13 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // from the same printer's stdout; it sorts above `closedTable.json` because
     // `discoveryCatalog.js` precedes `engine/` alphabetically.
     ).toEqual([
+      ["api/routers/signature.py::RS_SPLIT_PROVIDERS — the RS split rows` id → provider map, plugged in under RS_SPLIT_ENABLED","keep"],
       ["api/services/alert_series.py::SERIES_FUNCS — address → the full aligned column, and since Task 10 the ONE value table","keep"],
       ["api/services/ast_interpret.py::FN — the manifest`s functions bound to indicator_compute`s own maths","keep"],
       ["api/services/indicator_alert_evaluator.py::ALERT_CONDITIONS — which conditions each address offers, a product decision nothing derives","keep"],
       ["api/services/indicator_compute.py::_CASE_COLUMNS — the golden-fixture kind→columns dispatch","keep"],
+      ["api/services/signature/registry_defs.py::RS_SPLIT_DEFS — the server lane`s own row registry for the RS split (rsRating, rsPhases, rsVsEma)","keep"],
+      ["api/services/signature/rs_provider.py::rs_*_envelope — one provider per RS split row, each naming its own id (an over-match: no list)","keep"],
       ["api/services/voice_client_action_tools.py::_INDICATOR_ALIASES — the voice add_chart_indicator phrase map","keep"],
       ["app/src/components/chart/builder/builtinForks.js::SPECS — each customizable built-in's parity-proven formula equivalent","keep"],
       ["app/src/components/chart/discoveryCatalog.js::POPULAR_DEF_IDS — the curated `Popular` tab of the Add Indicator library","keep"],
@@ -1732,7 +1764,11 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       // TEN AT PHASE C TASK 13. `rsLine` takes its own PANE, and a pane whose
       // crosshair prints nothing is a value you cannot read. Kept an EQUALITY, so a
       // DROP among the others still fails.
-      'rsLine::rsLine', 'rsi::rsi', 'sar::sar', 'stoch::d', 'stoch::k',
+      'rsLine::rsLine',
+      // ⭐ UCT RS split, unit U6 (2026-11-09): each of the three new server panes carries
+      // ONE chip, its primary value (the rating, the divergence, the percent from the 21 EMA).
+      'rsPhases::divergence', 'rsRating::ratingLine', 'rsVsEma::dist',
+      'rsi::rsi', 'sar::sar', 'stoch::d', 'stoch::k',
       'vwap::vwap',
       'williamsR::williams_r',
       // ⭐ 2026-10-01 — THE TECHNICAL LIBRARY'S TIER 1, every chip by name. Each
@@ -1819,6 +1855,8 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // lane it could have come from, because there was never a hand-written block
     // registering a chip for it. Registry-native means engine-lane, always.
     const ENGINE_LANE_CHIPS = ['rsi', 'macd', 'stoch', 'atr', 'sar', 'ichimoku', 'rsLine',
+      // ⭐ U6 (2026-11-09): registry-native server definitions, engine-lane by construction.
+      'rsRating', 'rsPhases', 'rsVsEma',
       'bb', 'vwap', 'mfi', 'cci', 'williamsR', 'adx', 'obv', 'donchian', 'avwap', 'atrBands',
       // ⭐ `dollarVolume` IS ENGINE-LANE BY CONSTRUCTION TOO, and it is the one id
       // here whose value USED to be drawn by hand — in the volume label strip,
@@ -1997,7 +2035,8 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // returns {} with no ctx. Derived from the kind and then CHECKED, so a native
     // re-declared `server` to dodge this rail is itself a failure.
     const serverLane = defs.filter(d => d.compute.kind === 'server').map(d => d.id)
-    expect(serverLane, 'the exclusion selects nothing — it is inert').toEqual(['rsLine'])
+    // ⭐ U6 (2026-11-09): the RS split's three join rsLine on the server lane.
+    expect(serverLane, 'the exclusion selects nothing — it is inert').toEqual(['rsLine', 'rsRating', 'rsPhases', 'rsVsEma'])
     for (const def of defs.filter(d => d.compute.kind !== 'server')) {
       expect(def.compute && def.compute.kind, def.id).toBe('native')
       expect(typeof def.compute.fn, `${def.id}: compute.fn is not a name`).toBe('string')
@@ -2402,10 +2441,14 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       'GREW by a ledgered file passed here silently until 2026-08-07. Move this literal ' +
       'deliberately or find out what changed.',
     ).toEqual([
+      // ⭐ U6 (2026-11-09): three server-side RS split modules joined — see their ledger rows.
+      'api/routers/signature.py',
       'api/services/alert_series.py',
       'api/services/ast_interpret.py',
       'api/services/indicator_alert_evaluator.py',
       'api/services/indicator_compute.py',
+      'api/services/signature/registry_defs.py',
+      'api/services/signature/rs_provider.py',
       'api/services/voice_client_action_tools.py',
     ])
 
@@ -2441,10 +2484,14 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     expect(keepPython,
       'the Python scan has no surviving subject to be measured against',
     ).toEqual([
+      // ⭐ U6 (2026-11-09): the three RS split rows are `keep`, so the floor rises with them.
+      'api/routers/signature.py',
       'api/services/alert_series.py',
       'api/services/ast_interpret.py',
       'api/services/indicator_alert_evaluator.py',
       'api/services/indicator_compute.py',
+      'api/services/signature/registry_defs.py',
+      'api/services/signature/rs_provider.py',
       'api/services/voice_client_action_tools.py',
     ])
     for (const f of keepPython) {
@@ -2812,6 +2859,10 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     avwap: [],
     atrBands: [],
     rsLine: [],
+    // ⭐ U6 (2026-11-09): the RS split's three, server definitions like `rsLine` — never a block.
+    rsRating: [],
+    rsPhases: [],
+    rsVsEma: [],
     // ⭐⭐ `dataSeries` — P2.1, AND THE STRONGEST CASE OF THIS ROW'S MEANING.
     // `avwap`, `atrBands` and `rsLine` were definitions that never had a
     // hand-written BLOCK; this one never had a hardcoded ANYTHING — no block, no
@@ -2844,7 +2895,7 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
    * fail by NAME for any definition that genuinely did have a block and has
    * quietly lost its refs or its compute.
    */
-  const NEVER_MIGRATED = ['avwap', 'atrBands', 'rsLine', 'dataSeries', 'movingAverage', 'dollarVolume',
+  const NEVER_MIGRATED = ['avwap', 'atrBands', 'rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'dataSeries', 'movingAverage', 'dollarVolume',
     ...TIER1_LIBRARY]
   /** …and the compute its `indicatorData` branch called. */
   const COMPUTES = {
@@ -2854,8 +2905,8 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     williamsR: 'computeWilliamsR', adx: 'computeADX', obv: 'computeOBV',
     donchian: 'computeDonchian',
     // …and `null` where there never was one. See NEVER_MIGRATED above.
-    avwap: null, atrBands: null, rsLine: null, dataSeries: null, movingAverage: null,
-    dollarVolume: null,
+    avwap: null, atrBands: null, rsLine: null, rsRating: null, rsPhases: null, rsVsEma: null,
+    dataSeries: null, movingAverage: null, dollarVolume: null,
     ...Object.fromEntries(TIER1_LIBRARY.map((id) => [id, null])),
   }
 
@@ -3154,7 +3205,8 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
       unmigratedDefinitions: [],
       unflippedDefinitions: [],
       // ⭐ 2026-10-01 — 20 + the Technical library's 33 Tier 1 studies.
-      flipSetSize: 53,
+      // ⭐ 53 -> 56 AT THE UCT RS SPLIT (U6, 2026-11-09): three server definitions joined the registry.
+      flipSetSize: 56,
       mutableSets: [],
     })
   })
@@ -3298,7 +3350,10 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
       statusLines: 1,
       status: 'OPEN',
       sharedDefaultLives: true,
-      declarationsInSource: 2,
+      // ⭐ 2 -> 5 AT THE UCT RS SPLIT (U6, 2026-11-09): the three new server definitions
+      // retype the sentence as `rsLine` does (none passes through the helper). Same
+      // badge, same default; a FINDING for the owner would move `badgeValues`, not this.
+      declarationsInSource: 5,
       badgeValues: ['non-repainting'],
       definitionsBadgedRepaints: [],
       plotsWithOwnBadge: [],
@@ -3457,6 +3512,18 @@ const declaresAll = (def) => ({
   options: Object.fromEntries(def.inputs.filter(i => Array.isArray(i.options))
     .map(i => [i.key, i.options.map(o => (Array.isArray(o) ? o[0] : (o && typeof o === 'object' ? o.value : o)))])),
 })
+/** ⭐ RS split U1/U6 — run `fn` with the live server declaring every server-lane
+ *  definition by id (the route's `{schemaVersion, definitions}` shape), then forget
+ *  it, so a `meta.requiresServer` definition is OFFERED for the duration and no
+ *  other case in this file inherits the answer. */
+const withServerLaneDeclared = (fn) => {
+  primeServerDefinitions({
+    schemaVersion: 1,
+    definitions: engineRegistry.listDefinitions().filter(d => d.compute.kind === 'server')
+      .map(d => ({ schemaVersion: 1, id: d.id, version: d.version, compute: d.compute, inputs: [], columns: [] })),
+  })
+  try { return fn() } finally { clearServerDefinitions() }
+}
 
 describe('adjudication A6 — the settings tab lists nothing the engine owns', () => {
   it('listIndicators() contains no migrated definition, by id or by settings path', () => {
@@ -3479,7 +3546,10 @@ describe('adjudication A6 — the settings tab lists nothing the engine owns', (
     // in declaration order, no more and no fewer. ⚠️ This used to loop over
     // `ENGINE_ROW_DEF_IDS` (one id). B4 Task 6 deleted that list, so it loops
     // over the REGISTRY — which is the point of the deletion.
-    const rows = listEngineIndicators(mergeChartSettings(null), engineRegistry)
+    // ⭐ RS split U1/U6: a `meta.requiresServer` definition has no "turn it on" row
+    // until the live server lists it (`isDefinitionOffered`), so this rail asks
+    // with the server lane declared — the state in which every row exists.
+    const rows = withServerLaneDeclared(() => listEngineIndicators(mergeChartSettings(null), engineRegistry))
     expect(rows.length, 'no generated rows at all — the loop below is vacuous').toBeGreaterThan(0)
     for (const def of engineRegistry.listDefinitions()) {
       const row = rows.find(r => r.id === def.id)
@@ -3657,7 +3727,8 @@ describe('what B4 inherits — measured, per definition, not approximated', () =
   // above is on its way to being EVERYTHING (Task 8 deletes the toolbar's
   // fifteen rows), and this is what makes that safe.
   it('every declared input of every definition is reachable from the generated dialog', () => {
-    const rows = listEngineIndicators(mergeChartSettings(null), engineRegistry)
+    // ⭐ RS split U1/U6: with the server lane declared, so a gated DEFINITION has its row (see above).
+    const rows = withServerLaneDeclared(() => listEngineIndicators(mergeChartSettings(null), engineRegistry))
     const gaps = []
     for (const def of engineRegistry.listDefinitions()) {
       const row = rows.find(r => r.id === def.id)
