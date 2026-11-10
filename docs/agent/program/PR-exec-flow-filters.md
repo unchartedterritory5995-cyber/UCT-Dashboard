@@ -104,6 +104,8 @@ Setup: scratch worktree at `e62493395b`, one mutant applied at a time and then r
 
 Found by this run: `agentFlowChipsParity.test.js` failed to LOAD on the fresh CRLF checkout, in the base run too. Its `_FLOW_CHIPS` regex expected LF. It is fixed at `697274a7f7` (line endings normalised). In the table, parity is therefore a load failure in every row and is not counted. M7 and M8 target parity, so they were re-run on the parity file alone at `673a92b65e` (same code as `697274a7f7`; that commit only changed this doc), base first: `Tests 3 passed (3)`. Command: `cd app && npx vitest run src/agent/agentFlowChipsParity.test.js` (single jsdom file, no lock). Logs: `evidence/f16-mutants-parity-{base,M7-server-table-drops-a-chip,M8-server-word-drops-sweeps}.txt`; each prints the node_modules LinkType/Target first (Junction to `C:/w/pl-mc-fw/app/node_modules`).
 
+**AUDIT note (parity file, local vs CI).** Locally (`core.autocrlf=true`), `agentFlowChipsParity.test.js` never loaded before `697274a7f7`, so every earlier LOCAL mutant "kill" that relied on that file was vacuous. The valid mutation table is the rerun after `697274a7f7` (M7 / M8 rows below, on the parity file at `673a92b65e`). On CI (Linux, LF) the file DID load and pass: run 42895564240 shows `✓ src/agent/agentFlowChipsParity.test.js (3 tests)` at `08b0cfd9b3`.
+
 | mutant | what changed | tests failed / 102 | killed by |
 |---|---|---:|---|
 | base | none | 0 (parity load fail, see above) | — |
