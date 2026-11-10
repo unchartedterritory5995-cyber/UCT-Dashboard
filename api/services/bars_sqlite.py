@@ -1431,3 +1431,45 @@ def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False,
     if last_lock_err is not None:
         raise last_lock_err
     return 0  # unreachable
+
+
+def replace_series(ticker: str, tf: str, bars: list[dict]) -> int:
+    """Atomically REPLACE every stored row of one intraday (ticker, tf) with `bars`.
+
+    For the intraday split heal: a series that straddles a split on two price bases is
+    purged and rewritten from one refetch in ONE transaction, so a reader sees either
+    the old series or the new one — never a half-deleted store. Same validity gate and
+    the same `_WRITE_LOCK` as `put_bars`. ⛔ Refuses an empty (or all-invalid) `bars`:
+    a refetch that came back with nothing must never delete what the store holds.
+    Returns rows written (0 = nothing changed)."""
+    if not bars:
+        return 0
+    ticker = ticker.upper()
+    keep, _rejected = _writable_bars(ticker, tf, bars)
+    if not keep:
+        return 0
+    rows = [(ticker, tf, int(b.get("t", 0)), b.get("o"), b.get("h"), b.get("l"),
+             b.get("c"), int(b.get("v") or 0)) for b in keep]
+    last_lock_err: sqlite3.OperationalError | None = None
+    for attempt in range(3):
+        try:
+            with _WRITE_LOCK:
+                c = _conn()
+                try:
+                    c.execute("DELETE FROM ohlcv WHERE ticker=? AND tf=?", (ticker, tf))
+                    c.executemany(
+                        "INSERT OR REPLACE INTO ohlcv(ticker,tf,ts,o,h,l,c,v) "
+                        "VALUES(?,?,?,?,?,?,?,?)", rows)
+                    c.commit()
+                except BaseException:
+                    c.rollback()
+                    raise
+            return len(rows)
+        except sqlite3.OperationalError as e:
+            if "locked" not in str(e).lower():
+                raise
+            last_lock_err = e
+            time.sleep(0.05 * (attempt + 1))
+    if last_lock_err is not None:
+        raise last_lock_err
+    return 0
