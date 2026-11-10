@@ -141,12 +141,16 @@ export function mergePushBar(prev, inc, opts = {}) {
  * @param {number} [opts.nowChart] current wall-clock time in chart time (unix s + ET offset)
  * @param {string} [opts.tf]       chart timeframe code (with nowChart: the current-bucket test)
  * @param {string} [opts.session]  'rth' | 'eth'
+ * @param {number} [opts.graceSec]  how long past the live bucket's END it may stay "ahead"
+ *   while the server catches up (one poll interval + slack)
  * @returns {{bar:object, ahead:boolean}}
  *   ahead=true ⇒ `bar` is the NEXT bucket after the server tail (server hasn't seen
  *   it yet) — the caller must re-append it, never drop it (the "new candle blanks /
  *   collapses to the current price when the poll lands" bug).
  */
-export function reconcileWithServerTail(live, server, { sym = null, periodSec = 300, nowChart = null, tf = null, session = 'rth' } = {}) {
+export const RECONCILE_AHEAD_GRACE_SEC = 45
+
+export function reconcileWithServerTail(live, server, { sym = null, periodSec = 300, nowChart = null, tf = null, session = 'rth', graceSec = RECONCILE_AHEAD_GRACE_SEC } = {}) {
   const srv = { ...server, volume: _vol(server.volume), sym }
   if (!live || !Number.isFinite(live.time) || (live.sym != null && sym != null && live.sym !== sym)) {
     return { bar: srv, ahead: false }
@@ -170,9 +174,15 @@ export function reconcileWithServerTail(live, server, { sym = null, periodSec = 
   // first bucket of a session (tail = the prior session's last bar) and a thin name that
   // skipped buckets are both "more than one period" past the tail yet entirely current.
   // Dropping it there re-seeded the candle at o=h=l=price on the next tick.
-  const isCurrent = Number.isFinite(nowChart) && tf != null &&
-    live.time <= nowChart && nowChart < bucketEndTime(live.time, tf, session)
-  if (live.time > server.time && (live.time - server.time <= periodSec || isCurrent)) {
+  const hasClock = Number.isFinite(nowChart) && tf != null
+  const liveEnd = hasClock ? bucketEndTime(live.time, tf, session) : null
+  const isCurrent = hasClock && live.time <= nowChart && nowChart < liveEnd
+  // The "next bucket" case is held only until the bucket has ENDED plus one poll of grace.
+  // A bucket the server never ingests (opened by a print the server filters out, on a thin
+  // name whose tail stays put) must not stay "ahead" forever — after the grace the server
+  // tail wins and the fallback writers resume on it.
+  const nextInGrace = live.time - server.time <= periodSec && (!hasClock || nowChart < liveEnd + graceSec)
+  if (live.time > server.time && (nextInGrace || isCurrent)) {
     return { bar: { ...live, sym }, ahead: true }
   }
   // Server is newer (or the live bar is detached by >1 bucket): server wins.

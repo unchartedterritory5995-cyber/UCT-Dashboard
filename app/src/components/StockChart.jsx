@@ -11930,7 +11930,22 @@ export default function StockChart({
   // refresh does), NOT incremental raw-OHLC push updates. Under HA the chart neither
   // subscribes nor suppresses Finnhub — writers A/C already `if (cs.heikinAshi) return`, and
   // without this push writer B would paint a RAW candle amid HA-smoothed bars (retro-audit bug).
-  const _pushOptIn = _barsPushEnabled() && realtimeTfEligible && liveUpdates && !cs.heikinAshi
+  // Defensive 60m grid guard: the push stream buckets 60m TradingView-style (RTH 9:30,
+  // 10:30 … ; ETH clock hours). If the FETCHED 60m series is still on another grid (the
+  // legacy 9:30-then-10:00 REST resample), push bars would land BETWEEN fetched bars, so
+  // don't opt in — the fallback writers keep the candle on the series' own buckets.
+  const _sixtyOffGrid = useMemo(() => {
+    if (resolvedTf !== '60' || !Array.isArray(filteredBars) || !filteredBars.length) return false
+    const eth = !!showExtended
+    for (let i = Math.max(0, filteredBars.length - 60); i < filteredBars.length; i++) {
+      const t = filteredBars[i]?.t
+      if (typeof t !== 'number') continue
+      const m = etMinutes(t)
+      if (eth ? (m % 60 !== 0) : (m >= 570 && m < 960 && m % 60 !== 30)) return true
+    }
+    return false
+  }, [resolvedTf, filteredBars, showExtended])
+  const _pushOptIn = _barsPushEnabled() && realtimeTfEligible && liveUpdates && !cs.heikinAshi && !_sixtyOffGrid
   const _barsPush = useRealtimeBars({
     symbol: _pushOptIn ? sym : null,
     tf: _pushOptIn ? resolvedTf : null,

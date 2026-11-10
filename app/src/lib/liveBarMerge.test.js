@@ -229,3 +229,14 @@ describe('F3: reconcile keeps a CURRENT live bucket even when it is >1 period pa
     expect(reconcileWithServerTail(live, server, { sym: 'SYN', periodSec: 300, nowChart: at(10, 40), tf: '5' }).ahead).toBe(false)
   })
 })
+
+describe('N1: "next bucket ahead" expires after the bucket ends + grace', () => {
+  it('held during the bucket and the grace, dropped after', () => {
+    const live = bar(at(10, 10), 20.2, 20.6, 20.0, 20.4, 300, { sym: 'SYN' })
+    const server = bar(at(10, 5), 20.0, 20.8, 19.6, 20.2, 8000)
+    const o = (now) => reconcileWithServerTail(live, server, { sym: 'SYN', periodSec: 300, nowChart: now, tf: '5' }).ahead
+    expect(o(at(10, 12))).toBe(true)          // in the bucket
+    expect(o(at(10, 15, 30))).toBe(true)      // ended, within grace
+    expect(o(at(10, 16, 0))).toBe(false)      // past grace: server tail wins
+  })
+})

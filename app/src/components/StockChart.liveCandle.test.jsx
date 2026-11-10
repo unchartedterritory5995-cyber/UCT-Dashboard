@@ -80,7 +80,7 @@ vi.mock('lightweight-charts', () => {
 
 vi.mock('../hooks/useRealtimePrices', () => ({ default: () => ({ prices: H.prices, status: 'idle' }) }))
 vi.mock('../hooks/useRealtimeBars', () => ({
-  default: ({ onBar, session }) => { H.onBar = onBar; H.session = session; return { connected: true, healthy: true, delivering: H.delivering, lastBarT: { current: null } } },
+  default: ({ onBar, session, symbol }) => { H.onBar = onBar; H.session = session; H.pushSymbol = symbol; return { connected: true, healthy: true, delivering: H.delivering, lastBarT: { current: null } } },
 }))
 vi.mock('../lib/barsStreamManager', () => ({
   subscribe: (sym, tf, cbs) => { H.e1.push({ sym, tf, ...(cbs || {}) }); return () => {} },
@@ -124,6 +124,7 @@ beforeEach(async () => {
   H.delivering = true
   H.prices = {}
   H.e1 = []
+  ;(await import('../lib/realtimeCandle'))._reset()
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(NOW_MS)
   try { localStorage.removeItem('uct.barsPush.enabled') } catch { /* jsdom */ }
@@ -233,6 +234,7 @@ describe('review fixes F1-F4', () => {
 
   it('F2/F4 (1m fallback): C opens N+1, a livePrices tick stamped N neither snaps N+1 back nor, after the poll, paints N+1\'s range onto N', async () => {
     H.delivering = false
+    vi.setSystemTime((T1400 + 80) * 1000)   // wall clock inside minute N+1
     const rc = await import('../lib/realtimeCandle')
     rc._reset()
     const SERVER_N = { o: 20.0, h: 20.4, l: 19.8, c: 20.1, v: 5000 }
@@ -244,9 +246,9 @@ describe('review fixes F1-F4', () => {
     await act(() => new Promise(r => setTimeout(r, 1100)))   // registry repaint throttle (LIVE_UI_CADENCE_MS)
     expect(tail()).toMatchObject({ time: T1400 + 60 + offset, open: 21.0, high: 21.4, low: 21.0, close: 21.4 })
     // registry goes quiet (>3s) so Writer A is the active fallback writer
-    vi.setSystemTime(NOW_MS + 5000)
+    vi.setSystemTime((T1400 + 86) * 1000)
     H.prices = { SYN: { price: 19.95, updated_at: T1400 + 50 } }      // a late tick from minute N
-    view.rerender(<StockChart sym="SYN" tf="1" barsOverride={mk1m(SERVER_N)} />)
+    view.rerender(<StockChart sym="SYN" tf="1" barsOverride={mk1m({ ...SERVER_N, v: 5100 })} />)
     await act(async () => { await Promise.resolve() })
     const d = candle().__data
     expect(d[d.length - 1]).toMatchObject({ time: T1400 + 60 + offset, open: 21.0, high: 21.4, low: 21.0, close: 21.4 })
@@ -258,7 +260,7 @@ describe('review fixes F1-F4', () => {
     const bars60 = []
     for (let t = T60 - 20 * 3600; t < T60; t += 3600) bars60.push({ t, o: 20, h: 20.3, l: 19.7, c: 20, v: 1000 })
     bars60.push({ t: T60, o: 20.0, h: 20.5, l: 19.9, c: 20.2, v: 5000 })
-    render(<StockChart sym="SYN" tf="60" barsOverride={bars60} />)
+    render(<StockChart sym="SYN" tf="60" forceExtendedHours={false} barsOverride={bars60} />)
     await act(async () => { await Promise.resolve() })
     const before = { ...tail() }
     const other = H.session === 'eth' ? 'rth' : 'eth'
@@ -288,5 +290,50 @@ describe('Writer E (D/W/M fast tick on the tf=1 pooled feed) — older-t frames 
     expect(tail()).toMatchObject({ time: '2026-11-09', close: 20.4 })
     act(() => { e.onBar({ sym: 'SYN', tf: '1', bar: { t: T2 - 60000, o: 19.6, h: 19.6, l: 19.6, c: 19.6, v: 10, final: true } }) })
     expect(tail()).toMatchObject({ time: '2026-11-09', close: 20.4, low: 19.8 })
+  })
+})
+
+describe('N1: a live bucket the server never ingests is not held "ahead" forever', () => {
+  it('after the bucket ends + grace, the poll\'s tail wins and Writer A resumes on it', async () => {
+    H.delivering = false
+    vi.setSystemTime((T1400 + 80) * 1000)
+    const rc = await import('../lib/realtimeCandle')
+    rc._reset()
+    const mk1m = (lastBar) => {
+      const out = []
+      for (let t = T1400 - 120 * 60; t < T1400; t += 60) out.push({ t, o: 20, h: 20.3, l: 19.7, c: 20, v: 100 })
+      out.push({ t: T1400, ...lastBar })
+      return out
+    }
+    const SERVER_N = { o: 20.0, h: 20.4, l: 19.8, c: 20.1, v: 5000 }
+    const view = render(<StockChart sym="SYN" tf="1" barsOverride={mk1m(SERVER_N)} />)
+    await act(async () => { await Promise.resolve() })
+    const offset = tail().time - T1400
+    act(() => { rc.applyTick('SYN', 21.0, 10, T1400 + 60 + 2) })   // unfiltered print opens N+1
+    expect(tail().time).toBe(T1400 + 60 + offset)
+    // Minutes later the server tail is STILL N (it filtered that print out).
+    vi.setSystemTime((T1400 + 240) * 1000)
+    view.rerender(<StockChart sym="SYN" tf="1" barsOverride={mk1m({ ...SERVER_N, v: 5100 })} />)
+    await act(async () => { await Promise.resolve() })
+    expect(tail()).toMatchObject({ time: T1400 + offset, high: 20.4, low: 19.8 })
+  })
+})
+
+describe('N2: 60m push opt-in only when the fetched series is on the TradingView grid', () => {
+  const DAY = Date.UTC(2026, 10, 9, 14, 30, 0) / 1000   // 09:30 ET
+  const series = (mins) => {
+    const out = []
+    for (let d = 3; d >= 0; d--) for (const m of mins) out.push({ t: DAY - d * 86400 + (m - 570) * 60, o: 20, h: 20.3, l: 19.7, c: 20, v: 1000 })
+    return out.filter(b => b.t <= NOW_MS / 1000)
+  }
+  it('TV grid (9:30, 10:30 … 15:30) → subscribes', async () => {
+    render(<StockChart sym="SYN" tf="60" forceExtendedHours={false} barsOverride={series([570, 630, 690, 750, 810, 870, 930])} />)
+    await act(async () => { await Promise.resolve() })
+    expect(H.pushSymbol).toBe('SYN')
+  })
+  it('legacy grid (9:30, 10:00, 11:00 …) → does not subscribe; fallback writers keep the candle', async () => {
+    render(<StockChart sym="SYN" tf="60" forceExtendedHours={false} barsOverride={series([570, 600, 660, 720, 780, 840, 900])} />)
+    await act(async () => { await Promise.resolve() })
+    expect(H.pushSymbol).toBeNull()
   })
 })
