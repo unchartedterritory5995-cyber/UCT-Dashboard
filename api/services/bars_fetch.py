@@ -43,6 +43,13 @@ from api.services.cache import cache
 from api.services import bars_disk_cache as disk_cache
 from api.services import bars_sqlite as _sqlite
 from api.services.massive import _get_client, _REST_BASE, to_polygon_symbol
+# ⛔ SECURITY (2026-11-10): every service that imports this module (bars-api,
+# worker, flow-worker, web) talks to Massive with `apiKey=` in the query string;
+# httpx logs request URLs at INFO and HTTPStatusError text carries the URL. Install
+# the process-wide record redactor on import (idempotent) so no importer can leak
+# the key by forgetting to; the explicit `_redact_log` calls cover print()/text.
+from api.services.log_redaction import install as _install_log_redaction, redact as _redact_log
+_install_log_redaction()
 
 # ── Serve-layer diagnostics (Server-Timing) ──────────────────────────────────
 # Which cache tier served the request, so a slow bars response is diagnosable in
@@ -1362,7 +1369,7 @@ def _fetch_intraday_massive(ticker: str, tf: str, max_bars: int) -> list[dict]:
         _note_provider_fault(_e)
         import logging as _log
         _log.getLogger(__name__).error(
-            f"[bars] _fetch_intraday_massive {ticker} tf={tf} failed: {type(_e).__name__}: {_e}"
+            f"[bars] _fetch_intraday_massive {ticker} tf={tf} failed: {type(_e).__name__}: {_redact_log(str(_e))}"
         )
         return []
 
@@ -1957,7 +1964,7 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int, status: "dict | None" = 
         except Exception as _e:
             import logging as _log
             _log.getLogger(__name__).error(
-                f"[bars] _delta_intraday(60-min) {ticker} failed: {type(_e).__name__}: {_e}"
+                f"[bars] _delta_intraday(60-min) {ticker} failed: {type(_e).__name__}: {_redact_log(str(_e))}"
             )
             return []
 
@@ -1996,7 +2003,7 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int, status: "dict | None" = 
     except Exception as _e:
         import logging as _log
         _log.getLogger(__name__).error(
-            f"[bars] _delta_intraday {ticker} tf={tf} failed: {type(_e).__name__}: {_e}"
+            f"[bars] _delta_intraday {ticker} tf={tf} failed: {type(_e).__name__}: {_redact_log(str(_e))}"
         )
         return []
 
@@ -2086,7 +2093,7 @@ def _fetch_daily_yf(ticker: str, timeout: float = 20.0) -> list[dict]:
     except Exception as e:
         _note_provider_fault(e)
         _yf_daily_record_fail(ticker_up)
-        print(f"[bars] yfinance daily fetch failed for {ticker}: {e}")
+        print(f"[bars] yfinance daily fetch failed for {ticker}: {_redact_log(str(e))}")
         return []
 
 

@@ -37,6 +37,13 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import Depends, FastAPI, Query
 
+# ⛔ SECURITY (2026-11-10): redact credential query params (Massive `apiKey=`) on
+# EVERY log record of this pod -- httpx logs each request URL at INFO and an
+# HTTPStatusError's text carries the full URL. api/main.py does this for web; this
+# entrypoint never imports api.main, so it must install it itself.
+from api.services.log_redaction import install as _install_log_redaction
+_install_log_redaction()
+
 _log = logging.getLogger("uvicorn.error")
 _DATA_DIR = os.environ.get("DATA_DIR", "/data")
 
