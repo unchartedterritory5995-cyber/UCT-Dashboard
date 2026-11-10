@@ -48,6 +48,8 @@ concurrency:
 
 jobs:
   rails:
+    # REQUIRED CHECK (2026-11-10): the branch ruleset requires this exact name; keep it unique.
+    name: wisdom rails (required)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

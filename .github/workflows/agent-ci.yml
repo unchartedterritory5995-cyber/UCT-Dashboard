@@ -17,8 +17,9 @@
 name: agent ci
 
 on:
-  # CI COST (2026-11-06, owner): push runs take the SAME paths list as the PR trigger below
-  # (tests/test_ci_cost_rails.py holds the two lists equal). Before this, every push to any
+  # CI COST (2026-11-06, owner): push runs are path-filtered. Since 2026-11-10 this push.paths list is
+  # the ONLY list: the PR trigger has none and the `changes` job matches PR diffs against it
+  # (tests/test_ci_cost_rails.py holds that). Before 11-06, every push to any
   # agent/** branch ran the full ~76-minute suite even for a docs-only commit: 552 of 789 runs
   # on 11-01..11-06 were pushes, ~70% of the month's Actions bill. The master deploy gate
   # still runs the whole Agent suite on every master push, unfiltered.
@@ -45,29 +46,11 @@ on:
       - 'tests/test_uct_agent*.py'
       - 'tools/agent_*'
       - '.github/workflows/agent-ci.yml'
+  # REQUIRED CHECK (2026-11-10): no `paths:` here. Every PR into agent/int or master runs this workflow, so its
+  # "agent ci (required)" check always reports; the `changes` job decides whether the real jobs must run, by
+  # matching the PR diff against on.push.paths above (the single list). See tools/ci_paths_match.py.
   pull_request:
     branches: [agent/int, master]
-    paths:
-      - 'app/src/agent/**'
-      - 'app/src/components/chart/builder/agent*'
-      # DUP-RECEIPT (11-05, owner): the page tests that DRIVE the Agent (AgentPanel / useAgent on the real workspace) and
-      # the page code they exercise — a regression there was invisible to Agent CI (only the nightly report-only suite ran it)
-      - 'app/src/pages/charts/ChartsWorkspace.jsx'
-      - 'app/src/pages/charts/ChartsWorkspace.thisChart.test.jsx'
-      - 'app/src/pages/charts/ChartsWorkspace.layoutUndoAgent.test.jsx'
-      - 'app/src/pages/charts/ChartsWorkspace.previousLayout.test.jsx'
-      - 'app/src/pages/charts/widgets/ChartWidget.agent.test.jsx'
-      - 'app/src/pages/charts/widgets/TradeExchangeNewsWidget.terminal.test.jsx'
-      - 'app/src/pages/breadth/breadthTabHookOrder.test.jsx'
-      - 'app/src/components/chart/builder/studio/agentRoute.test.jsx'
-      - 'app/src/components/StockChart.jsx'
-      - 'app/src/components/StockChart.timeRangeSync.test.jsx'
-      - 'app/src/pages/charts/grid/**'
-      - 'api/services/uct_agent/**'
-      - 'api/routers/uct_agent*.py'
-      - 'tests/test_uct_agent*.py'
-      - 'tools/agent_*'
-      - '.github/workflows/agent-ci.yml'
 
 concurrency:
   group: agent-ci-${{ github.ref }}
@@ -79,13 +62,61 @@ env:
   AGENT_VITEST_PATHS: src/agent src/components/chart/builder/agentMutations src/components/chart/builder/studio/agentRoute.test.jsx src/components/StockChart.timeRangeSync.test.jsx src/pages/breadth/breadthTabHookOrder.test.jsx src/pages/charts/ChartsWorkspace.layoutUndoAgent.test.jsx src/pages/charts/ChartsWorkspace.previousLayout.test.jsx src/pages/charts/ChartsWorkspace.thisChart.test.jsx src/pages/charts/widgets/ChartWidget.agent.test.jsx src/pages/charts/widgets/TradeExchangeNewsWidget.terminal.test.jsx
   AGENT_SHARDS: '4'
 
-# A PR from a branch in this repo already ran on its push; running it again on the
-# pull_request event only doubles the queue. Fork PRs have no push run here, so they keep it.
-# (All three jobs carry the same condition; `union` needs `browser`.)
+# ⚰️ Until 2026-11-10 a same-repo PR skipped every job here ("its push already ran"). That was false for
+# feat/fix/land branches into master, which have no agent/** push run: 11 of 21 agent-touching PRs merged
+# with only SKIPPED checks. Now: push, fork PRs and same-repo PRs into master run the jobs; same-repo PRs
+# into agent/int still rely on the push run. The `changes` job decides; `required` is the verdict.
 jobs:
+  # REQUIRED CHECK: is this run relevant? On a PR, the diff against on.push.paths (plus this file and
+  # tools/ci_paths_match.py); on any other event, always. ANY error in the matcher means relevant=true.
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      relevant: ${{ steps.match.outputs.relevant }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          sparse-checkout: |
+            tools
+            .github
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install PyYAML (a failure here only makes the run relevant)
+        continue-on-error: true
+        run: python -m pip install --quiet 'PyYAML>=6.0'
+      - name: Match the PR diff against on.push.paths
+        id: match
+        env:
+          WORKFLOW_FILE: .github/workflows/agent-ci.yml
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          REPO: ${{ github.repository }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REF: ${{ github.base_ref }}
+          SAME_REPO_PR_BASES: 'master'
+        run: |
+          relevant=true
+          if python tools/ci_paths_match.py match --workflow "$WORKFLOW_FILE" --event "$EVENT" \
+               --base "$BASE_SHA" --head "$HEAD_SHA" --repo-name "$REPO" --head-repo "$HEAD_REPO" \
+               --base-ref "$BASE_REF" --same-repo-pr-bases "$SAME_REPO_PR_BASES" > decision.txt; then
+            if grep -qx 'relevant=false' decision.txt; then relevant=false; fi
+          fi
+          cat decision.txt || true
+          echo "relevant=$relevant" >> "$GITHUB_OUTPUT"
+          echo "decision: relevant=$relevant"
+
   server:
     name: UCT Agent server tests (production dependency set)
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    # REQUIRED CHECK (2026-11-10): the event clause that was here (push || fork PR) now lives in the `changes`
+    # job (--same-repo-pr-bases master): push, fork PRs AND same-repo PRs into master run the real jobs;
+    # same-repo PRs into agent/int keep push-run-only. Before this, a same-repo PR into master SKIPPED them.
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -110,7 +141,11 @@ jobs:
 
   browser:
     name: UCT Agent browser tests (shard ${{ matrix.shard }}/4)
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    # REQUIRED CHECK (2026-11-10): the event clause that was here (push || fork PR) now lives in the `changes`
+    # job (--same-repo-pr-bases master): push, fork PRs AND same-repo PRs into master run the real jobs;
+    # same-repo PRs into agent/int keep push-run-only. Before this, a same-repo PR into master SKIPPED them.
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
@@ -154,7 +189,11 @@ jobs:
   # and `rth` = the regular session. The baseline (Python) rail runs once, on the `post` leg.
   capability-regression-clock:
     name: UCT Agent capability regression (deterministic, no model) @ ${{ matrix.clock }}
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    # REQUIRED CHECK (2026-11-10): the event clause that was here (push || fork PR) now lives in the `changes`
+    # job (--same-repo-pr-bases master): push, fork PRs AND same-repo PRs into master run the real jobs;
+    # same-repo PRs into agent/int keep push-run-only. Before this, a same-repo PR into master SKIPPED them.
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -205,7 +244,8 @@ jobs:
   capability-regression:
     name: UCT Agent capability regression (deterministic, no model)
     needs: capability-regression-clock
-    if: always() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository)
+    # REQUIRED CHECK: skipped exactly when the clock legs were skipped (not relevant, or `changes` failed).
+    if: always() && needs.capability-regression-clock.result != 'skipped'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -216,8 +256,8 @@ jobs:
 
   union:
     name: Shards cover every Agent test file (equivalence rail)
-    needs: browser
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    needs: [changes, browser]
+    if: needs.changes.outputs.relevant == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -258,3 +298,22 @@ jobs:
           if (ran.size < 30) { console.log('::error::fewer than 30 Agent test files ran'); process.exit(1); }
           if (missing.length || failed > 0) process.exit(1);
           EOF
+
+  # THE REQUIRED CHECK (the branch ruleset requires "agent ci (required)"). `if: always()` so it reports on every
+  # run; `needs` lists EVERY other job (tests/test_ci_cost_rails.py holds both). It passes when the change
+  # is not relevant here, otherwise only when every needed job ended `success`: skipped, cancelled,
+  # neutral or missing is a FAIL (tools/ci_paths_match.py verdict).
+  required:
+    name: agent ci (required)
+    needs: [changes, server, browser, capability-regression-clock, capability-regression, union]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tools
+      - name: Every needed job succeeded, or the change is not relevant here
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: python3 tools/ci_paths_match.py verdict --expect changes,server,browser,capability-regression-clock,capability-regression,union
