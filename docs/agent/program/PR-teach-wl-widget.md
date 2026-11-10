@@ -151,10 +151,7 @@ for every right-click it makes:
 | C3-095 Export CSV or Excel | Export CSV | as C3-073 |
 | C3-097 Version history | Version history | as C3-073, plus Version history (the version store given) |
 
-On a first attempt of this evidence run, C3-095 failed once. The Agent answered with a "Do you mean …?" question
-instead of the walkthrough. It passed when re-run alone, it passed in the evidence run above, and it passed in the full
-pass. I did not keep that first attempt's files, because its menu probe was also reading the ⋯ button rather than the
-menu.
+**Attempt 1 was not kept.** See `RUN-LOG.md` in the evidence folder. Its menu probe read ⋯ instead of the menu. In that attempt C3-095 failed once, with a "Do you mean …?" reply, and then passed when re-run alone. I deleted those files before committing, which was wrong: raw output, failed attempts included, is committed before interpretation. They cannot be recovered. Attempt 2, above, is the result, and from now on every attempt is kept and labelled.
 
 ## `guide/listRefs.js` only reads
 It reads list names through `host.watchlists.snapshot()`, a read of the store's current rows, and rewrites the
