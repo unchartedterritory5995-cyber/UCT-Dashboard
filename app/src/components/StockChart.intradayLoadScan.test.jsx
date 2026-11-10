@@ -122,20 +122,46 @@ describe('intraday load: stale mem, slow IDB', () => {
     expect(bars[0].since).toBe(et(10, 0) - 1)
   })
 
-  it('a not-current mem tail is never drawn; the repair lands as ONE complete frame (no blank between)', async () => {
+  it('a BEHIND (sound) mem tail paints AT ONCE as context minus its forming candle, then ONE complete frame — no blank between', async () => {
     const base = rth5(10, 0)
     memPut('MEMSTALE2', '5', base)
     serve({ latency: 80 })
     render(<StockChart sym="MEMSTALE2" tf="5" backgroundWarm={false} />)
+    await wait(40)
+    // Before any network answer: the history is on screen, without the last (forming) candle.
+    expect(draws.list.some(d => d.n === base.length - 1)).toBe(true)
     await wait(600)
     const nonEmpty = draws.list.filter(d => d.n > 0)
-    expect(nonEmpty.length).toBeGreaterThan(0)
-    // Every drawn frame is the COMPLETE current series: never the 10:00 tail, never delta-only.
     const full = rth5(13, 10).length
-    for (const d of nonEmpty) expect(d.n).toBe(full)
+    // Only two shapes are ever drawn: the context and the complete current series.
+    for (const d of nonEmpty) expect([base.length - 1, full]).toContain(d.n)
+    expect(nonEmpty[nonEmpty.length - 1].n).toBe(full)
     // and no empty frame after the first real one
     const first = draws.list.findIndex(d => d.n > 0)
     expect(draws.list.slice(first).some(d => d.n === 0)).toBe(false)
+  })
+
+  it('the context frame is never presented as current (frame log: current=false ⇒ settled=false)', async () => {
+    localStorage.setItem('uct.chartTiming', '1'); window.__uctFrameLog = []
+    try {
+      memPut('MEMCTX', '5', rth5(10, 0))
+      serve({ latency: 80 })
+      render(<StockChart sym="MEMCTX" tf="5" backgroundWarm={false} />)
+      await wait(600)
+      const rows = (window.__uctFrameLog || []).filter(r => r.sym === 'MEMCTX')
+      expect(rows.some(r => r.context)).toBe(true)
+      expect(rows.filter(r => !r.current && r.settled)).toEqual([])
+      expect(rows[rows.length - 1].current).toBe(true)
+    } finally { localStorage.removeItem('uct.chartTiming') }
+  })
+
+  it('a GAPPED mem tail is never drawn, even when the request fails', async () => {
+    // Friday-ish: two sessions old → gapped
+    memPut('MEMGAP', '5', rth5(15, 55).filter(b => b.t < et(9, 30)).map(b => ({ ...b, t: b.t - 86400 })))
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 404, headers: { get: () => null }, json: async () => ({}), clone() { return this } })))
+    render(<StockChart sym="MEMGAP" tf="5" backgroundWarm={false} />)
+    await wait(400)
+    expect(draws.list.filter(d => d.n > 0)).toEqual([])
   })
 
   it('a CURRENT mem tail paints at once, before any network answer', async () => {
@@ -172,5 +198,27 @@ describe('timeframe switch', () => {
     const five = reqs.filter(r => r.url.includes('/api/bars/TFSW?tf=5'))
     expect(five.length).toBeGreaterThan(0)
     expect(five.every(r => r.aborted)).toBe(true)
+  })
+})
+
+describe('per-load identity', () => {
+  it('two charts on the SAME sym+tf each run their own tail request (module-wide load number)', async () => {
+    memPut('TWIN', '5', rth5(12, 0))
+    serve()
+    render(<><StockChart sym="TWIN" tf="5" backgroundWarm={false} /><StockChart sym="TWIN" tf="5" backgroundWarm={false} /></>)
+    await wait(400)
+    const tails = reqs.filter(r => r.url.includes('/api/bars/TWIN') && !r.url.includes('bars=3000'))
+    expect(tails.length).toBe(2)
+  })
+
+  it('a request still waiting on IDB when the member scans on never reaches the network', async () => {
+    // no mem → the fetcher races the (slow) IDB read for _IDB_TAIL_WAIT_MS
+    serve({ hang: true })
+    const { rerender } = render(<StockChart sym="GONE" tf="5" backgroundWarm={false} />)
+    await wait(30)
+    rerender(<StockChart sym="NEXT" tf="5" backgroundWarm={false} />)
+    await wait(400)
+    expect(reqs.filter(r => r.url.includes('/api/bars/GONE'))).toEqual([])
+    expect(reqs.filter(r => r.url.includes('/api/bars/NEXT')).length).toBeGreaterThan(0)
   })
 })

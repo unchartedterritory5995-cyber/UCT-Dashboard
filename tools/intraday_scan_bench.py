@@ -84,20 +84,31 @@ def run_arm(browser, base, tf, arm, cadence_ms):
     # A neutral first symbol so every SCAN name is a real in-app switch.
     page.goto(f"{base}/r/chart?sym=SPY&tf={tf}&w=1100&h=560", wait_until="domcontentloaded")
     page.wait_for_timeout(2500)
-    page.evaluate("() => window.__uctChartTiming.clear()")
+    page.evaluate("() => { window.__uctChartTiming.clear(); window.__uctFrameLog = [] }")
     fixture.requests.clear()
     for s in SCAN:
         page.evaluate(NAV, f"/r/chart?sym={s}&tf={tf}&w=1100&h=560")
         page.wait_for_timeout(cadence_ms)
     page.wait_for_timeout(2000)
     rows = page.evaluate("() => window.__uctChartTiming.report()")
+    frames = page.evaluate("() => window.__uctFrameLog || []")
     ctx.close()
+    frames = [f for f in frames if f.get("sym") in SCAN]
     rows = [r for r in rows if r["sym"] in SCAN]
     tc = [r["T0→TC"] for r in rows]
+    fp = [r["T0→paint"] for r in rows]
     out = {
         "tf": tf, "arm": arm, "n": len(rows),
         "TC_p50": _pct(tc, .5), "TC_p90": _pct(tc, .9), "TC_max": max([x for x in tc if x is not None], default=None),
         "neverCurrent": sum(1 for x in tc if x is None),
+        "firstPaint_p50": _pct(fp, .5), "firstPaint_p90": _pct(fp, .9),
+        "noPaint": sum(1 for x in fp if x is None),
+        # frames: every intraday bars change the chart committed (diagnostic frame log)
+        "frames": len(frames),
+        "contextFrames": sum(1 for f in frames if f.get("context")),
+        # ⛔ THE DEFECT METRIC: a frame whose tail is NOT current while the chart presents
+        # itself as current (settled currentness → LIVE may light). Must be 0.
+        "staleShownAsCurrent": sum(1 for f in frames if not f.get("current") and f.get("settled")),
         "staleFirstPaint": sum(1 for r in rows if r["staleFirstPaint"]),
         "blackFrame": sum(1 for r in rows if r["blackFrame"]),
         "visibleBlank": sum(1 for r in rows if (r["emptyWindowMs"] or 0) > 16.7),
