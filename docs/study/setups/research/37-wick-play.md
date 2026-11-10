@@ -874,3 +874,81 @@ the phrase appears elsewhere only in `app/dist/`), `starterScans.json`, `starter
 Signal's 40% lower wick). Not re-checked: the Wayback capture dates for TraderLion's lesson and slides (archive
 index queries were not permitted to this checker). Two further web searches found no new primary source: the
 Stockbsessed Kell interview (2023-04-01, a write-up) does not mention the wick.
+
+---
+
+## 13. Examples (from our data)
+
+(Numbered 13 because section 12, "Removed in checking", already existed when this was added on 2026-11-09.)
+
+**The scan's rule, in one paragraph.** Daily bars from the sandbox (3,897 names, 1984 to 2026), scanned over the 2,630
+names that ever met the house liquidity rule, strict form only (8.2 Option A; the same-day push of Option B needs
+intraday bars and was not scanned). Day 1 closes off its high with an upper wick (high minus the body top) of at least a
+quarter of its range (8.1, my teaching minimum); at day 1's close the stock is $10 or more with 50-day dollar volume of
+$20 million or more (B23), above its 50-day and 200-day SMAs with the 50-day above the 200-day (B26 and the 8.1
+proposal), and no more than 10% over its 10-day average (C29). Day 2 sits wholly inside day 1's upper wick: its low above
+day 1's body top and its high below day 1's high (Deepvue; TaPlot). Day 3 trades over day 2's high: the buy is a market
+order a cent over that high (E57), or the open if the stock gapped over it, and the hit is skipped if that open is more
+than 4% past the trigger (C28) or already under the planned stop. The stop is 3 cents under day 2's low (A3, F62), and
+a stop wider than 8% of entry is skipped. The outcome walks forward 60 sessions from the day after entry with a FIXED
+stop and no trims, no breakeven move and no trail, counting the first of stop, 3R, 5R; a day whose low hits the stop
+counts as stopped even if its high reached a target, except on the entry day itself, where daily bars cannot order the
+trigger and the low, so the scan records that case ("day-3 low under the stop") rather than deciding it. Recorded for
+grading but not gating: the wick fraction, day 2's range and volume against day 1's, an "explosion" in the prior 15
+sessions (a 4% gap or a 50-day-high close on 1.5x the 50-day volume), distance from the 52-week high, and the 126-day
+return. No earnings filter was applied (B22 is checked by hand on the examples below). Code:
+`_study-resume/scratchpad/setups/37-wick-play/scan_wick.py` (outside the repo).
+
+**Base rate.** 1,755 hits in 2,630 of 2,630 liquid names (the scan completed in 242 seconds). 468 of 1,755 (26.7%)
+reached 3R before the stop; 311 (17.7%) reached 5R. In 511 hits (29.1%) the entry day's own low printed under the stop;
+counting every one of those as a loss gives the floor: 391 (22.3%) to 3R and 261 (14.9%) to 5R. Caveats: a fixed stop
+with no trims, so the house plan (a third at 3R, a third at 5R, breakeven between 2R and 5R, then the 10- or 21-day
+trail) is not what is measured, and two of the ten examples below (NVDA, LHX) hit the original stop inside the 60
+sessions after their best R; the stops are tight (1,563 of 1,755 at 3% of entry or less), so one noisy day ends a trade that
+later worked; the sandbox holds today's tickers, so delisted names are missing (survivorship), and 1,219 of the hits
+fall in 2013 to 2026, partly because more names pass the $20 million rule recently; the "wholly inside the wick" test is
+strict, so this counts textbook wick plays, not every wick that held. What the splits say, with the same caution as 4.3
+(none is a large edge): a fill at the trigger did better than a gap-over fill (3R 28.7% against 22.8%, 1,142 against
+613 hits); an "explosion" in the prior 15 sessions did not help on these bars (24.5% against 28.0%); day 2 lighter than
+day 1 made little difference (26.9% against 25.8%); a stop under 3% (26.9%) and over 3% (25.0%) were alike; wicks of
+25 to 50% of the range (31.4%, 223 hits) did as well as or better than bigger wicks (26.0%); names more than 5% under
+their 52-week high did slightly better (28.5%) than those within 5% (25.5%).
+
+**The 10 examples.** One per ticker, all reached at least 5R on the fixed-stop walk, none an ETF, each checked on the
+chart. "Day 1" is open / high / low / close; "wick" is the upper wick as a share of day 1's range; "day 2" gives its high
+and low, its range as a share of day 1's, and its volume against day 1's. Buy = the fill (the trigger a cent over day 2's
+high, or the open when it gapped over); stop = 3 cents under day 2's low. "Best R" is the highest high in the 60
+sessions after entry before the stop. Earnings dates are from the sandbox's Yahoo + SEC table. Charts and phone sheets:
+`_study-resume/scratchpad/setups/37-wick-play/final/` (sheet_1-4, sheet_5-7, sheet_8-10).
+
+| # | Ticker | Buy (day 3) | Day 1 | Day 2 | Buy | Stop | Best R | Why it is textbook |
+|---|---|---|---|---|---|---|---|---|
+| 1 | GOOGL | 2007-09-14 | 09-12: 13.03 / 13.21 / 12.99 / 13.08, wick 59% | 13.19 / 13.09, 44% of day 1, vol 0.63x | 13.20 | 13.06 (1.06%) | 39.3R (3R day 3, 5R day 4) | A mega-cap just back over its 50-day after a two-month base, a small day-1 bar with most of its range in the wick, a quiet inside day, then eight weeks up. The report (2007-10-18, after the close) came after 5R. Prices are the sandbox's split-adjusted series. |
+| 2 | SWKS | 2014-02-10 | 02-06: 30.11 / 30.73 / 30.00 / 30.26, wick 64% | 30.69 / 30.35, 47%, vol 0.63x | 30.70 | 30.32 (1.24%) | 31.0R (3R day 2, 5R day 7) | Kell's frame exactly: an explosion first (the 2014-01-17 earnings gap, +10.2% at the open on 5x volume, 14 sessions earlier), then a wick day resting on the 10-day EMA, day 2 inside it on lighter volume, and a push. |
+| 3 | WB | 2016-06-30 | 06-28: 26.90 / 27.71 / 26.20 / 26.88, wick 54% | 27.63 / 27.01, 41%, vol 0.43x | 27.64 | 26.98 (2.39%) | 37.4R (3R day 2, 5R day 4) | A leader 44% over its 200-day (+35% in six months) whose wick day closed two cents under its open; day 2 held the whole body on less than half the volume; day 3 closed near its high. No report on file inside the window. |
+| 4 | MELI | 2017-02-06 | 02-02: 188.58 / 191.77 / 187.25 / 188.62, wick 70% | 190.70 / 189.04, 37%, vol 0.44x | 190.71 | 189.01 (0.89%) | 27.6R (3R day 5, 5R day 7) | The tightest stop in the set under a day 2 that barely moved; a steady leader riding its 10-day EMA. The report (2017-02-23, after the close) came after 5R, so B22 did not block the buy. |
+| 5 | LHX | 2020-01-17 | 01-15: 212.40 / 215.67 / 211.85 / 213.16, wick 66% | 214.99 / 213.20, 47%, vol 0.99x | 215.30 (opened 0.14% over the 215.00 trigger) | 213.17 (0.99%) | 7.4R (3R day 2, 5R day 11) | A 1% stop under a two-day hold after the early-January gap; day 3 closed at its high on 1.5x volume. The fixed-stop walk then loses it in the late-February 2020 selloff: the 3R and 5R trims and the trail (B19, E52) are what bank a wick play. |
+| 6 | NVDA | 2021-10-29 | 10-27: 24.47 / 25.09 / 24.28 / 24.45, wick 76% | 24.95 / 24.52, 53%, vol 0.95x | 25.00 (opened 0.16% over 24.96) | 24.49 (2.03%) | 18.9R (3R day 2, 5R day 4) | The dossier's own example 1 (8.9), re-found by the scan: an explosion on 2021-10-26 (+6.7% on 1.8x volume), a wick day, a hold, a push, 7.3% over the 10-day (inside C29). The report (11-17) came after 5R. The 60-session walk ends at the original stop in January 2022, after the trims would long have been taken. |
+| 7 | GLNG | 2022-03-18 | 03-16: 18.38 / 19.23 / 18.17 / 18.39, wick 79% | 19.05 / 18.64, 39%, vol 0.54x | 19.10 (opened 0.21% over 19.06) | 18.61 (2.57%) | 17.2R (3R day 1, 5R day 3) | A 2022 energy leader (+58% in six months) at the liquidity floor ($20 million a day); the biggest wick in the set, a half-volume inside day, then day 3 itself closed +10% on 3.8x volume, 3R on the first session. No report on file in the window. |
+| 8 | SPOT | 2024-09-23 | 09-19: 350.00 / 368.29 / 348.96 / 360.22, wick 42% | 366.79 / 362.00, 25%, vol 0.51x | 367.00 (opened 0.05% over 366.80) | 361.97 (1.37%) | 27.7R (3R day 1, 5R day 26) | A large day 1 on 1.5x volume, a tiny day 2 (a quarter of day 1's range), 3R on the first session, then a slow grind: 5R took 26 sessions. A lesson that the first trim is fast and the rest can be patient. No report on file in the window. |
+| 9 | TTMI | 2025-06-09 | 06-05: 32.46 / 34.00 / 31.83 / 32.11, wick 71% | 33.36 / 32.57, 36%, vol 0.65x | 33.64 (opened 0.81% over 33.37) | 32.54 (3.27%) | 15.9R (3R day 2, 5R day 11) | An explosion two days before day 1 (06-03, +8.5% on 3.1x volume), a red wick day whose body top (the open, 32.46) held, then a +6% day 3 on 2.4x volume. The stop, 3.27%, is a touch over A13's "about 3%", so size down (A5). 33% over its 50-day: extended, a grading minus. |
+| 10 | AIR | 2026-01-12 | 01-08: 93.00 / 97.67 / 92.21 / 94.73, wick 54% | 97.33 / 95.44, 35%, vol 0.92x | 97.50 (opened 0.16% over 97.34) | 95.41 (2.14%) | 12.9R (3R day 3, 5R day 12) | The report (2026-01-06, after the close) gapped it +6.1% on 01-07; day 1 is the next session, a 2.1x-volume bar that closed off its high; day 2 held the body top; day 3 pushed. An explosion, then a wick play, in one week. 8.9% over the 10-day: close to the C29 limit. |
+
+**Notable failures (from the same scan, in words).**
+- AMZN, 2018-09-04: a 60% wick on 2018-08-30, a clean inside day, a fill at 101.33 with a 1.1% stop (100.21), 1.1%
+  under the 52-week high. The next session's low was 99.49: stopped for 0R, and the stock never traded above 102.53 in
+  the following 20 sessions (its September 2018 top). A perfect-looking wick play at the end of a run is still a 1%-stop
+  bet on one more push; the rule did not fail, the run was over.
+- DDOG, 2020-10-06: the wick day (10-02, wick 65%) sat 9.6% over its 10-day, almost at the C29 line, and day 2's low
+  left a 4.1% stop. Day 3 opened at 106.89, traded through the 108.11 trigger to 109.60 and down to 102.14, under the
+  stop, the same day (daily bars cannot order the two); it was in any case stopped on 10-08 (low 101.81), then ran to
+  118.13 (2.3R) within a week. A stretched name with a wide stop: skip, or take the stop and wait for a new setup
+  (A4, B21).
+- SHOP, 2024-02-12: the dossier's example 6 (8.9), re-found by the scan. A 55% wick on 02-08, a clean inside day, a fill
+  at 91.40 with a 2.75% stop (88.89); on 02-13 it opened at 77.80, 15% lower, far through the stop. Section 8.9 states the
+  02-13 gap was the earnings reaction; the sandbox's earnings table holds no SHOP date for it, so that classing rests on
+  8.9, not on the table. B22 (no new buys within 3 days of a report) is the lesson either way.
+- ANET, 2025-08-13: day 1 (08-11) carried an 84% wick three sessions after the 08-06 earnings reaction, 8% over the
+  10-day; day 3 opened at 141.27, printed 141.99 (through the 141.46 trigger) and closed at 138.01 with a low of 136.01,
+  3.9% under the entry: stopped on the entry day on any ordering of the bars. The stock then reached 156.32 (4.5R) within
+  20 sessions. Two warnings in one: a stretched name's first push can fail inside the day, and a stop is a stop (A4).

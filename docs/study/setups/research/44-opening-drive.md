@@ -914,7 +914,7 @@ paper; C = secondary or vendor; R = repo file.
 | 41 | *Trading the 10 O'clock Bulls*, MarketGauge (PDF) | Geoff Bysshe | 2009 | C: vendor book; copy saved in this session by a sibling task, not downloaded by me |
 | 42 | https://www.marketcalls.in/market-profile/market-profile-open-type-and-confidence.html | marketcalls; Rajandran R | 2015-08-01 | C: educator's restatement of Dalton's open types |
 | 43 | https://readingthemarkets.blogspot.com/2009/10/dalton-jones-mind-over-markets.html | Reading the Markets; Brenda Jubin | 2009-10-16 | C: book review quoting *Mind Over Markets* |
-| 44 | https://traderlion.com/trading-books/the-playbook-summary/ | TraderLion | 2025-07-23 | C: summary of *The PlayBook*; the checker could not re-open it (403 live, no archived copy), so its quote was removed (section 12) and rows 59-60 replace it |
+| 44 | https://traderlion.com/trading-books/the-playbook-summary/ | TraderLion | 2025-07-23 | C: summary of *The PlayBook*; the checker could not re-open it (403 live, no archived copy), so its quote was removed (section 13) and rows 59-60 replace it |
 | 45 | https://stockbee.blogspot.com/search?q=%22opening+drive%22 | Stockbee; Pradeep Bonde | read 2026-11-09 | Nothing on this setup |
 | 46 | alphatrends.net post search for "opening drive" | Brian Shannon | read 2026-11-09 | No results |
 | 47 | Crossref record for doi 10.1016/j.jfineco.2018.05.009 | Gao, Han, Li, Zhou, "Market intraday momentum", JFE 129(2) | 2018 | Title only; the paper (403) was not read |
@@ -942,7 +942,107 @@ giveaway describes as "Featuring chapters from Quallamaggie, Lance Breitstein, a
 
 ---
 
-## 12. Removed in checking
+## 12. Examples (from our data)
+
+Run 2026-11-09 (night) on the sandbox's 5-minute bars: the 1,000 most-traded names (price $10+, $20 million+ a day),
+regular hours, 2026-08-17 to 2026-11-06 (59 sessions). An opening drive lives in the first five minutes, so daily bars
+cannot show it and the hourly bars (2023-12 on) blur it into the first hour; this is the only window we have at the
+right resolution. Scripts: scratchpad `setups/44-opening-drive/scan44.py` (the scan, writes `final/hits.json`) and
+`final44.py` (the picking and the charts). Charts: `final/01_LRCX_2026-09-18.png` to `final/10_RPRX_2026-10-20.png`
+and the three phone sheets `final/sheet_1-4.png`, `sheet_5-7.png`, `sheet_8-10.png`. The RS figure is the same proxy
+as section 4.5 (IBD-style weighted 12-month return, ranked 1-99 inside the 1,000 names on that day), not the app's RS
+rating.
+
+**The rule the scan used (section 8 + the house rules).** Daily context through the prior day: close $10+, 50-day
+average dollar volume $20 million+ (B23); prior close above the 200-day SMA for a long, below it for the short mirror
+(B26). The 9:30 bar opens at least 1% above the prior close (8.1); the first 5-minute bar closes above its open. First
+5-minute volume is measured against the mean first-bar volume of the prior 10-20 sessions. Trigger: the first later bar
+that trades a cent above the first bar's high (the 5-minute ORH, 8.2), provided no bar has traded under the open
+before it (8.5). Market order (E57): the fill is the ORH plus a cent, or the trigger bar's open if it gapped over; no
+fill more than 4% above the ORH (C28) or more than 10% above the 10-day SMA (C29). Stop: 5 cents under the day's low at
+the fill (8.3). Outcome: the 5-minute bars after the trigger bar for up to 20 sessions; stopped when a bar's low touches
+the stop, best R from the highs. Fixed stop, no trims, no breakeven move, no day-1 close exit. The scan recorded every
+such trade from 1x first-bar volume and up to a 5% stop, then counted the dossier's **strict** rule on top: first-bar
+volume 2x+, RS 80+, trigger by 10:00 ET, stop within 3% (A13). The short mirror (gap down 1%+, red first bar, break of
+the first bar's low before any trade over the open, below the 200-day, RS 20 or less) was recorded the same way.
+
+**Base rate.** 1,000 of 1,000 names scanned in 106 seconds (complete). Across the 59 sessions the strict long rule
+fired **41 times** on 21 different days (ETFs included: UCO, ARKG twice and CIBR are ETFs): **17.1% reached 3R and 9.8% reached 5R** before the
+stop; 87.8% were stopped within 20 sessions and 41.5% were stopped on the drive day itself. The strict short mirror
+fired 57 times: 15.8% reached 3R, 3.5% reached 5R, 91.2% stopped. These are fixed-stop figures with no trims, no
+breakeven move and no day-1 close exit, so they understate what the house plan (a third at 3R, a third at 5R, B19)
+would have kept and overstate what the day-1 close check (8.4) would have lost. One autumn of data is one market
+regime; the numbers are a floor to argue from, not a statistic.
+
+How the thresholds moved the rate (longs, trigger by 10:00, stop within 3%, 20-session fixed stop):
+
+| first-bar volume | any RS | RS 70+ | RS 80+ |
+|---|---|---|---|
+| 1x+ | n 572, 3R 20.8%, 5R 13.1% | n 320, 22.8%, 16.2% | n 210, 25.2%, 18.1% |
+| 1.5x+ | n 277, 17.7%, 9.7% | n 151, 19.9%, 12.6% | n 91, 23.1%, 14.3% |
+| 2x+ (the proposal) | n 136, 18.4%, 8.8% | n 68, 16.2%, 10.3% | n 41, 17.1%, 9.8% |
+| 3x+ | n 52, 21.2%, 13.5% | n 23, 21.7%, 13.0% | n 18, 27.8%, 16.7% |
+
+Three readings for the owner. (1) RS 80+ helped at every volume level (C31 earns its place). (2) The 2x first-bar
+volume floor, which section 8.1 marks as my proposal, did not raise the hit rate in this window: 1x-2x drives on RS
+80+ names did as well as 2x+ drives. The floor should be settled by the owner, not by this data. (3) The A+ mark for
+"opens above the prior day's high" (8.1) ran the wrong way here: among the 151 longs at 1.5x volume and RS 70+, the
+108 that opened above the prior high reached 3R 13.9% of the time, the 43 that opened inside the prior day's range
+34.9%. A gap over the prior high is also, in the same bars, further from the 10-day average; this is one autumn and
+small cells, but it argues against grading the gap size up without the daily setup behind it. Two more figures are
+true but circular, so they are not evidence: drives whose day-1 close sat in the top third of the day's range reached
+3R 36% of the time against 2% for the bottom third (the stop sits just under the first bar's low, so a close in the
+bottom third usually means the stop was already hit), and the same holds for "the low of the day stayed in the first
+bar" (41% against 2%). What they do say is that the day-1 close check in 8.4 costs almost nothing: by the time a drive
+closes in the bottom third it has nearly always failed.
+
+**The ten examples.** Only 7 of the 41 strict trades reached 3R, and three of those did not deserve a learner's eye
+(RGEN 10-02 faded the same day; RPRX 10-15 stalled at the first bar's high all day and closed near its low; VTRS 10-15
+took eleven sessions to reach 3R; ARKG is an ETF). So 3 of the 10 below are strict (LRCX, SANM, CNC) and 7 pass every
+rule except one of the "my proposal" lines: first-bar volume 1.5-2x instead of 2x+ (SITM, STX, NET, CROX, MXL, RPRX),
+RS 77 instead of 80+ (CROX), or a stop a shade over 3% (CRWD 3.2%, MXL 3.2%; the dossier's own 8.9 already flags
+CRWD). Every example is a US stock above a rising 200-day SMA, inside the 10-day limit (MXL at +9.8% is the closest),
+triggered at 9:35 ET (the second 5-minute bar), with the day's low set in the first 5-minute bar. None is an earnings
+reaction day in our tables (Yahoo + SEC 8-K); the news behind each gap was NOT checked and needs the owner's eye. All
+ten come from one autumn because that is the only window with 5-minute bars; one per ticker, but not different years.
+
+| # | Ticker, date | The drive (first 5-min bar) | Buy (ORH + 1c) | Stop | 3R / 5R | Best R, when | Why it is textbook |
+|---|---|---|---|---|---|---|---|
+| 1 | LRCX 2026-09-18 | gap +1.5% (not over the prior high); bar 272.80-277.23, closed 63% of its range on 5.7x volume; RS 82, +1% vs 200-day | 277.24 at 9:35 | 272.75 (1.6%) | 290.71 / 299.69 | 16.8R; 3R at the next session's open (09-21 9:30), 5R at 11:40 that day | The dossier's own model 1, confirmed: low of day in bar 1, closed at 97% of the range, gapped again next day. The first bar dipped first (63% close), which the app's 70% rule would have thrown out. |
+| 2 | SITM 2026-09-17 | gap +5.7% over the prior high; bar 572.87-581.56, closed 88%, 1.7x volume; RS 85, +7% vs 200-day | 581.57 at 9:35 | 572.82 (1.5%) | 607.82 / 625.32 | 17.1R; 3R at 9:50 the same day, 5R at the open two sessions later (09-21) | Model 5 of 8.9: the fastest drive in the set, 3R inside 20 minutes, then two sessions holding above its VWAP before the next leg. Volume 1.7x, under the 2x floor. |
+| 3 | CRWD 2026-09-14 | gap +5.9% over the prior high; bar 216.17-223.34 (3.3% wide), closed 63%, 3.2x volume; RS 91, +43% vs 200-day | 223.35 at 9:35 | 216.12 (3.2%) | 245.04 / 259.50 | 8.8R; 3R on 09-16 at 11:25, 5R on 09-23; never stopped in 20 sessions | Model 3 of 8.9: a wide first bar makes the honest stop 3.2% (A13 means size down, A5). The drive ran to 236 by 11:00 and 239 by 2 pm; the day closed at 83% of its range. |
+| 4 | SANM 2026-09-11 | gap +1.2%; bar 205.71-207.99, closed 42% (a dip then recovery), 2.3x volume; RS 81, +10% vs 200-day | 208.00 at 9:35 | 205.66 (1.1%) | 215.02 / 219.70 | 4.75R; 3R at 10:35 the same day; 5R never | Strict. A tight first bar gives a 1.1% stop and 3R by 10:35. Then the lesson: a gap down through the stop on 09-14 (B20: the first 30-minute low is the new stop, out past 2R); the trims at 3R already banked a third. |
+| 5 | CNC 2026-11-04 | gap +4.7% over the prior high; bar 70.21-71.99, closed 54%, 5.3x volume; RS 90, +22% vs 200-day | 72.00 at 9:35 | 70.16 (2.6%) | 77.52 / 81.20 | 3.3R; 3R at 9:35 the next day; stopped 11-06 at 10:40 | Strict. The heaviest first-bar volume in the set; the drive ran all day (closed 85% of range), topped at 3R next morning, then round-tripped to the stop two days later: trim a third at 3R or keep nothing. |
+| 6 | STX 2026-09-18 | gap +1.4%; bar 807.31-827.97, closed 96%, 1.9x volume; RS 97, +30% vs 200-day | 827.98 at 9:35 | 807.26 (2.5%) | 890.14 / 931.58 | 5.7R; 3R at the next session's open (09-21), 5R on 09-22 at 9:50 | A first bar that closed at its high on a leader (RS 97); a steady all-day drive closing at 79% of the range, with the group (LRCX the same day). Volume 1.9x. |
+| 7 | NET 2026-09-14 | gap +2.1%; bar 309.00-316.14, closed 92%, 1.6x volume; RS 87, +36% vs 200-day | 316.15 at 9:35 | 308.95 (2.3%) | 337.75 / 352.15 | 7.5R; 3R at the open four sessions later (09-18), 5R on 09-21; never stopped | Same day and group as CRWD (software, 2026-09-14, section 8.7): the drive ran to 327 by 11:00 and 334.6 by 2:40 pm, and the stock trended for four sessions without a retest of the open. Volume 1.6x. |
+| 8 | CROX 2026-09-17 | gap +2.2% over the prior high; bar 117.95-119.29, closed 90%, 1.9x volume; RS 77, +10% vs 200-day | 119.34 at 9:35 | 117.90 (1.2%) | 123.66 / 126.54 | 5.8R; 3R at 10:40 the same day, 5R at the open three sessions later (09-22); stopped 09-30 | The cleanest intraday shape: a one-bar drive, 3R inside 65 minutes, a close at 66% of the range, a fade the next day, 5R on the third session. RS 77 (under C31's 80); a learner should see why the rule is 80. |
+| 9 | MXL 2026-10-02 | gap +2.5%; bar 93.93-96.96 (3.2% wide), closed 90%, 1.7x volume; RS 98, +73% vs 200-day | 96.97 at 9:35 | 93.88 (3.2%) | 106.24 / 112.42 | 5.2R; 3R at 3:55 the same day, 5R on 10-07 at 10:40 | The biggest day-1 move in the set: from 97 to 103 by 11:00 and 106 at the close (95% of the range) on a stock 73% above its 200-day and 9.8% over its 10-day (C29's edge). The stop is 3.2% because the first bar was wide. |
+| 10 | RPRX 2026-10-20 | gap +1.1%; bar 60.81-61.40, closed 85%, 1.6x volume; RS 86, +16% vs 200-day | 61.41 at 9:35 | 60.76 (1.1%) | 63.36 / 64.66 | 13.0R; 3R on 10-22 at 10:15, 5R on 10-26; never stopped | A quiet, low-beta drive: a 1% first bar, a tight 1.1% stop, and a steady grind all day (closed 89% of range) into a gap-up on the third session. Shows that R, not percent, measures the trade. |
+
+**Notable failures (all strict-rule trades, so the rule did not keep us out).**
+
+- **EAT 2026-09-22** (the dossier's counter-example 7, confirmed): gap +3.2% over the prior high on 2.5x volume, RS 84,
+  bought 211.21 at 9:40 with the stop at 204.95 (3.0%). Best 0.37R; stopped the same day; the day closed at 24% of its
+  range. The 8.4 day-1 close check would not have helped (the stop came first); only the pattern of "high of the day
+  in the first 20 minutes, then a lower high" would.
+- **PAYC 2026-10-01**: gap +3.7% on 5.0x first-bar volume (the second-heaviest in the strict set), RS 90, bought 229.02
+  at 9:35. The fill was the high of the day: the stock never ticked higher, slid for an hour and hit the stop (224.09)
+  at 10:35, then recovered to close at 78% of its range. B21 says a stop-out is not a re-entry without a new trigger;
+  the honest reading is that a drive whose first push fails in minute six is usually not a drive.
+- **RVTY 2026-10-06**: gap +2.7%, 2.9x volume, RS 91, 48% above its 200-day. Bought 165.00 at 9:35, best 0.21R, stopped
+  the same day, closed at 13% of the range. One of four strict fires on 2026-10-06 (with NVT, ARKG, CIBR), all stopped:
+  the drives were real for five minutes and the market was not (8.7, the market reading comes first).
+- **TSEM 2026-09-17** (counter-example 9, confirmed): a 6.3% gap on 2.5x volume, bought 216.48, reached 2.1R by 9:50,
+  then fell through its open and the stop (214.23) within the hour before recovering; the stop under the first bar's
+  low was 1.0% away. A tight stop is not a free stop.
+- **GMAB 2026-10-05** (rejected as an example): the first bar closed at 94% of its range on 2.8x volume, but the
+  trigger came only at 9:50 and the stock then sat flat near 36 for four hours; the 42.9R on its record comes from a
+  surge to 40.17 at 3:05 pm and a gap the next morning (news not checked), not from the open. A best-R number without
+  the chart is not a textbook example.
+
+---
+
+## 13. Removed in checking
 
 The cold check (2026-11-09, second reader) changed the following. Everything else in the dossier was confirmed against
 its source as described in the opening note.

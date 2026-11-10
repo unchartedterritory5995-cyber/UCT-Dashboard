@@ -1328,3 +1328,86 @@ it changed (a quoted phrase in this list that names no source is the dossier's o
 - Nothing was removed: no quote, number, attribution or criterion failed its check. The narrative claims in our own
   detector that section 5.8 already lists as unsupported were searched for again in every Bonde and Kullamägi page
   downloaded for this check and are still not found there (that is not a search of everything either man has said).
+
+## 12. Examples (from our data)
+
+**The scan's rule (section 8 plus the house rules, on daily bars).** Daily bars from the local sandbox, run over the
+2,630 names that ever met the house liquidity rule (the scan completed: 2,630 of 2,630, nothing cut for time). A gap
+day is one whose open is at least 10% above the prior close (8.1.2) and at most 60% above it, whose volume is at least
+3x the prior 50-day average (8.1.4), that closes green, in the upper half of its range, and never trades back to the
+prior close (8.1.7, no fill); the gap-day close is at least $10 and the gap day's own dollar volume at least $20
+million (B23, 8.1.9); the close before the gap is no more than 25% above the close 126 sessions earlier and no more
+than 15% above the close 63 sessions earlier (8.1.5, neglect); and no earlier gap of 10%+ on 3x volume in the prior
+126 sessions (8.1.6, first EP). Daily bars cannot see the opening range, so the day-1 buy (8.2.1) is proxied by a
+market buy at the gap-day close with the stop 5 cents under the gap-day low, taken only when that stop is within 3%
+(A13); otherwise the delayed entry (8.2.2) is the first of these in days 2-10 while the gap holds (no trade below the
+gap-day low): a break of the post-gap high, or an inside day and then a break of its high, bought at the next tick
+over the pivot (or at the open if it gapped over it, never more than 4% above the pivot, C28), skipped after three
+green days in a row (8.2.3), only above the 200-day SMA (B26), with the stop 5 cents under the lower of the trigger
+day's and the prior day's lows (or the trigger day's low alone) and only if that stop is within 3%. One entry per
+gap. The outcome is the first of the stop, 3R or 5R touched in the next 60 sessions from the day after entry (a
+fixed stop, no trims, no trail, no breakeven move, no gap-through-the-stop rule: a base rate for the entry, not the
+house trade). Not coded: the named catalyst itself, the fundamentals (8.1.10), the RS rating (C31), the market
+reading and the trims. The catalyst of each gap is classed from the earnings database (Yahoo plus SEC 8-K Item 2.02,
+complete from about 2005): "earnings" when the gap day is a report's reaction day, "news/other" when the name has
+report dates and the gap is not on one, and "unknown" when the name has no report dates or the gap is before 2005.
+Scripts: `_study-resume/scratchpad/setups/20-episodic-pivot/ep_scan.py` (the scan) and `ep_chart.py` (the picks and
+charts); the hits are in `final/hits.json`, the charts and three phone sheets in `final/` (not in the repo).
+
+**Base rate.** 541 hits, 1996-10-25 to 2026-11-04 (30 of them before 2005, where the catalyst cannot be classed).
+**37.9% reached 3R and 27.7% reached 5R before the stop**; 451 of the 541 (83%) were eventually stopped at the
+original stop inside the 60-session window (that includes winners, since the stop never moves here), and 231 (43%)
+never reached 1R. Among the winners the median time to 3R was 2 sessions. **Caveat:** a fixed stop with no trims, no
+breakeven move, no trail and no time stop, so it measures how often the entry delivers 3R and 5R, not what the house
+trade earns. Cuts worth teaching (same scan): earnings gaps (358 hits) 37.7% / 25.7% and news gaps (138) 35.5% /
+28.3%, about the same; the day-1 close-entry proxy (49 hits) 30.6% / 22.4% against the delayed entries (492) 38.6% /
+28.3%; a break of the post-gap high (393) 41.2% / 31.3% did better than the inside-day trigger (99) 28.3% / 16.2%;
+gaps of 10-15% (366) 36.6% / 27.9%, 15-20% (93) 35.5% / 21.5%, 20-30% (57) 36.8% / 26.3%, and the 25 gaps over 30%
+68.0% / 52.0% (too few to lean on, and against the 8.1.3 caution; the owner's call); volume 3-5x (202) 39.6% / 27.7%,
+5-10x (248) 35.5% / 26.2%, 10x+ (91) 40.7% / 31.9% (no edge beyond 3x in this cut); neglect held up: a stock flat or
+down over the prior 6 months (320) 40.3% / 30.9% against one that was up (221) 34.4% / 23.1%; a gap-day close in the
+top quarter of the range (353) 36.5% / 26.9% was not better than a close in the 50-75% band (188) 40.4% / 29.3%, so
+the "top 25%" stays a grading cue, not a gate (8.1.7). The 47 hits with a stop under 1% (a trigger day that opened
+at its low) reached 3R 63.8% of the time, but that R is tiny and inflated (one hit shows 551R on a 5-cent stop), so
+the examples below were chosen with stops of 1% or more. Delayed entries came mostly on day 2 (205) and day 3 (94);
+49 were day-1 proxies.
+
+**What the daily data cannot show.** The real day-1 buy is above the opening-range high with the volume on pace in
+the first 30 minutes (8.2.1); the sandbox has 5-minute bars only for 2026-08-17 to 2026-11-06 and hourly bars only
+from 2023-12-12, so none of the examples below (chosen across ten different years) could be checked on intraday bars,
+and the day-1 proxy above (close entry, stop under the gap-day low within 3%) is tighter than most real gap days
+allow, which is why 9 of the 10 examples are day 2-4 entries. The neglect and volume numbers are as proposed in
+section 8, not the owner's settled numbers (section 10).
+
+**The 10 examples** (all stocks, one per name, ten different years; every one reached 5R, all ten reached 3R within 8
+sessions and all were above 1R by the tenth session, so the house time stop (C33) would not have cut any; eight are
+earnings-reaction days per the report database, two are news gaps; prices are split-adjusted as the database holds
+them). Files: `scratchpad/setups/20-episodic-pivot/final/NN_TICKER_DATE.png` and the phone sheets `sheet_1-4.png`,
+`sheet_5-7.png`, `sheet_8-10.png`.
+
+| # | Ticker | Gap day (catalyst) | Gap / volume / close in range / 6-mo change | Buy (day, trigger) | Stop (risk) | Best R (3R on day) | Why it is textbook |
+|---|---|---|---|---|---|---|---|
+| 1 | MOD | 2023-05-25 (earnings) | 18.8% / 3.2x / 96% / -8% | 25.00 on 2023-05-26 (day 2, post-gap high 24.50) | 24.75 (1.0%) | 89.9R (1) | A flat stock for six months, gapped from 19.73 to a close near its high, and the day-2 break of the gap-day high never looked back: the "neglect plus catalyst" picture in one chart. Volume only 3.2x, the floor. |
+| 2 | UI | 2025-08-22 (earnings) | 15.9% / 5.9x / 95% / +22% | 514.01 on 2025-08-25 (day 2, post-gap high 514.00) | 507.19 (1.3%) | 42.5R (1) | A high-priced name, gap from 390.57, closed at 95% of range, and the day-2 break ran straight to 3R the next session. The 6-month change (+22%) sits near the 25% neglect line, a grade cue. |
+| 3 | META | 2013-07-25 (earnings) | 26.5% / 10.1x / 76% / -15% | 34.89 on 2013-07-29 (day 3, post-gap high 34.88) | 33.96 (2.7%) | 21.4R (1) | The famous one: a year of neglect under the IPO price, then a 26% gap on 10x volume after the mobile-ad report. The gap is over 25%, so 8.1.3 grades it down, yet it reached 3R the day after entry. |
+| 4 | DLB | 2006-11-10 (earnings) | 20.3% / 27.6x / 82% / -12% | 27.47 on 2006-11-14 (day 3, post-gap high 27.46) | 27.00 (1.7%) | 17.1R (1) | The biggest volume ratio of the ten (27.6x, the highest volume on the chart by far): an HVE gap after a year of sideways-to-down, bought on the day-3 break of the gap-day high. |
+| 5 | CACI | 2004-08-19 (earnings) | 11.3% / 6.7x / 66% / -5% | 46.55 on 2004-08-19 (day 1, close proxy) | 45.42 (2.4%) | 15.9R (6) | The one day-1 entry: the gap day's own low was within 3% of the close, so the close entry with the stop under the gap-day low fits A13. A slower start (3R on day 6), then a two-month trend above a rising 10-day. |
+| 6 | OII | 2010-10-27 (earnings) | 10.5% / 7.4x / 85% / -19% | 31.76 on 2010-11-01 (day 4, post-gap high 31.75) | 31.25 (1.6%) | 13.1R (2) | A 10.5% gap, right at the floor, on 7.4x volume after a 19% six-month decline; three days of tight holding above the gap-day low, then the day-4 break. Shows the pause-then-go delayed entry. |
+| 7 | ENPH | 2021-10-27 (earnings) | 18.5% / 8.3x / 56% / +21% | 227.60 on 2021-10-29 (day 3, post-gap high 227.59) | 224.95 (1.2%) | 20.7R (1) | A gap that closed in the lower part of the upper half (56%), then held and broke on day 3 to 3R the next session. Later it topped and collapsed through the stop within the window: the case for the 3R/5R trims and the 10-day trail. |
+| 8 | COIN | 2024-11-06 (news/other) | 14.2% / 3.9x / 91% / -8% | 259.70 on 2024-11-08 (day 3, post-gap high 259.69) | 257.10 (1.0%) | 34.6R (1) | A news EP, not an earnings day: the gap came the day after the 2024 US election (no report in the database that day). Day-3 break of the post-gap high, 3R the next session; it fell back to the stop in December after 34R, so the trims mattered. |
+| 9 | SIG | 2014-02-19 (news/other) | 12.1% / 10.3x / 91% / +9% | 94.17 on 2014-02-20 (day 2, post-gap high 94.16) | 93.17 (1.1%) | 13.6R (8) | A news gap on 10x volume (no report in the database that day; Signet announced its agreement to buy Zale that morning). The day-2 break stalled for a week above the stop before 3R on day 8: a patient trade that paid. |
+| 10 | WING | 2018-08-03 (earnings) | 12.0% / 5.7x / 59% / +5% | 59.92 on 2018-08-08 (day 4, inside-day high 59.91) | 58.54 (2.3%) | 11.4R (6) | The inside-day trigger: a 12% gap, two days of holding, an inside day, then a break of its high on day 4 with the stop under the inside day's low. 3R on day 6 and a steady trend above the 10-day into October. |
+
+Notable failures (same scan, biggest names first): **SBUX 2024-08-13**, an 18% news gap on 13x volume (the day
+Starbucks named a new CEO, not a report day), closed at 98% of its range, then the day-4 inside-day break at 94.97
+hit the stop the next session (0R): a strong gap with no follow-through once the buyers who wanted in had bought.
+**TSLA 2019-10-24**, a 17% earnings gap on 4.4x volume, bought on the day-3 break of the post-gap high at 22.01
+(split-adjusted); it hit the stop the next session without reaching 1R, though the stock went on to a far larger
+move months later: an EP entry can be right about the stock and still lose on the first trigger. **GOOGL
+2015-07-17**, a 13% earnings gap on 7.4x volume after a 19% six-month rise; the day-3 break reached only 0.5R before
+stopping out, the "already up into the news" case from 8.5. Of the 25 largest failures by dollar volume, 17 were
+earnings gaps and 11 were names already up more than 10% over the prior six months.
+
+Replaced in the visual review: none. The first list of candidates was filtered to stops of 1% or more (see the
+base-rate note) and to gaps of 30% or less before the ten were drawn; the drawn charts were each checked for clean
+data and an obvious structure and all ten were kept.

@@ -990,3 +990,78 @@ tags. Everything else in sections 1 to 11 was confirmed at its source (see the c
 - The Wyckoff Analytics copy of the tutorial is unsigned (3.9); the authors' names are on the StockCharts copy.
 
 **Removed:** nothing. No quote, attribution, statistic or criterion failed its source.
+
+## 13. Examples (from our data)
+
+Added 9 Nov 2026 from a scan of the sandbox's bars. (Numbered 13 because section 12 above is the cold-check record.)
+Scan script and every hit with its outcome: `_study-resume/scratchpad/setups/42-go-signal/final/scan_go.py` and
+`hits.json`; the charts and the three phone sheets (`sheet_1-4.png`, `sheet_5-7.png`, `sheet_8-10.png`) are in the
+same folder. Each chart is the daily context on top and the hourly turn underneath, because the daily footprint
+cannot show this setup (owner ruling 2026-10-27).
+
+**The rule the scan used (section 8 plus the house rules), in one paragraph.** On the day before the signal the stock
+closes above its 200-day and 50-day SMAs, the 20-day EMA is higher than 5 sessions earlier, the price is $10 or more
+with $20 million or more traded a day (50-day averages), and its relative strength is 80 or better (our proxy: the
+percentile, among the scanned names on that day, of the IBD-style weighted 3/6/9/12-month return; not IBD's own
+rating). It has already moved: a 13%+ gain over 5 sessions within the last 20, or a 4%+ gap on twice average volume
+within the last 30, or a 10-day range of 10% or less above the 50-day. The 3 sessions before hold a range of 10% or
+less. On the signal day, on hourly bars, the first hourly candle trades below the prior close, and the first or second
+hourly candle closes back above it and closes green; the session low up to that candle sits within 3% under (or 1%
+over) one of the 20-day EMA, the 10-day EMA, the 50-day SMA or the prior day's low. Buy at market at the close of
+that candle, not more than 4% above the prior close (C28) nor 10% above the 10-day average (C29), not in the 3
+trading days before earnings (B22). Stop 3 cents under the session low so far; risk must be 3% or less (A13).
+Outcome: the rest of the session on the hourly bars, then up to 60 daily bars, fixed stop, no trims; first of stop,
+3R, 5R.
+
+**Base rate.** 11,094 hits on 963 of 963 names scanned (the names that have hourly bars: the 1,000 most-traded names,
+less ETFs and names without 320 daily bars), window 2023-12-12 to 2026-11-06 (679,518 sessions looked at; the scan
+finished inside its budget). 26.0% reached 3R and 17.5% reached 5R before the fixed stop; 23% (2,557) were stopped
+the same session; median risk 1.25%. Caveats: a fixed stop with no trims and no breakeven move, so the house exits
+(B19, E51, E52) are not modelled; the hourly bars are Yahoo's 9:30-anchored bars (the second candle ends at 11:30,
+not the 11:00 the dossier recommends in 8.1.5), so some sessions pass or fail differently from a clock-aligned
+chart (section 4.4); the RS proxy is a rank among the scanned names only; the "tight base" option let in many weak
+prior moves (6,184 of the hits; 3R rate 26.5%, no better than the 13%-in-5-days hits at 25.9%). Splits of the same
+hits: gap-down opens 27.1% to 3R (3,308) against 25.0% for opens at or above the prior close (4,978); first-candle
+reclaims 25.9% (8,451) against second-candle 26.4% (2,643); by level, 20-day EMA 27.3%, 10-day EMA 26.1%, prior
+day's low 24.7%, 50-day SMA 30.9% (only 81). None of these gaps is large; as section 8.8 item 9 says, the turn is
+common and the stock and the level are the edge.
+
+**The 10 examples.** One per ticker, every one above its 200-day with RS 80+, every one reached 5R before the stop.
+"Prior move" names the move that qualified it and whether it came from an earnings report (from `earnings()`:
+Yahoo plus SEC 8-K dates) or from a gap on a day that was not an earnings reaction day (a news gap). Entry is the
+close of the hourly candle named; stop is 3 cents under the session low at that point; best R is the 60-day high.
+
+| # | Ticker | Signal day | Level | Prior move (and its cause) | Open vs prior close | Session low / prior close | Buy (candle) | Stop (risk) | Best R (days to 3R) | Why it is textbook |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | META | 2023-12-15 | 20-day EMA (328.52) | tight 10-day base above the 50-day, +5.4% best 5 days; no earnings or gap in the window | gap down -0.4% (331.80) | 331.66 / 333.17 | 336.42 (1st) | 331.63 (1.42%) | 39.1R (2) | A leader resting on its 20-day EMA; the open dips under the prior close, the first candle closes green above it, 3R in two days and a run to 470. |
+| 2 | CEG | 2024-03-19 | 10-day EMA | +32.1% in 5 days to 03-04, started by the 02-27 earnings report | opened above (169.00), dipped through | 168.26 / 168.84 | 169.79 (1st) | 168.23 (0.92%) | 42.6R (1) | The classic "green to red to green": a shallow dip to the 10-day after a 30% earnings run, reclaimed within the first hour; 3R the next day. |
+| 3 | NVDA | 2024-05-14 | 10-day EMA | +15.1% in 5 days to 04-26; no earnings (next report 05-22, 6 sessions after) | gap down -0.9% (89.60) | 88.94 / 90.40 | 90.69 (1st) | 88.91 (1.96%) | 28.2R (6) | A gap-down open bought back in the first hour, with the 10-day and 50-day lines just under the low; a 3.6% flag before it. Split-adjusted prices. |
+| 4 | PLTR | 2024-10-02 | 10-day EMA | +17.3% in 5 days to 09-13 after the 09-09 gap of +7.8%, not an earnings reaction day (a news gap) | gap down -0.4% (36.30) | 36.15 / 36.46 | 37.18 (1st) | 36.12 (2.86%) | 44.7R (4) | A 4.2% flag on the 10-day, the morning dip reclaimed in candle one; risk 2.86% is near the A13 ceiling, size from the stop. |
+| 5 | BE | 2025-07-18 | 20-day EMA (24.00) | +29.7% in 5 days to 07-09 after gaps of +11.1% (06-30) and +7.3% (07-09), neither an earnings reaction day (news gaps) | opened above (24.44), dipped through | 24.04 / 24.31 | 24.48 (1st) | 24.01 (1.92%) | 193.0R (1) | Deepest pullback of the ten (a 9.7% three-day range) to a rising 20-day EMA; the low prints 27 cents under the prior day's low and the first candle closes back over. 3R the next day. |
+| 6 | WDC | 2025-08-22 | 20-day EMA (73.88) | +14.0% in 5 days to 07-31, the 07-30 earnings report | opened above (74.78), dipped through | 74.57 / 74.66 | 75.92 (1st) | 74.54 (1.81%) | 74.6R (2) | A 4.5% flag on the 20-day after an earnings move; a shallow undercut and a strong first candle, then a straight run from 76 to 130. |
+| 7 | GOOGL | 2025-09-09 | prior day's low (233.67) | +12.0% in 5 days to 09-04 after the 09-03 gap of +7.0%, not an earnings reaction day (a news gap) | opened flat (234.15), dipped through | 233.23 / 234.04 | 236.31 (1st) | 233.20 (1.32%) | 29.7R (4) | The "bullish gap" level: three sessions after a 7% catalyst gap the stock dips under the prior low and close and is bought in the first hour. |
+| 8 | VIAV | 2026-02-19 | 10-day EMA (within 3%) | +30.2% in 5 days to 01-30, the 01-28 earnings report and its +9.4% gap | gap down -1.4% (25.97) | 25.69 / 26.33 | 26.43 (2nd) | 25.66 (2.91%) | 44.2R (3) | The second-candle version: candle one is red and stays under the prior close, candle two closes green back above it. Risk 2.91%, at the A13 ceiling. |
+| 9 | DELL | 2026-04-07 | prior day's low (172.79) | +23.3% in 5 days to 03-25, after the 02-26 earnings report (+13.1% gap) and a +4.3% gap on 03-20 | gap down -0.6% (172.24) | 172.22 / 173.18 | 175.49 (1st) | 172.19 (1.88%) | 89.1R (1) | Opens at the low, the first candle closes 1.3% above the prior close; 3R the next day and a move from 175 to 450 inside 60 days. |
+| 10 | ILMN | 2026-09-11 | 50-day SMA (199.85) | +19.5% in 5 days to 08-25; the 07-30 earnings report is 29 sessions back | opened above (201.81), dipped through | 200.01 / 201.27 | 202.70 (1st) | 199.98 (1.34%) | 39.2R (2) | The 50-day version: a five-session slide to the 50-day, the low 16 cents above it, reclaimed in the first hour; 3R in two days (a 10x-volume day followed on 09-16, after the trade had already paid). |
+
+Notes on the charts: the top panel is 110 sessions before and 40 after on daily bars with the 10- and 21-day EMAs and
+the 50- and 200-day SMAs; the yellow box is the 3-session flag; the lines are the prior close, the stop, 3R and 5R.
+The bottom panel is the hourly bars for the 4 sessions before and 3 after, the box the 3-session flag, the yellow
+vertical line the entry candle. Numbers 2, 5, 6, 7 and 10 are the "opened at or above the prior close, dipped
+through" shape; 1, 3, 4, 8 and 9 are gap-down opens (section 8.1.5, options b and c). Number 8 is the only
+second-candle entry. Checked by eye on every chart: no ETFs, no reused tickers, no split breaks.
+
+**Notable failures (in words).**
+- **NVDA 2024-06-28**: everything qualified (10-day EMA, a 16% five-day move, a 7.4% flag, RS 98). It opened above the
+  prior close (123.99), dipped to 123.42 and the first candle closed at 126.81, 2.3% up and already 2.7% from the
+  stop. The reclaim was the high of the day: every later candle closed lower, the session closed at 123.54, under the
+  prior close, and the stop (123.39) was hit the next morning. A big first candle widens the risk and leaves nothing
+  to buy against; a close back under the prior close is the warning section 8.5 names.
+- **TSLA 2025-05-30**: a 26% five-day move, a dip under the prior day's low (353.82 against a prior close of 358.43),
+  a first candle closing green at 361.86. The third hourly candle broke back under the prior close and the fourth fell
+  through the stop (353.79); the session closed at 346.46, 4.3% below the entry. The turn was real but the stock
+  gave it back within three hours: the same-session stop that 23% of all hits took.
+- **NVDA 2024-05-08**: a gap-down open (-1.2%) that reclaimed the prior close in the first candle (90.98), then spent
+  the day drifting between 89.5 and 90.5, closed at 90.41 (under the prior close 90.55), and was stopped the next
+  day at 89.39 for -1R. Best excursion 0.08R: a reclaim that does not follow through within the session is the
+  "warning" of section 8.5 in practice, and the 10-day rule (C33) would never have been reached.

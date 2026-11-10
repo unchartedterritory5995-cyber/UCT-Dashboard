@@ -1103,3 +1103,64 @@ million lost in under an hour", as 3.4 says. Section 8 uses no [source consensus
 **Still not verified (unchanged, flagged).** The book behind the CTE sheet; Kullamägi's X posts and streams (the source of
 the two lines Bracco attributes to him, 3.1 and 6.2); O'Neil's book list of climax signs (a web search in this pass also
 found no investors.com page with it); the hourly-bar test (T3) was not re-run.
+
+---
+
+## 13. Examples (from our data)
+
+**The scan's rule (one paragraph).** Daily bars from the local sandbox, scanned over the house liquid universe (the 2,630
+names that ever met B23; all 2,630 scanned in 226s, nothing cut for time), 1984 to 2026-11-06. A hit is a
+climax day that meets section 8.2 on the daily bars: at the prior close, 10%+ over the 9-day EMA, 40%+ over the 50-day
+SMA, Jeff Sun ATR multiple (percent over the 50-day divided by the 14-day ATR as a percent of price) 10 or more, and a
+run of 50%+ from the lowest low of the prior 60 sessions; the last three 5-day ranges each larger than the one before
+(parabolic, not linear); 3 of Bracco's 4 boxes (3 straight up closes before the day, 2+ gap-up opens in the last 4 days,
+the day's gain beating the day before in 2 of the last 3, volume up 2 days running); the climax day opens above the
+prior close (any size), its volume is the highest of the prior 20 sessions, and it closes red (the daily-bar stand-in
+for the intraday U-turn, because daily bars cannot see the VWAP break); prior close $10+ and 50-day dollar volume $20M+
+(B23); shorts on either side of the 200-day (the B26 parabolic exception). Entry: a market order at the climax day's
+close; stop 0.1% plus a cent over the climax high (8.4); one hit per name per 20 sessions. Not coded: the intraday
+trigger, the chase limit (it has no VWAP to measure from), the 9 EMA cover, the borrow check, the earnings window and
+the overnight rule. Outcome: from the next session, 60 sessions forward, the first of stop / 3R / 5R on the shorted
+distance; same session, the stop wins.
+
+**Base rate.** 48 hits in the whole database (38 on stocks, 10 on leveraged or commodity ETFs). Of all hits,
+**18.8% reached 3R and 12.5% reached 5R before the stop**; 27 (56%) were stopped within 60
+sessions. On the stock hits alone: 5 of 38 (13.2%) reached 3R, 3 (7.9%) 5R. A relaxed pass
+that also allows 2 of 4 boxes when the ATR multiple is 15 or more (8.2 line 3's exception) found 57 hits, 15.8% to
+3R and 10.5% to 5R. Window: 1984 to 2026-11-06, with the first hit in 1997. **Caveats:** this is a fixed stop with
+no trims, no 9 EMA cover, no breakeven move and no time limit, so it measures how often the structure delivers 3R and
+5R from a climax-close entry, not what the house trade earns. The close-entry proxy puts the stop a median 13% away
+(the real VWAP-break entry is nearer the high; the dossier's own proxy in 4.2 measured a median 6%), so one R here is
+large and 3R usually lies beyond the 9 EMA target; the setup's own cover rule (8.5) would have closed most of these
+trades at 0.5R to 2R within 2 to 6 sessions. The real intraday trigger on hourly bars (the T3 test named in section 12)
+was not re-run in this pass.
+
+**The 10 examples** (all stocks, one per name, eight different years, prices split-adjusted as the database holds them;
+the first four reached 3R, three of them 5R; the other six are the next-best clean climax structures and their best R is
+stated as measured). Files: `scratchpad/setups/39-parabolic-short/final/NN_TICKER_DATE.png` and the phone sheets
+`sheet_1-4.png`, `sheet_5-7.png`, `sheet_8-10.png` (not in the repo). Burst = from the lowest low of the 15 sessions
+before the climax to the climax high.
+
+| # | Ticker | Climax day | Structure | Short | Stop (risk) | Best R; sessions to the 9 EMA | Why it is textbook |
+|---|---|---|---|---|---|---|---|
+| 1 | GDS | 2025-02-20 | +145% in 13 sessions (+150% in 60); 21% over 9 EMA, 75% over 50-day, ATR x11.4; 4/4 boxes; gap +15.4%; vol 1.45x 20-day high; above 200-day | 48.5 (close) | 52.56 (8.4%) | 7.78R (3R day 5); 9 EMA in 2 | The cleanest: 13-session burst from a flat base, 15% gap on record volume, closed red in the lower half; 9 EMA in 2 sessions, 5R in 5 weeks |
+| 2 | CGC | 2021-02-10 | +74% in 12 sessions (+114% in 60); 14% over 9 EMA, 56% over 50-day, ATR x10.2; 3/4 boxes; gap +7.6%; vol 1.25x 20-day high; above 200-day | 521.7 (close) | 565.54 (8.4%) | 6.44R (3R day 2); 9 EMA in 1 | Cannabis mania top: three gap days into a 7.6% gap on 3x volume, long upper wick; the 9 EMA the next day, 5R in 6 weeks |
+| 3 | BILI | 2024-10-02 | +121% in 12 sessions (+110% in 60); 28% over 9 EMA, 72% over 50-day, ATR x13.3; 3/4 boxes; gap +11.3%; vol 1.64x 20-day high; above 200-day | 29.66 (close) | 31.81 (7.2%) | 5.46R (3R day 4); 9 EMA in 4 | Twelve-session China-stimulus vertical, 11% gap on the biggest volume of the run, reversal close in the lower third; 9 EMA in 4 sessions |
+| 4 | SCHW | 1999-04-14 | +94% in 14 sessions (+177% in 60); 24% over 9 EMA, 79% over 50-day, ATR x15.5; 4/4 boxes; gap +1.7%; vol 1.0x 20-day high; above 200-day | 46.08 (close) | 51.73 (12.3%) | 3.44R (3R day 42); 9 EMA in 1 | Dot-com bubble climax: 4/4 boxes, 24% over the 9 EMA, three record-volume days; the 9 EMA the next session, 3R by June (the 1.7% gap is the weak point) |
+| 5 | LVS | 2009-09-16 | +56% in 10 sessions (+209% in 60); 17% over 9 EMA, 62% over 50-day, ATR x12.2; 4/4 boxes; gap +4.3%; vol 1.74x 20-day high; above 200-day | 18.67 (close) | 20.76 (11.2%) | 2.74R; 9 EMA in 6 | 2009 casino squeeze: 10-session burst, 4.3% gap on the run's record volume, closed near the low; 9 EMA in 6 sessions, 2.74R inside the 60-day window |
+| 6 | CAR | 2020-06-08 | +225% in 15 sessions (+395% in 60); 27% over 9 EMA, 100% over 50-day, ATR x10.8; 4/4 boxes; gap +6.0%; vol 1.04x 20-day high; above 200-day | 32.28 (close) | 36.47 (13.0%) | 2.91R; 9 EMA in 2 | The only one under the 200-day (the B26 short side): a +395% V-rally ends with a 6% gap and a closing reversal; 9 EMA in 2 sessions |
+| 7 | TPL | 2026-02-23 | +68% in 13 sessions (+86% in 60); 14% over 9 EMA, 49% over 50-day, ATR x10.8; 4/4 boxes; gap +2.8%; vol 1.18x 20-day high; above 200-day | 502.85 (close) | 547.76 (8.9%) | 2.95R; 9 EMA in 8 | 4/4 boxes and a close at the day's low, but the gap was 2.8% and the stock chopped under the climax high for five weeks before the real break: a slow one, taught as 'patience or the time limit' |
+| 8 | GSAT | 2021-02-10 | +224% in 15 sessions (+593% in 60); 59% over 9 EMA, 213% over 50-day, ATR x22.1; 4/4 boxes; gap +39.9%; vol 1.05x 20-day high; above 200-day | 36.0 (close) | 44.75 (24.3%) | 2.71R; 9 EMA in 6 | A 40% gap on 20x average volume after a +593% run, the extreme form; the 24% stop meant 3R was never on the table (best 2.71R); the 9 EMA in 6 sessions |
+| 9 | TIGR | 2024-10-07 | +327% in 15 sessions (+269% in 60); 67% over 9 EMA, 192% over 50-day, ATR x24.6; 4/4 boxes; gap +12.1%; vol 1.56x 20-day high; above 200-day | 11.46 (close) | 14.5 (26.5%) | 2.01R; 9 EMA in 2 | Bracco's own named example (Sunday Scans): ATR multiple 24.6, 12% gap, closed near the low; 9 EMA in 2 sessions; a 26.5% stop makes the house R small |
+| 10 | TSM | 2000-01-26 | +60% in 13 sessions (+104% in 60); 17% over 9 EMA, 52% over 50-day, ATR x13.1; 4/4 boxes; gap +2.7%; vol 1.62x 20-day high; above 200-day | 23.98 (close) | 27.33 (14.0%) | 2.72R; 9 EMA in 2 | Dot-com era chip leader: 4/4 boxes, 1.6x volume, closed at the low; the 9 EMA in 2 sessions, then a marginal higher high that never reached the stop, 2.72R later |
+
+**Notable failures (same scan, in words).** SMCI 2024-02-16 (Bracco's own example): 4/4 boxes, ATR multiple 22, the day
+closed at its low 34% under the high, so the close-entry stop was 34% away; the stock rallied back through the climax
+high within three weeks and the proxy trade lost; the hourly-bar trigger from the earlier pass (a VWAP break at 10:30,
+short 90.01, stop 107.90) ran 1.16R before that same stop, so even the real entry needed the 9 EMA cover, not 3R. MSTR 2024-11-21: 3 boxes,
+a 13% gap, closed in the lower sixth; the 9 EMA was 0.14R away and the stock never gave more than 0.77R before chopping,
+a trade the cover rule handles and the 3R test cannot. PLUG 2021-01-13 (relaxed pass): a 6.5% gap, 3 boxes, 40% over
+the 9 EMA, but the stock made a marginal higher high eight sessions later and the stop was hit before the real top on
+2021-01-26; the first climax of a mania is not always the last. SLV, AGQ and SIVR on 2026-01-26 all hit and all lost
+(stopped on the next leg up), which sides with the dossier's counter-examples in 8.10 and with keeping commodity ETFs
+out of this setup.

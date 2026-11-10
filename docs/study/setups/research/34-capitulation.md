@@ -897,7 +897,81 @@ anchoring VWAP to capitulation lows; Linda Raschke; Larry Connors' oversold stud
 
 ---
 
-## 12. Removed in checking
+## 12. Examples (from our data)
+
+Scanned 2026-11-09 with `scan_cap.py` (scratch folder `_study-resume/scratchpad/setups/34-capitulation/`), charts in its
+`final/` folder (`01_ICE_2009-07-10.png` ... `10_AEM_2026-02-02.png`, phone sheets `sheet_1-4.png`, `sheet_5-7.png`,
+`sheet_8-10.png`, the picked hits in `examples.json`, every hit in `hits.json`). Daily bars from the local sandbox
+(read-only), 2,630 names that ever met the liquidity rule, 2000-01-05 to 2026-11-06, every name scanned (109 seconds,
+no budget cut).
+
+**The rule the scan used (section 8, setting A, the daily trigger (c)).** A flush day is a session with at least 3 of
+the 5 burst signs of 8.1 (3 straight lower closes; 2 consecutive opening gaps under the prior low; a bigger percent
+loss than the day before on 2 of the last 3 days; volume higher on each of the last 2 days; a gap down that day or the
+next morning), whose low is at least 2 ATR(14) under the prior close or whose range is at least 2 ATR, on volume at
+least 2x the 50-day average, with the low at least 15% under the highest close of the prior 10 sessions, the close
+under the 5-day SMA, 9 EMA and 20 EMA, at least 2 straight lower closes (not a one-day shock), price at least $10 and
+50-day dollar volume at least $20 million (B23). The trigger: within the next 3 sessions a session trades under the
+flush low and closes back above it; the market-order buy is the reclaim of the flush low (flush low + $0.01, E57);
+the stop is 5 cents under the undercut low (A3, F62); stops wider than 5% were dropped; one trade per flush and no
+re-entry for 10 sessions. 3R and 5R are measured from that fixed stop over the next 60 sessions, with no trims, no
+breakeven move and no trail, so "reached 3R" means the first bounce carried 3 risk units before the stop was touched.
+The 4% chase limit (C28) did not need modelling: all 10 examples undercut and reclaimed inside one session, so the
+reclaim price was there to be bought. The scan did not model the intraday trigger of 8.2, the location rule of 8.1
+(a level under the flush), the 3-session time stop, or the 1%-of-volume size cap.
+
+**Base rate.** 2,220 hits. 52.3% reached 3R and 43.1% reached 5R before the stop; 81% were stopped at some point in
+the 60 sessions (the stop never moves, so the fade after the bounce usually comes back to it). Split by the 200-day
+rule (B26): 410 hits with the reclaim close above the 200-day SMA (the setting (A) leader flush the course teaches):
+57.8% to 3R, 48.8% to 5R, median best 4.8R; 1,810 hits below the 200-day (the deep-downtrend climax (C), which B26
+forbids as a long unless the parabolic gate passes): 51.0% to 3R, 41.8% to 5R. Above the 200-day with a stop of 3% or
+less (A13): 315 hits, 63.5% to 3R, 54.6% to 5R. A same-session undercut and reclaim (240 hits) did a little better
+than a reclaim 2 or 3 sessions after the flush (170 hits): 59.6% against 55.3% to 3R. Caveats: the median stop is
+1.7%, so 3R is about a 5% bounce and 5R about 9%, and the rate measures the first bounce, not a trend trade; of the
+346 above-200-day hits that have earnings dates, 150 (43%) had an earnings report inside the flush window, so those
+"flushes" are earnings reactions, not panic selling, and the course should keep them apart (none of the 10 examples has
+a report in its window; TSLA 2014-05-08 and TTWO 2018-02-08 were dropped from the first pick for that reason, and
+ALNY 2017-09-07 because its flush was a single-day shock on 8x volume out of a flat base and the gain came from a gap
+8 sessions later, not from the reclaim). The last hits of 2026 have fewer than 60 forward sessions. These are fixed-stop
+numbers with no trims; the house trade (a third at 3R, a third at 5R, breakeven at 2R, trail under the 10-day) was not
+simulated.
+
+**The 10 examples.** "Lower closes" counts straight lower closes into and including the flush day. "Drop" is the flush
+low against the highest close of the prior 10 sessions. "ATR" is how far the flush low sat under the prior close in
+ATR(14) units. Stops are 5 cents under the undercut low. Best R is the highest high in the 60 sessions after entry,
+in units of the fixed risk. All 10 reclaim closes are above the 200-day SMA.
+
+| # | Ticker | Flush day | Lower closes | Drop | ATR | Volume | Burst | Reclaim day | Buy | Stop (risk) | Best R | Why it is textbook |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | ICE | 2009-07-08 | 2 | -29.3% | 2.66x | 4.96x | 3/5 | 2009-07-10 (2 sessions later; undercut 16.60, close 16.94) | 16.75 | 16.55 (1.2%) | 17.0 | A leader two weeks off its high loses 29% in three sessions on 5x volume, the biggest bar on the chart; the second session after the flush undercuts the low and closes back above it. 3R on day 1, +9.4R at the 10th close. |
+| 2 | ALB | 2010-05-06 | 3 | -17.2% | 3.94x | 3.12x | 4/5 | 2010-05-07 (undercut 38.31, close 39.23) | 38.49 | 38.26 (0.6%) | 22.5 | The index washout of 2010-05-06 (the flash-crash session) in a leader in an uptrend above a rising 200-day: three lower closes, a 4-ATR spike low, next day an undercut of that low that closes above it. Teaches the tiny-stop case: 5R is only +3% above the buy. |
+| 3 | SBUX | 2011-08-08 | 3 | -15.7% | 2.06x | 2.51x | 3/5 | 2011-08-09 (undercut 16.86, close 18.02) | 17.03 | 16.81 (1.3%) | 21.3 | The August 2011 market crash: three straight lower closes, the flush closing on its low, then the next session undercuts and closes 6% higher, back above the 200-day. Teaches the retest: the low was tested again on 2011-08-19 without touching the stop. |
+| 4 | ROKU | 2019-03-13 | 2 | -18.9% | 2.37x | 2.82x | 3/5 | 2019-03-14 (undercut 59.63, close 61.82) | 60.14 | 59.58 (0.9%) | 19.9 | A parabolic leader (30 to 70 in 10 weeks) flushes 19% in two sessions to its 21-day EMA and reclaims the next day. 3R on day 1; the stock traded 73% higher inside 60 sessions. |
+| 5 | ACMR | 2020-09-08 | 3 | -40.3% | 4.38x | 3.73x | 3/5 | 2020-09-09 (undercut 19.34, close 20.03) | 19.49 | 19.29 (1.0%) | 65.8 | The widest flush in the set: 40% off the 10-day high close in three sessions, the low 4.4 ATR under the prior close, into the June-July base. Reclaimed the next day; +15.6R at the 10th close. Thin name ($39M a day), so size is capped by D42. |
+| 6 | LYV | 2022-03-07 | 3 | -20.8% | 2.41x | 2.25x | 3/5 | 2022-03-08 (undercut 98.01, close 106.01) | 99.87 | 97.96 (1.9%) | 11.2 | The early-March 2022 market washout: three lower closes into the round number 100 and the 200-day, then an undercut that closes 6% higher. 3R on day 1. The cleanest "into a level" example. |
+| 7 | ALGM | 2023-04-27 | 7 | -22.2% | 2.24x | 3.73x | 3/5 | 2023-04-28 (undercut 34.19, close 35.77) | 35.06 | 34.14 (2.6%) | 19.6 | The model of the burst: seven straight lower closes that accelerate into a climax bar on the highest volume of the decline, 12% above the 200-day. Reclaimed the next day; 3R came on day 3, the slowest of the ten, and the stock traded 51% higher inside 60 sessions. |
+| 8 | HIMS | 2024-10-30 | 2 | -21.0% | 2.40x | 2.84x | 3/5 | 2024-10-31 (undercut 18.32, close 18.83) | 18.64 | 18.27 (2.0%) | 44.3 | A leader breaks its 21-day EMA with a 21% two-session flush to the top of the September base and the rising 50-day, then undercuts and closes back above the low. 3R on day 1; +88% inside 60 sessions. |
+| 9 | OKTA | 2025-04-04 | 2 | -23.4% | 2.67x | 2.28x | 4/5 | 2025-04-07 (Monday; opened 88.34 under the flush low, undercut 87.93, closed 91.24) | 89.37 | 87.88 (1.7%) | 25.6 | The tariff crash of April 2025 and Bracco's "Monday Effect" on a leader 4% above its 200-day: Thursday and Friday flush 23%, Monday gaps under the flush low and closes above it. Same shape as the dossier's QQQ 2025-04-04 to 04-07. |
+| 10 | AEM | 2026-01-30 | 2 | -15.5% | 3.22x | 2.84x | 3/5 | 2026-02-02 (Monday; undercut 187.04, close 190.82) | 188.53 | 186.99 (0.8%) | 43.3 | A leader 28% above its 200-day flushes 15% in two sessions to its 21-day EMA, the low 3.2 ATR under the prior close; Monday undercuts and reclaims. 3R on day 1, +15.9R at the 10th close, and the stock ran 35% in the next 60 sessions. |
+
+**Notable failures (all above the 200-day, all stopped on the first session after entry).**
+
+- **COP 2022-06-22.** The energy washout of June 2022: a 24% flush on 2022-06-17 (2.0 ATR, 3.3x volume, burst 3/5),
+  reclaimed only on the third session at 92.82 with the stop at 91.41. The next session traded through the stop; the
+  stock fell to 78.30 inside 30 sessions, 16% under the buy. The late reclaim (session 3) and a sector still breaking
+  are the warning signs; the stop did its job.
+- **WDC 2024-07-29.** A 16% flush on 2024-07-25 (burst 4/5), reclaimed on the second session at 50.20 with a 0.65% stop
+  at 49.87. Stopped the next day, then 39.89 inside 30 sessions (-20%). The first bounce never got going: the reclaim
+  session opened 4% up and closed at 50.21, two cents over the flush low, the stall-and-weak-close warning of 8.5.
+- **DLTR 2022-05-19.** The whipsaw: a 23% flush on 2022-05-18 with the low 5.7 ATR under the prior close on 4.1x volume
+  (burst 4/5), reclaimed the next day at 128.03, stop 125.69 (1.8%). The following session traded both under the stop
+  and up to 136.19 (the scan counts the stop first), and the stock closed at 159.88 ten sessions later, 25% above the
+  buy. A 1.8% stop under a 5.7-ATR bar is the "cut the shares or skip" case of 8.3; the intraday turn of 8.2 is the
+  entry that would have survived it.
+
+---
+
+## 13. Removed in checking
 
 Nothing was removed outright: every quote (330 strings of three words or more), every attribution, every statistic
 and every app claim was confirmed at its source in the finishing check. What was corrected in place:

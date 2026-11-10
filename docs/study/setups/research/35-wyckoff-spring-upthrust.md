@@ -999,3 +999,80 @@ probe and replay were re-run (section 4.4) and every number matched. Changes mad
   references cite 2008), Fraser's 1987 Golden Gate start, the glossary's "1-3 days", Taylor's 2023-08-21 date, Forte
   1994 (*MTA Journal* 43, Summer-Fall), the detector docstring's "1908-1934", the blind-judge scores in 5.3, the V.04
   item keys (q45, q48, q57, q65) and the Discord-summary dates all check out against their sources.
+
+---
+
+## 13. Examples (from our data)
+
+(Numbered 13 because section 12 above is the cold-check record; this is the examples section the workflow calls
+"12. Examples (from our data)".) Scan written and run 2026-11-09 night in
+`_study-resume/scratchpad/setups/35-wyckoff-spring-upthrust/` (`scan35.py`, `chart35.py`, hits in `final/hits.json`,
+charts and the three phone sheets in `final/`). Nothing here has been shown to the owner; every chart was looked at by
+the helper, not by him.
+
+**The scan's rule (section 8 plus the house rules), in one paragraph.** Daily bars, 2000-01 to 2026-11, the 2,630
+names that ever met B23 ($10 and $20M a day, both checked on the day before the trigger). *Spring:* the close is above
+the 200-day SMA (B26); behind the trigger sits a sideways range of 60, 40 or 25 sessions (the longest that fits) whose
+height is 6-20% of its floor, whose closes drift less than a quarter of that height, and whose floor was touched by at
+least two swing lows within half an ATR of the lowest low, at least 5 sessions apart; the trigger day's low undercuts
+that floor by 0.1 to 1.0 ATR(14) and the close is back above the floor the same day (one-bar) or the next day (two-bar),
+the reclaim day closing in its upper half. *Upthrust:* the mirror at the ceiling, with the close below the 200-day.
+Entry is a market order at the next open (E57); if that open is back under the floor (over the ceiling), the fill is
+taken at the floor (ceiling) when price trades through it that day; no entry more than 4% past the floor/ceiling (C28).
+Stop 3 cents beyond the probe's extreme low/high (A13 / F62), skipped when wider than 5%. No trigger within 3 trading
+days of an earnings reaction day (B22, from the sandbox's Yahoo + 8-K dates). One hit per name per 30 sessions. Not
+applied, because the sandbox has no RS rating or group data: C31's RS 80+ for springs and the "RS 20 or less, weak
+group" filter for upthrust shorts. Outcome: the first of stop, 3R or 5R over the next 60 sessions, a fixed stop with
+no trims, no breakeven move and no trail, so the percentages are a base rate for the entry, not the house trade.
+
+**Base rate.** 4,774 hits (2,630 of 2,630 liquid names scanned, 105 seconds, complete): 25.4% reached 3R and 16.2%
+reached 5R before the stop. By side: 3,173 springs, 27.1% to 3R, 17.7% to 5R, 83.8% stopped within the window (median
+stop 2.15%); 1,601 upthrust shorts, 22.0% to 3R, 13.2% to 5R, 89.3% stopped (median stop 1.98%). Splits that the
+proposed rules care about (springs): one-bar 27.2% vs two-bar 26.0% to 3R; stop under 3%: 27.1% to 3R / 18.5% to 5R,
+stop 3-5%: 27.1% / 15.1%; probe 0.1-0.5 ATR 27.5% vs 0.5-1.0 ATR 26.0%; two floor touches 27.6% vs three or more 26.4%;
+by era 2000-07 23.8%, 2008-09 20.5%, 2010-19 31.6%, 2020-26 24.9%. The upthrust short runs 21-23% to 3R in every split,
+with no era or shape that stands out. Read with the caveat above: a fixed stop and no trims; the house trade (a third at
+3R, a third at 5R, trail) is not what was measured, and the stop is hit far more often than the 3R target, so the
+expectancy of the raw entry is roughly flat (section 4.4 measured it at +0.06R to +0.11R depending on the entry).
+
+**The 10 examples** (one per ticker; prices as the sandbox's split-adjusted bars; "buy" is the next-open fill the scan
+took, "stop" 3 cents past the probe's extreme; "best R" is the high-water mark before the stop within 60 sessions).
+
+| # | Ticker | Trigger | Side | Range (sessions, floor-ceiling, height, floor touches) | Probe | Buy / short | Stop (%) | 3R in | Best R | Why it is textbook |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | GIS | 2001-10-15 | spring, one-bar | 60 d, 21.30-23.30, 9.4%, 4 touches | 0.13 ATR under the floor, 1.16x volume | 21.43 | 21.22 (0.96%) | 7 d | 23.8R | A flat 12-week shelf with four floor touches above a rising 200-day, a shallow one-day undercut that closes back inside, then a straight run through the ceiling. No earnings in the window. |
+| 2 | AAPL | 2014-04-15 | spring, one-bar | 40 d, 18.41-19.69, 6.9%, 2 touches | 0.63 ATR, 1.01x | 18.50 | 18.23 (1.46%) | 6 d | 21.1R | Tight 8-week range on a leader above all its averages; the probe runs under the 21-day and the floor and closes near the high. Caveat for the learner: it had reached 1.87R when AAPL reported (04-23 after the close; the entry was 5 sessions before, so B22 allowed it) and the 3R came on the report gap of 04-24. |
+| 3 | ULTA | 2015-05-15 | spring, one-bar | 25 d, 149.53-158.97, 6.3%, 2 touches | 0.15 ATR, 0.93x | 150.40 | 149.09 (0.87%) | 7 d | 15.9R | The quietest kind: a 5-week pause after a steady advance, a dip of a few cents under the floor on average volume, a reclaim the same day. Reached 4.65R before its 05-28 report. |
+| 4 | PH | 2017-08-18 | spring, one-bar | 40 d, 155.04-167.50, 8.0%, 2 touches | 0.49 ATR, 0.81x | 155.40 | 153.62 (1.15%) | 8 d | 19.3R | A reaccumulation range in a stock well above its 200-day; the probe comes on below-average volume (Fraser's "quiet" spring, buy the reclaim). No earnings in the window. |
+| 5 | KMX | 2020-12-29 | spring, two-bar | 25 d, 91.25-100.68, 10.3%, 4 touches | 0.31 ATR, 0.94x | 91.79 | 90.27 (1.66%) | 5 d | 29.4R | The two-bar form: the first day closes under the floor, the second closes back above it in its upper half. Four touches of the floor, stop still under 2%. (The 60 sessions before the range fell 13%, so it is a base after a correction, not Fraser's stepping stone; graded lower on that row.) |
+| 6 | ODFL | 2021-10-01 | spring, one-bar | 25 d, 141.88-152.11, 7.2%, 5 touches | 0.75 ATR, 0.96x | 142.69 | 139.47 (2.26%) | 10 d | 13.7R | Five floor touches then one deeper probe (three-quarters of an ATR) that still closes back inside on normal volume; the kind of spring the test entry (8.2 B) would also have caught. Report came 18 sessions later, after 3R. |
+| 7 | AVGO | 2023-05-04 | spring, one-bar | 40 d, 60.32-64.85, 7.5%, 2 touches | 0.15 ATR, 0.82x | 61.59 | 60.10 (2.43%) | 9 d | 20.6R | The dossier's own scan candidate, now checked by eye: a leader 11% above its 200-day, a tight 8-week range, a cents-deep probe on light volume, then the run (3R before the 06-01 report; the report gap came after 5R). |
+| 8 | HWM | 2025-08-20 | spring, one-bar | 40 d, 170.34-193.26, 13.5%, 3 touches | 0.14 ATR, 0.84x | 171.85 | 169.42 (1.41%) | 10 d | 16.5R | A stepping-stone range after a 31% run (the preferred prior trend in 8.1), three floor touches, a shallow quiet probe; the only range here over 10% high, so it shows the upper end of the proposed 6-20% band. |
+| 9 | GS | 2018-11-08 | upthrust, one-bar | 25 d, 208.40-232.80, 11.7%, 2 touches | 0.21 ATR over the ceiling, 0.81x | short 231.69 | 234.09 (1.04%) | 1 d | 33.3R | The short mirror where B26 allows it: below a falling 200-day, under the 50-day; the probe over the ceiling closes back inside, the next day breaks and the stock falls 30%. 3R on the first day. |
+| 10 | TGT | 2023-07-27 | upthrust, one-bar | 25 d, 128.55-136.36, 6.1%, 4 touches | 0.80 ATR, 0.87x | short 135.85 | 138.31 (1.81%) | 13 d | 13.4R | A 5-week range at the lows after a 25% decline, four ceiling touches, the upthrust pokes most of an ATR over the ceiling and closes back inside. Reached 4.43R before the 08-16 report; the report gap added the rest. |
+
+Years covered: 2001, 2014, 2015, 2017, 2018, 2020, 2021, 2023 (two: a spring and an upthrust), 2025. Two charts
+were considered and dropped on sight: HSIC 2018-09-04 (the "range" is a shelf after a run with a gap inside it; not a
+clean floor) and MSFT 2020-09-18 (the 18% "range" slopes, with the high at the end; not flat). NSC 2009-10-01 and
+ROK 2023-05-11 were clean but duplicated a year or had a 17% range; EWJ, SKYY, XLI, IBB and GDX were skipped as ETFs.
+Nothing was found wrong with the data of the ten (splits adjusted, no reused tickers). The RS-80 condition could not
+be checked for any of them.
+
+**Notable failures** (all house-legal by the scan's rules; from `final/hits.json`).
+- **TSLA 2025-02-06** (spring, 25-day range 373.04-439.74, 17.9% high, three touches, probe 0.52 ATR, 0.97x volume,
+  stop 2.65%): bought 373.04 at the open, never traded above the entry (best 0.0R), broke the spring low the next day
+  and gapped on. A tall range (near the top of the 6-20% band) after a 73% run in the prior 60 sessions, in a market
+  that was turning down; the dossier's own candidate failure, confirmed.
+- **MSFT 2023-08-08** (spring, 40-day range, 13.1% high, three touches, a cents-deep 0.16 ATR probe on 0.76x volume,
+  stop 1.07%): everything the rules ask for, and it was stopped on the third day without ever showing a profit. The
+  lesson is section 8.5's number: a spring that fails usually fails at once, so the stop under the spring low is the
+  trade, not a formality.
+- **AAPL 2021-10-01 and QQQ 2021-10-01** (both springs on the same day, both 0.0R): a market-wide shakeout that did
+  not finish; the index's own spring failed, and so did the leader's. Wyckoff's step 5 (time the stock with a turn in
+  the index) is the lesson.
+- **NVO 2025-12-12** (upthrust short, stop 1.64%): ran to 2.98R, a hair short of the 3R trim, then gapped from 48.10
+  to an open of 52.67 through the 50.78 stop on 12-23. B20 applies (the first 30-minute low becomes the new stop); a
+  reminder that the upthrust short below the 200-day is still capped at grade B.
+
+Charts: `final/01_GIS_2001-10-15.png` to `final/10_TGT_2023-07-27.png`; phone sheets `final/sheet_1-4.png`,
+`final/sheet_5-7.png`, `final/sheet_8-10.png` (all outside the repo, in the scratchpad named above).

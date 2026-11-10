@@ -1101,3 +1101,94 @@ in section 9 stand on quotes and numbers that were confirmed.
 **First cold check (second session), 2026-11-09**
 8. **Investopedia's two "Gap" definitions (partial and full gap) were removed** and replaced by StockCharts' "Gap
    Trading Strategies" definitions of the same terms (section 3.10), because the page could not be re-read.
+
+## 12. Examples (from our data)
+
+**The scan's rule (section 8 plus the house rules), run on hourly bars.** Red to green is an intraday trigger, so the
+scan ran on the sandbox's hourly bars (Yahoo, regular hours, bars start 9:30; 2023-12-12 to 2026-11-06; the 963 names
+that have hourly bars and ever met the liquidity rule, ETFs excluded from the examples). A session is a hit when: the
+prior close is above the 200-day SMA (B26); the 20-day EMA is above its value 5 sessions ago (rising); the RS proxy
+rank is 80 or more (C31; the proxy is the percentile, among the scanned names on that day, of the IBD-style weighted
+3/6/9/12-month return, not the app's RS rating); the prior close is within 10% of the 10-day SMA (C29); $10+ and $20
+million a day (B23); the day OPENS 0.7% to 4% below the prior close and is not an earnings reaction day (an earnings gap
+is another setup); the low of the session up to the cross is within 1% of the prior day's 9-day EMA, 20-day EMA, 50-day
+SMA, 200-day SMA or the prior day's low; the first hourly bar whose high trades above the prior close, by bar 3 (12:30),
+is the trigger; the buy is a market order one cent over the prior close (E57), never more than 4% above it (C28); the stop
+is 3 cents under the day's low so far and must be within 3% (A13); no earnings in the next 3 sessions (B22). The outcome
+walks the rest of the session on hourly bars, then the daily bars for 60 sessions: the first of the stop, 3R or 5R, a
+FIXED stop with no trims, no breakeven move and no trail. Script: `scratchpad/setups/43-red-to-green/final/scan_r2g.py`;
+every hit and its outcome in `final/hits.json` (3,897 hits over 679,518 sessions, 111,152 of them gap-down days in the
+0.7% to 4% band).
+
+**Base rate (hourly, 2023-12-12 to 2026-11-06, all 963 names scanned, budget not exceeded).** 3,897 hits; 30.8% reached
+3R and 21.4% reached 5R before the stop; 26.1% were stopped the same day; 91.5% hit the fixed stop at some point within
+60 sessions (a fixed stop with no trims and no trail, so the number says how far the move went, not what the house exit
+would have made). What separated the groups: the day's close. Hits that closed back above the prior close (2,037)
+reached 3R 47.7% of the time and 5R 33.0%; those that closed red (1,860) reached 3R 12.3% and 5R 8.7%, which matches
+section 4 (closing above c1 was the biggest single difference) and section 9's grading line. The hour of the cross
+changed little in how far the trade went (bar 1: 31.1% to 3R, bar 2: 28.7%, bar 3: 30.4%) but a lot in how often it was
+stopped the same day (bar 1: 29.1%, bar 2: 11.8%, bar 3: 7.9%): a first-hour cross is the fast one and the whippy one.
+The level made no difference (9-day EMA 31.5% to 3R, 20-day EMA 30.8%, 50-day 30.6%, prior day's low 30.3%; the 200-day
+had 5 hits, none worked). The gap size made no difference inside the band (0.7-1.5%: 30.3%; 1.5-2.5%: 33.0%; 2.5-4%:
+28.6%, only 42 hits). By year: 2024 32.2% to 3R, 2025 30.7%, 2026 29.9%.
+
+**Companion base rate, the daily footprint over 25 years** (`final/scan_daily.py`, `final/hits_daily.json`; all 2,630
+liquid names, 2001-01-01 to 2026-11-06, budget not exceeded): the same filters where daily bars allow them (the open
+0.7% to 4% below the prior close, the day's high above it, the day's low within 1% of a level, above the 200-day and
+50-day, rising 20-day EMA, a positive 63-day return in place of the RS rank, entry one cent over the prior close, stop 3
+cents under the day's low). 71,620 hits; 31.2% reached 3R and 21.3% reached 5R; the ones that closed green (38,040):
+43.0% and 29.7%. Caveat: daily bars cannot see a same-day stop-out (the stop sits under the day's own low), so this
+companion rate is optimistic by about the 26% same-day stop rate the hourly scan measured; it is here only to show that
+the hourly window's numbers are not a three-year accident (every year from 2001 to 2026 sits between 21% and 39% to 3R).
+
+**The 10 examples** (one per ticker, 2024 to 2026, which is as far as the hourly bars reach; all closed green on the
+day; all crossed in the first hourly bar, the owner's "first or second hourly candle"; each PNG shows the daily context
+with the buy line, stop, 3R and 5R, and the hourly cross below it; sheets `final/sheet_1-4.png`, `sheet_5-7.png`,
+`sheet_8-10.png`). "Best R" is the fixed-stop high-water mark within 60 sessions, not a house-exit result.
+
+| # | Ticker | Date | Level | Open vs prior close | Dip low | Buy | Stop (risk) | Day close | Best R | Why it is textbook |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | HOOD | 2024-11-04 | 50-day SMA | 23.75 vs 23.97 (-0.9%) | 23.54 | 23.98 | 23.51 (2.0%) | green, DCR 0.76 | 62.8R | A leader (RS 97) pulling back to a rising 50-day after a 5-day flag; opens red, tags the line, crosses in hour one, closes in the top quarter; 3R in 2 days |
+| 2 | TWLO | 2024-11-20 | 9-day EMA | 95.38 vs 96.35 (-1.0%) | 94.70 | 96.36 | 94.67 (1.8%) | green, DCR 0.91 | 32.9R | Post-earnings runner (RS 93) with a 4-day pullback to the 9-day EMA; opens red into it, reclaims in hour one, volume 1.1x; 3R the next day |
+| 3 | DAL | 2024-10-29 | 9-day EMA | 54.70 vs 55.38 (-1.2%) | 54.60 | 55.39 | 54.57 (1.5%) | green, DCR 0.99 | 17.8R | Steady uptrend over a rising 9/20 EMA; a 3-day dip, gap down to the 9-day EMA, first-hour reclaim, closes at the high; 3R the next day |
+| 4 | CEG | 2025-10-01 | 20-day EMA | 325.97 vs 329.07 (-0.9%) | 323.88 | 329.08 | 323.85 (1.6%) | green, DCR 0.95 | 16.0R | Two-week drift down to the 20-day EMA, a gap down that tags it, a wide green first hour on 1.2x volume; 3R the next day |
+| 5 | CDE | 2025-08-22 | 9-day EMA | 11.50 vs 11.67 (-1.5%) | 11.50 | 11.68 | 11.47 (1.8%) | green, DCR 0.71 | 56.9R | A metals leader (RS 97) after a 4-day flag on the 9-day EMA; opens at the low, never trades lower, crosses in hour one; the market gapped down and was bought the same morning |
+| 6 | TSEM | 2025-09-17 | 9-day EMA | 65.06 vs 65.71 (-1.0%) | 64.83 | 65.72 | 64.80 (1.4%) | green, DCR 0.77 | 69.4R | Straight-line leader (RS 93) with a 3-day inside pause; a small gap down to the 9-day EMA, the first hour engulfs the prior day, volume 1.4x; 3R the next day |
+| 7 | TPR | 2025-12-04 | 50-day SMA | 110.91 vs 111.92 (-0.9%) | 110.78 | 111.93 | 110.75 (1.1%) | green, DCR 0.88 | 42.4R | A three-week correction ends with a higher low at the 50-day; gap down to the line, reclaimed in hour one, the tightest stop of the ten; 3R the next day |
+| 8 | PANW | 2026-06-11 | 20-day EMA | 260.99 vs 263.22 (-0.8%) | 258.10 | 263.23 | 258.07 (2.0%) | green, DCR 0.98 | 26.3R | Five-day pullback to a rising 20-day EMA in a breakout run; opens red, first-hour reclaim, closes at the high; 3R the next day |
+| 9 | ANF | 2026-10-08 | 20-day EMA | 137.72 vs 139.44 (-1.2%) | 137.72 | 139.45 | 137.69 (1.3%) | green, DCR 0.67 | 18.5R | Post-earnings flag resting on the 20-day EMA; opens AT the low and crosses at 9:50 (checked on 5-minute bars: the low came before the cross); light volume (0.6x) is its one blemish; 3R in 2 days |
+| 10 | APA | 2026-08-07 | 20-day EMA | 35.98 vs 36.53 (-1.5%) | 35.70 | 36.54 | 35.67 (2.4%) | green, DCR 0.88 | 18.9R | A V-recovery back over the 20-day, a 3-day dip, gap down to the line and a first-hour reclaim; the widest stop of the ten, still inside 3%; 3R the next day |
+
+**Notable failures (from the same scan).**
+- **The first-hour cross hides the order of the low and the cross.** TXG 2026-09-08 (9-day EMA, RS 100, closed green,
+  best 37R on hourly bars) was my ninth example until the 5-minute bars showed the first 5-minute bar already ticking
+  over the prior close at 9:30 with a low of 61.68, and the day's low of 61.61 printing at 9:45, AFTER that first cross.
+  A "first trade through" buy with the stop under the low so far (61.65) was stopped out 15 minutes later; the stock
+  then crossed again and ran. I replaced it with ANF. Of the 40 best in-window candidates checked on 5-minute bars, 5
+  (one in eight) had this shape. Hourly bars cannot show it, so for the nine examples before 2026-08-17 the honest
+  statement is: the day's low sat under the first hour's cross, and whether the low printed before or after the first
+  tick through the line cannot be seen in our data. This is section 8's "whippy first-minute cross" (common mistake 3)
+  measured a second way, and it argues for his 5-minute-close or hourly-close trigger option in a first-hour cross.
+- **Same-day stop-outs are the main cost, even in leaders at a level.** Among the 992 bar-1 hits with RS 90+ at an EMA
+  or 50-day level, 292 (29%) were stopped before the close. The biggest names on the list: TSLA 2025-01-22 (9-day EMA,
+  gap -1.7%, crossed in hour one, closed at 4% of its range), MU 2026-10-08, AMD 2024-03-14 and 2025-11-11 and
+  2025-11-17 (20-day EMA, all closed in the bottom third), PLTR 2025-04-21 (50-day). Each crossed the line and then
+  spent the day under it: the "close back under the prior close" warning sign in section 8 would have had them out at
+  the close instead of at the stop only when the stop was wider than the day's fade, which it rarely was.
+- **A green close is not a free pass.** 102 of the 540 RS-90+ level hits that closed green were still stopped within a
+  few sessions without reaching 1R: NVDA 2025-08-14 (9-day EMA, closed at 72% of its range, best 0.63R, stopped two
+  sessions later on the next gap down), META 2024-04-10 (20-day EMA, DCR 0.84, best 0.63R), COHR 2026-06-30 (20-day
+  EMA, best 0R). The house rules answer this one: the fixed stop never moved, and the time stop (C33, 10 sessions under
+  1R) and the breakeven move at 2R did not get a chance to apply.
+- **His own names in the window.** TWLO 2026-09-02 met every rule at the 20-day EMA, crossed in hour one and was stopped
+  the same day (best 0.6R); the retry on 2026-09-15, same level, ran 14.8R. CRM 2026-10-19 and 2026-10-20 crossed at the
+  20-day EMA and faded (best 0.6R and 1.5R before the stop); CRM 2026-10-27 was stopped the same day. His ALAB
+  2026-08-13, NOW 2026-09 and BE 2026-03 trades did not pass the scan's filters (ALAB under a falling 20-day EMA, as
+  section 9 says).
+
+**Limits.** The RS filter is a proxy rank, not the app's rating. The hourly bars begin 2023-12-12, so the examples span
+three years, not decades; the 25-year daily footprint is the only longer check and it is blind to same-day stop-outs.
+Hourly bars start 9:30 (bar 1 ends 10:30), so "first hourly candle" here is the first hour, not the 10:00 candle of a
+clock-aligned chart. Nothing here was trimmed, trailed or moved to breakeven; the R figures are high-water marks against
+the original stop. No example is an earnings reaction day (checked against the report dates); the gaps are ordinary
+pullback gaps, not news gaps, as far as the report dates can tell.

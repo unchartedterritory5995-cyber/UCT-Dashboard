@@ -1049,3 +1049,84 @@ count of 103 was confirmed); that the writer's web-search budget ran out before 
 Trade-Ideas trigger "fires once a day" (the page says "the first time price trades above that high", which implies it).
 James Dalton's "Open-Drive" is confirmed only by secondary summaries of *Mind Over Markets* (the dossier already says
 so); no Dalton text was read.
+
+## 13. Examples (from our data)
+
+**Scanned 2026-11-09 on intraday bars.** The ORB is an intraday trigger, so the scan ran on the sandbox's 5-minute bars:
+the 1,000 most-traded names (>= $10, >= $20M a day), 2026-08-17 to 2026-11-06 (59 sessions; all 1,000 names scanned in
+120 s). Scripts: `_study-resume/scratchpad/setups/40-opening-range-breakout/orb_scan2.py` (the scan, every hit in
+`final/hits.json`) and `final_orb.py` (the picks, the charts on 30-minute bars, the three sheets). The charts
+(`final/01_FFIV_2026-09-15.png` ... `10_PEG_2026-09-14.png`, sheets `sheet_1-4.png`, `sheet_5-7.png`, `sheet_8-10.png`)
+show 30-minute candles with the 9:30-10:00 range boxed, the session VWAP, the OR high (or low), the stop, 3R and 5R.
+
+**The rule the scan used (section 8 + the house rules), in one paragraph.** Daily context through the prior close:
+price >= $10 and 50-day average dollar volume >= $20M (B23); a long needs the prior close above the 50-day and the
+200-day SMA (B26, 8.1.3), a short below both (8.6.2); RS 80 or more for a long, 20 or less for a short (C31), where RS
+is a proxy (IBD-style weighted 3/6/9/12-month price change, ranked 1-99 within the 1,000 scanned names on that day,
+not IBD's rating); the long's fill not more than 10% above the 10-day SMA (C29). The opening range is the high, low
+and volume of 9:30-10:00 ET (six 5-minute bars). Opening volume at least 1.5x the mean of the prior 10-20 sessions'
+9:30-10:00 volume (8.1.7). As the "parent setup" proxy (8.1.1, 8.7.5): the OR high at or above the prior day's high
+(long) or the OR low at or below the prior day's low (short). Trigger: the first 5-minute bar after 10:00 that trades a
+cent above the OR high before any bar trades under the OR low (8.2.1, 8.5.1), mirrored for the short; market order
+(E57): the fill is the OR high + $0.01, or the bar's open if the bar opened above it; no fill more than 4% past the OR
+high (C28). Stop: 5 cents under the day's low at the fill (A3), 3% or less of the fill (A13); mirrored above the day's
+high for the short. Outcome: the 5-minute bars after the trigger bar for up to 20 sessions, a fixed stop, no
+breakeven move, no trims; "best R" is the high-water mark before the stop (or the end of the 20 sessions).
+
+**Base rate (fixed stop, no trims, 20 sessions, 5-minute bars, ETFs removed).**
+- Every hit that passed the trend, volume, trigger, chase and stop rules, before the RS and prior-day-extreme filters:
+  **1,703 hits; 23.2% reached 3R and 13.0% reached 5R** before the stop; 79.8% traded back to the stop within 20
+  sessions. (1,871 with the 168 ETF and leveraged-fund hits left in: 23.3% and 13.4%.)
+- The full section-8 rule (RS 80+/20-, OR edge at or beyond the prior day's extreme): **284 hits (99 long, 185 short);
+  26.1% reached 3R and 12.7% reached 5R**; 86.3% eventually traded back to the stop within 20 sessions and 20.1% were
+  stopped the same day. Longs 24.2% / 13.1% (n 99), shorts 27.0% / 12.4% (n 185). Median risk 1.9% of the fill, median
+  range width 1.7%, median opening volume 1.9x normal.
+- Splits worth the owner's eye (small samples, one 12-week window): triggers by 10:30 ET, 200 hits, 22.5% / 10.0%;
+  triggers after 10:30, 84 hits, 34.5% / 19.0%; so in this window the later trigger did better, the opposite of the
+  section 9 grading, which rests on Zarattini's 55% first-10-minute figure. Opening volume 2x or more, 124 hits, 21.0%
+  / 7.3%, no better than 1.5x. Earnings-reaction days: only 3 of the 284 strict hits (none of the 10 examples); the
+  filters leave almost no earnings gappers because a gap usually puts the stop over 3% or the fill over the 10-day limit.
+- Caveats: the 30-minute range needs 5-minute bars, which the sandbox holds only for 2026-08-17 to 2026-11-06, so every
+  example and every rate comes from one 12-week window (no different years are possible; the hourly bars since 2023-12
+  cannot form a 30-minute range). The count is a fixed stop with no trims, so a trade that reached 5R and then came back
+  to the stop counts as "stopped": 4 of the 10 examples below did exactly that within 20 sessions. The trims at 3R and
+  5R and the trail (B19, E51, E52) are what keep the result. 168 of the 1,871 hits (9%, against about 32 on an average
+  day) fell on 2026-09-18, the September quarterly expiration (third Friday): index-rebalance volume reads as "opening
+  volume 1.5x" and is not a catalyst, so the volume rule needs a calendar check (question for the owner). Intraday
+  volume sums to about 80-90% of the daily print, which does not matter here because the ratio compares the same window
+  day to day. "RS" is the proxy rank above, not IBD's rating. Nobody checked the 10 examples for a named parent setup
+  (Kicker, EP, base) by hand; the proxy was RS 80+ (20-) and the OR edge beyond the prior day's extreme.
+
+**The 10 examples** (all from `final/examples.json`; fill = market order at the trigger; "3R after" is in sessions
+from the trigger, 78 five-minute bars to a session).
+
+| # | Ticker | Date | Side | Trigger (ET) | 30-min range (high / low, width) | Opening vol | Gap | Prior-day extreme | RS | Fill | Stop (risk) | Best R | 3R after | Why it is textbook |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | FFIV | 2026-09-15 | long | 10:00 | 418.45 / 412.06, 1.53% | 2.67x | +0.1% | high 415.99 (ORH above) | 81 | 418.46 | 412.01 (1.54%) | 10.05R, 5R yes | 2.0 | Flat open, heavy first half hour, breaks the range on the very first bar after 10:00 and never looks back; +24% over the 200-day, 2% over the 50-day, $234M a day. The cleanest long in the window. |
+| 2 | ANF | 2026-10-12 | long | 10:00 | 146.90 / 143.91, 2.03% | 1.68x | +1.0% | high 143.39 (ORH above) | 90 | 146.91 | 143.86 (2.07%) | 8.24R, 5R yes | 3.2 | A 2% range that sits wholly above the prior day's high, broken at 10:00; a staircase of higher session VWAPs to 5R in five sessions. +40% over the 200-day. |
+| 3 | EXEL | 2026-10-14 | long | 10:00 | 60.91 / 59.56, 2.22% | 1.99x | +0.7% | high 60.00 (ORH above) | 81 | 60.92 | 59.51 (2.31%) | 9.06R, 5R yes | 6.0 | Opens on 2x volume after a two-day dip to the range low, reclaims and breaks the OR high at 10:00; a slow, orderly climb, every session's VWAP rising. Shows a 3R that takes six sessions. |
+| 4 | OVV | 2026-10-09 | long | 10:30 | 64.42 / 63.26, 1.80% | 1.62x | +0.1% | high 63.80 (ORH above) | 86 | 64.43 | 63.21 (1.89%) | 7.53R, 5R yes | 5.2 | A trigger at 10:30 after a tight hold just under the OR high; +15% over the 200-day, only 1% over the 50-day, so no chase. 5R in session 7, then back to the fixed stop in session 18: the trims matter. |
+| 5 | QLYS | 2026-10-22 | long | 10:50 | 202.00 / 197.06, 2.45% | 1.58x | +0.2% | high 200.67 (ORH above) | 94 | 202.01 | 197.01 (2.48%) | 6.6R, 5R yes | 1.2 | A late-morning trigger (10:50) on a leader (RS 94, +50% over the 200-day); 3R the next day, 5R in three sessions, then a full round trip to the stop by session 10. |
+| 6 | SNX | 2026-09-21 | long | 10:05 | 274.03 / 270.72, 1.21% | 2.42x | +2.3% | high 269.00 (ORH above) | 88 | 274.04 | 270.67 (1.23%) | 7.34R, 5R yes | 1.9 | A 2.3% gap above the prior day's high, a tight 1.2% range, 2.4x opening volume, broken at 10:05; 5R in two sessions. Then the earnings report of 2026-09-24 (before the open, on file) gapped it through the stop: the lesson is the third sold at 3R and 5R and no earnings hold without a plan. |
+| 7 | POOL | 2026-09-10 | short | 10:00 | 177.95 / 175.06, 1.62% | 1.76x | -0.2% | low 175.45 (ORL below) | 8 | 175.05 | 178.00 (1.68%) | 7.58R, 5R yes | 3.8 | Opening-range breakdown on the first bar after 10:00 in a stock 17% under its 200-day and 9% under its 50-day; a stair-step lower for two weeks (3R in session 3, 5R in session 15). The mirror of example 1. |
+| 8 | CRH | 2026-08-31 | short | 10:15 | 95.29 / 94.17, 1.18% | 1.86x | -1.0% | low 94.81 (ORL below) | 9 | 94.16 | 95.34 (1.25%) | 10.16R, 5R yes | 1.9 | A 1% gap down, a narrow 1.2% range under the prior day's low, broken at 10:15; the best short in the window (3R in two sessions, 5R in seven, 10R within the 20 sessions), 14% under the 200-day. |
+| 9 | TJX | 2026-09-08 | short | 10:00 | 132.00 / 130.53, 1.11% | 1.64x | -0.6% | low 131.78 (ORL below) | 10 | 130.52 | 132.05 (1.17%) | 5.06R, 5R yes | 1.5 | A very liquid name ($934M a day) 12% under its 50-day; the OR low sits under the prior day's low and the break at 10:00 runs 3R by the next session, 5R in session 6. Then it recovers to the fixed stop in session 10: the one example where only the trims pay. |
+| 10 | PEG | 2026-09-14 | short | 10:00 | 72.72 / 72.04, 0.94% | 2.63x | -0.1% | low 72.14 (ORL below) | 17 | 72.03 | 72.77 (1.03%) | 7.95R, 5R yes | 4.9 | The tightest range of the ten (0.94%) on 2.6x opening volume in a utility 9% under its 200-day; a 1% risk that paid 5R in seven sessions and 8R within the window, and did not trade back up to the OR low for 17 sessions. |
+
+No example is an earnings-reaction day (checked against the earnings file; SNX's report came three sessions after the
+trade). No example is an ETF. Dates: 2026-08-31 to 2026-10-22, all within the one window the data allows.
+
+**Notable failures (strict rule, in words).**
+- **CMCSA, 2026-09-18, short at 10:00.** Opening volume 5.2x normal, gap -1.1%, RS 17, risk 1.85%: the break of the OR
+  low ran 0.24R and reversed back into the range the same morning, stopped the same day. The date is the September
+  quarterly expiration: the "opening volume" was rebalance volume, not a seller. The 09-18 cluster (168 hits) is the
+  single biggest source of false volume signals in the window.
+- **DE, 2026-11-02, long at 10:00.** Opening volume 3.7x, RS 81, risk 2.05%, but the stock had gapped down 0.9% and
+  the OR high was only a fraction above the prior day's high; the break reached 0.15R and failed within the hour,
+  stopped the same day. A break on a red open with no gap of its own is the "bare ORB" of 8.8.1.
+- **LII, 2026-10-27, short at 10:00.** Opening volume 3.4x, gap +0.4% (an up-open in a weak stock, RS 6), risk 2.2%:
+  0.26R and stopped the same day. The short worked best in this window when the stock opened down and under the prior
+  day's low; an up-open breakdown was the weak cell.
+- And the quiet failure the base rate hides: OVV, QLYS, SNX and TJX among the examples, and FORM (12.3R, not charted),
+  all reached 5R and then traded back to the original stop within 20 sessions. The count says "stopped"; the rulebook's trims and trail (B19,
+  E51, E52, breakeven by 2R-5R) say otherwise. Teach the exit as part of the setup.

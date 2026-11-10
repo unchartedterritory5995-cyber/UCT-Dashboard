@@ -883,7 +883,72 @@ Each line is measurable. Where the sources disagree, the options and my recommen
 
 ---
 
-## 12. Removed in checking (cold check, 2026-11-09)
+## 12. Examples (from our data)
+
+**The scan (my computation, 2026-11-09; scripts `scan41.py` and `final41.py` in my scratch folder, not committed).** An
+intraday setup, so it was run on the sandbox's 30-minute bars (Yahoo 5-minute bars built into 30-minute bars), which exist
+only for the 1,000 most-traded names and only from 2026-08-17 to 2026-11-06; 988 of them had enough daily history, and the
+whole set was scanned (no time-out). The rule, section 8 plus the house rules: on the prior day's close, price over the
+50-day SMA, the 50-day over the 200-day, the 20-day EMA rising (over its value 5 sessions earlier), price $10 or more,
+50-day average dollar volume $20 million or more, close not more than 10% over the 10-day SMA (C29), no earnings reaction
+day within 3 sessions either side (B22), and an RS stand-in of the top 20% of the 1,000 names by 126-session return (the
+app's RS rating is not in the sandbox; C31). On the 30-minute chart: a run of at least 2 red candles (close under open; the
+run may start the day before), then the first green candle is the pivot; its low within 1% above, or under, the prior
+day's 10-day EMA, 21-day EMA or 50-day SMA, and its close back over that level. Trigger: a later candle the same session
+trades a cent over the pivot candle's high before any candle trades under its low; entry a cent over the high (or the
+candle's open if it gapped over), skipped if that is more than 4% over the high (C28). Stop 3 cents under the pivot
+candle's low (the originator's stop, section 8.3); skipped if the risk is over 3% (A13). One trade per stock per session,
+the first trigger. Outcome walked forward on 30-minute bars for up to 20 sessions: the first of the stop, 3R and 5R.
+
+**Base rate: 1,477 trades on 306 names, 2026-08-17 to 2026-11-06; 27.1% reached 3R and 19.7% reached 5R before the
+stop.** A fixed stop with no trims and no breakeven move, so these are not the house-managed result: 90% of the trades
+touched the stop at some point in the 20 sessions (the median stop was 0.84% of price), usually after the targets; 69 were
+still open when the data ended. Cuts, for what they are worth (one 12-week window, one market phase): a red string of 5 or
+more did best (221 trades, 32.1% to 3R, 24.0% to 5R) against 2 reds (695 trades, 25.5% and 17.6%), which repeats section
+4.4's lead; the three levels came out alike (10-day EMA 27.0% to 3R, 21-day 27.6%, 50-day 26.8%); a pivot that was the
+day's low did no better than one that was not (26.7% against 27.4%); the 9:30 candle as the pivot after an overnight red
+string (169 trades) was the weakest and widest-stopped cut (24.9% to 3R, median risk 1.86%). The busiest days were
+2026-10-08 (52 trades), 09-28 (45) and 09-29 (39): the setup fires in clusters on market pullback days, so the trades are
+not independent and the true uncertainty is wider than the counts suggest. Same limits as section 4.4: Yahoo bars, no
+slippage or commissions (which matter with stops this tight), today's liquid names only, the RS stand-in.
+
+**The 10 examples (one per name; all within the 12-week window, so "different years" was not possible; charts in my
+scratch folder `final/01_..10_*.png` and `sheet_1-4.png`, `sheet_5-7.png`, `sheet_8-10.png`, read by eye).** Prices in
+dollars; "level" is the prior day's value; "best R" is the best reach within 20 sessions before the stop; a pivot candle's
+low "under" a level means the pivot undercut it and closed back over it. None of the ten had an earnings report within 3
+sessions (checked against the report dates).
+
+| # | Ticker, pivot day | Red string, level, pivot candle | Buy (trigger) | Stop (risk) | Best R | Why it is textbook |
+|---|---|---|---|---|---|---|
+| 1 | DK 2026-08-24 | 6 reds from the 08-24 open (9:30 to 12:00) into the 10-day EMA 66.48; pivot 12:30, low 66.08, closed at its high | 66.83 (13:00) | 66.05 (1.17%) | 19.8 | A 6-candle morning sell-off after the 08-21 thrust lands exactly on the rising 10-day; the pivot closes on its high and 3R comes in 6 bars |
+| 2 | PSX 2026-08-27 | 5 reds into the 10-day EMA 236.78; pivot 11:00, the day's low 237.12 | 238.91 (11:30) | 237.09 (0.76%) | 21.1 | A refiner leader (RS stand-in 92): a quiet pullback onto the 10-day, the pivot is the day's low, the trigger is the next candle; 3R the next session, 5R two sessions on |
+| 3 | GRAL 2026-09-14 | 2 reds into the 50-day SMA 73.27; pivot 11:00, the day's low 73.46 | 75.30 (12:00) | 73.43 (2.48%) | 48.8 | The 50-day version: a 2-week drift down to the 50 after a run, a wide pivot candle, the trigger two bars later; 3R on 09-18, then a 09-21 gap (not a report date in our data: reports 08-05 and 11-04, so a news gap) ran it to 48R. The minimum red string, so a B grade on structure |
+| 4 | HALO 2026-09-16 | 4 reds into the 21-day EMA 105.22; pivot 10:00, low 105.77 | 106.65 (10:30) | 105.74 (0.85%) | 12.3 | A tight sideways base on the 21-day; the first green candle at 10:00 after the open flush; 3R in 6 bars, 5R in 2 sessions. Clean and small |
+| 5 | FTNT 2026-09-18 | 4 reds (the 09-17 15:30 candle and the 09-18 open) into the 10-day EMA 165.75; pivot 11:00, low 166.95 | 168.28 (11:30) | 166.92 (0.81%) | 21.2 | A one-day shake inside a fresh advance; the pivot holds just above the 10-day; the trigger is the very next candle and the stock trends for 4 sessions |
+| 6 | MRVL 2026-09-28 | 11 reds from 09-25 12:30 into the 10-day EMA 249.71; pivot 11:30, low 249.89 | 252.04 (12:00) | 249.86 (0.86%) | 22.6 | The longest red string of the ten (a day and a half of selling) ending on the 10-day in a leader (RS stand-in 98); 3R in 8 bars, 5R next day, then the 10-06 breakout. Stopped on the fixed stop long after |
+| 7 | DOCU 2026-10-06 | 5 reds into the 21-day EMA 67.53; pivot 14:00 undercut it (low 66.83) and closed at its high | 68.08 (14:30) | 66.80 (1.88%) | 13.9 | The undercut-and-reclaim shape the owner's DELL and LITE trades had: a 5-candle flush through the 21-day, the pivot closes on its high; slower (3R on 10-09), 5R on 10-14 |
+| 8 | VEEV 2026-10-08 | 5 reds into the 10-day EMA 278.99; pivot 10:00, the day's low 279.02 | 282.18 (10:30) | 278.99 (1.13%) | 13.7 | The pivot low sits 3 cents off the 10-day, closes near its high; the trigger is the next candle; 3R in 2 sessions, 5R in 3 |
+| 9 | NOW 2026-10-16 | 6 reds from 10-15 15:30 into the 10-day EMA 140.35; pivot 12:00, the day's low 139.94 | 141.34 (12:30) | 139.91 (1.01%) | 12.7 | A hard 2-session give-back of a thrust straight to the 10-day; the pivot is the day's low; 3R by 10-20, 5R on 10-21. Stopped on the fixed stop after 12R |
+| 10 | SN 2026-10-27 | 4 reds into the 10-day EMA 193.97; pivot 14:00, the day's low 193.80, closed at its high | 196.05 (14:30) | 193.77 (1.16%) | 13.0 | An afternoon pivot on the 10-day in a 2-week flat range; 3R the next afternoon, 5R on 10-30 |
+
+Three were pivots at the 21-day or 50-day, seven at the 10-day; the stops ran 0.76% to 2.48% of price; nine of the ten
+triggered on the very next candle (the DELL and HOOD way), GRAL two candles later.
+
+**Notable failures (from the same scan, in words).** (1) **The 15:00 pivot.** AAPL 2026-10-16 (5 reds into the 10-day,
+pivot 15:00, bought 343.15 at 15:30, stop 341.10) and AAPL 2026-10-26 (pivot 15:00, bought 344.07) both went nowhere and
+were stopped: a pivot in the last hour has no session left to work, and 156 of the 1,477 trades were such late triggers.
+(2) **The big-cap half-percent stop.** MSFT 2026-09-01 (4 reds into the 10-day, bought 501.07, stop 498.97, 0.42% risk)
+reached 0.5R and was stopped; NVDA 2026-10-09 (2 reds into the 21-day, bought 230.03, stop 229.08, 0.42%) was stopped
+at once; MSFT's 10-14, 10-21 and 10-22 pivots all failed the same way. On a slow mega-cap a 2-dollar stop is inside the
+noise, and the setup's tight stop becomes a coin flip; the originator built it for volatile names. (3) **A broken daily
+context.** INTC 2026-09-29, 10-06 and 10-07 (pivots at the 10 and 21-day, risk 0.8% to 2.8%) all stopped with no
+follow-through: three stabs in six sessions on a name that had stopped trending, which rule E56 would have cut off after
+the third try in a week. In every one the entry rule and the stop rule were met; the daily picture and the clock were the
+difference, which is why section 9 grades those rather than the candle count.
+
+---
+
+## 13. Removed in checking (cold check, 2026-11-09)
 
 Nothing had to be struck as unsourced: every quotation (about 53 from outside sources: 17 from the 8 X posts and the
 profile, 20 Substack lines, 3 Pivot Party, 3 TradingView, 4 Qullamaggie, 4 Raschke, 2 ChartSchool; plus the card,

@@ -895,7 +895,84 @@ as a teaching aid, not a checklist.
 
 ---
 
-## 12. Removed in checking (cold check, 2026-11-09)
+## 12. Examples (from our data)
+
+**The rule the scan used (one paragraph).** Daily bars, 2000-01-01 to 2026-11-09, the 2,630 names that ever met the
+liquidity rule (B23). Swing highs are 5-bar swings (higher than the 5 bars on each side). An H&S is three swing highs,
+left shoulder to right shoulder 15 to 100 bars, the head at least 3% above the higher shoulder, the shoulders within
+10% of each other, no bar inside the pattern above the head; the neckline runs through the lowest lows between the
+peaks and may slope at most 0.5% of price a day; head to neckline 5% to 30%. Prior uptrend: at the left shoulder the
+close is above a rising 200-day SMA and the head is at least 25% above the lowest low of the prior 126 bars. The
+failure, version B: within 60 bars of the right shoulder, a close under the neckline or an intraday undercut of the
+right armpit low, with no close more than 10% under the neckline before the trigger; version A: price turns up from
+the right shoulder with no close under the neckline. The trigger is the first trade over the right-shoulder high
+(within 40 bars of the failure for B); a market order (E57) at the level, or at the open if it gapped over, skipped if
+the entry is more than 4% over the level (C28) or more than 10% over the 10-day average (C29), or the close is not
+above the 200-day SMA (B26), or price is under $10 or 50-day dollar volume under $20M (B23). The stop is 5 cents under
+the lower of the trigger day's and prior day's lows, or under the trigger day's low alone if that was more than 3% away;
+skipped past 5% (A13). The outcome is a fixed stop walked 60 bars forward with no trims and no trail: the first of the
+stop, 3R or 5R touched (same day both: the stop). Rounded tops were not scanned separately (the arc rule in 8A has no
+swing-high anchors to vectorise); every hit below is a head-and-shoulders. The scanner and its output are in the
+scratchpad, `setups/33-failed-hs-rounded-top/scan_fhs.py` and `final/hits.json`.
+
+**Base rate.** 13,148 hits, 2,630 of 2,630 liquid names scanned (complete, 171 seconds). **30.1% reached 3R and
+20.0% reached 5R before the stop**; about 84% touched the stop inside the 60-bar window. Version B (a real break under
+the neckline that failed), 7,059 hits: 30.2% to 3R, 20.0% to 5R. Version A (the turn-up with no break), 6,089 hits:
+30.0% to 3R, 20.0% to 5R; no difference between the two under a fixed stop. Caveat: this is a fixed stop a median
+2.3% under the entry, no breakeven move, no trims, no trail, so it counts touches of 3R and 5R, not the account's
+realised R; it also counts every qualifying hit, with no grading, no market filter (F65) and no RS filter (C31). The
+earnings table was not used as a filter: some triggers land on an earnings reaction day (flagged below).
+
+**The 10 examples** (all version B, one per ticker, ten different years, each chart looked at; prices as stored,
+split-adjusted). "Under" is how far the failed break closed or undercut below the neckline. Stop is 5 cents under the
+lower of the trigger day's low and the prior day's low. Best R is the highest high in the 60 bars after entry, in R,
+with the stop never touched before it.
+
+| # | Ticker | Trigger | Pattern (LS to RS) | Shoulders / head / neckline | Failed break | Buy | Stop (%) | Best R | Why it is textbook |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | FDX | 2003-03-19 | 53 bars, head 13.6% over the neckline | 45.32 / 47.22 / 42.97, neckline 40.82 | 6.2% under, low 38.44 | 42.98 | 42.42 (1.3%) | 17.3R, 3R in 1 day | A clean three-peak top at the 2003 bear-market bottom; the break under the neckline failed in two weeks, the trigger day was the earnings reaction day (report before the open, 2.5x volume), and price never looked back. The "leader refusing to break while the market falls" case from 8A. |
+| 2 | MGM | 2004-09-14 | 87 bars, head 16.9% over the neckline | 22.77 / 24.89 / 22.70, neckline 21.22 | 6.1% under, low 19.80 | 22.71 | 22.30 (1.8%) | 23.7R, 3R in 5 days | Shoulders within 0.3% of each other, a flat neckline, a four-week failed breakdown, then a trigger over the right shoulder with 1.9x volume. The most symmetrical pattern of the ten. |
+| 3 | SPG | 2005-11-11 | 73 bars, head 12.4% over the neckline | 68.74 / 75.15 / 69.52, neckline 65.03 | 7.1% under, low 61.03 | 69.53 | 68.76 (1.1%) | 11.9R, 3R in 6 days | A textbook break under the neckline (seven weeks, 7% deep) that was fully recovered; the trigger came with the stock back over the 50-day. Shows that the invalidation line (61) was far from a usable stop; the trigger day's low gave 1.1%. |
+| 4 | BXP | 2010-02-26 | 52 bars, head 11.7% over the neckline | 67.71 / 71.73 / 68.01, neckline 63.38 | 3.0% under, low 61.50 | 68.02 | 67.20 (1.2%) | 18.8R, 3R in 5 days | Nearly level shoulders (0.4% apart), a flat neckline, a two-week undercut, then a trigger that held above the 50-day. A learner can draw every line on this one. |
+| 5 | MCO | 2011-01-06 | 43 bars, head 9.2% over the neckline | 28.02 / 28.93 / 27.71, neckline 26.41 | 1.0% under, low 26.10 | 27.98 | 27.66 (1.1%) | 21.1R, 3R in 1 day | The shallow version: the head only 9% over the neckline and a one-day, 1% undercut. Teaches that the failure can be small. The trigger day gapped 1% over the level (entry at the open, inside the 4% chase limit) on 2.6x volume; our earnings table lists an 8-K dated that day, so treat the gap as a news or earnings day, not a quiet one. |
+| 6 | ICLR | 2015-01-14 | 71 bars, head 15.6% over the neckline | 53.50 / 59.81 / 56.17, neckline 51.94 | 3.2% under, low 49.75 | 56.18 | 54.96 (2.2%) | 13.3R, 3R in 21 days | A slow one: the trigger came on average volume (1.0x) and 3R took three weeks, then the stock ran 25%. Shows the trade does not need a volume spike to work, and why the trail (10-day or 21-day) matters. Right shoulder 5% above the left: graded lower than 2 and 4. |
+| 7 | MUSA | 2022-03-15 | 62 bars, head 14.2% over the neckline | 187.55 / 202.20 / 184.96, neckline 176.18 | 6.8% under, low 164.30 | 184.97 | 182.98 (1.1%) | 39.0R, 3R in 1 day | The best outcome of the ten: a 7% break under the neckline during the early-2022 correction, recovered in three weeks; the trigger over the right shoulder was followed by a 40% run. The 8A "best conditions" case. |
+| 8 | TOL | 2024-07-12 | 63 bars, head 16.1% over the neckline | 124.67 / 135.37 / 123.68, neckline 118.53 | 7.1% under, low 108.86 | 123.69 | 122.25 (1.2%) | 22.5R, 3R in 2 days | Equal shoulders (0.8% apart), a flat neckline, a seven-week failed breakdown to 109, then a trigger on 1.3x volume above the 50-day. The home-builder move of summer 2024 started here. |
+| 9 | NFLX | 2025-04-21 | 69 bars, head 20.9% over the neckline | 94.17 / 106.45 / 99.87, neckline 87.88 | 6.0% under, low 82.11 | 99.88 | 97.26 (2.6%) | 13.1R, 3R in 3 days | The April 2025 undercut: a 6% break under the neckline that failed within two weeks. The trigger day was the earnings reaction day (report 2025-04-17 after the close; 2.0x volume); the open was under the level, so the entry was at the level, not a chase. Prices are split-adjusted. |
+| 10 | ABNB | 2026-06-15 | 60 bars, head 15.7% over the neckline | 139.00 / 147.25 / 138.04, neckline 131.65 | 3.0% under, low 127.23 | 138.05 | 134.25 (2.7%) | 14.6R, 3R in 9 days | The most recent: shoulders 0.7% apart, a 3% undercut in late May, a trigger over 138 on 1.3x volume with the 200-day rising underneath, then a 35% advance. The stop is the widest of the ten (2.7%) because the trigger day's range was wide. |
+
+The charts: `setups/33-failed-hs-rounded-top/final/01_FDX_2003-03-19.png` to `10_ABNB_2026-06-15.png`, and the three
+phone sheets `final/sheet_1-4.png`, `sheet_5-7.png`, `sheet_8-10.png` (one column). Each chart draws the pattern box,
+the LS / HEAD / RS peaks, the neckline, the failed-break bar, the buy level (right-shoulder high), the stop, 3R and 5R,
+with the 10- and 21-day EMAs and the 50- and 200-day SMAs.
+
+**Notable failures (from the same scan, looked at on the chart).**
+- **AAPL, 2026-08-28.** A clean 51-bar pattern (shoulders 317.40 / 320.28, head 13.5% over the neckline, a 2.8%
+  undercut). The trigger over 320.28 was stopped the next session (stop 315.40, 1.5% away, best 0.0R), and the stock
+  then ran to 350 without the trade. A whipsaw, not a wrong read: the lesson is E56, count the tries and allow a
+  second entry over the same level; a 1.5% stop under a big stock's trigger day is tight.
+- **CAT, 2024-07-18.** The shoulders were 8.8% apart (334.87 left, 364.43 right), so the "right-shoulder high" sat
+  almost at the head and the trigger was late and high. Stopped at once (best 0.0R); the stock chopped for two months
+  before its autumn run. Grade uneven shoulders lower (Bulkowski's "even shoulders" note in 3.4; the 8A 10% tolerance
+  is the outer limit, not the ideal).
+- **DDOG, 2025-01-28.** The neckline sloped up so steeply (right armpit far above the left) that it ran 2.4% ABOVE the
+  right-shoulder high at the trigger: the drawn pattern was not a top at all. The trigger failed in two days (best
+  0.0R) and the stock lost 40% after its February earnings. When the neckline is above the buy point, the pattern is
+  mis-drawn; skip it.
+- **GOOGL, 2026-09-18.** The H&S formed under a higher high from May (405), so it was a lower-high structure inside a
+  stock that had already topped; the trigger at 351.60 stalled under the 50-day and the neckline (362), reached 0.8R,
+  and the stock fell 20% by late October. The 8A prior-trend test passed on the numbers but the chart showed the real
+  top months earlier: Edwards and Magee's "last push" warning (common mistake 7).
+
+**Limits of this check.** The scan is the H&S half of 8A only; a rounded-top scan was not written. The stop, chase and
+stretch rules are the house defaults with no discretion; the market reading (F65), the RS rating (C31) and the grading
+in section 9 were not applied, so the base rate is a floor for an ungraded, unfiltered signal, not what a member
+following the full plan would see. The earnings table (complete from about 2005) was used only to flag the examples'
+trigger days, not to filter. All numbers are from the local bar-store copy and were not re-run elsewhere.
+
+---
+
+## 13. Removed in checking (cold check, 2026-11-09)
 
 **Method.** 104 quotes and attributions were matched word for word against freshly fetched copies of their sources
 (99 exact; 4 differed only by OCR line-break artefacts in the Murphy scan; 1, the "Jonathon King" byline, was confirmed

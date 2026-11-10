@@ -1126,10 +1126,12 @@ none passes TA-Lib); question 5's GS and RCUS conflict.
 ## 12. Examples (from our data)
 
 Scanned 2026-11-09 on the local sandbox's daily bars (3,897 names, 1984 to 2026); the scan covered all 2,630 names that
-ever met the house liquidity rule (complete, 161 seconds). Scripts and every hit: `_study-resume/scratchpad/setups/26-kicker/`
-(`kicker_scan.py`, `final_kicker.py`, `final/hits.json`, `final/examples.json`); charts in `final/` (10 PNGs and three
-phone sheets `sheet_1-4.png`, `sheet_5-7.png`, `sheet_8-10.png`). Nothing here is from a book or a web page; it is our
-own replay of the section 8 rules.
+ever met the house liquidity rule (complete, 163 seconds; a first pass without the full B22 window, 669 hits, is kept as
+`final/hits_v1_no_b22.json`). Scripts and every hit: `_study-resume/scratchpad/setups/26-kicker/` (`kicker_scan.py`,
+`final_kicker.py`, `final_stats.py`, `final/hits.json`, `final/examples.json`); charts in `final/` (10 PNGs and three
+phone sheets `sheet_1-4.png`, `sheet_5-7.png`, `sheet_8-10.png`; the candidates looked at and not used are in
+`final/cands/`). Nothing here is from a book or a web page except the two earnings dates named below; it is our own
+replay of the section 8 rules.
 
 **The rule as coded (section 8 plus the house rules).** Red day: close below open; body at least 1% of price *or* a
 close at least 1% under the prior close; close in the lowest 35% of its range; range at most 3 ATR(14); close above the
@@ -1137,58 +1139,82 @@ close at least 1% under the prior close; close in the lowest 35% of its range; r
 within 1.5 ATR of the 21-day EMA or the 50-day SMA, or at or under the lowest low of the prior 5 sessions (plus 1%);
 close at least $10 and 50-day dollar volume at least $20 million. Kicker day: opens at least 1.5% above the red close;
 trades above the red high; never trades back down to the red close; closes above the red high in the top 20% of its
-range; volume at least 1.5 times the 50-day average. Neither day is an earnings reaction day (the sandbox's Yahoo + SEC
-dates; names with no dates were kept and flagged). Entry (E57, market): one cent over the red high if the open is at or
-under it, else the open; skipped if that fill is more than 4% over the red high (C28; those would need the 30-minute
-entry, which daily bars cannot test) or more than 10% over the 10-day SMA (C29). Stop: a fill at the open has no low yet,
-so the rule's own first stop, 3.5% under the fill; a trigger during the day gets 5 cents under the Kicker day's low or
-3.5% under the entry, whichever is closer (that uses the day's *final* low, which a live trader does not know; flagged).
-Outcome: fixed stop, no trims, no breakeven, 60 sessions forward, first touch of the stop, 3R or 5R wins (same day:
-stop first).
+range; volume at least 1.5 times the 50-day average. Earnings (B22, the sandbox's Yahoo + SEC dates): neither day is a
+report reaction day, and no reaction day falls in the next 4 sessions (a report after the close of day X reacts on X+1,
+so this is "no new buys in the 3 days before a report"). Entry (E57, market): one cent over the red high if the open is
+at or under it, else the open; skipped if that fill is more than 4% over the red high (C28; those would need the
+30-minute entry, which daily bars cannot test) or more than 10% over the 10-day SMA (C29). Stop: a fill at the open has
+no low yet, so the rule's own first stop, 3.5% under the fill; a trigger during the day gets 5 cents under the Kicker
+day's low or 3.5% under the entry, whichever is closer (that uses the day's *final* low, which a live trader does not
+know; flagged). Outcome: fixed stop, no trims, no breakeven, 60 sessions forward, first touch of the stop, 3R or 5R
+wins (same day: stop first).
 
 **Not applied (the data cannot):** RS 80+ (C31; the sandbox has no RS rating), the market reading (F65, D46), position
-size, the 30-minute-bar stop raise at 10:00 (8.3), and the B20 gap rule.
+size, the 30-minute-bar stop raise at 10:00 (8.3), and the B20 gap rule. The earnings dates are complete only from about
+2005, so 128 of the 530 stock hits (every hit before 2005, plus names with no dates) could not be checked for a report,
+and one of them was one: CSCO 1999-11-10, which the first pass had in the table, is Cisco's Q1 fiscal 2000 report
+reaction (the release is dated November 9, 1999, after the close: Cisco newsroom,
+https://newsroom.cisco.com/c/r/newsroom/en/us/a/y1999/m11/cisco-systems-reports-first-quarter-earnings-11-09-1999-.html).
+Treat every pre-2005 hit as unchecked unless its date was verified by hand, as MS 1997 was (below).
 
-**Base rate.** 669 hits in 2,630 names; 48.0% reached 3R and 32.3% reached 5R before the first stop; 77.9% touched the
-stop within 60 sessions (most after a win: the median hit reached 3R in 2 sessions). Stocks only (595 hits; 74 were
-ETFs, ARKF, GDX, SH, XOP and the spot-bitcoin funds among them): 47.7% to 3R, 32.6% to 5R. By entry type: fill at the
-open (266) 41.0% / 25.2%; trigger during the day (329) 53.2% / 38.6%. The in-day group is flattered by the final-low
-stop: the 64 stock hits with a stop under 1% reached 3R 84% of the time, the 531 with a stop of 1% or more 43.3% / 27.3%.
-Names with earnings dates (516) 49.8% / 33.9%; without (79) 34.2% / 24.1%, so some of those are undetected earnings gaps.
-Since 2010 (434): 47.2% / 32.7%, the same as the whole. Medians: gap 2.3%, Kicker-day gain 5.7%, volume 1.9x, stop 3.5%
-(the cap). Read all of it as a fixed-stop, no-trim, no-RS, no-market-filter number; the 2R-breakeven and 3R/5R trims of
-the rulebook would change it.
+**Base rate.** 622 hits in 2,630 names; 48.2% reached 3R and 32.5% reached 5R before the first stop; 77.8% touched the
+stop within 60 sessions (most after a win: the median hit reached 3R in 3 sessions). Stocks only (530 hits; 92 were
+ETFs, ARKK, GDX, QQQ, SMH, XOP and the spot-bitcoin funds among them): 48.1% to 3R, 32.8% to 5R. By entry type: fill at
+the open with the 3.5% stop (237) 40.1% / 24.1%; trigger during the day (293) 54.6% / 39.9%. The in-day group is
+flattered by the final-low stop: the 58 stock hits with a stop under 1% reached 3R 86% of the time, the 472 with a stop
+of 1% or more 43.4% / 27.3%. Names whose era the earnings dates cover (402) 48.5% / 32.6%; the unchecked 128, 46.9% /
+33.6%. Since 2010 (379): 47.5% / 33.0%, the same as the whole. Medians: gap 2.4%, Kicker-day gain 5.8%, volume 1.9x,
+stop 3.5% (the cap). Read all of it as a fixed-stop, no-trim, no-RS, no-market-filter number; the 2R-breakeven and
+3R/5R trims of the rulebook would change it.
+
+**What moved the number (observations, not rules; stocks only).** The Kicker day's size: a close of +8% or more on the
+day (130) reached 3R 72% and 5R 53% of the time, with 4% stopped under 0.5R; under +8% (400), 40% / 26%, 20% stopped
+under 0.5R. Volume: 2x or more (213) 55% / 38%; 1.5x to 2x (317) 43% / 30%. The red day's size cuts the other way: a
+red day down 5% or more (34) 38% / 24% with 29% stopped under 0.5R, against 12% to 16% for smaller red days, which
+supports the owner's "orderly pullback" over a shock bar (the 3 ATR cap does not catch a shock day, because the ATR
+inflates with it). The market: the 40 hits in the shock months (August 2011, October 2018, March 2020, October 2025)
+reached 3R 15% of the time and half were stopped under 0.5R (D46 in numbers).
 
 **The 10 textbook examples** (one per ticker, ten different years; each chart was looked at; the red day is down on
-the day in all ten; no ETFs). Columns: red day = change on the day / body / close position in its range; Kicker day =
-gap over the red close / change on the day / close position / volume vs 50-day; span = range of the prior 20 closes.
+the day in all ten; no ETFs; every stop is at least 1%, so none leans on a final-low stop). Columns: red day = change
+on the day / body / close position in its range; Kicker day = gap over the red close / change on the day / close
+position / volume vs 50-day; span = range of the prior 20 closes. Earnings: all nine from 2003 on are 12 or more
+sessions after a report and 19 or more before the next (sandbox dates); MS 1997 is four sessions after Morgan Stanley
+Dean Witter's June 25, 1997 second-quarter release (the press release in its SEC 8-K,
+https://www.sec.gov/Archives/edgar/data/0000895421/000095013097002909/0000950130-97-002909.txt/seq-2).
 
 | # | Ticker | Kicker day | Red day | Kicker day | Span | Buy (how) | Stop | Best R | Why it is textbook |
 |---|---|---|---|---|---|---|---|---|---|
-| 1 | MS | 1997-07-01 | -1.3% / -1.9% / 0% | +1.6% / +4.3% / 100% / 1.9x | 11.0% | 22.17 (red high +0.01) | 21.76 (1.8%) | 16.8R, 3R in 2d | Pullback to a rising 21-day EMA, the red day closes on its low, the Kicker opens over it and closes on its high; the stock never looks back. |
-| 2 | CSCO | 1999-11-10 | -1.4% / -3.0% / 22% | +4.0% / +7.1% / 92% / 2.2x | 11.7% | 38.59 (open, 1.1% over the red high) | 37.24 (3.5%) | 17.9R, 3R in 5d | A five-month staircase above the 50-day; the red day sits on the 21-day EMA; the Kicker gaps clean over the red high (fill at the open, 3.5% stop) and starts the late-1999 run. |
-| 3 | UNH | 2003-11-19 | -1.5% / -1.6% / 10% | +1.6% / +5.0% / 91% / 1.9x | 13.0% | 25.02 (red high +0.01) | 24.70 (1.3%) | 17.2R, 3R in 3d | The "almost failed breakdown": the red day undercuts the base lows and the 50-day, the Kicker gaps back above both; the trap holds and the base resolves up. |
-| 4 | AXON | 2004-11-04 | -1.1% / -3.7% / 28% | +2.5% / +13.2% / 97% / 2.4x | 14.5% | 21.44 (red high +0.01) | 20.70 (3.5%) | 16.2R, 3R in 1d | Tight 6-week shelf over the 21-day EMA; a real red body, then a 13% Kicker on 2.4x volume that closes near its high; 3R the next day. |
-| 5 | BBY | 2013-07-01 | -1.8% / -1.3% / 2% | +2.1% / +8.8% / 92% / 1.9x | 6.2% | 27.97 (red high +0.01) | 27.67 (1.1%) | 37.7R, 3R in 1d | A 6% tight range into the 21-day EMA, red day closes at its low, Kicker closes near its high; the cleanest "two candles on a base" of the set. |
-| 6 | SWKS | 2014-06-03 | -0.6% / -1.9% / 9% | +3.7% / +6.0% / 85% / 2.3x | 6.4% | 44.79 (red high +0.01) | 44.20 (1.3%) | 19.1R, 3R in 1d | A flat 6-week base on a rising 50-day; the red day is small on the day (-0.6%) but a full red body closing near its low; the Kicker breaks the base. |
-| 7 | BOOT | 2020-12-28 | -0.8% / -1.8% / 24% | +1.6% / +7.0% / 86% / 1.6x | 9.7% | 41.42 (red high +0.01) | 40.67 (1.8%) | 37.0R, 3R in 1d | A 4-week flat shelf under $44; the red day leans on the 21-day EMA; the Kicker opens over the red close and takes the red high; the stock runs 40% in six weeks. |
-| 8 | BEN | 2021-03-10 | -1.6% / -1.7% / 2% | +2.6% / +9.8% / 93% / 2.5x | 8.8% | 26.90 (red high +0.01) | 26.51 (1.4%) | 22.8R, 3R in 1d | A pullback that closes right on the 50-day SMA on its low; the Kicker gaps 2.6% and closes +9.8% on 2.5x volume. |
-| 9 | AMD | 2023-12-07 | -1.3% / -3.3% / 7% | +3.4% / +9.9% / 97% / 2.2x | 8.4% | 122.84 (red high +0.01) | 119.51 (2.7%) | 27.6R, 3R in 2d | A 3-week flag on the 10-day EMA after the November run; the red day closes near its low, the Kicker gaps 3.4%, takes the red high and closes at its high (the chart the owner's kept examples look like). |
-| 10 | SMTC | 2024-03-26 | -2.8% / -1.9% / 19% | +4.4% / +13.0% / 82% / 3.5x | 14.2% | 23.24 (open, 1.3% over the red high) | 22.43 (3.5%) | 29.2R, 3R in 1d | Red day back to the 21-day EMA under a flattening 200-day; the Kicker opens over the red high (fill at the open, 3.5% stop) and closes +13% on 3.5x volume; the base turns into a 70% run. |
+| 1 | MS | 1997-07-01 | -1.3% / -1.9% / 0% | +1.6% / +4.3% / 100% / 1.9x | 11.0% | 22.17 (red high +0.01) | 21.76 (1.8%) | 16.8R, 3R in 2d | Pullback to a rising 21-day EMA, the red day closes on its low at the 5-day low, the Kicker opens over it and closes on its high; the stock never looks back. |
+| 2 | UNH | 2003-11-19 | -1.5% / -1.6% / 10% | +1.6% / +5.0% / 91% / 1.9x | 13.0% | 25.02 (red high +0.01) | 24.70 (1.3%) | 17.2R, 3R in 3d | The "almost failed breakdown": the red day undercuts the base lows and the 50-day, the Kicker gaps back above both; the trap holds and the base resolves up. |
+| 3 | AXON | 2004-11-04 | -1.1% / -3.7% / 28% | +2.5% / +13.2% / 97% / 2.4x | 14.5% | 21.44 (red high +0.01) | 20.70 (3.5%) | 16.2R, 3R in 1d | Tight 6-week shelf over the 21-day EMA; a real red body, then a 13% Kicker on 2.4x volume that closes near its high; 3R the next day. |
+| 4 | BBY | 2013-07-01 | -1.8% / -1.3% / 2% | +2.1% / +8.8% / 92% / 1.9x | 6.2% | 27.97 (red high +0.01) | 27.67 (1.1%) | 37.7R, 3R in 1d | A 6% tight range into the 21-day EMA and the 50-day, red day closes at its low, Kicker closes near its high; the cleanest "two candles on a base" of the set. |
+| 5 | SWKS | 2014-06-03 | -0.6% / -1.9% / 9% | +3.7% / +6.0% / 85% / 2.3x | 6.4% | 44.79 (red high +0.01) | 44.20 (1.3%) | 19.1R, 3R in 1d | A flat 6-week base on a rising 50-day; the red day is small on the day (-0.6%) but a full red body closing near its low; the Kicker breaks the base. |
+| 6 | BOOT | 2020-12-28 | -0.8% / -1.8% / 24% | +1.6% / +7.0% / 86% / 1.6x | 9.7% | 41.42 (red high +0.01) | 40.67 (1.8%) | 37.0R, 3R in 1d | A 4-week flat shelf under $44; the red day leans on the 21-day EMA; the Kicker opens over the red close and takes the red high; the stock runs 40% in six weeks. |
+| 7 | BEN | 2021-03-10 | -1.6% / -1.7% / 2% | +2.6% / +9.8% / 93% / 2.5x | 8.8% | 26.90 (red high +0.01) | 26.51 (1.4%) | 22.8R, 3R in 1d | A pullback that closes right on the 50-day SMA on its low; the Kicker gaps 2.6% and closes +9.8% on 2.5x volume. |
+| 8 | AMD | 2023-12-07 | -1.3% / -3.3% / 7% | +3.4% / +9.9% / 97% / 2.2x | 8.4% | 122.84 (red high +0.01) | 119.51 (2.7%) | 27.6R, 3R in 2d | A 3-week flag on the 10-day EMA after the November run; the red day closes near its low at the 5-day low, the Kicker gaps 3.4%, takes the red high and closes at its high (the chart the owner's kept examples look like); a news gap, 25 sessions after the report. |
+| 9 | COHR | 2024-01-16 | -1.8% / -2.4% / 19% | +2.6% / +8.2% / 81% / 2.0x | 10.6% | 42.83 (open, 0.2% over the red high) | 41.33 (3.5%) | 16.7R, 3R in 4d | A 6-week shelf on the 21-day EMA after the November run; the Kicker opens just over the red high (fill at the open, 3.5% stop) and closes +8.2% on 2x volume; the base turns into a 50% run. |
+| 10 | ATRO | 2026-06-11 | -2.7% / -2.5% / 13% | +3.0% / +15.1% / 99% / 2.5x | 10.9% | 68.80 (red high +0.01) | 67.36 (2.1%) | 13.8R, 3R in 1d | Red day into the 21-day EMA and the 50-day; a 15% Kicker on 2.5x volume closing on its high; 13.8R in two weeks, then it gave most of it back and hit the stop inside 60 sessions: the case for the 3R/5R trims and the 10-day trail. |
 
-Not used on purpose: APP 2024-09-11 (a famous Kicker and a 253R replay, but the red day was only -0.09% on the day and
-the 1.4% stop sits on the day's final low; shown to the owner as an extra if he wants it), TSLA 2020-11-18 (the red day
-was a +8% gap-up that faded, so not a pullback red day), GFI 2005-11-16 (red body 6.8%, outside the typical 1% to 5.5%),
-HOG 2010-05-10 (a topping pattern, messy), and every ETF.
+Not used on purpose: CSCO 1999-11-10 (the report day, above), SMTC 2024-03-26 (a 29R replay, but its report came two
+sessions after the Kicker, reaction day 2024-04-01: B22 forbids the buy; the second pass drops it), FORM 2025-10-29
+(ran up 12.5% into its own report after the close; dropped by the second pass), APP 2024-09-11 (a famous Kicker and a
+253R replay, but the red day was only -0.09% on the day and the 1.4% stop sits on the day's final low; shown to the
+owner as an extra if he wants it), TSLA 2020-11-18 (the red day was a +8% gap-up that faded, so not a pullback red
+day), GFI 2005-11-16 (red body 6.8%, outside the typical 1% to 5.5%), HOG 2010-05-10 (a topping pattern, messy), NEM
+2005-11-16 and RCL 2010-02-24 (textbook structure, but their 0.4% and 0.8% stops sit on the day's final low, so the
+115R and 58R are not honest), and every ETF.
 
 **Notable failures (from the same scan):**
-- **GOOGL 2020-02-03 and AVGO 2024-03-07: the Kicker day was the report day.** Both reported after the close of the
-  Kicker day itself. The scan's earnings test only excludes a reaction on the red day or the Kicker day, so a report
-  after the Kicker's close slipped through; both gapped down the next morning and hit the stop with 0R. The lesson is
-  B22 (no new trade into a report) and a fix for the scanner: also exclude a report within the next session.
-- **AVGO 2025-10-13: a shock-day reversal.** The red day (2025-10-10) fell 6% with a 7.8% range; the Kicker opened 8.7%
-  above the red close (1% over the red high, so a fill at the open with the 3.5% stop) and closed +9.9% on 2x volume.
-  The next day's low was under the stop: 0R. A giant red bar from a one-day market shock is not an orderly pullback.
-- **CSCO and MA, both 2018-10-12: a bounce day in a breaking market.** Both printed Kickers on the first up day after
-  the 10-11 October 2018 break (CSCO best 0.7R, MA 1.1R, both stopped within weeks). Under the rulebook neither is a
-  trade in a Red market (D46); the pattern alone is not enough.
+- **AVGO and TSM, both 2025-10-13: a shock-day reversal.** The red day (2025-10-10) fell 5.9% and 6.4%; AVGO opened
+  8.7% above the red close (1% over the red high, a fill at the open with the 3.5% stop) and closed +9.9% on 2x
+  volume, TSM +7.9% on 1.8x. Both had the next day's low under the stop: 0R. A giant red bar from a one-day market
+  shock is not an orderly pullback, and the 3 ATR cap did not catch it.
+- **LLY 2020-03-13, EFX and SBAC 2020-03-10, MA 2011-08-09, CSCO and MA 2018-10-12: bounce days in a breaking
+  market.** Red days of -7% to -10.6% in the 2020 and 2011 cases, then a textbook-looking Kicker (LLY +10.6% on a 5.5%
+  gap) that was stopped at 0R; the two October 2018 names made 0.7R and 1.1R and were stopped within weeks. Under the
+  rulebook none is a trade in a Red market (D46); the pattern alone is not enough.
+- **GOOGL 2020-02-03 and AVGO 2024-03-07: the report after the Kicker's own close.** The first pass let them through
+  (its earnings test only excluded a reaction on the red day or the Kicker day); both gapped down the next morning to
+  0R. The second pass excludes any reaction day in the next 4 sessions (B22), which also removed SMTC and FORM above;
+  it cut the hit count from 669 to 622 and left the base rate where it was (48.0% to 48.2% at 3R).

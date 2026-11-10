@@ -1051,3 +1051,73 @@ section 7, and the numbers in 4.7, 4.8, 6.1 and 9.2 (recomputed from the bars an
 
 Nothing from the proposed rules (section 8) had to be removed: each line is measurable as written, and the only
 [source consensus] tag (8.8 #4) rests on two named sources.
+
+## 12. Examples (from our data)
+
+**The scan's rule (one paragraph).** Daily bars from the local sandbox, scanned over the 2,630 names that ever met the house
+liquidity rule (every one of them was scanned; nothing was cut for time; first hit 1998, last 2026). The climax
+day is a gap-down day (open at least 1% under the prior close, the required box 5) whose close is back above its open
+and in the upper half of its range: the daily-bar stand-in for B2's VWAP reclaim, since the 5-minute history only
+covers the last 60 trading days. At least 4 of the 5 mirrored boxes must be ticked (box 1 three lower closes before
+the climax; box 2 two consecutive gap-down opens; box 3 two of the three burst days losing a bigger % than the day
+before; box 4 rising volume two days running into the climax; box 5 the gap down). Context: (a) the climax low at
+least 40% under the 20-session high with that high set inside the last 5 sessions, or (b) the prior close at least
+5 ATR(20) under the 50-day SMA (3 ATR for a list of 35 broad index ETFs, scanned separately, which gave only DIA and
+MDY). House rules: prior close $10 or more and 20-day average dollar volume $20 million or more (B23); climax volume at
+least 2x its 50-day average (R6); the fill is the climax close (market order, E57); the fill may not be more than 4%
+over the day's OHLC average, the chase check (C28); stop at the day's low less 3 cents or 0.1%, whichever is more
+(S1), and the trade skipped if the stop is under 1.5% or over 8% away (S2); the 9-day EMA at least 2R above the fill
+(R7); the 200-day is not a gate (B26's exception, R8), and every hit in the table below is under it. One hit per name
+per 10 sessions. Not coded: R9 (the company's own news; the report dates were checked by hand on the examples), the
+opening-minutes volume, the index reading, the Monday preference and the trims. Outcome: from the day after the
+climax, 60 sessions forward, the first of stop / 3R / 5R; both the same day, the stop wins.
+
+**Base rate.** 304 hits. **23.4% reached 3R and 10.9% reached 5R before the stop**; 87% were
+eventually stopped at the original stop inside the 60-session window (winners included, since the stop never moves
+here). This is a fixed stop with no trims, no breakeven move and no 9 EMA exit, so it understates the planned trade
+(T2 takes two thirds at the 9 EMA or 3R) and overstates how often a real trade is stopped. The sample is lumpy:
+83 of the 304 hits fired on one day, 2020-02-28, the first week of the Covid crash, and all 83 were stopped
+(8 reached 3R first, none 5R). Without 2020 the rate is 32.5% to 3R and 17.0% to 5R on 194 hits,
+which is the fairer read of a climax that is not the first week of a crash. Five boxes did not beat four
+(22.9% vs 23.6% to 3R), and a deeper stretch (7 ATR or more) did not help on its own (24.3%
+on 74); what separated winners from losers was the date: the clusters that worked were 2001-09-21 (4 of 4 to 5R),
+2025-04-07 (3 of 5 to 5R) and 2024-08-05 (2 of 2 to 3R); the ones that failed were 2020-02-28, 2020-03-06 (10 hits,
+none reached 1R) and the 2023-03-16 bank-panic day. Window: 60 sessions after the climax.
+
+**The ten examples** (sheets: `final/sheet_1-4.png`, `sheet_5-7.png`, `sheet_8-10.png` under the scratch folder
+`_study-resume/scratchpad/setups/38-parabolic-long/`; one chart per example, 75 sessions before, 30 after; buy, stop, 3R
+and 5R drawn; the burst boxed from its peak to the climax low). One per ticker, ten different years, seven stocks and
+three ETFs (AGQ, EPI, EWH; R1 allows them). Every example is a market, sector or group liquidation, not the company's
+own news (NTCT 2016-02-09, which would have made 7R, was dropped because its fall began with its own report on
+2016-01-28, R9). The stand-in entry is the climax close; a real B2 entry on the first 5-minute close back over VWAP
+would usually be lower, with the same stop.
+
+| # | Ticker | Climax day | Structure | Buy | Stop (dist.) | Best R | Why it is textbook |
+|---|---|---|---|---|---|---|---|
+| 1 | JCI | 2001-09-21 | -27.2% in 14 sessions; -6.7 ATR vs 50-day; 4/5 boxes; gap -4.3%; vol 2.2x; close +3.9% off the open | 84.95 | 81.62 (3.9%) | 12.06R (5R; 3R in 5 sessions) | The 2001-09-21 low, the Friday of the first week after the September 2001 closure; a market-wide panic (DIA, JPM and F fired the same day, all four reached 5R). Fourteen sessions of accelerating selling, a 4.3% gap down, a close near the high on rising volume; 3R in 5 sessions, the 9 EMA inside two weeks, never stopped. |
+| 2 | BOH | 2008-07-15 | -28.5% in 16 sessions; -5.7 ATR vs 50-day; 4/5 boxes; gap -1.6%; vol 2.9x; close +0.8% off the open | 39.34 | 37.42 (4.9%) | 15.97R (5R; 3R in 2 sessions) | A bank in the July 2008 financials liquidation, not its own news (its report came 9 sessions later, 2008-07-28). The climax bar is a huge-range gap down that closes green on 2.9x volume; 3R in 2 sessions, 5R inside two weeks, 16R before the window closed. |
+| 3 | AGQ | 2010-02-05 | -40.3% in 18 sessions; -5.2 ATR vs 50-day; 5/5 boxes; gap -2.6%; vol 2.8x; close +0.9% off the open | 89.56 | 83.01 (7.3%) | 6.67R (5R; 3R in 16 sessions) | A 2x silver fund (R1 welcomes leveraged ETFs) 40% under a high set 18 sessions earlier, all 5 boxes, a gap down closing green on 2.8x volume. A leveraged commodity unwind. The stop was 7.3% away, so S2 sizes it down; 3R in 16 sessions, 6.7R best. |
+| 4 | EPI | 2013-08-28 | -17.8% in 19 sessions; -6.0 ATR vs 50-day; 4/5 boxes; gap -3.1%; vol 3.5x; close +2.2% off the open | 13.30 | 12.96 (2.6%) | 11.24R (5R; 3R in 5 sessions) | An India fund in the August 2013 rupee selloff, a country-level panic with nothing company-specific. A 19-session slide to 6 ATR under the 50-day, a 3.1% gap down, 3.5x volume, a close 2.2% off the open; 3R in 5 sessions, 11R best. |
+| 5 | EWH | 2015-08-24 | -21.6% in 18 sessions; -7.4 ATR vs 50-day; 4/5 boxes; gap -8.3%; vol 5.3x; close +2.3% off the open | 18.26 | 17.54 (3.9%) | 4.17R (3R; 3R in 37 sessions) | The 2015-08-24 Monday flush (8 names fired that day): gap down 8.3%, 5.3x volume, 7.4 ATR under the 50-day, a close 2.3% off the open. Textbook bar, slow payoff: the stop never traded but 3R took 37 sessions, and the cluster as a whole averaged under 1R (3 of 8 reached 3R, none 5R). |
+| 6 | HTHT | 2021-07-27 | -29.0% in 16 sessions; -6.9 ATR vs 50-day; 5/5 boxes; gap -4.5%; vol 7.2x; close +3.2% off the open | 40.75 | 38.97 (4.4%) | 6.48R (5R; 3R in 1 session) | The late-July 2021 China liquidation (6 names fired on 2021-07-27): 7.2x volume on the climax, a 4.5% gap down, a close 3.2% off the open, all 5 boxes; 3R the next session, 5R within six weeks. A crowded group unwinding at once, the 8.7 best context. |
+| 7 | BABA | 2022-03-15 | -43.4% in 17 sessions; -6.7 ATR vs 50-day; 5/5 boxes; gap -3.4%; vol 3.6x; close +2.2% off the open | 76.76 | 73.20 (4.6%) | 13.3R (5R; 3R in 1 session) | The March 2022 China ADR washout: 43% off the high in 17 sessions, all 5 boxes, 3.6x volume, a close 2.2% off the open; 3R the very next session, 13R best. The clearest V in the set; MCHI, FXI and QFIN fired the same day and all reached 5R. |
+| 8 | SLG | 2023-03-24 | -47.1% in 19 sessions; -8.6 ATR vs 50-day; 5/5 boxes; gap -1.1%; vol 3.7x; close +3.8% off the open | 20.50 | 19.03 (7.2%) | 4.9R (3R; 3R in 6 sessions) | An office REIT in the March 2023 regional-bank panic: 47% off the high in 19 sessions, 8.6 ATR under the 50-day, all 5 boxes, 3.7x volume, a close 3.8% off the open; 3R in 6 sessions. The stop was 7.2%, so S2 sizes it down. Eight names fired in March 2023 and only this one reached 3R: the 03-16 hits (BKU, BPOP) were a week too early. |
+| 9 | DB | 2024-08-05 | -19.7% in 9 sessions; -5.1 ATR vs 50-day; 4/5 boxes; gap -4.2%; vol 2.3x; close +2.2% off the open | 14.08 | 13.67 (2.9%) | 9.15R (5R; 3R in 9 sessions) | The 2024-08-05 Monday (the yen carry unwind): a 9-session, 20% fall, a 4.2% gap down, a close 2.2% off the open on 2.3x volume; 3R in 9 sessions, 9R best. The short, sharp burst the rule prefers (R4), and a Monday (B5). |
+| 10 | GE | 2025-04-07 | -25.6% in 8 sessions; -5.3 ATR vs 50-day; 5/5 boxes; gap -2.2%; vol 3.5x; close +2.8% off the open | 167.70 | 159.19 (5.1%) | 10.91R (5R; 3R in 11 sessions) | The April 2025 tariff crash Monday (5 names fired, 3 reached 5R; the index was 6.4 ATR under its 50-day the day before, the 8.7 best condition): 8 sessions, 26% off the high, all 5 boxes, 3.5x volume, a close 2.8% off the open. 3R came on 2025-04-23, the session after its 04-22 report gapped it up, so the hold carried earnings risk; 5R and 11R by mid-May. |
+
+**Notable failures, in words.**
+
+1. **2020-02-28, the start of a crash (83 names fired, 0 reached 5R, all stopped).** DIA, MDY, CVS, RF, BAC and dozens
+   more printed a gap-down reversal day on heavy volume after a week of accelerating selling: every box ticked, every
+   context met. It was the first week of a breakdown from an all-time high, the 8.7 "worst" case; the real low came
+   16 sessions later and far lower. The 2020-03-06 repeat (10 hits, none reached even 1R; AAL made 0R) was the same
+   lesson. The rule cannot see this from the bars; the owner's market reading (Orange or Red, section 8.7) has to.
+2. **BKU 2023-03-16, a week too early.** A 44% fall to 8.2 ATR under the 50-day, 4 boxes, 4.4x volume, a green close:
+   stopped at 0R the next session. The regional-bank panic had one more leg; SLG, six sessions later on 03-24, is
+   example 8. Mistake 2 in 8.8: the first turn after a shock often comes too early.
+3. **ALGN 2018-10-26, the company's own news.** A 45% fall and a reversal day on 4.6x volume, but the fall began with
+   its own report (2018-10-24 after the close): 0R, stopped. R9 exists for this; the cost is that R9 also throws out
+   the occasional winner (NTCT above).
+4. **SQQQ 2020-08-27, an inverse fund is not a capitulation.** A 3x inverse Nasdaq ETF 35% off its high with all 5
+   boxes made 0.01R. Its "selling climax" is simply the index making a high; mean reversion in an inverse fund is a
+   bet on an index pullback, which is a different setup with different odds.

@@ -1132,3 +1132,81 @@ ETHA/ETHU (2025-11-05), the USO mean-reversion short he would not front-run (202
 unsupported were the "recommends readers build a stop anyway" reading of StockCharts (item 1), the exit threshold "80"
 (item 4), "director of research" stated as fact (item 2), "stair-step" (item 8), and the unqualified "signals were fixed
 before the first run" (item 7); each is replaced by the sourced wording above.
+
+---
+
+## 13. Examples (from our data)
+
+Numbered 13 because section 12 of this dossier is already the cold check. Scan, hits and charts:
+`_study-resume/scratchpad/setups/36-mean-reversion/` (`scan_mr.py`, `final/hits.json`, `chart_mr.py`, `final/01..10_*.png`,
+`final/sheet_1-4.png`, `sheet_5-7.png`, `sheet_8-10.png`). Daily bars only; no intraday turn, VWAP, VIX or breadth
+filter was available to the scan, so it is a daily-bar proxy of section 8, not the full rule.
+
+**The scan's rule (one paragraph).** Universe: the 2,630 names that ever met the liquidity rule (B23), each hit requiring a
+close of $10 or more and a 50-day average of $20 million traded; window 2000-01-05 to 2026-11-06, one hit per name per
+5 sessions. *Long (the leader flush):* the day before the slide began the stock closed above its 50-day and 200-day SMA
+and was up at least 25% from its 63-day low; the flush day F closed down, above the 200-day, on volume at least 1.5x its
+50-day average, with at least two of the five stretch marks from section 8.2 (a 2 ATR(14) drop from the prior close to
+the day's low; a close under the lower Bollinger band 20,2; RSI(2) under 5, computed with simple averages, Cutler's form;
+3 or more straight down closes; a close 40% or more under the 10-session high). *The turn:* the next session trades above
+the flush close while still above the 200-day; the entry is that session's open if it gapped above the flush close,
+otherwise the flush close plus a cent (a market order at the reclaim, E57), skipped if the entry is more than 4% above
+the flush close (C28). *Stop:* five cents under the lower of the flush low and the turn-day low (A13, F62), skipped if
+wider than 7%. *Short (the mirror, D47, B26):* the pop day closed up, below the 200-day, with the 50-day under the 200-day,
+volume 1.5x, at least two of the mirrored marks (a 2 ATR pop, a close over the upper band, RSI(2) over 95, 3+ straight up
+closes, a close 3 ATR over the 20-day), and the day's high at or above 98% of the lower of the 20 and 50-day (a loose
+"into the declining average"); the turn is the next session trading under the pop close, entry at the open if it gapped
+under, otherwise the pop close less a cent; stop five cents over the higher of the pop high and the turn-day high.
+*Outcome:* from the day after entry, the first of the stop, 3R and 5R within 20 sessions; a day that touches both the
+stop and a target counts as stopped.
+
+**Base rate.** 28,741 hits (11,227 long, 17,514 short) over 2,630 of 2,630 liquid names, 2000-2026: **29.8% reached 3R
+and 17.9% reached 5R before the stop** (long 29.8 / 18.0; short 29.7 / 17.9); 75-77% were stopped within the 20
+sessions. This is a fixed stop with no trims, no breakeven move, no time stop and no 20-day target, so it understates the
+setup as section 8.5 would trade it (Option 2 sells into the first test of the average) and overstates the stop rate for
+a trader who exits on the 3-session time stop. Three things the numbers say: (1) a tighter honest stop helped, with the
+3R rate 37.3% long and 34.4% short when the stop was 3% or less (A13); (2) the stretch count did NOT separate winners on
+daily bars (long: 2 marks 30.2%, 3 marks 28.9%, 4 marks 28.5%, 5 marks 3 of 4), so on this proxy the count describes the
+stretch but does not predict the bounce; (3) by year the long 3R rate ran 21% (2008) to 46% (2000), with 2018, 2022 and
+2023 in the low 20s, which fits section 8.8's warning about bear markets. Section 4.4 measured 20-24% to 3R with a
+different stop and signal set; the two are not comparable line by line.
+
+**The 10 examples.** Six leader flushes, four short mirrors, one per name, ten different years. Each chart shows the box
+from the day before the slide (or rally) to the flush (or pop) day, the "flush/pop" and "turn" marks, the buy or short
+line, the stop, 3R and 5R, the 10 and 20-day EMA and the 50 and 200-day SMA. "Best R" is the best excursion within 20
+sessions before the stop; the report dates come from `earnings_reaction_days` (complete from about 2005).
+
+| # | Ticker, turn day | Side | Structure | Buy / stop (R) | Best R | Why it is textbook |
+|---|---|---|---|---|---|---|
+| 1 | GRMN 2006-06-14 | Long | after +26% in 3 months, 4 down days, -13.3% slide to 9.8% under the 50-day, flush 2.2 ATR on 2.5x volume, RSI(2) 0, 4/5 marks | 41.78 / 40.26 (3.7%) | 8.5 | The flush day's low undercuts the rising 50-day and the next day reclaims it; back at the 20-day in two sessions and the trend resumes. The stop is a little over 3%: size down (A13). No report found in the window (the report dates are thin before 2005). |
+| 2 | EQT 2011-08-09 | Long | after +32%, 5 down days, -25.2% slide in the August 2011 market sell-off, flush 2.2 ATR on 2.0x volume, RSI(2) 0, 4/5 marks | 26.76 / 26.00 (2.8%) | 9.3 | Form A inside a fear spike (section 8.8): a leader loses a quarter of its value in five sessions and the flush day closes on the rising 200-day (close 26.21, the average 26.20, low 26.05); the turn day closes near its high and 3R prints the next day. No report found in the window. |
+| 3 | LITE 2016-11-01 | Long | after +46%, 5 down days, -20.5% slide to 15.7% under the 50-day, flush 2.5 ATR on 3.5x volume, RSI(2) 0, 4/5 marks | 33.61 / 32.85 (2.3%) | 11.7 | A fresh leader's post-report slide (report 2016-10-27, two sessions before the flush) ends in a volume climax at the 50-day's neighbourhood; the turn day's follow-through pays 3R the next session, the bounce then chops under the 20-day for a week, and the stock runs to new highs inside 20 sessions (11.7R). Shows why Option 2 takes a third into the first average. |
+| 4 | ACMR 2020-09-09 | Long | after +79%, 3 down days, -38.6% slide, 39% under the 10-session high, flush 3.5 ATR on 3.5x volume, RSI(2) 0, 5/5 marks | 20.00 / 19.29 (3.5%) | 8.1 | The post-blow-off form (mark 5): a parabolic run breaks and loses 39% in three sessions on the heaviest volume of the chart, then bounces to the 20-day. The later chart is sideways: this is a 1-5 session trade, not a trend. No report found in the window. |
+| 5 | KRYS 2023-08-08 | Long | after +59%, 4 down days, -17.9% slide to 12.6% under the 50-day, flush 3.3 ATR on 4.0x volume, RSI(2) 0, 4/5 marks | 109.13 / 106.88 (2.1%) | 9.2 | An earnings flush (report 2023-08-07, the flush day, which closed near its low at 108.51): the turn day opens above the flush close, runs through the flush day's open and closes at 3R; 5R prints two sessions later. A clean "overreaction" 13% under the rising 50-day in a stock still 20% above its 200-day. |
+| 6 | JXN 2024-08-06 | Long | after +29%, 3 down days, -24.5% slide, flush 2.5 ATR on 2.6x volume, RSI(2) 0, 4/5 marks | 69.43 / 66.48 (4.3%) | 7.0 | The 2024-08-05 market-wide flush: the whole slide is three sessions, the low undercuts the 50-day by 14% but stays far above the rising 200-day, and the stock is back above its 10 and 20-day in three sessions and near its prior high in two weeks. The honest stop is 4.3%: size down or skip (A13). No report found in the window. |
+| 7 | UA 2017-04-28 | Short | 26.8% under the 200-day, 50-day under the 200-day; 4 up days, +14.1% rally, pop 3.7 ATR on 3.9x volume into the declining 50-day, RSI(2) 100, 5/5 marks | 19.70 / 20.05 (1.8%) | 7.1 | The mirror: a broken stock pops on its report (2017-04-27) into its falling 50-day, fails the next day and bleeds back to the 10-day and lower. Stop over the pop high; 3R in two sessions. |
+| 8 | NUS 2019-05-02 | Short | 3.7% under the 200-day; 7 up days, +34.0% rally, pop 6.6 ATR on 4.9x volume to the declining 50-day, RSI(2) 100, 5/5 marks | 64.31 / 64.95 (1.0%) | 29.2 | The best stretch in the set: a seven-day, 34% rally that ends with a post-report gap (report 2019-04-30 after the close) straight into the declining 50 and 200-day; the next day's reversal never looks back. A 1% stop is why the R count is so high. |
+| 9 | IOT 2025-09-08 | Short | 2.2% under the 200-day; 3 up days, +20.8% rally, pop 4.1 ATR on 4.2x volume to the declining 200-day, RSI(2) 100, 5/5 marks | 42.08 / 42.92 (2.0%) | 7.5 | A report gap (2025-09-04 after the close) that tags the declining 200-day on 4x volume; the turn is the next session's break of the pop close, 3R in one day, and the stock drifts back to its 20-day over the following weeks. |
+| 10 | FMC 2026-09-03 | Short | 1.3% under the 200-day; 4 up days, +26.3% rally, pop 2.8 ATR on 1.6x volume straight into the declining 200-day, RSI(2) 100, 5/5 marks | 13.30 / 13.51 (1.6%) | 23.7 | Four straight up days into the 200-day, rejected the next day; the stock then loses more than half its value over the next six weeks. Volume on the pop was the lightest in the set (1.6x), near the rule's floor. No report found in the window. The price ($13) still clears B23's $10. |
+
+Five of the ten extremes (LITE, KRYS, UA, NUS, IOT) were earnings reactions and five were not; the dossier's rules do not
+distinguish them, and this set does not show that one kind bounces better. The owner may want a ruling (section 10).
+
+**Notable failures (from the same hits; charts in `final/fails/`).**
+
+- **ELF 2024-04-04, long, 0R.** Eight straight down closes (-21% after a +58% run) ended with a 2.2 ATR flush on 3x
+  volume under the 50-day, RSI(2) 0: four marks. The turn day reclaimed the flush close and closed red; the stop
+  (2.2%) was hit the next session. The stock did bounce for two weeks after that, but the trade was a full loss. Lesson: an eight-day slide through the 50-day
+  on a stock that had just made a parabolic top is a broken leader, not a stretched one (section 8.9, mistakes 3 and 10).
+  No report in the window.
+- **NFLX 2022-07-21, short, 0R.** A post-report gap (report 2022-07-19 after the close) up 24% in four days on 4.9x
+  volume, 47% under the 200-day, RSI(2) 100: four marks. The next day traded under the pop close, the short triggered,
+  and the stock never came back; it climbed for the next month. Lesson: a report gap that changes the story is an
+  earnings gap (dossier 21), not a stretched rally in a dead stock; the honest stop was also 4.9%, over A13.
+- **IONQ 2026-04-16, short, 0R.** A 54% rally in four days on 4.2x volume to 7% under the 200-day, 5/5 marks. The turn
+  day dipped under the pop close, the short triggered with a 5.2% stop, the stop was hit the next session, and the stock traded
+  above $60 within five weeks. Lesson: section 8.9, mistake 5, fading a strong momentum burst; a four-day 54% move is the
+  parabolic family (dossier 38), not the mean-reversion short.
+- **DASH 2024-05-03, long, 0.2R.** A report flush (2024-05-01 after the close) of 3.2 ATR on 6x volume, 17.5% in three
+  days after a +27% run, four marks; the turn day reclaimed and failed. Lesson: the honest stop was 6.4%, double A13's
+  guide, and a report-driven drop in a name still well under its high had no level to lean on (section 8.2, location).
