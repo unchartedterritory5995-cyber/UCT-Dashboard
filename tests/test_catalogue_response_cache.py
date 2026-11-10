@@ -147,9 +147,30 @@ def test_a_warm_breadth_cache_is_not_served_to_an_anonymous_caller(breadth):
     assert _client(bm_router.router).get("/api/breadth-symbols").status_code == 401
 
 
-def test_neither_route_advertises_itself_to_a_shared_cache():
+def _assert_not_publicly_cacheable(response):
+    assert response.status_code == 200
+    header = (response.headers.get("cache-control") or "").lower()
+    assert "public" not in header and "s-maxage" not in header, header
+
+
+def _member_client(router, gate):
+    """A real HTTP round trip for a paid member, so the assertion reads the response itself."""
+    app = FastAPI()
+    app.include_router(router)
+    app.dependency_overrides[gate] = lambda: {"id": "paid"}
+    return TestClient(app)
+
+
+def test_indicator_response_is_not_publicly_cacheable_cold_or_warm(indicators):
     """A public cache header on a paid route is the leak this design exists to avoid."""
-    import inspect
-    for fn in (mi_router.get_catalogue, bm_router.get_breadth_symbols):
-        src = inspect.getsource(fn)
-        assert "s-maxage" not in src and "Cache-Control" not in src
+    client = _member_client(mi_router.router, mi_router.require_paid)
+    _assert_not_publicly_cacheable(client.get("/api/market-indicators"))
+    _assert_not_publicly_cacheable(client.get("/api/market-indicators"))
+    assert len(indicators) == 1
+
+
+def test_breadth_response_is_not_publicly_cacheable_cold_or_warm(breadth):
+    client = _member_client(bm_router.router, bm_router.require_bars_access)
+    _assert_not_publicly_cacheable(client.get("/api/breadth-symbols"))
+    _assert_not_publicly_cacheable(client.get("/api/breadth-symbols"))
+    assert len(breadth) == 1
