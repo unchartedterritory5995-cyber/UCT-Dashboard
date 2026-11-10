@@ -131,25 +131,6 @@ function _key(sym, tf) {
   return `${sym.toUpperCase()}_${tf}`
 }
 
-// Detect mid-session gaps in cached intraday bar series. mergeDelta can only
-// ADD bars and cannot fill a gap older than the latest cached timestamp, so
-// any gap that slipped in (FMP-shifted ts, dropped write, network failure
-// mid-write, etc.) is permanent until the cache is fully refetched.
-// Returning a stale signal here forces idbGet's caller to do a full no-since
-// refetch, healing the IDB from the authoritative server.
-//
-// Active only for tf in {15, 30, 60}: 1m/5m series legitimately gap on
-// illiquid tickers and a strict check would force a refetch on every chart
-// open. For 15/30/60min, missing bars on a liquid ticker are nearly always
-// real bugs.
-//
-// Deliberately NOT paired with a CACHE_LOGIC_VERSION bump: a bump would
-// invalidate every browser's IDB simultaneously, and the resulting
-// thundering herd of full-fetches (5000 bars × N mounted charts) can
-// saturate SQLite's 2s busy_timeout on the web pod and trigger a deploy-
-// window outage (verified 2026-05-24 incident, reverted in dd5ce85).
-// Without the bump, this detector heals affected users gradually on each
-// chart open instead of all at once.
 /**
  * A 60m entry written before the 2026-11-10 grid move (09:30, 10:00, 11:00 …)
  * carries off-grid bucket starts; merging a new-grid delta into it would put
@@ -171,6 +152,25 @@ export function _hasOldSixtyMinGrid(bars, tf) {
   return false
 }
 
+// Detect mid-session gaps in cached intraday bar series. mergeDelta can only
+// ADD bars and cannot fill a gap older than the latest cached timestamp, so
+// any gap that slipped in (FMP-shifted ts, dropped write, network failure
+// mid-write, etc.) is permanent until the cache is fully refetched.
+// Returning a stale signal here forces idbGet's caller to do a full no-since
+// refetch, healing the IDB from the authoritative server.
+//
+// Active only for tf in {15, 30, 60}: 1m/5m series legitimately gap on
+// illiquid tickers and a strict check would force a refetch on every chart
+// open. For 15/30/60min, missing bars on a liquid ticker are nearly always
+// real bugs.
+//
+// Deliberately NOT paired with a CACHE_LOGIC_VERSION bump: a bump would
+// invalidate every browser's IDB simultaneously, and the resulting
+// thundering herd of full-fetches (5000 bars × N mounted charts) can
+// saturate SQLite's 2s busy_timeout on the web pod and trigger a deploy-
+// window outage (verified 2026-05-24 incident, reverted in dd5ce85).
+// Without the bump, this detector heals affected users gradually on each
+// chart open instead of all at once.
 // ⭐ (2026-11-10) RETURNS WHERE THE HOLE STARTS (unix sec of the bar before it), or null.
 // The caller no longer discards the cache on a hole — see idbGet.
 export function _intradayGapStart(bars, tf) {
