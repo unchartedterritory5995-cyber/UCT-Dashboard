@@ -1,0 +1,79 @@
+# head 93d0e211a9 2026-11-10T22:52:15Z dirty: 0 tracked file(s) modified
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+# cmd: cd app && npx vitest run src/agent/agentWhichWidget.rail.test.jsx
+ RUN  v4.0.18 C:/w/pl-widget/app
+ ❯ src/agent/agentWhichWidget.rail.test.jsx (6 tests | 4 failed) 6269ms
+     × "refresh the scanner" (the plan picked the top one): asked which, and neither door is pressed 1174ms
+     × "don't touch the period sort, just reload the scanner", planned on the Period Sort: the Period Sort gets NO refetch, nothing is claimed 1040ms
+     × u18-show-05 "put Long Term on the Swing watchlist widget": the Swing widget shows Long Term; the other is untouched; no question 962ms
+     × u18-export-04 "export the Swing watchlist as a csv file": the Swing widget's own Export CSV, no question 1027ms
+     ✓ "refresh the IPOs scanner" with two Scanners: that one only  1036ms
+     ✓ "refresh the scanner" with ONE Scanner (and a Period Sort): it acts  1028ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  src/agent/agentWhichWidget.rail.test.jsx > (a) u18-refresh-10: two Scanners and no name: asked, nothing refreshed > "refresh the scanner" (the plan picked the top one): asked which, and neither door is pressed
+AssertionError: UCT Agent5:52 PMRefreshed the Scanner: expected [ 'refresh' ] to deeply equal []
+- Expected
++ Received
+- []
++ [
++   "refresh",
++ ]
+ ❯ src/agent/agentWhichWidget.rail.test.jsx:49:43
+     47|     p.st.envelopes.push(plan(refresh('sa')))
+     48|     const out = await say('refresh the scanner')
+     49|     expect([...a.calls, ...b.calls], out).toEqual([])
+       |                                           ^
+     50|     expect(out).toMatch(/which/i)
+     51|     expect(out).not.toMatch(/Refreshed/)
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+ FAIL  src/agent/agentWhichWidget.rail.test.jsx > (d) u18-refresh-06: an EXCLUDED widget is never acted on > "don't touch the period sort, just reload the scanner", planned on the Period Sort: the Period Sort gets NO refetch, nothing is claimed
+AssertionError: UCT Agent5:52 PMRefreshed the Period Sort: expected [ 'refresh' ] to deeply equal []
+- Expected
++ Received
+- []
++ [
++   "refresh",
++ ]
+ ❯ src/agent/agentWhichWidget.rail.test.jsx:61:27
+     59|     p.st.envelopes.push(plan(refresh('ps')))
+     60|     const out = await say("don't touch the period sort, just reload th…
+     61|     expect(ps.calls, out).toEqual([])                                 …
+       |                           ^
+     62|     expect(out).not.toMatch(/Refreshed/)
+     63|     expect(s.calls).toEqual([])                                       …
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+ FAIL  src/agent/agentWhichWidget.rail.test.jsx > over-asks (AUDIT 3): a widget named by the list it shows acts with no question > u18-show-05 "put Long Term on the Swing watchlist widget": the Swing widget shows Long Term; the other is untouched; no question
+AssertionError: UCT Agent5:52 PMYou have 2 Watchlist widgets — which one: the top one or the bottom one? Nothing changed yet.: expected 'user:s1' to be 'user:l1' // Object.is equality
+Expected: "user:l1"
+Received: "user:s1"
+ ❯ src/agent/agentWhichWidget.rail.test.jsx:73:47
+     71|     p.st.envelopes.push(plan(['watchlist.showList', { widget: 'wb', so…
+     72|     const out = await say('put Long Term on the Swing watchlist widget…
+     73|     expect(optsOf(board, 'wb').watchKey, out).toBe('user:l1')
+       |                                               ^
+     74|     expect(JSON.stringify(optsOf(board, 'wa'))).toBe(before)
+     75|     expect(out).not.toMatch(/which one/i)
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+ FAIL  src/agent/agentWhichWidget.rail.test.jsx > over-asks (AUDIT 3): a widget named by the list it shows acts with no question > u18-export-04 "export the Swing watchlist as a csv file": the Swing widget's own Export CSV, no question
+AssertionError: UCT Agent5:52 PMYou have 2 Watchlist widgets — which one: the top one or the bottom one? Nothing changed yet.: expected [] to deeply equal [ [ 'export', 'csv' ] ]
+- Expected
++ Received
+- [
+-   [
+-     "export",
+-     "csv",
+-   ],
+- ]
++ []
+ ❯ src/agent/agentWhichWidget.rail.test.jsx:82:26
+     80|     p.st.envelopes.push(plan(['watchlist.exportList', { widget: 'wb', …
+     81|     const out = await say('export the Swing watchlist as a csv file')
+     82|     expect(b.calls, out).toEqual([['export', 'csv']])
+       |                          ^
+     83|     expect(a.calls).toEqual([])
+     84|     expect(out).not.toMatch(/which one/i)
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+ Test Files  1 failed (1)
+      Tests  4 failed | 2 passed (6)
+   Start at  17:52:18
+   Duration  14.98s (transform 6.00s, setup 353ms, import 7.48s, tests 6.27s, environment 699ms)
