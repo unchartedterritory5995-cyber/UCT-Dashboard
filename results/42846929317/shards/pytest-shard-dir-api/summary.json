@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 348,
+  "passed": 346,
+  "failed": 1,
+  "errored": 0,
+  "skipped": 1,
+  "wall_s": 45.93,
+  "failed_files": [
+    "tests/api/test_sse_gzip_exempt.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "1 failed, 346 passed, 1 skipped, 7 warnings in 45.93s",
+  "ok": true
+}

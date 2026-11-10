@@ -1,0 +1,19 @@
+{
+  "suite": "pytest",
+  "collected": 3913,
+  "passed": 3874,
+  "failed": 8,
+  "errored": 0,
+  "skipped": 31,
+  "wall_s": 711.4,
+  "failed_files": [
+    "tests/test_budget_isolation.py",
+    "tests/test_c45_withheld_doors.py",
+    "tests/test_cadence_heartbeat.py",
+    "tests/test_calendar_week_post.py",
+    "tests/test_canonical_address_book.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "8 failed, 3874 passed, 31 skipped, 1 xfailed, 237 warnings in 711.40s (0:11:51)",
+  "ok": true
+}
