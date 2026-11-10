@@ -1,0 +1,18 @@
+cpu at start: 
+PASS  WO-01  how do I rerun the scan in my scanner widget
+PASS  WO-02  show me how to refresh the scanner results
+PASS  WO-03  how do I refresh the period sort widget
+PASS  WO-04  how do I get fresh results in period sort
+PASS  WO-05  how do I make a watchlist column wider
+PASS  WO-06  show me how to resize the columns in my watchlist
+PASS  WO-07  how do I rename my flagged list
+PASS  WO-08  show me how to give the flagged list a different name
+PASS  WO-09  how do I show only calls in options flow
+PASS  WO-10  how do I filter the options flow to puts
+PASS  WO-11  show me how to see just sweeps in the flow widget
+PASS  WO-12  how do I show only block trades in options flow
+PASS  WO-13  how do I see only bullish flow
+PASS  WO-14  how do I filter options flow to bearish prints
+
+14/14 pass → ../docs/agent/program/evidence/teach-widget-ops/heldout.attempt-1.results.json
+EXIT=0

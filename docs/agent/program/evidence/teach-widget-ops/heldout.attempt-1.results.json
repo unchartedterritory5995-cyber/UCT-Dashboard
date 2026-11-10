@@ -1,0 +1,936 @@
+{
+ "mode": "BROWSER-MOCK-MODEL",
+ "evidence": "LOCAL agent harness, scripted model, synthetic bars and fixtures: not production, not gate evidence",
+ "at": "2026-11-10T19:18:34.371Z",
+ "base": "http://127.0.0.1:5303",
+ "results": [
+  {
+   "id": "WO-01",
+   "say": "how do I rerun the scan in my scanner widget",
+   "feature": "widgetAction",
+   "title": "Refreshing a scan",
+   "given": [
+    "board",
+    "scan"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "This runs the scan again now.",
+     "onPrimary": true,
+     "pr": [
+      1166,
+      888,
+      16,
+      16
+     ],
+     "rr": [
+      1162,
+      884,
+      24,
+      24
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "WO-02",
+   "say": "show me how to refresh the scanner results",
+   "feature": "widgetAction",
+   "title": "Refreshing a scan",
+   "given": [
+    "board",
+    "scan"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "This runs the scan again now.",
+     "onPrimary": true,
+     "pr": [
+      1166,
+      888,
+      16,
+      16
+     ],
+     "rr": [
+      1162,
+      884,
+      24,
+      24
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "WO-03",
+   "say": "how do I refresh the period sort widget",
+   "feature": "widgetAction",
+   "title": "Refreshing a period sort",
+   "given": [
+    "board"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click Refresh to re-run this period sort now.",
+     "onPrimary": true,
+     "pr": [
+      1166,
+      888,
+      16,
+      16
+     ],
+     "rr": [
+      1162,
+      884,
+      24,
+      24
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "WO-04",
+   "say": "how do I get fresh results in period sort",
+   "feature": "widgetAction",
+   "title": "Refreshing a period sort",
+   "given": [
+    "board"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click Refresh to re-run this period sort now.",
+     "onPrimary": true,
+     "pr": [
+      1166,
+      888,
+      16,
+      16
+     ],
+     "rr": [
+      1162,
+      884,
+      24,
+      24
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "WO-05",
+   "say": "how do I make a watchlist column wider",
+   "feature": "watchlistAction",
+   "title": null,
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "Click one of your own lists to open it.",
+     "onPrimary": true,
+     "pr": [
+      806,
+      102,
+      389,
+      807
+     ],
+     "rr": [
+      802,
+      98,
+      397,
+      815
+     ]
+    },
+    {
+     "i": 4,
+     "text": "Drag this edge between two column titles to make the column wider or narrower.",
+     "onPrimary": true,
+     "pr": [
+      840,
+      136,
+      9,
+      31
+     ],
+     "rr": [
+      836,
+      132,
+      17,
+      39
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "WO-06",
+   "say": "show me how to resize the columns in my watchlist",
+   "feature": "watchlistAction",
+   "title": null,
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "Click one of your own lists to open it.",
+     "onPrimary": true,
+     "pr": [
+      806,
+      102,
+      389,
+      807
+     ],
+     "rr": [
+      802,
+      98,
+      397,
+      815
+     ]
+    },
+    {
+     "i": 4,
+     "text": "Drag this edge between two column titles to make the column wider or narrower.",
+     "onPrimary": true,
+     "pr": [
+      840,
+      136,
+      9,
+      31
+     ],
+     "rr": [
+      836,
+      132,
+      17,
+      39
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "WO-07",
+   "say": "how do I rename my flagged list",
+   "feature": "watchlistAction",
+   "title": "Renaming the Flagged list",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 4,
+     "text": "Click Flagged to open it.",
+     "onPrimary": true,
+     "pr": [
+      806,
+      173,
+      389,
+      29
+     ],
+     "rr": [
+      802,
+      169,
+      397,
+      37
+     ]
+    },
+    {
+     "i": 5,
+     "text": "Right-click the list’s name, or click ⋯ (List actions) beside it.",
+     "onPrimary": true,
+     "pr": [
+      977,
+      111,
+      46,
+      14
+     ],
+     "rr": [
+      973,
+      107,
+      54,
+      22
+     ]
+    },
+    {
+     "i": 6,
+     "text": "Click Rename, type the new name and press Enter.",
+     "onPrimary": true,
+     "pr": [
+      1001,
+      122,
+      178,
+      30
+     ],
+     "rr": [
+      997,
+      118,
+      186,
+      38
+     ]
+    }
+   ],
+   "tried": [
+    [
+     {
+      "x": 1000.4921875,
+      "y": 117.90625
+     }
+    ]
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "WO-08",
+   "say": "show me how to give the flagged list a different name",
+   "feature": "watchlistAction",
+   "title": "Renaming the Flagged list",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 4,
+     "text": "Click Flagged to open it.",
+     "onPrimary": true,
+     "pr": [
+      806,
+      173,
+      389,
+      29
+     ],
+     "rr": [
+      802,
+      169,
+      397,
+      37
+     ]
+    },
+    {
+     "i": 5,
+     "text": "Right-click the list’s name, or click ⋯ (List actions) beside it.",
+     "onPrimary": true,
+     "pr": [
+      977,
+      111,
+      46,
+      14
+     ],
+     "rr": [
+      973,
+      107,
+      54,
+      22
+     ]
+    },
+    {
+     "i": 6,
+     "text": "Click Rename, type the new name and press Enter.",
+     "onPrimary": true,
+     "pr": [
+      1001,
+      122,
+      178,
+      30
+     ],
+     "rr": [
+      997,
+      118,
+      186,
+      38
+     ]
+    }
+   ],
+   "tried": [
+    [
+     {
+      "x": 1000.4921875,
+      "y": 117.90625
+     }
+    ]
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "WO-09",
+   "say": "how do I show only calls in options flow",
+   "feature": "widgetAction",
+   "title": "Showing only calls in the flow",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "That’s in the Options Flow widget. Open Widgets ▾.",
+     "onPrimary": true,
+     "pr": [
+      121,
+      17,
+      95,
+      26
+     ],
+     "rr": [
+      117,
+      13,
+      103,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Options Flow to add it to your board.",
+     "onPrimary": true,
+     "pr": [
+      128,
+      491,
+      150,
+      30
+     ],
+     "rr": [
+      124,
+      487,
+      158,
+      38
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Your board is full, so choose where it goes: the arrows move it, and the gold outline shows what makes room. Then click Place.",
+     "onPrimary": true,
+     "pr": [
+      910,
+      694,
+      55,
+      22
+     ],
+     "rr": [
+      906,
+      690,
+      63,
+      30
+     ]
+    },
+    {
+     "i": 3,
+     "text": "Click the funnel to open the filters.",
+     "onPrimary": true,
+     "pr": [
+      1171,
+      569,
+      16,
+      10
+     ],
+     "rr": [
+      1167,
+      565,
+      24,
+      18
+     ]
+    },
+    {
+     "i": 4,
+     "text": "Click Calls: only calls show. All shows both again.",
+     "onPrimary": true,
+     "pr": [
+      848,
+      623,
+      41,
+      20
+     ],
+     "rr": [
+      844,
+      619,
+      49,
+      28
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "WO-10",
+   "say": "how do I filter the options flow to puts",
+   "feature": "widgetAction",
+   "title": "Showing only puts in the flow",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "That’s in the Options Flow widget. Open Widgets ▾.",
+     "onPrimary": true,
+     "pr": [
+      121,
+      17,
+      95,
+      26
+     ],
+     "rr": [
+      117,
+      13,
+      103,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Options Flow to add it to your board.",
+     "onPrimary": true,
+     "pr": [
+      128,
+      491,
+      150,
+      30
+     ],
+     "rr": [
+      124,
+      487,
+      158,
+      38
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Your board is full, so choose where it goes: the arrows move it, and the gold outline shows what makes room. Then click Place.",
+     "onPrimary": true,
+     "pr": [
+      910,
+      694,
+      55,
+      22
+     ],
+     "rr": [
+      906,
+      690,
+      63,
+      30
+     ]
+    },
+    {
+     "i": 3,
+     "text": "Click the funnel to open the filters.",
+     "onPrimary": true,
+     "pr": [
+      1171,
+      569,
+      16,
+      10
+     ],
+     "rr": [
+      1167,
+      565,
+      24,
+      18
+     ]
+    },
+    {
+     "i": 4,
+     "text": "Click Puts: only puts show. All shows both again.",
+     "onPrimary": true,
+     "pr": [
+      894,
+      623,
+      39,
+      20
+     ],
+     "rr": [
+      890,
+      619,
+      47,
+      28
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "WO-11",
+   "say": "show me how to see just sweeps in the flow widget",
+   "feature": "widgetAction",
+   "title": "Showing only sweeps in the flow",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "That’s in the Options Flow widget. Open Widgets ▾.",
+     "onPrimary": true,
+     "pr": [
+      121,
+      17,
+      95,
+      26
+     ],
+     "rr": [
+      117,
+      13,
+      103,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Options Flow to add it to your board.",
+     "onPrimary": true,
+     "pr": [
+      128,
+      491,
+      150,
+      30
+     ],
+     "rr": [
+      124,
+      487,
+      158,
+      38
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Your board is full, so choose where it goes: the arrows move it, and the gold outline shows what makes room. Then click Place.",
+     "onPrimary": true,
+     "pr": [
+      910,
+      694,
+      55,
+      22
+     ],
+     "rr": [
+      906,
+      690,
+      63,
+      30
+     ]
+    },
+    {
+     "i": 3,
+     "text": "Click the funnel to open the filters.",
+     "onPrimary": true,
+     "pr": [
+      1171,
+      569,
+      16,
+      10
+     ],
+     "rr": [
+      1167,
+      565,
+      24,
+      18
+     ]
+    },
+    {
+     "i": 4,
+     "text": "Click Sweep: only sweeps show. Any shows every kind again.",
+     "onPrimary": true,
+     "pr": [
+      978,
+      623,
+      49,
+      20
+     ],
+     "rr": [
+      974,
+      619,
+      57,
+      28
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "WO-12",
+   "say": "how do I show only block trades in options flow",
+   "feature": "widgetAction",
+   "title": "Showing only block trades in the flow",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "That’s in the Options Flow widget. Open Widgets ▾.",
+     "onPrimary": true,
+     "pr": [
+      121,
+      17,
+      95,
+      26
+     ],
+     "rr": [
+      117,
+      13,
+      103,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Options Flow to add it to your board.",
+     "onPrimary": true,
+     "pr": [
+      128,
+      491,
+      150,
+      30
+     ],
+     "rr": [
+      124,
+      487,
+      158,
+      38
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Your board is full, so choose where it goes: the arrows move it, and the gold outline shows what makes room. Then click Place.",
+     "onPrimary": true,
+     "pr": [
+      910,
+      694,
+      55,
+      22
+     ],
+     "rr": [
+      906,
+      690,
+      63,
+      30
+     ]
+    },
+    {
+     "i": 3,
+     "text": "Click the funnel to open the filters.",
+     "onPrimary": true,
+     "pr": [
+      1171,
+      569,
+      16,
+      10
+     ],
+     "rr": [
+      1167,
+      565,
+      24,
+      18
+     ]
+    },
+    {
+     "i": 4,
+     "text": "Click Block: only block trades show. Any shows every kind again.",
+     "onPrimary": true,
+     "pr": [
+      1031,
+      623,
+      44,
+      20
+     ],
+     "rr": [
+      1027,
+      619,
+      52,
+      28
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "WO-13",
+   "say": "how do I see only bullish flow",
+   "feature": "widgetAction",
+   "title": "Showing only bullish prints in the flow",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "That’s in the Options Flow widget. Open Widgets ▾.",
+     "onPrimary": true,
+     "pr": [
+      121,
+      17,
+      95,
+      26
+     ],
+     "rr": [
+      117,
+      13,
+      103,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Options Flow to add it to your board.",
+     "onPrimary": true,
+     "pr": [
+      128,
+      491,
+      150,
+      30
+     ],
+     "rr": [
+      124,
+      487,
+      158,
+      38
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Your board is full, so choose where it goes: the arrows move it, and the gold outline shows what makes room. Then click Place.",
+     "onPrimary": true,
+     "pr": [
+      910,
+      694,
+      55,
+      22
+     ],
+     "rr": [
+      906,
+      690,
+      63,
+      30
+     ]
+    },
+    {
+     "i": 3,
+     "text": "Click the funnel to open the filters.",
+     "onPrimary": true,
+     "pr": [
+      1171,
+      569,
+      16,
+      10
+     ],
+     "rr": [
+      1167,
+      565,
+      24,
+      18
+     ]
+    },
+    {
+     "i": 4,
+     "text": "Click Bull: only bullish prints show. All shows both again.",
+     "onPrimary": true,
+     "pr": [
+      848,
+      648,
+      36,
+      20
+     ],
+     "rr": [
+      844,
+      644,
+      44,
+      28
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "WO-14",
+   "say": "how do I filter options flow to bearish prints",
+   "feature": "widgetAction",
+   "title": "Showing only bearish prints in the flow",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "That’s in the Options Flow widget. Open Widgets ▾.",
+     "onPrimary": true,
+     "pr": [
+      121,
+      17,
+      95,
+      26
+     ],
+     "rr": [
+      117,
+      13,
+      103,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Options Flow to add it to your board.",
+     "onPrimary": true,
+     "pr": [
+      128,
+      491,
+      150,
+      30
+     ],
+     "rr": [
+      124,
+      487,
+      158,
+      38
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Your board is full, so choose where it goes: the arrows move it, and the gold outline shows what makes room. Then click Place.",
+     "onPrimary": true,
+     "pr": [
+      910,
+      694,
+      55,
+      22
+     ],
+     "rr": [
+      906,
+      690,
+      63,
+      30
+     ]
+    },
+    {
+     "i": 3,
+     "text": "Click the funnel to open the filters.",
+     "onPrimary": true,
+     "pr": [
+      1171,
+      569,
+      16,
+      10
+     ],
+     "rr": [
+      1167,
+      565,
+      24,
+      18
+     ]
+    },
+    {
+     "i": 4,
+     "text": "Click Bear: only bearish prints show. All shows both again.",
+     "onPrimary": true,
+     "pr": [
+      889,
+      648,
+      40,
+      20
+     ],
+     "rr": [
+      885,
+      644,
+      48,
+      28
+     ]
+    }
+   ],
+   "consoleErrors": []
+  }
+ ]
+}
