@@ -98,7 +98,8 @@ export const SHIPPED_DEF_IDS = Object.freeze({
   // SHIPPED (in this manifest, in `listDefinitions()`) and still not OFFERED until
   // the live server lists it (`serverCompute.isDefinitionOffered`); the rails that
   // compare an OFFER surface against `listDefinitions()` filter by that gate.
-  server: Object.freeze(['rsLine']),
+  // ⭐ U6 (2026-11-09): the three landed, in `nativeRegistry.js`'s registration order.
+  server: Object.freeze(['rsLine', 'rsRating', 'rsPhases', 'rsVsEma']),
   ast: Object.freeze([]),
 })
 

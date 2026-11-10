@@ -253,7 +253,8 @@ describe('a blob written before the engine existed', () => {
         'dataSeries', 'dollarVolume',
         // ⭐ 2026-10-01 — the Technical library's Tier 1, natives registered after
         // `dollarVolume`, so appended in registration order before the server lane.
-        ...TIER1_IDS, 'rsLine'])
+        // ⭐ U6 (2026-11-09): the RS split's three follow rsLine, in registration order.
+        ...TIER1_IDS, 'rsLine', 'rsRating', 'rsPhases', 'rsVsEma'])
   })
 
   it('runs ONCE — a v2 blob is passed through untouched, by identity', () => {
@@ -484,7 +485,8 @@ describe('a blob written before the engine existed', () => {
       // rather than into a z-order members already have on screen.
       // ⭐ 2026-10-01 — the Technical library's Tier 1 is appended the same way, in
       // registration order, ahead of the server lane's `rsLine`.
-      .toEqual(['avwap', 'atrBands', 'dataSeries', 'dollarVolume', ...TIER1_IDS, 'rsLine'])
+      // ⭐ U6 (2026-11-09): the RS split's three are appended after rsLine the same way.
+      .toEqual(['avwap', 'atrBands', 'dataSeries', 'dollarVolume', ...TIER1_IDS, 'rsLine', 'rsRating', 'rsPhases', 'rsVsEma'])
     // ✅ AND IT IS APPLIED AT B5 TASK 13 — in the FOLD, which is what makes
     // `orderedPaneKeys` (which walks the instance list) produce it without a sort
     // of its own. Task 12 measured that Flip C shipped without it and left the

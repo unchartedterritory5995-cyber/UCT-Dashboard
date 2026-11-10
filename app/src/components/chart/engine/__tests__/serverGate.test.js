@@ -417,7 +417,9 @@ describe('⭐ the byte-identical CONTROL — a definition using neither field re
     // ⭐ 3-08: UCT RS is the first shipped definition that USES the gate (v4), so
     // it left this control set; `rsDefinitionV4.test.js` pins what it hides.
     expect(ungated.map((d) => d.id)).not.toContain('rsLine')
-    expect(defs.filter((d) => !ungated.includes(d)).map((d) => d.id)).toEqual(['rsLine'])
+    // ⭐ U6 (2026-11-09): `rsPhases` and `rsVsEma` carry rsLine's gated benchmark pair;
+    // `rsRating` declares no server input at all, so it stays in the control set.
+    expect(defs.filter((d) => !ungated.includes(d)).map((d) => d.id)).toEqual(['rsLine', 'rsPhases', 'rsVsEma'])
   })
 
   it('every shipped ungated definition: byte-identical, with and without a declaration, at defaults and on an instance', () => {

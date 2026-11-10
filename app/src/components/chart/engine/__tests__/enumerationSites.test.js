@@ -1997,7 +1997,8 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // returns {} with no ctx. Derived from the kind and then CHECKED, so a native
     // re-declared `server` to dodge this rail is itself a failure.
     const serverLane = defs.filter(d => d.compute.kind === 'server').map(d => d.id)
-    expect(serverLane, 'the exclusion selects nothing — it is inert').toEqual(['rsLine'])
+    // ⭐ U6 (2026-11-09): the RS split's three join rsLine on the server lane.
+    expect(serverLane, 'the exclusion selects nothing — it is inert').toEqual(['rsLine', 'rsRating', 'rsPhases', 'rsVsEma'])
     for (const def of defs.filter(d => d.compute.kind !== 'server')) {
       expect(def.compute && def.compute.kind, def.id).toBe('native')
       expect(typeof def.compute.fn, `${def.id}: compute.fn is not a name`).toBe('string')

@@ -1057,9 +1057,10 @@ describe('a migrated definition is drawn ONCE — never by the engine and legacy
     .filter(d => d.compute.kind === 'server').map(d => d.id)
   const NATIVE_OWNED = [...ENGINE_OWNED].filter(id => !SERVER_LANE.includes(id))
 
-  it('the server lane is excluded from these rails, and it is exactly rsLine', () => {
-    expect(SERVER_LANE).toEqual(['rsLine'])
-    expect(NATIVE_OWNED.length).toBe(ENGINE_OWNED.size - 1)
+  it('the server lane is excluded from these rails, and it is exactly the four RS definitions', () => {
+    // ⭐ U6 (2026-11-09): the RS split's three join rsLine on the server lane.
+    expect(SERVER_LANE).toEqual(['rsLine', 'rsRating', 'rsPhases', 'rsVsEma'])
+    expect(NATIVE_OWNED.length).toBe(ENGINE_OWNED.size - SERVER_LANE.length)
   })
 
   it('names at least one definition — otherwise every case below is vacuous', () => {
@@ -4405,7 +4406,7 @@ describe('the Flip-B machinery, live (Task 10)', () => {
     const serverLane = registry.listDefinitions()
       .filter(d => d.compute.kind === 'server').map(d => d.id)
     expect(serverLane, 'the server-lane exclusion selects nothing — it is inert')
-      .toEqual(['rsLine'])
+      .toEqual(['rsLine', 'rsRating', 'rsPhases', 'rsVsEma'])   // U6 (2026-11-09): rsLine plus the RS split's three
     let seen = 0
     for (const defId of [...ENGINE_OWNED].filter(id => !serverLane.includes(id))) {
       cleanup(); H.reset()
