@@ -81,6 +81,12 @@ describe('no string-built regex lookbehind in app/src/agent (iOS 16 floor)', () 
     expect(files.length).toBeGreaterThan(150) // non-vacuity: the walk found the Agent
     const offenders = []
     for (const f of files) for (const l of parsedSites(fs.readFileSync(f, 'utf8'))) offenders.push(`${path.relative(SRC, f).split(path.sep).join('/')}:${l}`)
+    // ...and no JSON data under app/src/agent (a pattern can ship as data compiled with `new RegExp`)
+    for (const f of jsonFiles(AGENT)) {
+      let data
+      try { data = JSON.parse(fs.readFileSync(f, 'utf8')) } catch { continue }
+      for (const at of builtSites(data)) offenders.push(`${path.relative(SRC, f).split(path.sep).join('/')}#${at}`)
+    }
     expect(offenders).toEqual([])
   })
 
@@ -102,13 +108,29 @@ describe('no string-built regex lookbehind in app/src/agent (iOS 16 floor)', () 
 })
 
 // Outside the Agent: REPORTED, not fixed here (other teams' files). The same PARSED scan over the rest of app/src.
-const OUTSIDE_AGENT_TODAY = ['components/chart/engine/ast/guardIdText.js:35']
+const OUTSIDE_AGENT_TODAY = ['components/chart/engine/ast/guardIdText.js:35',
+  'components/chart/builder/authoring/preflightRules.json#possessiveTicker', 'components/chart/builder/authoring/preflightRules.json#adjacentTicker',
+  'components/chart/builder/authoring/preflightRules.json#tickerToken', 'components/chart/builder/authoring/preflightRules.json#questionShape.clauseSplit']
+function jsonFiles(dir, out = []) {
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, e.name)
+    if (e.isDirectory()) { if (!['__tests__', '__fixtures__', 'node_modules'].includes(e.name)) jsonFiles(p, out) } else if (/\.json$/.test(e.name) && !/\.test\./.test(e.name)) out.push(p)
+  }
+  return out.sort()
+}
 describe('string-built lookbehind elsewhere in app/src (reported to its owners; not this PR’s files)', () => {
   const outside = () => {
     const out = []
     for (const f of productFiles(SRC)) {
       if (f.startsWith(AGENT + path.sep)) continue
       for (const l of parsedSites(fs.readFileSync(f, 'utf8'))) out.push(`${path.relative(SRC, f).split(path.sep).join('/')}:${l}`)
+    }
+    // a pattern can also ship as JSON data compiled with `new RegExp` (the built applyPatch chunk carries these four)
+    for (const f of jsonFiles(SRC)) {
+      if (f.startsWith(AGENT + path.sep)) continue
+      let data
+      try { data = JSON.parse(fs.readFileSync(f, 'utf8')) } catch { continue }
+      for (const at of builtSites(data)) out.push(`${path.relative(SRC, f).split(path.sep).join('/')}#${at}`)
     }
     return out
   }
