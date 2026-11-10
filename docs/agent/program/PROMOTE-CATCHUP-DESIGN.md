@@ -52,7 +52,16 @@ run as `--self-check` at the start of every promotion.
 6. **Second layer** (job `resume`). This job alone has `actions: write`. When the promote job failed, timed out or ended
    still HELD, and a record is pending with fewer than 2 re-dispatches, it increments the count in the record FIRST and
    then dispatches `resume=yes`. At the cap it stops, and leaves a warning and the record.
-7. **Dry run** (`dry_run=yes`, optional `now=` simulated clock). The job decides and reports in full, but makes no push,
+7. **The PR dry run** (job `dryrun`, `pull_request` only, path-filtered to the promotion files; `contents: read`).
+   It runs the decision tests plus `tests/test_ci_cost_rails.py`, then `tools/promote_dryrun.py` on three simulated
+   clocks: inside the opening rush, inside the Wednesday window, and outside every window.
+   - `promote_dryrun.py` executes the promote job's REAL `run:` blocks, extracted from the YAML, in a throwaway local
+     repository: a local bare origin, a stubbed `gh`, and an extra UNGATED master commit.
+   - It fails unless the target is the gated candidate, is not the ungated tip, and production is unchanged.
+   - The `promote` and `resume` jobs exclude `pull_request` in their job-level `if:` (a test asserts it). The PR run
+     has its own per-PR concurrency group, cancelled when superseded, so it can never queue behind or cancel a real
+     promotion. Every other event stays on the single `promote-production` queue with cancel false.
+8. **Dry run by dispatch** (`dry_run=yes`, optional `now=` simulated clock). The job decides and reports in full, but makes no push,
    no state write, no sleep (the simulated clock advances instead) and no re-dispatch.
 
 Kept exactly:
@@ -95,12 +104,12 @@ Kept exactly:
   is the candidate and never master's tip. Locally: `self-check: PASS`.
 - **`tools/deploy_freeze.py --self-check`** gains 12 wait-plan cases. One of them is a minute-by-minute sweep of 12 h
   asserting that every planned wait is within the bound. Locally `self-check: PASS`; this needs tzdata, which Ubuntu has.
-- **`tests/test_promote_decision.py`** (new; pytest):
+- **`tests/test_promote_decision.py`** (new; pytest). It GATES: it was added to the master deploy gate's existing `CI cost rails` step (same runner, about 1 s) and runs in the PR `dryrun` job. It covers:
   - the same 8 cases, each with the never-the-tip control;
   - the gate job-count check;
   - workflow wiring: the job is 200 min and the wait 130; `cancel-in-progress: false` and no `true`; no `--force`; the
     push is to `$TARGET`; `actions: write` only in `resume`.
-  - Which CI runs it: the nightly `full suite report` (all `tests/`, report-only). The same cases also run as
+  - It also runs in the nightly `full suite report`. The same cases also run as
     `--self-check` inside promote-production.yml at promote time. pytest is not allowed on this machine, so the file was
     run with a plain-Python runner: 11 passed, 0 failed. The existing rails that read this workflow were run the same way:
     `test_promote_skips_only_cancelled_gates` 3/3, `test_ci_cost_rails` 6/6 (the parametrized ones were not run). The
@@ -124,12 +133,12 @@ Kept exactly:
   Also run: Wednesday 09:05 ET (a planned wait of 6960 s, then PROMOTE) and 11:00 ET on a non-freeze day (no wait,
   PROMOTE). Raw output is in the pl-auto scratchpad (`runs/promote-sim-*.txt`). The gating poll is a stand-in in the
   simulation (it needs the GitHub API); its code is unchanged by this PR.
-- **Real dry run** (the owner or Lead; the PAT cannot dispatch): Actions → "promote to production" → Run workflow, on
+- **Real Actions dry run with no click:** the PR's `dryrun` job, whose summary shows all three clocks. A manual one is also possible: Actions → "promote to production" → Run workflow, on
   branch `agent/pl/promote-catchup`, with `dry_run=yes`, `sha=<a gated master SHA>` and `now=2026-11-11T14:05:00Z`. The
   summary shows the plan; nothing is pushed or written.
 
 ## What is not changed
-- `master-deploy-gate.yml`.
+- `master-deploy-gate.yml`, except one line: its `CI cost rails` step also runs `tests/test_promote_decision.py`.
 - `promotion_gate.py`.
 - The freeze windows.
 - Branch protection.

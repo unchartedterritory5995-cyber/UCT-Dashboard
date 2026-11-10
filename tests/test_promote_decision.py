@@ -116,8 +116,30 @@ def test_the_workflow_is_wired_to_the_decision_and_bounded():
     assert "python tools/promote_decision.py --self-check" in wf
     assert "promote_decision.py decide" in wf and "promote_decision.py resolve" in wf
     assert "timeout-minutes: 200" in wf and "timeout-minutes: 130" in wf        # job < 6 h; the wait step bounded
-    assert "cancel-in-progress: false" in wf and "cancel-in-progress: true" not in wf
+    assert "cancel-in-progress: true" not in wf
+    assert "cancel-in-progress: ${{ github.event_name == 'pull_request' }}" in wf      # only a PR dry run is cancellable
+    assert "|| 'promote-production' }}" in wf                                         # ...and it has its own group
     assert "--force" not in wf.replace("never `--force`", "").replace("NEVER `--force`", "")
     assert "git push origin \"$TARGET\":refs/heads/production" in wf
     assert "actions: write" in wf.split("\n  resume:")[1]                     # only the resume job may dispatch
     assert "actions: write" not in wf.split("\n  resume:")[0].split("permissions:")[1].split("jobs:")[0]
+
+
+def test_a_pull_request_reaches_only_the_read_only_dry_run():
+    import yaml
+    doc = yaml.safe_load((ROOT / ".github" / "workflows" / "promote-production.yml").read_text(encoding="utf-8"))
+    jobs = doc["jobs"]
+    for name in ("promote", "resume"):
+        assert "github.event_name != 'pull_request'" in jobs[name]["if"], f"{name} must never run on pull_request"
+    dry = jobs["dryrun"]
+    assert dry["if"] == "github.event_name == 'pull_request'"
+    assert dry["permissions"] == {"contents": "read"}
+    text = chr(10).join(str(s.get("run", "")) for s in dry["steps"])
+    for forbidden in ("git push", "gh workflow run", "gh api --method", "promote_state.sh", "secrets."):
+        assert forbidden not in text, forbidden
+    assert "tools/promote_dryrun.py --now" in text and "tests/test_promote_decision.py" in text
+
+
+def test_the_master_gate_runs_these_tests():
+    gate = (ROOT / ".github" / "workflows" / "master-deploy-gate.yml").read_text(encoding="utf-8")
+    assert "tests/test_ci_cost_rails.py tests/test_promote_decision.py" in gate

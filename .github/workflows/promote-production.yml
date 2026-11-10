@@ -65,6 +65,18 @@ on:
   # opening (09:20-09:45 ET) and closing (15:30-16:15 ET) rush; these promote the tip of
   # master after each: 09:50 and 16:20 ET, one cron per daylight/standard offset (the
   # other lands outside every window and promotes harmlessly).
+  # ⭐ A PR that changes the promotion machinery runs ONLY the `dryrun` job below (contents: read; no push, no state
+  # write, no dispatch): tools/promote_dryrun.py on simulated clocks inside a rush and inside the Wednesday window,
+  # plus the decision tests. The promote and resume jobs are excluded from pull_request by their job-level `if:`.
+  pull_request:
+    paths:
+      - .github/workflows/promote-production.yml
+      - tools/promote_decision.py
+      - tools/promote_dryrun.py
+      - tools/promote_facts.sh
+      - tools/promote_state.sh
+      - tools/deploy_freeze.py
+      - tests/test_promote_decision.py
   schedule:
     - cron: '5 15 * * 3'
     - cron: '5 16 * * 3'
@@ -82,9 +94,12 @@ on:
 # and promoting B still deploys A's code, but A's changed files were never scanned by
 # any run that gated a deploy. Coalescing is only sound when every gating check is
 # cumulative over the tree, and one of ours is per-commit by construction.
+# ⭐ A pull_request dry run gets its OWN group (per PR, superseded runs cancelled, as tests/test_ci_cost_rails.py asks
+# of every PR workflow); it can never join, queue behind or cancel a real promotion. Every other event: the one
+# `promote-production` queue, never cancelled.
 concurrency:
-  group: promote-production
-  cancel-in-progress: false
+  group: ${{ github.event_name == 'pull_request' && format('promote-dryrun-{0}', github.event.pull_request.number) || 'promote-production' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: write      # the fast-forward push to `production`
@@ -100,7 +115,8 @@ jobs:
     # the step below. A job-level skip, never an `exit 0` in that step: that step's failure is what
     # stops every later step from running, so softening it would let promotion proceed.
     # Rail: tests/test_promote_skips_only_cancelled_gates.py.
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion != 'cancelled'
+    # ⛔ NEVER on pull_request: a PR runs only the `dryrun` job.
+    if: github.event_name != 'pull_request' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion != 'cancelled')
     runs-on: ubuntu-latest
     # ⭐ 200 min: the bounded freeze wait (at most 126 min: tools/deploy_freeze.py MAX_WAIT_MIN + margin; the
     # wait step's own timeout is 130) + the gating poll (~20 min) + checkout and bookkeeping. Well under
@@ -586,7 +602,7 @@ jobs:
   # Its own job so `actions: write` is granted to this job only. A dry run never re-dispatches.
   resume:
     needs: promote
-    if: always() && inputs.dry_run != 'yes' && (needs.promote.result == 'failure' || needs.promote.result == 'cancelled' || needs.promote.outputs.action == 'HOLD')
+    if: always() && github.event_name != 'pull_request' && inputs.dry_run != 'yes' && (needs.promote.result == 'failure' || needs.promote.result == 'cancelled' || needs.promote.outputs.action == 'HOLD')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -615,3 +631,30 @@ jobs:
           DRY_RUN=no bash tools/promote_state.sh write-pending "$(printf '%s' "$R" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(json.dumps({"pending": d["pending"]}))')" "$BLOB"             || { echo "::error::could not record the re-dispatch count; NOT re-dispatching (the cap must be recorded first)"; exit 1; }
           gh workflow run promote-production.yml --ref master -f resume=yes
           echo "re-dispatched a resume run" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  # ⭐ THE PR DRY RUN: real Actions evidence on the PR's own checks, with no credentials. Read-only token; the job runs
+  # tools/promote_dryrun.py, which executes the promote job's REAL run: blocks in a throwaway local repo (stubbed gh,
+  # local bare origin) on two simulated clocks, and the decision tests. It cannot push, write state or dispatch.
+  dryrun:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Decision tests (and the CI cost rails)
+        run: |
+          python -m pip install --quiet pyyaml pytest
+          python -m pytest tests/test_promote_decision.py tests/test_ci_cost_rails.py -q -p no:cacheprovider
+      - name: Dry run inside the opening rush (Tue 09:31 ET)
+        run: python tools/promote_dryrun.py --now 2026-11-10T14:31:00Z --summary "$GITHUB_STEP_SUMMARY"
+      - name: Dry run inside the Wednesday window (Wed 09:05 ET)
+        run: python tools/promote_dryrun.py --now 2026-11-11T14:05:00Z --summary "$GITHUB_STEP_SUMMARY"
+      - name: Dry run outside every window (Tue 11:00 ET)
+        run: python tools/promote_dryrun.py --now 2026-11-10T16:00:00Z --summary "$GITHUB_STEP_SUMMARY"
