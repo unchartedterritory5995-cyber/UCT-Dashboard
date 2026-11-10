@@ -1433,43 +1433,134 @@ def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False,
     return 0  # unreachable
 
 
-def replace_series(ticker: str, tf: str, bars: list[dict]) -> int:
-    """Atomically REPLACE every stored row of one intraday (ticker, tf) with `bars`.
-
-    For the intraday split heal: a series that straddles a split on two price bases is
-    purged and rewritten from one refetch in ONE transaction, so a reader sees either
-    the old series or the new one — never a half-deleted store. Same validity gate and
-    the same `_WRITE_LOCK` as `put_bars`. ⛔ Refuses an empty (or all-invalid) `bars`:
-    a refetch that came back with nothing must never delete what the store holds.
-    Returns rows written (0 = nothing changed)."""
-    if not bars:
-        return 0
+def iter_ts_close(ticker: str, tf: str, batch: int = 20_000):
+    """Yield ``(ts, c)`` for every stored row of (ticker, tf), oldest first, paged by
+    primary-key seeks of ``batch`` rows. O(batch) memory however deep the series is —
+    the intraday split detector only needs closes, never a materialised bar list."""
     ticker = ticker.upper()
-    keep, _rejected = _writable_bars(ticker, tf, bars)
-    if not keep:
-        return 0
-    rows = [(ticker, tf, int(b.get("t", 0)), b.get("o"), b.get("h"), b.get("l"),
-             b.get("c"), int(b.get("v") or 0)) for b in keep]
-    last_lock_err: sqlite3.OperationalError | None = None
-    for attempt in range(3):
-        try:
-            with _WRITE_LOCK:
-                c = _conn()
+    last = None
+    while True:
+        if last is None:
+            rows = _conn().execute(
+                "SELECT ts, c FROM ohlcv WHERE ticker=? AND tf=? ORDER BY ts LIMIT ?",
+                (ticker, tf, int(batch))).fetchall()
+        else:
+            rows = _conn().execute(
+                "SELECT ts, c FROM ohlcv WHERE ticker=? AND tf=? AND ts>? ORDER BY ts LIMIT ?",
+                (ticker, tf, int(last), int(batch))).fetchall()
+        if not rows:
+            return
+        yield from rows
+        last = rows[-1][0]
+        if len(rows) < batch:
+            return
+
+
+#: Durable progress of an in-place intraday split rescale (one row per boundary).
+SPLIT_RESCALE_TABLE = "_intraday_split_rescale"
+
+
+def _ensure_split_rescale_table(c) -> None:
+    c.execute(f"CREATE TABLE IF NOT EXISTS {SPLIT_RESCALE_TABLE} ("
+              "ticker TEXT NOT NULL, tf TEXT NOT NULL, boundary_ts INTEGER NOT NULL, "
+              "factor REAL NOT NULL, done_below INTEGER, finished INTEGER NOT NULL DEFAULT 0, "
+              "PRIMARY KEY (ticker, tf, boundary_ts))")
+
+
+def pending_split_rescales(ticker: str, tf: str) -> list[tuple]:
+    """Unfinished ``(boundary_ts, factor, done_below)`` rescales for (ticker, tf)."""
+    c = _conn()
+    try:
+        return c.execute(
+            f"SELECT boundary_ts, factor, done_below FROM {SPLIT_RESCALE_TABLE} "
+            "WHERE ticker=? AND tf=? AND finished=0 ORDER BY boundary_ts DESC",
+            (ticker.upper(), tf)).fetchall()
+    except sqlite3.OperationalError:
+        return []                                   # table not created yet
+
+
+def rescale_before(ticker: str, tf: str, boundary_ts: int, factor: float, *,
+                   chunk_rows: int = 20_000, max_chunks: int | None = None,
+                   start=None) -> dict:
+    """Divide prices / multiply volume of every (ticker, tf) row with ``ts <
+    boundary_ts`` by ``factor`` — IN PLACE, newest rows first, ``chunk_rows`` per
+    short write transaction.
+
+    ⛔ NOTHING IS DELETED and no row at/after the boundary is touched, so live-feed
+    rows, replay islands and deep history are all kept. ⛔ RESUMABLE AND NEVER
+    DOUBLE-APPLIED: the progress (``done_below``) is committed in the SAME transaction
+    as each chunk's UPDATE, in ``_intraday_split_rescale``; a crash, a lock error or a
+    ``max_chunks`` stop leaves a cursor the next call continues from, and a finished
+    boundary is applied again only when ``start`` re-verifies a cliff there. Same rounding as ``bars_sanitize.scale_bar``.
+
+    ``start``: optional callable(conn) -> bool run inside the FIRST chunk's
+    transaction; returning False aborts with nothing written (the caller re-verifies
+    the cliff there, atomically with the first rewrite)."""
+    ticker = ticker.upper()
+    boundary_ts = int(boundary_ts)
+    out = {"chunks": 0, "rows": 0, "finished": False, "aborted": False}
+    while max_chunks is None or out["chunks"] < max_chunks:
+        with _WRITE_LOCK:
+            c = _conn()
+            c.execute("BEGIN IMMEDIATE")
+            try:
+                _ensure_split_rescale_table(c)
+                prog = c.execute(
+                    f"SELECT factor, done_below, finished FROM {SPLIT_RESCALE_TABLE} "
+                    "WHERE ticker=? AND tf=? AND boundary_ts=?",
+                    (ticker, tf, boundary_ts)).fetchone()
+                fresh = prog is None
+                if prog is not None and prog[2]:
+                    # Finished before. Re-applied ONLY if the caller re-verifies a cliff
+                    # at this boundary right now (old-basis rows came back) — never blind.
+                    if start is None or not start(c):
+                        c.execute("COMMIT")
+                        out["finished"] = True
+                        return out
+                    fresh = True
+                    start = None                     # verified already
+                if fresh:
+                    if start is not None and not start(c):
+                        c.execute("ROLLBACK")
+                        out["aborted"] = True
+                        return out
+                    c.execute(
+                        f"INSERT OR REPLACE INTO {SPLIT_RESCALE_TABLE} "
+                        "(ticker, tf, boundary_ts, factor, done_below, finished) "
+                        "VALUES (?,?,?,?,?,0)", (ticker, tf, boundary_ts, float(factor),
+                                                  boundary_ts))
+                    done_below = boundary_ts
+                else:
+                    factor, done_below = float(prog[0]), int(prog[1])
+                lo_row = c.execute(
+                    "SELECT ts FROM ohlcv WHERE ticker=? AND tf=? AND ts<? "
+                    "ORDER BY ts DESC LIMIT 1 OFFSET ?",
+                    (ticker, tf, done_below, max(0, int(chunk_rows) - 1))).fetchone()
+                lo = int(lo_row[0]) if lo_row else None     # None: the rest fits
+                where_lo = "" if lo is None else " AND ts>=?"
+                args = [float(factor), float(factor), float(factor), float(factor),
+                        float(factor), ticker, tf, done_below] + ([] if lo is None else [lo])
+                cur = c.execute(
+                    "UPDATE ohlcv SET o=round(o/?,4), h=round(h/?,4), l=round(l/?,4), "
+                    "c=round(c/?,4), v=CAST(round(COALESCE(v,0)*?) AS INTEGER) "
+                    "WHERE ticker=? AND tf=? AND ts<?" + where_lo, args)
+                out["rows"] += max(0, cur.rowcount)
+                finished = lo is None
+                c.execute(
+                    f"UPDATE {SPLIT_RESCALE_TABLE} SET done_below=?, finished=? "
+                    "WHERE ticker=? AND tf=? AND boundary_ts=?",
+                    (0 if finished else lo, 1 if finished else 0, ticker, tf, boundary_ts))
+                c.execute("COMMIT")
+            except BaseException:
                 try:
-                    c.execute("DELETE FROM ohlcv WHERE ticker=? AND tf=?", (ticker, tf))
-                    c.executemany(
-                        "INSERT OR REPLACE INTO ohlcv(ticker,tf,ts,o,h,l,c,v) "
-                        "VALUES(?,?,?,?,?,?,?,?)", rows)
-                    c.commit()
-                except BaseException:
-                    c.rollback()
-                    raise
-            return len(rows)
-        except sqlite3.OperationalError as e:
-            if "locked" not in str(e).lower():
+                    c.execute("ROLLBACK")
+                except sqlite3.Error:
+                    pass
                 raise
-            last_lock_err = e
-            time.sleep(0.05 * (attempt + 1))
-    if last_lock_err is not None:
-        raise last_lock_err
-    return 0
+        out["chunks"] += 1
+        start = None
+        if finished:
+            out["finished"] = True
+            return out
+        time.sleep(0)                                # let a queued put_bars in
+    return out

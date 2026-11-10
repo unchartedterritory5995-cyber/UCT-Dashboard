@@ -10,7 +10,7 @@
   "modules_scanned": 2266,
   "summary": {
     "named_access_count": 2,
-    "positional_count": 53,
+    "positional_count": 52,
     "named_access": [
       "api/services/canonical/resolver.py",
       "api/services/ticker_returns.py"
@@ -35,7 +35,6 @@
       "api/services/fundamentals_pit/beta_store.py",
       "api/services/indicator_alert_evaluator.py",
       "api/services/intraday_gap_audit.py",
-      "api/services/intraday_split_heal.py",
       "api/services/journal_two/excursion_engine.py",
       "api/services/journal_two/notebook_today.py",
       "api/services/journal_two/notebook_widgets.py",
@@ -455,20 +454,6 @@
       ],
       "evidence": {
         "line": 103,
-        "pattern": "int-subscript",
-        "index": 0
-      }
-    },
-    "api/services/intraday_split_heal.py": {
-      "classification": "positional",
-      "calls": [
-        {
-          "function": "get_bars",
-          "line": 160
-        }
-      ],
-      "evidence": {
-        "line": 98,
         "pattern": "int-subscript",
         "index": 0
       }

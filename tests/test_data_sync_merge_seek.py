@@ -65,9 +65,7 @@ def test_the_merge_never_scans_the_local_table():
     for sql in (data_sync._MERGE_ADD_SQL, data_sync._MERGE_CORRECT_SQL):
         plan = [r[3] for r in c.execute("EXPLAIN QUERY PLAN " + sql, ("A", "5", 0))]
         assert not any(re.match(r"SCAN\b", p) for p in plan), plan
-    src = open(data_sync.__file__, encoding="utf-8").read()
-    fn = src[src.index("def _merge_basis_agrees"):src.index("def _merge_pair")]
-    basis = re.search(r'conn\.execute\(\s*((?:"[^"]*"\s*)+),', fn, re.S).group(1)
-    basis = "".join(re.findall(r'"([^"]*)"', basis))
-    plan = [r[3] for r in c.execute("EXPLAIN QUERY PLAN " + basis, ("A", "5", 0, "A", "5", 5))]
-    assert not any(re.match(r"SCAN (main\.ohlcv|ohlcv|s)\b", p) for p in plan), plan
+    for basis in (data_sync._MERGE_BASIS_NEWEST_SQL, data_sync._MERGE_BASIS_OLDEST_SQL):
+        plan = [r[3] for r in c.execute("EXPLAIN QUERY PLAN " + basis,
+                                        (0,) * basis.count("?"))]
+        assert not any(re.match(r"SCAN (main\.ohlcv|ohlcv|s)\b", p) for p in plan), plan

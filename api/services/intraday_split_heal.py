@@ -8,28 +8,35 @@ chart showed a 2x / 10x cliff at the split session on 1/5/15/30/60m.
 `adjustment_basis._intraday_basis` could DETECT it (TERM-055) — and said so — but
 nothing healed it ("Nothing heals an intraday split").
 
-⭐ ONE DETECTOR. The judgement is `bars_sanitize.intraday_unadjusted_splits` (itself the
-one daily detector asked of per-session closes): same `_SPLIT_TOL`, same `adjudicable`
-guard, same ± window around the declared date. Nothing here re-derives it.
+⭐ ONE DETECTOR. The judgement is `bars_sanitize.unadjusted_splits` asked of the
+series' per-session closes (exactly what `intraday_unadjusted_splits` does): same
+`_SPLIT_TOL`, same `adjudicable` guard, same ± window around the declared date.
 
-⭐ THE HEAL, PER (ticker, tf), WHEN A CLIFF IS OBSERVED:
-  1. PURGE + REFETCH: re-pull the stored span from Massive (`_fetch_intraday_range`,
-     `adjusted=true`, so it comes back on the post-split basis) and, if the refetch
-     itself shows NO cliff and carries the series, swap it in with ONE atomic
-     `bars_sqlite.replace_series` transaction.
-  2. RESCALE (fallback when the provider cannot answer): divide every pre-boundary bar
-     by the observed factor with `bars_sanitize.split_factor` / `scale_bar` — the same
-     arithmetic the daily store repair uses — and upsert through `put_bars`.
-
-⛔ IDEMPOTENT BY CONSTRUCTION. Both paths fire only on an OBSERVED split-sized
-discontinuity; once healed the boundary ratio is ≈ 1, nothing matches, and a second run
-writes nothing. A series with no declared split is never even read.
+⭐ THE HEAL IS AN IN-PLACE RESCALE, NEVER A PURGE (review F1/F3/F4, 2026-11-10). Every
+row BEFORE the observed boundary is divided by the DECLARED factor
+(`bars_sqlite.rescale_before`): one SQL UPDATE per chunk of `_CHUNK_ROWS` rows, newest
+first, each in its own short write transaction, with a durable cursor committed in the
+same transaction. So:
+  * nothing is deleted — replay islands, deep 1m history and rows the live feed writes
+    while the heal runs are all kept (rows at/after the boundary are never touched);
+  * memory is O(sessions) for detection (`bars_sqlite.iter_ts_close` pages closes) and
+    O(1) for the rewrite — no 400k-row / multi-million-row lists on a Railway pod;
+  * the write lock is held per chunk, never for the whole series;
+  * an interrupted heal RESUMES from its cursor (`pending_split_rescales`) and a
+    finished boundary is never applied twice. The cliff is re-verified INSIDE the first
+    chunk's transaction, atomically with the first rewrite.
+⚰️ The first version purged + refetched the stored span (`replace_series`): its DELETE
+was unbounded while the read and refetch were not, so it could drop real history.
 
 ⛔ BOUNDED, OFF THE REQUEST PATH. `note_served` (called from the intraday serve
 chokepoint `bars_fetch._fmt_sqlite_bars`) does only cache reads; the heal itself runs on
 ONE background worker with a small dedup'd queue, and a (ticker, split) pair is checked
 at most once per `_CHECK_TTL_S`. Split metadata is read from `bars_sanitize`'s cache
 only — never a synchronous vendor call on a serve path.
+⚠️ (F5, known) A cache MISS in `note_served` schedules `bars_sanitize`'s metadata warm
+for that ticker — the same bounded, deduped 2-worker warm the daily serve path already
+triggers for every ticker it sanitizes; an intraday-only scan adds the tickers whose
+daily chart was never opened.
 
 Kill switch: `INTRADAY_SPLIT_HEAL_ENABLED=0` (default ON).
 """
@@ -41,25 +48,24 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
-from typing import Callable, Optional, Sequence
+from typing import Optional, Sequence
 from zoneinfo import ZoneInfo
 
 _log = logging.getLogger(__name__)
 _ET = ZoneInfo("America/New_York")
 
 INTRADAY_TFS = ("1", "5", "15", "30", "60")
-#: Whole stored series per tf — a split factor applies to EVERY bar before the boundary.
-_MAX_ROWS = 400_000
+#: Rows rewritten per write transaction.
+_CHUNK_ROWS = int(os.environ.get("INTRADAY_SPLIT_HEAL_CHUNK_ROWS", "20000"))
 #: A declared date this far outside the served window can still be the session the
 #: price stepped on (`bars_sanitize._SPLIT_BOUNDARY_WINDOW` = 7 sessions ≈ 10 days).
 _DECLARED_PAD_DAYS = 10
+#: Re-verification reads this many days either side of a boundary.
+_VERIFY_PAD_DAYS = 21
 #: A (ticker, newest-split) pair is re-checked at most this often.
 _CHECK_TTL_S = float(os.environ.get("INTRADAY_SPLIT_HEAL_CHECK_TTL_S", str(6 * 3600)))
 _CHECK_MAX_KEYS = 20_000
 _QUEUE_MAX = 32
-#: A refetch carrying fewer than this share of the stored rows is not trusted to
-#: REPLACE the series (the rescale path keeps the depth instead).
-_REFETCH_MIN_SHARE = 0.5
 
 _pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="intraday-split-heal")
 _lock = threading.Lock()
@@ -88,6 +94,17 @@ def _declared(ticker: str) -> list:
     else:
         meta = _san._meta_cached(ticker.upper()) or {}
     return list(meta.get("splits") or [])
+
+
+def declared_splits_cached(ticker: str) -> list:
+    """Declared splits from cache ONLY — never schedules a warm (for the R2 merge)."""
+    try:
+        from api.services import bars_sanitize as _san
+        from api.services.cache import cache
+        meta = cache.get(_san._META_KEY.format(ticker.upper())) or {}
+        return list(meta.get("splits") or [])
+    except Exception:  # noqa: BLE001
+        return []
 
 
 def _splits_near(splits: Sequence, first: date, last: date) -> list:
@@ -155,82 +172,81 @@ def note_served(ticker: str, tf: str, bars: Sequence[dict]) -> bool:
         return False
 
 
-def _read(ticker: str, tf: str) -> list[dict]:
-    from api.services import bars_sqlite
-    rows = bars_sqlite.get_bars(ticker, tf, _MAX_ROWS) or []
-    return [{"t": int(r[0]), "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]}
-            for r in rows]
-
-
-def _default_fetch(ticker: str, tf: str, from_iso: str, to_iso: str) -> list[dict]:
-    from api.services import bars_fetch
-    return bars_fetch._fetch_intraday_range(ticker, tf, from_iso, to_iso)
-
-
-def _spans(bars: Sequence[dict], boundary: date) -> bool:
-    """The series has sessions on BOTH sides of `boundary`."""
-    ds = [_session_date(b.get("t")) for b in bars]
-    return any(d is not None and d < boundary for d in ds) and \
-        any(d is not None and d >= boundary for d in ds)
-
-
-def _rescaled(bars: Sequence[dict], cliffs) -> list[dict]:
-    from api.services import bars_sanitize as _san
-    out = []
-    for b in bars:
-        d = _session_date(b["t"])
-        if d is None:
+def _closes(rows) -> list[dict]:
+    """(ts, c) rows (oldest first) → per-ET-session last close, O(sessions) memory."""
+    last: dict[str, float] = {}
+    for ts, c in rows:
+        if c is None:
             continue
-        f = _san.split_factor(d, cliffs)
-        if f != 1.0:
-            out.append(_san.scale_bar(dict(b), f))
-    return out
+        d = _session_date(ts)
+        if d is not None:
+            last[d.isoformat()] = c
+    return [{"t": d, "c": last[d]} for d in sorted(last)]
+
+
+def _midnight(d: date) -> int:
+    return int(datetime(d.year, d.month, d.day, tzinfo=_ET).timestamp())
+
+
+def _verifier(ticker: str, tf: str, boundary: date, ratio: float):
+    """A callable(conn) that re-reads the closes around `boundary` INSIDE the write
+    transaction and confirms the cliff is still there (atomic with the first rewrite)."""
+    def _check(conn) -> bool:
+        from api.services import bars_sanitize as _san
+        lo = _midnight(boundary - timedelta(days=_VERIFY_PAD_DAYS))
+        hi = _midnight(boundary + timedelta(days=_VERIFY_PAD_DAYS))
+        rows = conn.execute(
+            "SELECT ts, c FROM ohlcv WHERE ticker=? AND tf=? AND ts>=? AND ts<? ORDER BY ts",
+            (ticker, tf, lo, hi)).fetchall()
+        found = _san.unadjusted_splits(_closes(rows), [(boundary.isoformat(), ratio)])
+        return any(b == boundary for b, _ in found)
+    return _check
 
 
 def heal_series(ticker: str, tf: str, *, splits: Optional[Sequence] = None,
-                fetch: Optional[Callable] = None, today: Optional[date] = None) -> dict:
-    """Detect and heal ONE (ticker, tf). Returns a summary; writes only on a cliff."""
+                chunk_rows: Optional[int] = None, max_chunks: Optional[int] = None) -> dict:
+    """Detect and heal ONE (ticker, tf) in place. Writes only on an observed cliff (or
+    to finish an interrupted heal). Returns a summary (counts only)."""
     from api.services import bars_sanitize as _san
     from api.services import bars_sqlite
 
     tk = ticker.upper()
-    out = {"ticker": tk, "tf": tf, "cliffs": [], "method": None, "written": 0, "scanned": 0}
-    declared = list(splits) if splits is not None else _declared(tk)
-    if not declared:
-        return out
-    bars = _read(tk, tf)
-    out["scanned"] = len(bars)
-    if len(bars) < 2:
-        return out
-    cliffs = _san.intraday_unadjusted_splits(bars, declared)
-    if not cliffs:
-        return out
-    out["cliffs"] = [(d.isoformat(), r) for d, r in cliffs]
-    newest_boundary = max(d for d, _ in cliffs)
+    out = {"ticker": tk, "tf": tf, "cliffs": [], "method": None, "written": 0,
+           "resumed": 0, "finished": True}
+    chunk_rows = int(chunk_rows or _CHUNK_ROWS)
 
-    # 1. purge + refetch on the provider's CURRENT (post-split) basis
-    fetch = fetch or _default_fetch
-    first = _session_date(bars[0]["t"])
-    today = today or datetime.now(_ET).date()
-    fresh: list = []
-    try:
-        fresh = list(fetch(tk, tf, first.isoformat(), today.isoformat()) or [])
-    except Exception as e:  # noqa: BLE001
-        _log.warning("[intraday-split-heal] %s tf=%s refetch failed: %s", tk, tf, e)
-    if (fresh and len(fresh) >= _REFETCH_MIN_SHARE * len(bars)
-            and _spans(fresh, newest_boundary)
-            and not _san.intraday_unadjusted_splits(fresh, declared)):
-        out["method"] = "refetch"
-        out["written"] = int(bars_sqlite.replace_series(tk, tf, fresh) or 0)
-    else:
-        # 2. rescale the pre-boundary rows by the OBSERVED factor
-        changed = _rescaled(bars, cliffs)
-        out["method"] = "rescale"
-        if changed:
-            out["written"] = int(bars_sqlite.put_bars(tk, tf, changed, date_tf=False) or 0)
-    _invalidate(tk, tf)
-    _log.info("[intraday-split-heal] %s tf=%s cliffs=%s method=%s wrote %d/%d rows",
-              tk, tf, out["cliffs"], out["method"], out["written"], out["scanned"])
+    # 1. finish anything a previous run left half-done (never re-detect over it: a
+    #    partial rescale moves the step away from the declared date)
+    for boundary_ts, factor, _done in bars_sqlite.pending_split_rescales(tk, tf):
+        r = bars_sqlite.rescale_before(tk, tf, boundary_ts, factor, chunk_rows=chunk_rows,
+                                       max_chunks=max_chunks)
+        out["resumed"] += 1
+        out["written"] += r["rows"]
+        if not r["finished"]:
+            out["finished"] = False
+            _invalidate(tk, tf)
+            return out                     # still unfinished: detection would be wrong
+
+    declared = list(splits) if splits is not None else _declared(tk)
+    if declared:
+        cliffs = _san.unadjusted_splits(_closes(bars_sqlite.iter_ts_close(tk, tf)), declared)
+        out["cliffs"] = [(d.isoformat(), r) for d, r in cliffs]
+        # newest boundary first: an older step keeps its ratio when the rows on both
+        # of its sides are rescaled by a newer factor
+        for boundary, ratio in sorted(cliffs, key=lambda x: x[0], reverse=True):
+            r = bars_sqlite.rescale_before(
+                tk, tf, _midnight(boundary), ratio, chunk_rows=chunk_rows,
+                max_chunks=max_chunks, start=_verifier(tk, tf, boundary, ratio))
+            out["method"] = "rescale"
+            out["written"] += r["rows"]
+            if not r["finished"] and not r["aborted"]:
+                out["finished"] = False
+                break
+    if out["written"]:
+        _invalidate(tk, tf)
+        _log.info("[intraday-split-heal] %s tf=%s cliffs=%d resumed=%d rewrote %d rows "
+                  "finished=%s", tk, tf, len(out["cliffs"]), out["resumed"], out["written"],
+                  out["finished"])
     return out
 
 
@@ -238,14 +254,12 @@ def _invalidate(ticker: str, tf: str) -> None:
     try:
         from api.services.cache import cache
         cache.delete_prefix(f"bars_{ticker}_{tf}_")
-        cache.invalidate(f"histfull_{ticker}_{tf}")   # depth may have changed
     except Exception:  # noqa: BLE001
         pass
 
 
 def heal_ticker(ticker: str, *, splits: Optional[Sequence] = None,
-                fetch: Optional[Callable] = None, tfs: Sequence[str] = INTRADAY_TFS,
-                today: Optional[date] = None) -> list[dict]:
+                tfs: Sequence[str] = INTRADAY_TFS, **kw) -> list[dict]:
     """Heal every intraday tf of one ticker so the whole stored set is on ONE basis.
     One tf's failure never stops the others."""
     if not enabled():
@@ -254,7 +268,7 @@ def heal_ticker(ticker: str, *, splits: Optional[Sequence] = None,
     res = []
     for tf in tfs:
         try:
-            res.append(heal_series(ticker, tf, splits=declared, fetch=fetch, today=today))
+            res.append(heal_series(ticker, tf, splits=declared, **kw))
         except Exception as e:  # noqa: BLE001
             _log.warning("[intraday-split-heal] %s tf=%s: %s", ticker, tf, e)
             res.append({"ticker": ticker.upper(), "tf": tf, "error": str(e)})

@@ -56,60 +56,95 @@ def _stored(ticker, tf):
     return bars_sqlite.get_bars(ticker, tf, 100000)
 
 
-# ── 1. Intraday split heal ───────────────────────────────────────────────────
+# ── 1. Intraday split heal (in-place, chunked, resumable) ────────────────────
 
-def test_split_cliff_is_healed_by_refetch_onto_one_basis_and_is_idempotent(store):
+SPLITS = [(SPLIT_DAY, 2.0)]
+
+
+def _island():
+    """An old replay-style island far below the recent series, on the OLD basis."""
+    return [{"t": _et(2026, 6, 1, 10, 0) + k * 300, "o": 100.0, "h": 101.0, "l": 99.0,
+             "c": 100.0, "v": 1000} for k in range(4)]
+
+
+def test_split_cliff_is_rescaled_in_place_and_is_idempotent(store):
     bars_sqlite.put_bars("SPLT", "5", _series(100.0, 50.0))
-    splits = [(SPLIT_DAY, 2.0)]
     assert bs.intraday_unadjusted_splits(
-        [{"t": r[0], "c": r[4]} for r in _stored("SPLT", "5")], splits)   # the cliff exists
-
-    calls = []
-
-    def fetch(tk, tf, lo, hi):
-        calls.append((tk, tf, lo, hi))
-        return _series(50.0, 50.0)          # provider's CURRENT (post-split) basis
-
-    res = ish.heal_series("SPLT", "5", splits=splits, fetch=fetch,
-                          today=_dt.date(2026, 10, 12))
-    assert res["method"] == "refetch" and res["written"] == 36
-    assert calls == [("SPLT", "5", "2026-10-05", "2026-10-12")]
-    closes = {r[4] for r in _stored("SPLT", "5")}
-    assert closes == {50.0}
-    # idempotent: the boundary is continuous now, so nothing is written again
-    again = ish.heal_series("SPLT", "5", splits=splits, fetch=fetch)
-    assert again["cliffs"] == [] and again["written"] == 0 and len(calls) == 1
+        [{"t": r[0], "c": r[4]} for r in _stored("SPLT", "5")], SPLITS)   # the cliff exists
+    res = ish.heal_series("SPLT", "5", splits=SPLITS)
+    assert res["method"] == "rescale" and res["written"] == 18 and res["finished"]
+    rows = _stored("SPLT", "5")
+    assert len(rows) == 36 and {r[4] for r in rows} == {50.0}
+    assert {r[5] for r in rows if r[0] < _et(2026, 10, 8, 0, 0)} == {2000}   # volume x2
+    again = ish.heal_series("SPLT", "5", splits=SPLITS)
+    assert again["cliffs"] == [] and again["written"] == 0
 
 
-def test_split_heal_falls_back_to_rescale_when_the_refetch_is_empty(store):
-    bars_sqlite.put_bars("SPLT", "15", _series(100.0, 50.0))
-    res = ish.heal_series("SPLT", "15", splits=[(SPLIT_DAY, 2.0)], fetch=lambda *a: [])
-    assert res["method"] == "rescale" and res["written"] == 18   # 3 pre-split sessions
-    rows = _stored("SPLT", "15")
-    assert {r[4] for r in rows} == {50.0}
-    pre = [r for r in rows if r[0] < _et(2026, 10, 8, 0, 0)]
-    assert {r[5] for r in pre} == {2000}            # volume scaled by the same factor
-    assert len(rows) == 36                          # depth kept
+def test_heal_never_deletes_islands_live_rows_or_rows_after_the_boundary(store):
+    """F1/F4: deep rows, replay islands and live rows are rewritten in place or untouched."""
+    bars_sqlite.put_bars("SPLT", "5", _island() + _series(100.0, 50.0))
+    live = {"t": _et(2026, 10, 12, 15, 55), "o": 50.0, "h": 51.0, "l": 49.0, "c": 50.0, "v": 7}
+    real = bars_sqlite.rescale_before
+
+    def _with_live_write(*a, **k):            # the live feed writes mid-heal
+        bars_sqlite.put_bars("SPLT", "5", [live])
+        return real(*a, **k)
+    import unittest.mock as um
+    with um.patch.object(bars_sqlite, "rescale_before", _with_live_write):
+        ish.heal_series("SPLT", "5", splits=SPLITS)
+    rows = {r[0]: r for r in _stored("SPLT", "5")}
+    assert len(rows) == 4 + 36 + 1
+    assert rows[live["t"]][4] == 50.0 and rows[live["t"]][5] == 7
+    assert all(rows[b["t"]][4] == 50.0 for b in _island())          # island rescaled, kept
 
 
-def test_split_heal_refuses_a_refetch_that_still_shows_the_cliff(store):
+def test_an_interrupted_heal_resumes_from_its_cursor_and_never_double_applies(store):
+    """F3: chunked writes; a stop mid-way leaves a durable cursor the next run finishes."""
     bars_sqlite.put_bars("SPLT", "5", _series(100.0, 50.0))
-    res = ish.heal_series("SPLT", "5", splits=[(SPLIT_DAY, 2.0)],
-                          fetch=lambda *a: _series(100.0, 50.0))
-    assert res["method"] == "rescale"
+    part = ish.heal_series("SPLT", "5", splits=SPLITS, chunk_rows=5, max_chunks=1)
+    assert part["written"] == 5 and part["finished"] is False
+    assert bars_sqlite.pending_split_rescales("SPLT", "5")
+    done = ish.heal_series("SPLT", "5", splits=SPLITS, chunk_rows=5)
+    assert done["resumed"] == 1 and done["written"] == 13 and done["finished"]
+    assert {r[4] for r in _stored("SPLT", "5")} == {50.0}           # nothing scaled twice
+    assert bars_sqlite.pending_split_rescales("SPLT", "5") == []
+    assert ish.heal_series("SPLT", "5", splits=SPLITS)["written"] == 0
+
+
+def test_the_cliff_is_reverified_inside_the_write_transaction(store):
+    bars_sqlite.put_bars("SPLT", "5", _series(50.0, 50.0))             # already on one basis
+    r = bars_sqlite.rescale_before(
+        "SPLT", "5", _et(2026, 10, 8, 0, 0), 2.0,
+        start=ish._verifier("SPLT", "5", _dt.date(2026, 10, 8), 2.0))
+    assert r["aborted"] and r["rows"] == 0
     assert {r[4] for r in _stored("SPLT", "5")} == {50.0}
+
+
+def test_old_basis_rows_coming_back_after_a_finished_heal_are_healed_again(store):
+    bars_sqlite.put_bars("SPLT", "5", _series(100.0, 50.0))
+    ish.heal_series("SPLT", "5", splits=SPLITS)
+    bars_sqlite.put_bars("SPLT", "5", _series(100.0, 50.0))            # e.g. a stale restore
+    res = ish.heal_series("SPLT", "5", splits=SPLITS)
+    assert res["written"] == 18
+    assert {r[4] for r in _stored("SPLT", "5")} == {50.0}
+
+
+def test_detection_streams_closes_in_pages(store, monkeypatch):
+    bars_sqlite.put_bars("SPLT", "5", _series(100.0, 50.0))
+    seen = list(bars_sqlite.iter_ts_close("SPLT", "5", batch=7))
+    assert len(seen) == 36 and [t for t, _ in seen] == sorted(t for t, _ in seen)
 
 
 def test_no_declared_split_never_reads_or_writes(store, monkeypatch):
     bars_sqlite.put_bars("FLAT", "5", _series(100.0, 50.0))
-    monkeypatch.setattr(ish, "_read", lambda *a: pytest.fail("read without a split"))
+    monkeypatch.setattr(bars_sqlite, "iter_ts_close", lambda *a, **k: pytest.fail("read"))
     assert ish.heal_series("FLAT", "5", splits=[])["written"] == 0
 
 
 def test_heal_ticker_covers_every_intraday_tf(store):
     for tf in ("5", "15"):
         bars_sqlite.put_bars("SPLT", tf, _series(100.0, 50.0))
-    res = ish.heal_ticker("SPLT", splits=[(SPLIT_DAY, 2.0)], fetch=lambda *a: [])
+    res = ish.heal_ticker("SPLT", splits=SPLITS)
     by_tf = {r["tf"]: r for r in res}
     assert set(by_tf) == {"1", "5", "15", "30", "60"}
     assert by_tf["5"]["written"] and by_tf["15"]["written"] and not by_tf["1"]["written"]
@@ -142,14 +177,6 @@ def test_fmt_sqlite_bars_calls_the_split_hook_for_intraday_only(monkeypatch):
     bars_fetch._fmt_sqlite_bars(rows, "5", "HOOK")
     bars_fetch._fmt_sqlite_bars(rows, "5")                  # no ticker: never
     assert seen == [("HOOK", "5", 3)]
-
-
-def test_replace_series_refuses_empty_and_is_atomic(store):
-    bars_sqlite.put_bars("RPL", "5", _series(10.0, 10.0))
-    assert bars_sqlite.replace_series("RPL", "5", []) == 0
-    assert len(_stored("RPL", "5")) == 36
-    assert bars_sqlite.replace_series("RPL", "5", _series(10.0, 10.0)[:6]) == 6
-    assert len(_stored("RPL", "5")) == 6
 
 
 # ── 2. R2 merge: holes, corrections, partial bar, chunks ─────────────────────
@@ -212,6 +239,37 @@ def test_merge_with_a_different_price_basis_is_forward_only(tmp_path):
     assert [r[0] for r in _all(local)] == [T0, T0 + 600, T0 + 900]
 
 
+def test_merge_skips_interior_when_old_basis_rows_hide_below_agreeing_recent_rows(tmp_path):
+    """F2: the newest common rows agree (post-split) but the window's oldest common
+    rows are on the snapshot's OLD basis — nothing may be interleaved or replaced."""
+    local, snap = tmp_path / "bars.db", tmp_path / "snap.db"
+    recent = [T0 + 900 + k * 300 for k in range(8)]           # > the 5-row newest sample
+    mx = recent[-1] + 300
+    _mkdb(local, [_r("AAA", "5", T0, c=50.0)] + [_r("AAA", "5", t, c=50.0) for t in recent]
+          + [_r("AAA", "5", mx, c=50.0, v=40)])
+    _mkdb(snap, [_r("AAA", "5", T0, c=100.0, v=999),          # pre-split, old basis
+                 _r("AAA", "5", T0 + 300, c=100.0)]           # old-basis "hole"
+          + [_r("AAA", "5", t, c=50.0) for t in recent] + [_r("AAA", "5", mx, c=50.0, v=120)])
+    assert data_sync._merge_ohlcv_from(str(snap), local_db=str(local)) == 0
+    assert {r[1] for r in _all(local)} == {50.0} and len(_all(local)) == 10
+
+
+def test_merge_skips_interior_near_a_declared_split(tmp_path, monkeypatch):
+    """F2: a reverse split's higher old-basis volume must never REPLACE a healed row."""
+    local, snap = tmp_path / "bars.db", tmp_path / "snap.db"
+    _mkdb(local, [_r("AAA", "5", T0), _r("AAA", "5", T0 + 600), _r("AAA", "5", T0 + 900, v=40)])
+    _mkdb(snap, [_r("AAA", "5", T0), _r("AAA", "5", T0 + 300), _r("AAA", "5", T0 + 600),
+                 _r("AAA", "5", T0 + 900, v=120)])
+    day = _dt.datetime.fromtimestamp(T0, ET).date().isoformat()
+    cache.set(bs._META_KEY.format("AAA"), {"ipo": None, "splits": [(day, 0.1)]}, ttl=60)
+    try:
+        assert data_sync._merge_ohlcv_from(str(snap), local_db=str(local)) == 0
+    finally:
+        cache.invalidate(bs._META_KEY.format("AAA"))
+    assert [r[0] for r in _all(local)] == [T0, T0 + 600, T0 + 900]
+    assert _all(local)[-1][2] == 40
+
+
 def test_merge_daily_stays_forward_only(tmp_path):
     local, snap = tmp_path / "bars.db", tmp_path / "snap.db"
     _mkdb(local, [_r("AAA", "D", 20261001), _r("AAA", "D", 20261005, v=10)])
@@ -258,6 +316,9 @@ def test_merge_statements_seek_by_primary_key():
     for sql in (data_sync._MERGE_ADD_SQL, data_sync._MERGE_CORRECT_SQL):
         plan = " | ".join(r[3] for r in c.execute("EXPLAIN QUERY PLAN " + sql, ("A", "5", 0)))
         assert "SCAN" not in plan, plan
+    for sql in (data_sync._MERGE_BASIS_NEWEST_SQL, data_sync._MERGE_BASIS_OLDEST_SQL):
+        plan = [r[3] for r in c.execute("EXPLAIN QUERY PLAN " + sql, (0,) * sql.count("?"))]
+        assert not any(p.startswith(("SCAN main.ohlcv", "SCAN ohlcv", "SCAN s")) for p in plan), plan
 
 
 # ── 3. Fallback providers ────────────────────────────────────────────────────

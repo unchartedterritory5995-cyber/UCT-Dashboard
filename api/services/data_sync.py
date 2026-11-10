@@ -983,10 +983,11 @@ def _list_snapshot_ts_desc() -> list[str]:
 #     grows while it forms, so "more volume at the same ts" is the one monotone,
 #     source-free proof that the local row is the partial one;
 #   * ⛔ both interior rules apply ONLY when the two stores provably share a PRICE
-#     BASIS (closes agree at common settled rows below local MAX). A pair whose bases
-#     differ (one side re-adjusted for a split) or cannot be compared gets the legacy
-#     forward-only rule — interleaving two bases inside a series is the cliff the
-#     intraday split heal exists to remove.
+#     BASIS (closes agree at common rows at BOTH ends of the window) AND no declared
+#     split (cache only) sits near the window. A pair whose bases differ (one side
+#     re-adjusted for a split), cannot be compared, or straddles a split gets the
+#     legacy forward-only rule — interleaving two bases inside a series is the cliff
+#     the intraday split heal exists to remove.
 # Pairs are merged in CHUNKS, each its own short `BEGIN IMMEDIATE` transaction, with
 # the lock hold time measured and logged (merge start / end, max + total lock ms).
 
@@ -1032,15 +1033,23 @@ _MERGE_CORRECT_SQL = (
 )
 
 
-def _merge_basis_agrees(conn, ticker: str, tf: str, mx: int) -> bool:
-    """True when local and snapshot closes agree at the newest common SETTLED rows
-    (strictly below local MAX, so a partial tail never decides). No common row in
-    the local tail ⇒ False: an unproven basis gets the conservative rule."""
-    rows = conn.execute(
-        "SELECT m.c, s.c FROM (SELECT ts, c FROM main.ohlcv WHERE ticker=? AND tf=? "
-        "AND ts < ? ORDER BY ts DESC LIMIT 50) m "
-        "JOIN snap.ohlcv s ON s.ticker=? AND s.tf=? AND s.ts=m.ts LIMIT ?",
-        (ticker, tf, mx, ticker, tf, _MERGE_BASIS_SAMPLE)).fetchall()
+#: Newest common SETTLED rows (strictly below local MAX: a partial tail never decides).
+_MERGE_BASIS_NEWEST_SQL = (
+    "SELECT m.c, s.c FROM (SELECT ts, c FROM main.ohlcv WHERE ticker=? AND tf=? "
+    "AND ts < ? ORDER BY ts DESC LIMIT 50) m "
+    "JOIN snap.ohlcv s ON s.ticker=? AND s.tf=? AND s.ts=m.ts LIMIT ?"
+)
+#: OLDEST common rows inside the heal window — the end a split would sit behind (settled: below MAX).
+_MERGE_BASIS_OLDEST_SQL = (
+    "SELECT m.c, s.c FROM (SELECT ts, c FROM main.ohlcv WHERE ticker=? AND tf=? "
+    "AND ts > ? AND ts < ? ORDER BY ts ASC LIMIT 50) m "
+    "JOIN snap.ohlcv s ON s.ticker=? AND s.tf=? AND s.ts=m.ts LIMIT ?"
+)
+#: A declared split this close to the heal window disables interior merge for the pair.
+_MERGE_SPLIT_PAD_DAYS = 10
+
+
+def _closes_agree(rows) -> bool:
     if not rows:
         return False
     for lc, sc in rows:
@@ -1049,6 +1058,37 @@ def _merge_basis_agrees(conn, ticker: str, tf: str, mx: int) -> bool:
         if abs(sc / lc - 1.0) > _MERGE_BASIS_TOL:
             return False
     return True
+
+
+def _merge_basis_agrees(conn, ticker: str, tf: str, mx: int, floor: int) -> bool:
+    """True when local and snapshot closes agree at BOTH ends of the heal window: the
+    newest settled common rows below local MAX and the oldest common rows above
+    `floor`. ⛔ Sampling only the newest rows (review F2) agreed on post-split rows
+    while the snapshot's pre-split rows further down the window were still on the old
+    basis. No common row at either end ⇒ False (unproven → conservative rule)."""
+    args = (ticker, tf, mx, ticker, tf, _MERGE_BASIS_SAMPLE)
+    if not _closes_agree(conn.execute(_MERGE_BASIS_NEWEST_SQL, args).fetchall()):
+        return False
+    args = (ticker, tf, floor, mx, ticker, tf, _MERGE_BASIS_SAMPLE)
+    return _closes_agree(conn.execute(_MERGE_BASIS_OLDEST_SQL, args).fetchall())
+
+
+def _merge_split_near(ticker: str, floor: int) -> bool:
+    """A declared split (cache only, never a fetch) dated at/after the window floor
+    minus a pad. ⛔ Around a split the two stores can legitimately sit on different
+    bases (one healed, one not), and interleaving them — or letting a higher old-basis
+    volume REPLACE a healed row on a reverse split — re-creates the cliff the intraday
+    split heal removed, which it would then re-heal every few hours (an oscillation)."""
+    try:
+        from api.services.intraday_split_heal import declared_splits_cached
+        splits = declared_splits_cached(ticker)
+    except Exception:  # noqa: BLE001
+        return False
+    if not splits:
+        return False
+    lo = (_dt.datetime.fromtimestamp(floor, _ZoneInfo("America/New_York")).date()
+          - _dt.timedelta(days=_MERGE_SPLIT_PAD_DAYS)).isoformat()
+    return any(str(s[0])[:10] >= lo for s in splits)
 
 
 def _merge_pair(conn, ticker: str, tf: str) -> tuple[int, int]:
@@ -1060,8 +1100,11 @@ def _merge_pair(conn, ticker: str, tf: str) -> tuple[int, int]:
     if mx is None:
         conn.execute(_MERGE_ADD_SQL, (ticker, tf, -(1 << 62)))
         return conn.total_changes - before, 0
-    interior = tf in _MERGE_INTRADAY_TFS and _merge_basis_agrees(conn, ticker, tf, mx)
-    floor = (mx - _MERGE_HEAL_WINDOW_S) if interior else mx
+    window_floor = mx - _MERGE_HEAL_WINDOW_S
+    interior = (tf in _MERGE_INTRADAY_TFS
+                and not _merge_split_near(ticker, window_floor)
+                and _merge_basis_agrees(conn, ticker, tf, mx, window_floor))
+    floor = window_floor if interior else mx
     conn.execute(_MERGE_ADD_SQL, (ticker, tf, floor))
     added = conn.total_changes - before
     corrected = 0
