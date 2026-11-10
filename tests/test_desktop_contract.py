@@ -33,8 +33,10 @@ HEALTH_FIELDS = frozenset({"status", "uptime_seconds", "build_id"})
 
 _SOURCE_SUFFIXES = {".js", ".jsx", ".ts", ".tsx"}
 _FEATURE_CALL = re.compile(r"""hasDesktopFeature\(\s*['"]([^'"]+)['"]\s*\)""")
-# The module reads the global only through a local named `b`, so `b.x` is every member it touches.
-_MEMBER_ON_BRIDGE = re.compile(r"\bb\.([A-Za-z_]\w*)")
+# The module reads the global through a local named `b` or getBridge(): both forms are scanned.
+_MEMBER_ON_BRIDGE = re.compile(r"(?:\bb|\bgetBridge\(\))\.([A-Za-z_]\w*)")
+_COMPUTED_ON_BRIDGE = re.compile(r"\bgetBridge\(\)\s*\[")
+_GLOBAL_MEMBER_ACCESS = re.compile(r"uctDesktop\s*(?:\?\.|\.|\[)")
 _FEATURE_TABLE = re.compile(r"const FEATURE_METHODS = \{(.*?)\n\}", re.S)
 _FEATURE_ROW = re.compile(r"""['"]([^'"]+)['"]\s*:\s*\[([^\]]*)\]""")
 _STRING = re.compile(r"""['"]([^'"]+)['"]""")
@@ -65,7 +67,14 @@ def unknown_feature_calls(text: str, contract: dict) -> set[str]:
 
 def unknown_bridge_members(module_text: str, contract: dict) -> set[str]:
     allowed = set(contract["methods"]) | set(contract["properties"])
-    return set(_MEMBER_ON_BRIDGE.findall(module_text)) - allowed
+    unknown = set(_MEMBER_ON_BRIDGE.findall(module_text)) - allowed
+    if _COMPUTED_ON_BRIDGE.search(module_text):
+        unknown.add("getBridge()[...]: a computed member the scan cannot read")
+    return unknown
+
+
+def global_member_accesses(text: str) -> list[str]:
+    return _GLOBAL_MEMBER_ACCESS.findall(text)
 
 
 def feature_table_errors(module_text: str, contract: dict) -> set[str]:
@@ -106,6 +115,13 @@ def test_only_the_bridge_module_names_the_global():
         and "uctDesktop" in p.read_text(encoding="utf-8")
     ]
     assert offenders == []
+
+
+def test_presence_only_readers_read_no_member_of_the_global():
+    for relative in sorted(PRESENCE_ONLY_READERS):
+        text = (REPO / relative).read_text(encoding="utf-8")
+        assert "uctDesktop" in text, f"{relative} no longer needs this exemption"
+        assert global_member_accesses(text) == [], f"{relative} must only test the global for presence"
 
 
 def test_every_feature_asked_for_is_in_the_contract():
@@ -159,6 +175,35 @@ def test_rail_catches_an_unknown_feature_call():
 def test_rail_catches_an_unknown_bridge_member():
     assert unknown_bridge_members("b.teleport()", _CONTRACT) == {"teleport"}
     assert unknown_bridge_members("b.getInfo()", _CONTRACT) == set()
+
+
+def test_rail_catches_get_bridge_member_and_computed_forms():
+    assert unknown_bridge_members("getBridge().teleport()", _CONTRACT) == {"teleport"}
+    assert unknown_bridge_members("getBridge().ackBeforeQuit()", _CONTRACT) == set()
+    assert unknown_bridge_members("getBridge()[name](cb)", _CONTRACT) == {
+        "getBridge()[...]: a computed member the scan cannot read"
+    }
+
+
+def test_rail_refuses_violations_planted_in_a_temporary_copy(tmp_path):
+    copy = tmp_path / "desktopBridge.js"
+    copy.write_text(
+        BRIDGE_MODULE.read_text(encoding="utf-8") + "\ngetBridge().teleport()\ngetBridge()['warp']()\n",
+        encoding="utf-8",
+    )
+    planted = unknown_bridge_members(copy.read_text(encoding="utf-8"), load_contract())
+    assert "teleport" in planted
+    assert "getBridge()[...]: a computed member the scan cannot read" in planted
+
+
+def test_rail_refuses_member_access_planted_in_a_copy_of_the_exempt_file(tmp_path):
+    copy = tmp_path / "webPush.js"
+    copy.write_text(
+        (REPO / "app" / "src" / "utils" / "webPush.js").read_text(encoding="utf-8")
+        + "\nwin.uctDesktop.getInfo()\n",
+        encoding="utf-8",
+    )
+    assert global_member_accesses(copy.read_text(encoding="utf-8")) != []
 
 
 def test_rail_catches_a_feature_table_that_drifted():
