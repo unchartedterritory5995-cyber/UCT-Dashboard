@@ -1212,11 +1212,39 @@ export function registerBoardCapabilities() {
     return p.why ? { why: `${p.why} among your ${l.noun}s (${items.map(x => x.name).join(', ')}).` } : { t, l, items, it: p.item }
   }
 
+  // ── WHICH WIDGET (owner rule: ASK when the target widget is unclear). One guard for every widget op of the shared layer: when the
+  // op's widget is one of 2+ of its type on the board and the member's words name none of them — by position ("the left one"), by
+  // what it shows (a list or scan name, its linked ticker) — the op is not run on the planner's pick: the member is asked, with
+  // each candidate, and the op runs on the one they choose (resolveArgs → pickArg). Words that name one → that one, no question. ──
+  const WORDS = (t) => ` ${String(t || '').toLowerCase().replace(/[^a-z0-9$]+/g, ' ').trim()} `
+  const namesOf = (w, same, syms) => {
+    const pos = positionWord(w, same) || ''
+    const shown = ['watchName', 'scanName', 'title', 'name'].map(k => w.opts?.[k]).filter(v => typeof v === 'string' && v.trim())
+    const sym = syms?.[w.color]
+    const symUnique = sym && same.filter(o => syms?.[o.color] === sym).length === 1
+    return [...(pos ? [pos.replace(/-/g, ' '), ...pos.split('-')] : []), ...shown, ...(symUnique ? [sym] : [])].map(WORDS).filter(x => x.trim())
+  }
+  function whichWidget(args, host, member) {
+    if (member == null) return null
+    let s = null
+    try { s = host?.widgets?.snapshot?.() } catch { s = null }
+    const raw = s?.visible || s?.raw || []
+    const w = raw.find(x => String(x.id) === String(args?.widget))
+    if (!w) return null
+    const same = raw.filter(x => x.type === w.type)
+    if (same.length < 2) return null
+    const said = WORDS(member)
+    const named = same.filter(x => namesOf(x, same, s?.groupSyms).some(n => said.includes(n)))
+    if (named.length === 1) return named[0].id === w.id ? null : { args: { ...args, widget: named[0].id } }
+    const lbl = (x) => `${label(x.type)}${positionWord(x, same) ? ` (${positionWord(x, same)})` : ''}`
+    return { ask: { arg: 'widget', text: `Which ${label(w.type)} — ${same.map(lbl).join(' or ')}?`, choices: same.map(x => ({ ref: String(x.id), label: lbl(x) })) } }
+  }
   const doorFor = (env, t) => env?.target?.doorOf?.(t.id) || null
   const coerced = (st, t, f, value, env) => coerceOption(f, value, choicesOf(f, doorFor(env, t)), valueOf(f, { ...t }, st.doors))
   reg({
     ...common,
     name: 'widget.setOption',
+    resolveArgs: (args, host, member) => whichWidget(args, host, member),
     summary: 'Change ONE control of a widget on the board, exactly as the widget\'s own control does: a view, a filter, a period, the day shown, the open theme, a universe, an axis, a reading shown or hidden. Undo puts it back.',
     hints: 'target = the board entry; widget = the widget id; key and value from the widgetControls section, by type (never invented): “ask widget.readOptions” = the widget\'s own list right now, and a name is enough. (+/-) takes "+member" or "-member". `set` is how a widget is set now. No entry for its type: use widget.readOptions, which lists them.',
     args: { type: 'object', properties: { widget: widgetArg, key: { type: 'string' }, value: { type: ['string', 'number', 'boolean'] } }, required: ['widget', 'key', 'value'], additionalProperties: false },
@@ -1235,13 +1263,25 @@ export function registerBoardCapabilities() {
       const door = doorFor(env, t)
       if ((f.door || f.from === 'door') && !door) return `The ${label(t.type)} isn't showing right now, so I can't reach its ${f.key}.`
       if (f.from === 'door' && !choicesOf(f, door).length) return `The ${label(t.type)} has nothing to choose for ${f.key} yet.`
-      return coerced(st, t, f, value, env).why || null
+      const c = coerced(st, t, f, value, env)
+      if (c.why) return c.why
+      // ONE choice per single-select control in one request, as the widget's own chips allow ("calls and puts only" is refused
+      // with the control's own choices, never one of the two quietly winning)
+      const was = f.type === 'enum' ? st.chose?.[`${t.id}\u0000${f.key}`] : undefined
+      if (was !== undefined && !same(was, c.value)) {
+        const ch = choicesOf(f, door)
+        return `${f.key} on the ${label(t.type)} is one choice: ${listed(ch)} — not ${says(f, was, ch)} and ${says(f, c.value, ch)} together. Nothing changed.`
+      }
+      return null
     },
     apply(st, { widget, key, value }, env) {
       const t = widgetOf(st, widget)
       if (listFor(t, key)) return itemApply(st, t, key, value, env)
       const f = controlFor(t, key)
       const next = coerced(st, t, f, value, env).value
+      // what this request chose for a single-select control (check refuses a second, different one). Kept on the plan's own
+      // state object, so an op that changes nothing stays the same state (the executor's no-op test is identity)
+      if (f.type === 'enum') { st.chose ||= {}; st.chose[`${t.id}\u0000${f.key}`] = next }
       if (f.door) return same(next, valueOf(f, t, st.doors)) ? st : { ...st, doors: { ...st.doors, [t.id]: { ...st.doors[t.id], [f.key]: next } } }
       const opts = f.write ? f.write(t.opts, next) : withPath(t.opts, f, next)
       if (same(next, atPath(t.opts, f)) || same(opts, t.opts)) return st
@@ -1303,6 +1343,7 @@ export function registerBoardCapabilities() {
   reg({
     ...common,
     name: 'widget.sendToJournal',
+    resolveArgs: (args, host, member) => whichWidget(args, host, member),
     risk: 'confirm', reversible: false, undo: 'none',
     absentAsNull: ['where'],
     summary: 'Send a frozen capture of what a widget on the board shows now to the member\'s Journal, exactly as the widget\'s Send to Journal door does: a chart, scan, list, breadth, a calendar day, themes… One op per widget. There is no Undo.',

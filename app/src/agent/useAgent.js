@@ -45,7 +45,6 @@ import { UNDO_ACTION } from './capabilities/about'
 import { FLOW_FIELDS } from './capabilities/scanHidden'
 import { namedBoardWidgets } from './routing'
 // the widget's own filter chips are not set from the Agent here (open owner decision); the member is pointed at the control itself
-export const FLOW_WIDGET_REFUSAL = "I can't set the Options Flow widget's filters for you yet. Use the filter chips on the widget itself (Calls / Puts, Sweeps / Blocks, Bull / Bear, the premium floor). Nothing was changed."
 import { registerBuiltins, registerServerGatedBuiltins } from './builtins'
 import { routingEnabled, routingNames, GROUPS as ROUTE_GROUPS, wordsSelect } from './routing'
 import { pickRouter, routingV2Active } from './nlm1/flag'   // NLM-1 D1 (dark, two keys): routing v2, else v1's routeManifest
@@ -1444,7 +1443,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         const cap = getCapability(opsIn[i]?.action)
         if (typeof cap?.resolveArgs !== 'function') continue
         let r = null
-        try { r = cap.resolveArgs(opsIn[i].args || {}, host) } catch { r = null }
+        try { r = cap.resolveArgs(opsIn[i].args || {}, host, member) } catch { r = null }
         if (r?.ask) {
           pendingRef.current = { kind: 'target', ops: opsIn, path, mode: suggested, member, voice, epoch: epochOf(host), pickArg: { action: opsIn[i].action, arg: r.ask.arg } }
           push({ role: 'question', text: r.ask.text, choices: r.ask.choices, local: true })
@@ -2293,16 +2292,11 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       }
       let fast = fast0
       if (fast?.kind === 'ops' && !(await typedSymbolsKnown(fast.ops, text))) { mark('fast:symbol-to-model'); fast = null }
-      // round 3 (pl-auto unseen3): "only show puts in the options flow" with an Options Flow WIDGET on the board is a request for that
-      // widget's own filter chips, not a screen. Which chips UCT Agent may set is an open owner decision (F-16), so nothing is widened:
-      // it is still not done here, but the refusal says so about the widget's control, never "use the Screener page".
+      // round 3 (pl-auto unseen3) → F-16 widened (owner 2026-11-10): "only show puts in the options flow" with an Options Flow WIDGET
+      // on the board is a request for that widget's own filter chips, not a screen: never claimed as a screen here, it goes to the
+      // planner, which sets the chip through widget.setOption (the widget's own filters; no hidden field, no data read).
       if (fast?.kind === 'ops' && fast.ops.some(o => o?.action === 'screener.run' && (o.args?.filters || []).some(f => FLOW_FIELDS.has(f?.field)))
-        && namedBoardWidgets(text, host?.widgets?.types?.() || []).includes('optionsflow')) {
-        const t = FLOW_WIDGET_REFUSAL
-        push({ role: 'refusal', text: t })
-        record({ member: text, outcome: t, outcomeData: { kind: 'refused', actions: ['widget.setOption'] }, telemetry: { path: 'fast', refused: true, voice } })
-        return
-      }
+        && namedBoardWidgets(text, host?.widgets?.types?.() || []).includes('optionsflow')) { mark('fast:flow-chip-to-model'); fast = null }
       // round 3: clauses naming different charts are planned per clause by the model, never one instant target for all
       // (only several CHART changes read as one: a swap or a list add naming two charts is one op, read as before)
       if (fast?.kind === 'ops' && fast.ops.length > 1 && fast.ops.every(o => getCapability(o?.action)?.target === 'chart')

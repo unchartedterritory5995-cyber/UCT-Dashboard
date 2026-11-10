@@ -242,17 +242,21 @@ describe('through the REAL panel with routing v2 on: a control request carries i
     expect(p.turns()).toBeGreaterThanOrEqual(1)
     expect(optsOf(board, 'of').filters).toEqual({ cp: 'C' })
   }, 40000)
-  it.each([['only show puts on the options flow', 'Puts'], ['filter the options flow to puts', 'Puts'], ['just sweeps on the options flow', 'Sweep'], ['only show bears on the options flow', 'Bear']])('⛔ the approval names the Calls filter: "%s" says plainly that only Calls Only is supported, and changes nothing', async (message, chip) => {
+  // F-16 WIDENED (owner 2026-11-10): every chip, not only Calls — the same control, the same exact Undo
+  it.each([['only show puts on the options flow', 'callPut', 'Puts', { cp: 'P' }], ['filter the options flow to puts', 'callPut', 'P', { cp: 'P' }],
+    ['just sweeps on the options flow', 'printType', 'Sweep', { type: 'SWEEP' }], ['only show bears on the options flow', 'direction', 'Bear', { dir: 'BEAR' }]])('F-16 widened, "%s": the model is reached and sets that chip through the widget\'s own control; Undo exact', async (message, key, value, want) => {
     const [[chart], syms] = ONE('NVDA')
     const { say, board } = p.mount([{ ...chart, w: 18 }, w('of', 'optionsflow', 18, 0, {})], syms)
     const before = JSON.stringify(board.state.widgets)
-    const out = await say(message)
-    expect(out).toMatch(/The only Options Flow filter I can set is Calls Only/)
-    expect(out).toContain(chip)
-    expect(p.turns()).toBe(0)
+    p.st.envelopes.push(p.env('apply', [op({ widget: 'of', key, value })]))
+    await say(message)
+    expect(p.turns()).toBe(1)
+    expect(optsOf(board, 'of').filters).toEqual(want)
+    expect(p.st.calls.filter(c => /\/api\/(?:screener\/scan|agent\/data)/.test(c[1]))).toEqual([])
+    await say('undo')
     expect(JSON.stringify(board.state.widgets)).toBe(before)
   }, 40000)
-  it.each(['only show balls on the options flow', 'only show falls on the options flow', 'filter the options flow to cells'])('⛔ "%s" does not mean calls: the refusal, no model call, nothing changes', async (message) => {
+  it.each(['only show balls on the options flow', 'only show falls on the options flow', 'filter the options flow to cells'])('⛔ "%s" is no chip word: the refusal, no model call, nothing changes', async (message) => {
     const [[chart], syms] = ONE('NVDA')
     const { say, board } = p.mount([{ ...chart, w: 18 }, w('of', 'optionsflow', 18, 0, {})], syms)
     const before = JSON.stringify(board.state.widgets)

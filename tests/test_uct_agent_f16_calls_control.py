@@ -3,7 +3,8 @@
 turn.py refuses a screen-shaped message that names a hidden field AFTER the model answers, whatever it planned. Without
 this exception "only show calls on the options flow" would be dropped here even when the model planned the widget's own
 Calls chip. The exception holds only for that plan on a flow widget in this turn's own board, and every other F-16 path
-keeps its refusal: tests/test_uct_agent_w11_repair_b.py stays as it was.
+keeps its refusal: tests/test_uct_agent_w11_repair_b.py stays as it was. Widened 2026-11-10 to every chip:
+tests/test_uct_agent_f16_flow_chips.py.
 """
 import json
 from pathlib import Path
@@ -55,10 +56,9 @@ def test_no_hidden_field_or_data_comes_with_it():
     (_control(), NO_FLOW, "no flow widget on the board"),
     (_control(widget="nw"), BOARD, "another widget"),
     (_control(widget="zz"), BOARD, "a widget not on this board"),
-    (_control(value="Puts"), BOARD, "another chip"),
-    (_control(value="P"), BOARD, "another chip, by value"),
-    (_control(key="printType", value="SWEEP"), BOARD, "another control"),
     (_control(key="filters", value="opt_net_premium_1d"), BOARD, "a hidden field as a value"),
+    (_control(key="lead", value="sentiment"), BOARD, "a control that is no filter chip"),
+    (_control(value="Straddles"), BOARD, "a value no chip has"),
     (env("answer", reply="Calls are up today."), BOARD, "prose"),
     (_screen_op("vol_ratio"), BOARD, "a public look-alike screen"),
     (_screen_op("opt_net_premium_1d"), BOARD, "a hidden field screen"),
