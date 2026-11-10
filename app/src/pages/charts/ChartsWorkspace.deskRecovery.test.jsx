@@ -9,10 +9,11 @@ import { vi, describe, test, expect, beforeEach, afterEach } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 
 vi.mock('./WidgetHost', () => ({
-  default: ({ widget, onRemove }) => (
+  default: ({ widget, onRemove, onPopOut }) => (
     <div data-testid={`body-${widget.id}`}>
       {widget.type}
       <button data-testid={`remove-${widget.id}`} onClick={onRemove}>x</button>
+      {onPopOut && <button data-testid={`popout-${widget.id}`} onClick={onPopOut}>pop</button>}
     </div>
   ),
 }))
@@ -55,6 +56,8 @@ vi.mock('../../hooks/useChartLayouts', () => ({
 
 import ChartsWorkspace from './ChartsWorkspace'
 import { publishPrefsUser, __resetPrefsSessionForTests } from '../../lib/prefsSession'
+import { markAppClosing, __resetAppClosingForTests } from '../../lib/appClosing'
+import { requestDeskLaunch, finishDeskLaunch, isDeskLaunchPending, hasOpenPopouts } from '../../lib/popoutRegistry'
 
 const widget = (id, x = 0) => ({ id, type: 'scanner', color: 'C', x, y: 0, w: 6, h: 10, opts: {} })
 const board = (...widgets) => JSON.stringify({ widgets, cols: 24, version: 1 })
@@ -168,6 +171,9 @@ afterEach(() => {
   delete globalThis.fetch
   delete navigator.locks
   __resetPrefsSessionForTests()
+  __resetAppClosingForTests()
+  finishDeskLaunch()
+  delete window.uctDesktop
   window.history.replaceState({}, '', '/')
 })
 
@@ -545,5 +551,181 @@ describe('two members on one machine', () => {
     popOut()
     expect(recordKeys()).toEqual([recordKey('A', 'pl-1')])
     expect(screen.getByRole('alert')).toHaveTextContent(/not crash-safe/i)
+  })
+})
+
+describe('launch restore in the desktop app', () => {
+  const inShell = () => { window.uctDesktop = { bridgeVersion: 1, capabilities: ['window-state', 'before-quit'] } }
+  const seedWidget = (uid, widgetId) => localStorage.setItem(recordKey(uid, `pw-${widgetId}`), JSON.stringify({
+    kind: 'widget', id: `pw-${widgetId}`, widgetId, windowName: `uct-widget-${widgetId}`, tabId: 'a-page-that-is-gone',
+  }))
+  const namesOpened = () => openSpy.mock.calls.map(([, name]) => name)
+
+  beforeEach(inShell)
+
+  test('6 records open 6 named windows, and none of them docks', async () => {
+    for (let i = 0; i < 6; i += 1) seedOrphan('A', `pl-${i}`, [widget(`r${i}`)])
+    await renderWS()
+    expect(namesOpened().sort()).toEqual([0, 1, 2, 3, 4, 5].map((i) => `uct-board-pl-${i}`))
+    expect(restoreButton()).toBeNull()
+    expect(screen.queryByTestId('body-r0')).toBeNull()
+    expect(recordKeys()).toHaveLength(6)
+    expect(layoutWrites()).toEqual([])
+  })
+
+  test('a re-popped board is re-owned by this page, so a later tab does not see an orphan', async () => {
+    seedOrphan('A', 'pl-1', [widget('r1')])
+    await renderWS()
+    expect(readRecord('A', 'pl-1').tabId).not.toBe('a-page-that-is-gone')
+  })
+
+  test('waits for the board to load before opening anything', async () => {
+    seedOrphan('A', 'pl-1', [widget('r1', 12)])
+    mockPrefsLoading = true
+    mockPrefs = {}
+    const view = await renderWS()
+    expect(openSpy).not.toHaveBeenCalled()
+
+    mockPrefsLoading = false
+    mockPrefs = { charts_workspace_layout: board(widget('a1')) }
+    view.rerender(tree())
+    await flush()
+    expect(namesOpened()).toEqual(['uct-board-pl-1'])
+  })
+
+  test('a failed preferences read opens nothing', async () => {
+    seedOrphan('A', 'pl-1', [widget('r1', 12)])
+    mockReadFailed = true
+    mockPrefs = {}
+    await renderWS()
+    expect(openSpy).not.toHaveBeenCalled()
+    expect(recordKeys()).toHaveLength(1)
+  })
+
+  test('a null window.open docks the board, says so, and never loses it', async () => {
+    seedOrphan('A', 'pl-1', [widget('r1', 12)])
+    openSpy.mockImplementation(() => null)
+    let landed
+    setPref.mockImplementation((key) => (key === 'charts_workspace_layout' ? new Promise((r) => { landed = r }) : Promise.resolve(true)))
+    await renderWS()
+    expect(openSpy).toHaveBeenCalledTimes(1)
+    expect(screen.getByTestId('body-r1')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent(/blocked/i)
+    act(() => { vi.advanceTimersByTime(600) })
+    await flush()
+    expect(recordKeys(), 'the record is the only copy until the save lands').toHaveLength(1)
+    expect(idsOf(layoutWrites().at(-1))).toEqual(['a1', 'a2', 'r1'])
+    await act(async () => { landed(true) })
+    await flush()
+    expect(recordKeys()).toEqual([])
+  })
+
+  test('a widget record re-pops its widget into its named window, off the main board', async () => {
+    seedWidget('A', 'a1')
+    await renderWS()
+    expect(namesOpened()).toEqual(['uct-widget-a1'])
+    expect(screen.queryByTestId('body-a1')).toBeNull()
+    expect(screen.getByTestId('body-a2')).toBeInTheDocument()
+    expect(recordKeys()).toEqual([recordKey('A', 'pw-a1')])
+    expect(readRecord('A', 'pw-a1').tabId).not.toBe('a-page-that-is-gone')
+    expect(layoutWrites()).toEqual([])
+  })
+
+  test('a widget no longer in the layout is dropped', async () => {
+    seedWidget('A', 'gone')
+    await renderWS()
+    expect(openSpy).not.toHaveBeenCalled()
+    expect(recordKeys()).toEqual([])
+  })
+
+  test('popping a widget writes its record, docking it removes it', async () => {
+    const fake = makeFakeWindow()
+    openSpy.mockImplementation(() => fake)
+    await renderWS()
+    act(() => { fireEvent.click(screen.getByTestId('popout-a1')) })
+    expect(namesOpened()).toEqual(['uct-widget-a1'])
+    expect(recordKeys()).toEqual([recordKey('A', 'pw-a1')])
+    act(() => { fake._fire('beforeunload') })
+    expect(recordKeys()).toEqual([])
+    expect(screen.getByTestId('body-a1')).toBeInTheDocument()
+  })
+
+  test('removing a popped widget removes its record', async () => {
+    const fake = makeFakeWindow()
+    openSpy.mockImplementation(() => fake)
+    await renderWS()
+    act(() => { fireEvent.click(screen.getByTestId('popout-a1')) })
+    act(() => { fake.document.querySelector('[data-testid="remove-a1"]').click() })
+    await flush()
+    expect(recordKeys()).toEqual([])
+  })
+
+  test('REVIEW FOCUS: a normal quit restores the desk at the next launch, it does not dock it', async () => {
+    const fake = makeFakeWindow()
+    openSpy.mockImplementation(() => fake)
+    const first = await renderWS()
+    popOut()
+    const id = popId()
+
+    markAppClosing()                                         // onBeforeQuit in the shell
+    act(() => { fake._fire('beforeunload') })                // a popup closing as part of the quit
+    unloadOpener()
+    expect(screen.queryByTestId('body-a1')).toBeNull()       // docked nowhere
+    expect(recordKeys()).toEqual([recordKey('A', id)])
+
+    first.unmount()
+    locks.killAll()
+    __resetAppClosingForTests()                              // a fresh launch
+    openSpy.mockClear()
+    setPref.mockClear()                                      // the blank board's save, from before the quit
+    mockPrefs = { charts_workspace_layout: board() }
+    await renderWS()
+
+    expect(namesOpened()).toEqual([`uct-board-${id}`])
+    expect(screen.queryByTestId('body-a1')).toBeNull()
+    expect(layoutWrites()).toEqual([])
+    expect(recordKeys()).toEqual([recordKey('A', id)])
+  })
+
+  test('a hidden launch restore keeps the host holding until a window is registered', async () => {
+    seedOrphan('A', 'pl-1', [widget('r1')])
+    requestDeskLaunch()
+    let pendingWhenRegistered = null
+    openSpy.mockImplementation(() => { pendingWhenRegistered = isDeskLaunchPending(); return makeFakeWindow() })
+    await renderWS()
+    expect(pendingWhenRegistered, 'the signal must still be up when the window opens').toBe(true)
+    expect(hasOpenPopouts()).toBe(true)
+    expect(isDeskLaunchPending()).toBe(false)
+  })
+
+  test('a launch with nothing orphaned clears the signal', async () => {
+    requestDeskLaunch()
+    await renderWS()
+    expect(isDeskLaunchPending()).toBe(false)
+    expect(openSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('the same records in a browser', () => {
+  test('a board is offered through the notice, and no window opens', async () => {
+    seedOrphan('A', 'pl-1', [widget('r1')])
+    await renderWS()
+    expect(openSpy).not.toHaveBeenCalled()
+    expect(restoreButton()).toBeTruthy()
+  })
+
+  test('a widget record is dropped, since the widget stayed in the layout', async () => {
+    localStorage.setItem(recordKey('A', 'pw-a1'), JSON.stringify({ kind: 'widget', id: 'pw-a1', widgetId: 'a1', tabId: 'a-page-that-is-gone' }))
+    await renderWS()
+    expect(recordKeys()).toEqual([])
+    expect(openSpy).not.toHaveBeenCalled()
+    expect(screen.getByTestId('body-a1')).toBeInTheDocument()
+  })
+
+  test('popping a widget writes no record', async () => {
+    await renderWS()
+    act(() => { fireEvent.click(screen.getByTestId('popout-a1')) })
+    expect(openSpy).toHaveBeenCalledWith('', '', expect.stringContaining('left=0,top=0'))
+    expect(recordKeys()).toEqual([])
   })
 })

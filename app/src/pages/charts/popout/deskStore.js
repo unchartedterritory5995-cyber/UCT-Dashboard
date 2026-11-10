@@ -100,6 +100,20 @@ function readRecords(uid, store) {
   return out
 }
 
+/** Any record for this member, read or unread: the cheap launch check. Never throws. */
+export function hasDeskRecords(uid, opts = {}) {
+  if (!uid) return false
+  try {
+    const store = opts.storage ?? localStorage
+    const prefix = `${KEY_PREFIX}${uid}:`
+    for (let i = 0; i < store.length; i += 1) {
+      const key = store.key(i)
+      if (key && key.startsWith(prefix)) return true
+    }
+  } catch { /* blocked storage reads as nothing to restore */ }
+  return false
+}
+
 /** Records whose owner tab is gone. Read-only. */
 export async function listOrphans(uid, opts = {}) {
   if (!uid) return []
@@ -126,6 +140,36 @@ export async function listOrphans(uid, opts = {}) {
     && rec.tabId !== tabId
     && !held.has(lockName(uid, rec.tabId))
   ))
+}
+
+/**
+ * What the desktop app does with this launch's orphans. A pure decision over the records and the
+ * ids on the loaded board, so the board can be re-checked without a window in sight.
+ *   boards:    re-pop into their named windows, without any widget now on the main board.
+ *   widgetIds: re-pop singly, each still in the layout.
+ *   drop:      record ids with nothing left to bring back. Unknown kinds are left alone.
+ */
+export function planDeskRepop(orphans, boardWidgetIds) {
+  const onBoard = new Set(boardWidgetIds)
+  const placed = new Set(boardWidgetIds)
+  const boards = []
+  const widgetIds = []
+  const drop = []
+  for (const rec of orphans) {
+    if (rec.kind === 'widget') {
+      if (onBoard.has(rec.widgetId) && !widgetIds.includes(rec.widgetId)) widgetIds.push(rec.widgetId)
+      else drop.push(rec.id)
+    } else if (rec.kind === 'board' && Array.isArray(rec.widgets)) {
+      const widgets = rec.widgets.filter((w) => {
+        if (!w?.id || placed.has(w.id)) return false
+        placed.add(w.id)
+        return true
+      })
+      if (widgets.length) boards.push({ id: rec.id, widgets })
+      else drop.push(rec.id)
+    }
+  }
+  return { boards, widgetIds, drop }
 }
 
 /** The only deleter: call once a record has been restored. */

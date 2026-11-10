@@ -26,6 +26,21 @@ export function registerPopout() {
   }
 }
 
+// The desktop app's launch restore. A leaf outside the workspace knows there are records to bring
+// back; the workspace owns restoring them and says when it is done. The host holds the workspace
+// mounted across that gap, reading this primitive like hasOpenPopouts.
+let launchPending = false
+
+function setLaunchPending(next) {
+  if (launchPending === next) return
+  launchPending = next
+  listeners.forEach((fn) => fn())
+}
+
+export function requestDeskLaunch() { setLaunchPending(true) }
+export function finishDeskLaunch() { setLaunchPending(false) }
+export function isDeskLaunchPending() { return launchPending }
+
 export function hasOpenPopouts() {
   return open > 0
 }

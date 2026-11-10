@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { saveRecord, listOrphans, confirmRestored, holdOwnerLock, KEY_PREFIX, boardWindowName, widgetWindowName } from './deskStore'
+import { saveRecord, listOrphans, confirmRestored, holdOwnerLock, KEY_PREFIX, boardWindowName, widgetWindowName, hasDeskRecords, planDeskRepop } from './deskStore'
 
 function makeStorage(initial = {}, { failSet = false } = {}) {
   const m = new Map(Object.entries(initial))
@@ -241,5 +241,61 @@ describe('deskStore', () => {
       const release = await holdOwnerLock('A', { locks, tabId: 't' })
       expect(() => release()).not.toThrow()
     })
+  })
+})
+
+describe('hasDeskRecords', () => {
+  it('sees a record for this member only, without reading any record', () => {
+    const storage = makeStorage({ [`${KEY_PREFIX}A:pl-1`]: 'not even json' })
+    expect(hasDeskRecords('A', { storage })).toBe(true)
+    expect(hasDeskRecords('B', { storage })).toBe(false)
+  })
+
+  it('answers no for no member and for a storage that throws', () => {
+    expect(hasDeskRecords(null, { storage: makeStorage({ [`${KEY_PREFIX}A:x`]: '{}' }) })).toBe(false)
+    expect(hasDeskRecords('A', { storage: { get length() { throw new Error('blocked') } } })).toBe(false)
+  })
+})
+
+describe('planDeskRepop', () => {
+  const board = (id, ...widgetIds) => ({ kind: 'board', id, widgets: widgetIds.map((w) => ({ id: w })) })
+  const single = (widgetId) => ({ kind: 'widget', id: `pw-${widgetId}`, widgetId })
+
+  it('re-pops boards and widgets, each with its own window', () => {
+    const plan = planDeskRepop([board('pl-1', 'r1', 'r2'), single('a1')], ['a1', 'a2'])
+    expect(plan.boards).toEqual([{ id: 'pl-1', widgets: [{ id: 'r1' }, { id: 'r2' }] }])
+    expect(plan.widgetIds).toEqual(['a1'])
+    expect(plan.drop).toEqual([])
+  })
+
+  it('a widget no longer in the layout is dropped', () => {
+    const plan = planDeskRepop([single('gone')], ['a1'])
+    expect(plan.widgetIds).toEqual([])
+    expect(plan.drop).toEqual(['pw-gone'])
+  })
+
+  it('a board with nothing left to bring back is dropped, not opened empty', () => {
+    const plan = planDeskRepop([board('pl-1'), board('pl-2', 'a1')], ['a1'])
+    expect(plan.boards).toEqual([])
+    expect(plan.drop).toEqual(['pl-1', 'pl-2'])
+  })
+
+  it('a widget already on the main board or another restored board is not duplicated', () => {
+    const plan = planDeskRepop([board('pl-1', 'a1', 'r1'), board('pl-2', 'r1', 'r2')], ['a1'])
+    expect(plan.boards).toEqual([
+      { id: 'pl-1', widgets: [{ id: 'r1' }] },
+      { id: 'pl-2', widgets: [{ id: 'r2' }] },
+    ])
+  })
+
+  it('a widget whose id is on a popped board does not also re-pop singly', () => {
+    const plan = planDeskRepop([board('pl-1', 'a1'), single('a1')], ['a1'])
+    expect(plan.widgetIds).toEqual(['a1'])
+    expect(plan.drop).toEqual(['pl-1'])
+  })
+
+  it('ignores a record it does not understand, without deleting it', () => {
+    const plan = planDeskRepop([{ kind: 'mystery', id: 'm1' }, { kind: 'board', id: 'pl-9', widgets: 'nope' }], [])
+    expect(plan).toEqual({ boards: [], widgetIds: [], drop: [] })
   })
 })

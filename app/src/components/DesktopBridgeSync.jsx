@@ -4,10 +4,14 @@
 // app (App.jsx checks isDesktopApp, so a browser never fetches this chunk). The desktop shell's
 // messages are handled here rather than in Layout: this file holds its own effects and reads no
 // shared context, because a shared render loop froze navigation app-wide for 4.5 hours in September.
-import { useEffect } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 import DesktopStaleBanner from './DesktopStaleBanner'
 import { ackBeforeQuit, onBeforeQuit } from '../lib/desktopBridge'
 import { clearAppClosing, markAppClosing } from '../lib/appClosing'
+import { finishDeskLaunch, requestDeskLaunch } from '../lib/popoutRegistry'
+import { onPrefsUserChange, prefsUser } from '../lib/prefsSession'
+import { isTerminalPopoutChild } from '../lib/reloadGuard'
+import { hasDeskRecords } from '../pages/charts/popout/deskStore'
 
 // A real quit closes well within this (the shell waits at most 500 ms for the ack).
 export const QUIT_STILL_ALIVE_MS = 10000
@@ -28,6 +32,18 @@ export default function DesktopBridgeSync() {
       if (stillAlive) clearTimeout(stillAlive)
     }
   }, [])
+
+  // The desk comes back at launch whatever page the app opens on: tell ChartsDeskHost to hold the
+  // workspace mounted so it can re-pop the windows. Only for the main window, which owns the desk.
+  const uid = useSyncExternalStore(onPrefsUserChange, prefsUser, prefsUser) ?? null
+  useEffect(() => {
+    if (!uid) {
+      finishDeskLaunch()
+      return
+    }
+    if (window.opener || isTerminalPopoutChild()) return
+    if (hasDeskRecords(uid)) requestDeskLaunch()
+  }, [uid])
 
   return <DesktopStaleBanner />
 }

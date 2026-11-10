@@ -4,11 +4,13 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import DesktopBridgeSync, { QUIT_STILL_ALIVE_MS } from './DesktopBridgeSync'
 import { __resetAppClosingForTests, isAppClosing } from '../lib/appClosing'
+import { finishDeskLaunch, isDeskLaunchPending } from '../lib/popoutRegistry'
+import { __resetPrefsSessionForTests, publishPrefsUser } from '../lib/prefsSession'
 
 const HERE = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'))
 
-beforeEach(() => { delete window.uctDesktop })
-afterEach(() => { cleanup(); delete window.uctDesktop; vi.useRealTimers(); __resetAppClosingForTests() })
+beforeEach(() => { delete window.uctDesktop; localStorage.clear(); __resetPrefsSessionForTests(); finishDeskLaunch(); window.opener = null })
+afterEach(() => { cleanup(); delete window.uctDesktop; vi.useRealTimers(); __resetAppClosingForTests(); __resetPrefsSessionForTests(); finishDeskLaunch(); localStorage.clear(); window.opener = null; window.history.replaceState({}, '', '/') })
 
 function makeBridge(overrides = {}) {
   const quit = new Set()
@@ -87,6 +89,62 @@ describe('the desktop app quitting', () => {
     window.uctDesktop = bridge
     render(<DesktopBridgeSync />)
     expect(bridge.onBeforeQuit).not.toHaveBeenCalled()
+  })
+})
+
+describe('the launch restore signal', () => {
+  const seed = (uid) => localStorage.setItem(`uct.desk.v1:${uid}:pl-1`, JSON.stringify({ kind: 'board', id: 'pl-1', widgets: [{ id: 'r1' }], tabId: 'gone' }))
+  const inShell = () => { window.uctDesktop = makeBridge() }
+
+  it('asks the host to mount once the member is known and they have records', () => {
+    inShell()
+    seed('A')
+    render(<DesktopBridgeSync />)
+    expect(isDeskLaunchPending()).toBe(false)
+    act(() => publishPrefsUser('A'))
+    expect(isDeskLaunchPending()).toBe(true)
+  })
+
+  it('asks for nothing with no records', () => {
+    inShell()
+    render(<DesktopBridgeSync />)
+    act(() => publishPrefsUser('A'))
+    expect(isDeskLaunchPending()).toBe(false)
+  })
+
+  it('asks for nothing when the records are another member', () => {
+    inShell()
+    seed('A')
+    render(<DesktopBridgeSync />)
+    act(() => publishPrefsUser('B'))
+    expect(isDeskLaunchPending()).toBe(false)
+  })
+
+  it('a child window of the app never restores the desk', () => {
+    inShell()
+    seed('A')
+    window.opener = {}
+    render(<DesktopBridgeSync />)
+    act(() => publishPrefsUser('A'))
+    expect(isDeskLaunchPending()).toBe(false)
+  })
+
+  it('a Terminal pop-out child never restores the desk', () => {
+    inShell()
+    seed('A')
+    window.history.replaceState({}, '', '/terminal?popout=abc')
+    render(<DesktopBridgeSync />)
+    act(() => publishPrefsUser('A'))
+    expect(isDeskLaunchPending()).toBe(false)
+  })
+
+  it('a sign-out withdraws a pending restore', () => {
+    inShell()
+    seed('A')
+    render(<DesktopBridgeSync />)
+    act(() => publishPrefsUser('A'))
+    act(() => publishPrefsUser(null))
+    expect(isDeskLaunchPending()).toBe(false)
   })
 })
 

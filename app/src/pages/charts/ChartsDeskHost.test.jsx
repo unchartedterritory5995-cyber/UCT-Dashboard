@@ -28,7 +28,7 @@ vi.mock('./ChartsWorkspace', async () => {
 })
 
 import ChartsDeskHost, { ChartsRouteSlot } from './ChartsDeskHost'
-import { registerPopout } from '../../lib/popoutRegistry'
+import { registerPopout, requestDeskLaunch, finishDeskLaunch } from '../../lib/popoutRegistry'
 
 const HERE = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'))
 
@@ -56,7 +56,7 @@ async function renderAt(route) {
 const go = (to) => act(async () => { navigate(to) })
 
 beforeEach(() => { counters.renders = 0; counters.mounts = 0; counters.unmounts = 0 })
-afterEach(() => cleanup())
+afterEach(() => { cleanup(); finishDeskLaunch() })
 
 describe('ChartsDeskHost', () => {
   it('mounts the workspace visible on /charts and nowhere else when nothing is popped', async () => {
@@ -104,6 +104,50 @@ describe('ChartsDeskHost', () => {
     act(() => release())
     expect(screen.queryByTestId('workspace')).toBeNull()
     expect(counters.unmounts).toBe(1)
+  })
+
+  describe('launch restore', () => {
+    it('mounts the workspace hidden on a page that never had one, while a restore is pending', async () => {
+      requestDeskLaunch()
+      await renderAt('/dashboard')
+      expect(screen.getByTestId('workspace').dataset.hidden).toBe('y')
+    })
+
+    it('a pending restore on /charts is just the visible workspace', async () => {
+      requestDeskLaunch()
+      await renderAt('/charts')
+      expect(screen.getByTestId('workspace').dataset.hidden).toBe('n')
+    })
+
+    it('goes away when the restore ends with nothing open', async () => {
+      requestDeskLaunch()
+      await renderAt('/dashboard')
+      act(() => finishDeskLaunch())
+      expect(screen.queryByTestId('workspace')).toBeNull()
+    })
+
+    it('stays when the restore opened a window, and goes when that window does', async () => {
+      requestDeskLaunch()
+      await renderAt('/dashboard')
+      const release = registerPopout()
+      act(() => finishDeskLaunch())
+      expect(screen.getByTestId('workspace').dataset.hidden).toBe('y')
+      expect(counters.mounts).toBe(1)
+      act(() => release())
+      expect(screen.queryByTestId('workspace')).toBeNull()
+    })
+
+    it('settles: launch restore adds no render loop', async () => {
+      requestDeskLaunch()
+      await renderAt('/dashboard')
+      const release = registerPopout()
+      act(() => finishDeskLaunch())
+      await go('/journal')
+      await go('/charts')
+      act(() => release())
+      await settle()
+      expect(counters.renders).toBeLessThan(CAP)
+    })
   })
 
   it('⛔⛔ settles: no render loop from the host through mount, popping and navigating', async () => {
