@@ -238,6 +238,52 @@ describe('AuthGuard maintenance answer: what does not count as an answer', () =>
   })
 })
 
+describe('AuthGuard maintenance check: a request that never answers', () => {
+  function stubHungUntilAborted() {
+    const fetchMock = vi.fn((_url, opts) => new Promise((_resolve, reject) => {
+      opts?.signal?.addEventListener('abort', () => reject(opts.signal.reason))
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+    const controller = new AbortController()
+    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(controller.signal)
+    return {
+      fetchMock,
+      timeoutSpy,
+      expire: () => act(async () => {
+        controller.abort(new DOMException('timed out', 'TimeoutError'))
+        for (let i = 0; i < 8; i++) await Promise.resolve()
+      }),
+    }
+  }
+  afterEach(() => { vi.restoreAllMocks() })
+
+  it('gives the request 8 s, then opens the gate instead of holding the splash', async () => {
+    const h = stubHungUntilAborted()
+    render(<App />)
+    expect(h.timeoutSpy).toHaveBeenCalledWith(8000)
+    expect(splash()).toBeTruthy()
+    await h.expire()
+    expect(splash()).toBeNull()
+    expect(screen.getByTestId('page').textContent).toBe('dashboard')
+  })
+
+  it('a timeout is not read as maintenance on', async () => {
+    const h = stubHungUntilAborted()
+    render(<App />)
+    await h.expire()
+    expect(maintenancePage()).toBeNull()
+    expect(screen.getByTestId('page'), 'the member gets the page, not a maintenance screen').toBeTruthy()
+  })
+
+  it('a timed-out request leaves the slot free, so the next mount can ask again', async () => {
+    const h = stubHungUntilAborted()
+    render(<App />)
+    await h.expire()
+    await go('/charts')
+    expect(h.fetchMock).toHaveBeenCalledTimes(2)
+  })
+})
+
 // React runs a commit's layout effects first and this component's passive effect later, in its own
 // task. A request that was already out can finish in that gap: this mount rendered with no answer,
 // and its effect then finds one. RTL's act() flushes both together, so this renders outside it.

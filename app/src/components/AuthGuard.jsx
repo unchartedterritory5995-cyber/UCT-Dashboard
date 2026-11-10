@@ -61,12 +61,15 @@ function MaintenancePage() {
 // navigation. A `true` is never treated as fresh: a member on the maintenance screen re-asks every time.
 // A failed check or a body with no boolean is not an answer and is never recorded.
 const MAINTENANCE_FRESH_MS = 15_000
+const MAINTENANCE_TIMEOUT_MS = 8_000
 let maintenanceAnswer = null   // { value: boolean, at: ms } | null
 let maintenanceInFlight = null
 
 function askMaintenance() {
   if (maintenanceInFlight) return maintenanceInFlight
-  maintenanceInFlight = fetch('/api/maintenance')
+  // Bounded, or a hung request holds the first-load splash and blocks every later re-ask. A timeout
+  // rejects into the catch below, so it is "no answer", never "maintenance on".
+  maintenanceInFlight = fetch('/api/maintenance', { signal: AbortSignal.timeout?.(MAINTENANCE_TIMEOUT_MS) })
     .then(r => r.json())
     .then(d => {
       if (typeof d?.maintenance === 'boolean') maintenanceAnswer = { value: d.maintenance, at: Date.now() }
