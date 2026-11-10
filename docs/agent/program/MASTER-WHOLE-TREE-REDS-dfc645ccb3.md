@@ -1,72 +1,83 @@
-# Master dfc645ccb3 whole-tree reds: PARTIAL, INVALID as reference
+# Master dfc645ccb3 whole-tree reds (the reference set)
 
-**Status: PARTIAL, INVALID as reference (run died at 4249/4584, no totals line).**
-The final master failing-file list will come from pl-exec's fresh whole-tree run at master dfc645ccb3. Once that list exists, pl-teach adds the owner and category for each file here. Until then, nothing below may be used as the PASS reference ("head failing set ⊆ master failing set").
+**This is the PASS reference for whole-tree runs at base `dfc645ccb3`. The rule: a head's failing-file set must be a subset of this set, compared by file NAME.**
 
-## Run record (LOCAL)
-- Command: `python ..\tools\agent_suite_lock.py run --who pl-teach -- npx vitest run`, run from `C:\w\pl-teach\app` at BelowNormal through the scratchpad `suite.ps1` (4800 s limit).
-- Commit: `dfc645ccb3` (detached checkout in C:\w\pl-teach).
-- Scope: whole tree (no path arguments).
-- Started: 2026-11-10T01:06:13 local (`wholetree.progress`: cpu=68%, node=7).
-- Ended: abnormally. The last log write was ~01:38 and the last load sample was 01:37. By 01:42 no vitest process existed under `C:\w\pl-teach\app`. No `END wt-master` line was written. The cause is not proven; the timing matches the stopped pl-teach session's host process tree being torn down.
-- Coverage: 4249 unique test files reported, against `find app/src -name "*.test.*" | wc -l` = 4584. 335 files were never reported.
-- Totals line: **none**. Vitest's end-of-run failure details were never printed either, so no failure messages exist for any red file.
-- Conditions: it ran UNLOCKED after the session stop, because the suite-lock registration was lost. Load was heavy: CPU 96-100% for most of the run, with 13-23 node processes, overlapping AUDIT's #988 suite and pl-auto's browser batch.
-- Raw log (not committed, 10 MB, 233105 lines): `C:\Users\blake\AppData\Local\Temp\claude\2ef397b80db79bf7\56266831-c770-46eb-8e87-f65def6d19f9\scratchpad\pl-teach\wt-master-dfc645ccb3-dfc645ccb3.log`, sha256 prefix `dc611ed26ea0f650`.
+## Run record (LOCAL, run by pl-exec)
+- **Command:** `npx vitest run`, whole tree (no path arguments).
+  - It ran from `C:\w\pl-exec-master\app` through `agent_suite_lock.py` at BelowNormal.
+  - Install: `C:\w\pl-mc-fw\app\node_modules`, pl-mc-fw's install with the same package-lock.
+- **Commit:** master `dfc645ccb3`.
+- **Scope:** the whole tree, 4580 test files collected. For comparison, `find app/src -name "*.test.*" | wc -l` gives 4584; the four extra paths match the pattern but are not collected test files.
+- **Totals:**
+  - `Test Files  48 failed | 4498 passed | 34 skipped (4580)`
+  - `Tests  52 failed | 71048 passed | 243 skipped (71343)`
+  - Duration 2358.79 s (39m43s).
+- **Raw files** (scratch, not committed):
+  - `C:\Users\blake\AppData\Local\Temp\claude\2ef397b80db79bf7\56266831-c770-46eb-8e87-f65def6d19f9\scratchpad\wt_master.txt`
+  - the failing-file list: `...\scratchpad\wt_master_failing.txt`
+- **Superseded:** this run replaces the earlier pl-teach attempt, which was PARTIAL and INVALID (it died at 4249/4584 with no totals line). Every one of that attempt's 47 names is in the set below. This run adds `presentationSingleFormatter` (timeout) and `study/DrillPlayer`.
 
-## Files reported red before the run died (47, names only)
-This set is a lower bound: any of the 335 unreported files could also be red.
-Nine rows show only skipped tests on a `❯` line, which suggests a suite-level error such as a hook or import failure. The cause can't be confirmed, because the error text was never printed.
+## How the columns were filled
+- **Category** comes from each file's first failure message in the log.
+  - census: a ratchet, census or source-shape rail over the tree.
+  - golden: a pinned hash or exact snapshot.
+  - timing: a timeout, or a readiness or order race.
+  - env: this machine's environment. Examples are a Python bridge that cannot import `conftest` or `tzdata`, no `app/dist` build, a V8 other than the recording one, and source rails reading CRLF-checked-out `.py` files.
+  - other: none of the above.
+- **Team** is the scope of the newest commit touching the test file at `dfc645ccb3` (`git log -1 dfc645ccb3 -- <file>`). It is the area that owns it, not a person.
+- Both columns are a reading of the log, not a verdict on the cause.
 
-| File | Reported counts |
-|---|---|
-| `src/__tests__/sourcesAreText.test.js` | (2 tests | 1 failed) 682ms |
-| `src/components/StockChart.firstVisitFraming.test.jsx` | (3 tests | 1 failed) 1348ms |
-| `src/components/StockChart.focusWarmStep.test.jsx` | (4 tests | 1 failed) 9197ms |
-| `src/components/chart/engine/ast/symbolFoldParity.test.js` | (10 tests | 3 failed) 338ms |
-| `src/components/chart/engine/ast/targetScriptReport.measure.test.js` | (2 tests | 1 failed) 1761ms |
-| `src/components/chart/engine/runtime/__tests__/hostParity.v8.rail.test.js` | (9 tests | 1 failed) 6838ms |
-| `src/components/chart/engine/useServerColumns.test.jsx` | (8 tests | 1 failed) 47ms |
-| `src/components/provenance/freshnessAge.test.js` | (89 tests | 1 failed) 7355ms |
-| `src/components/provenance/panelAdoption.ratchet.test.js` | (26 tests | 1 failed) 541ms |
-| `src/components/screener/reachable.test.js` | (19 tests | 1 failed) 43821ms |
-| `src/components/ui/formControls.census.test.js` | (117 tests | 3 failed) 5816ms |
-| `src/hub/writePathsTransitive.test.js` | (10 tests | 1 failed) 72ms |
-| `src/lib/context/symbolLinkChannels.test.js` | (8 tests | 1 failed) 3278ms |
-| `src/lib/persistence/persistenceManifest.test.js` | (13 tests | 2 failed) 6545ms |
-| `src/lib/presentation/dataGrid/dataGridSeed.rail.test.js` | (12 tests | 1 failed) 6875ms |
-| `src/lib/presentation/handRolledFormatters.census.test.js` | (15 tests | 1 failed) 2526ms |
-| `src/lib/swallowedFetch.census.test.js` | (5 tests | 1 failed) 18ms |
-| `src/noRegexLookbehind.test.js` | (6 tests | 1 failed) 2943ms |
-| `src/pages/Watchlists.entitykeys.test.jsx` | (3 tests | 1 failed) 136ms |
-| `src/pages/command/keyListenerCensus.test.js` | (7 tests | 2 failed) 6905ms |
-| `src/pages/command/shortcutRegistry.test.js` | (31 tests | 1 failed) 840ms |
-| `src/pages/desk/ArticlesSection.native.test.jsx` | (12 tests | 1 failed) 5492ms |
-| `src/pages/journal-2-0/components/notebook/ChartEmbed.touchTargets.test.js` | (8 tests | 1 failed) 18ms |
-| `src/pages/journal-2-0/components/notebook/frozenWorkspace.test.jsx` | (4 tests | 1 failed) 52ms |
-| `src/pages/journal-2-0/components/notebook/myTools/VersionHistory.test.jsx` | (21 tests | 2 failed) 6378ms |
-| `src/pages/journal-2-0/lib/calloutNode.variant.test.js` | (17 tests | 6 skipped) 419ms |
-| `src/pages/journal-2-0/lib/captureContext.test.js` | (11 tests | 1 failed) 484ms |
-| `src/pages/journal-2-0/lib/dateMentionNode.test.js` | (26 tests | 2 skipped) 381ms |
-| `src/pages/journal-2-0/lib/formula/offlineNeverStoresComputed.test.js` | (7 tests | 2 failed) 88ms |
-| `src/pages/journal-2-0/lib/importer/evernoteLinks.test.js` | (33 tests | 1 failed) 211ms |
-| `src/pages/journal-2-0/lib/importer/exportFormats.roundtrip.test.js` | (13 tests | 13 skipped) 87ms |
-| `src/pages/journal-2-0/lib/importer/exportRoundtrip.test.js` | (7 tests | 7 skipped) 106ms |
-| `src/pages/journal-2-0/lib/importer/fidelityCarryovers.roundtrip.test.js` | (13 tests | 13 skipped) 91ms |
-| `src/pages/journal-2-0/lib/iteratorGlobalFloor.test.js` | (9 tests | 1 failed) 13ms |
-| `src/pages/journal-2-0/lib/noteBatch.jsonRoundtrip.test.js` | (3 tests | 3 skipped) 107ms |
-| `src/pages/journal-2-0/lib/offline/noteCopy.test.js` | (50 tests | 1 failed) 8745ms |
-| `src/pages/journal-2-0/lib/selectionExport.roundtrip.test.js` | (4 tests | 4 skipped) 86ms |
-| `src/pages/journal-2-0/lib/templateLibrary.server.test.js` | (7 tests | 1 failed) 15ms |
-| `src/pages/journal-2-0/lib/widgetFormula/widgetFormula.lazy.test.js` | (5 tests | 1 failed) 5900ms |
-| `src/pages/journal-2-0/rawErrorSurface.test.js` | (8 tests | 1 failed) 652ms |
-| `src/pages/terminal/a11y/terminalA11yStatic.test.js` | (18 tests | 1 failed) 3613ms |
-| `src/pages/terminal/a11y/terminalReachableContrast.test.js` | (7 tests | 3 failed) 273ms |
-| `src/pages/terminal/formControls.terminal.test.js` | (3 tests | 2 failed) 83ms |
-| `src/pages/terminal/themeColours.rail.test.js` | (6 tests | 1 failed) 1920ms |
-| `src/styles/tokens.reachable.test.js` | (5 tests | 1 failed) 1187ms |
-| `src/surfaces/manifest.test.js` | (10 tests | 1 failed) 800ms |
-| `src/utils/jsonFetcher.test.js` | (11 tests | 1 failed) 2815ms |
+| # | Failing file | Category | First failure (abridged) | Team (last commit) |
+|---|---|---|---|---|
+| 1 | src/__tests__/sourcesAreText.test.js | census | a source contains a NUL/C0 control byte | engine (`fix(engine)`) |
+| 2 | src/components/StockChart.firstVisitFraming.test.jsx | other | frame offset 7.84 vs 5.84 expected | chart (`fix(chart)`) |
+| 3 | src/components/StockChart.focusWarmStep.test.jsx | timing | "Q1 ready after null ms" | focus (`test(focus)`) |
+| 4 | src/components/chart/engine/ast/symbolFoldParity.test.js | env | python: No module named 'tzdata' | pine (`feat(pine-c29)`) |
+| 5 | src/components/chart/engine/ast/targetScriptReport.measure.test.js | other | 1 target in target-scripts.json missing on disk | pine (`feat(pine)`) |
+| 6 | src/components/chart/engine/runtime/__tests__/hostParity.v8.rail.test.js | env | --check exit not 0 on this V8 | engine runtime (W5-T4) |
+| 7 | src/components/chart/engine/useServerColumns.test.jsx | census | StockChart repaint dependency array moved; re-anchor | charts (`fix(charts)`) |
+| 8 | src/components/provenance/freshnessAge.test.js | census | a second authority over TERM-006's constants | platform (`feat(platform)`) |
+| 9 | src/components/provenance/panelAdoption.ratchet.test.js | census | result surfaces without CoverageLine | screener (`feat(screener)`) |
+| 10 | src/components/screener/reachable.test.js | census | modules reachable from no entry point | screener / pine (merge) |
+| 11 | src/components/ui/formControls.census.test.js | census | new hand-rolled switch; unnamed controls 0→7 | a11y (`feat(a11y)`) |
+| 12 | src/hub/writePathsTransitive.test.js | census | useFlagged toggle: an undeclared cross-module hop | master-red (`fix(master-red)`) |
+| 13 | src/lib/context/symbolLinkChannels.test.js | census | new hand-typed deep-link reads (CotRender, journalToolsDoor) | desk (`chore(desk)`) |
+| 14 | src/lib/persistence/persistenceManifest.test.js | census | storage-shaped calls unclassified (9) | term-076 (`fix(term-076)`) |
+| 15 | src/lib/presentation/dataGrid/dataGridSeed.rail.test.js | census | a hand-rolled grid outside the baseline | terminal (`feat(terminal)`) |
+| 16 | src/lib/presentation/handRolledFormatters.census.test.js | census | new hand-rolled formatter file(s) | term-066 (`fix(term-066)`) |
+| 17 | src/lib/presentation/presentationSingleFormatter.test.js | timing | Test timed out in 15000ms | research (`fix(research)`) |
+| 18 | src/lib/swallowedFetch.census.test.js | census | `.catch(() => null)` sites grew (6) | term-033 (`fix(term-033)`) |
+| 19 | src/noRegexLookbehind.test.js | census | 4 product files use a regex lookbehind | notebook (wave 5) |
+| 20 | src/pages/Watchlists.entitykeys.test.jsx | golden | flag-off render hash differs | ent-uc2 (`feat(ent-uc2)`) |
+| 21 | src/pages/command/keyListenerCensus.test.js | census | raw key listeners 136 vs ceiling 111 | keys (`test(keys)`) |
+| 22 | src/pages/command/shortcutRegistry.test.js | census | DrillPlayer mount reasons: 2 pages, 1 expected | web (`perf(web)`) |
+| 23 | src/pages/journal-2-0/components/notebook/ChartEmbed.touchTargets.test.js | census | 36 embed buttons not pinned to --tap-min | notebook (waves 12-15) |
+| 24 | src/pages/journal-2-0/components/notebook/frozenWorkspace.test.jsx | census | frozen workspace lacks `canOpenCompare` | journal-widgets (`feat(journal-widgets)`) |
+| 25 | src/pages/journal-2-0/components/notebook/myTools/VersionHistory.test.jsx | other | restore/name assertions (2 tests) | notebook (`fix(notebook)`) |
+| 26 | src/pages/journal-2-0/lib/calloutNode.variant.test.js | env | md_export_bridge.py: `import conftest` fails | notebook (wave 7) |
+| 27 | src/pages/journal-2-0/lib/captureContext.test.js | census | capture doors: 2 found, 1 checked | notebook (Wave L) |
+| 28 | src/pages/journal-2-0/lib/dateMentionNode.test.js | env | note_tasks_bridge.py: `import conftest` fails | notebook (wave 7) |
+| 29 | src/pages/journal-2-0/lib/formula/offlineNeverStoresComputed.test.js | census | production SWRConfigs: App.jsx + lab/main.jsx | screener (`fix(screener)`) |
+| 30 | src/pages/journal-2-0/lib/importer/evernoteLinks.test.js | env | regex over notes.py fails on a CRLF checkout | evernote (`test(evernote)`) |
+| 31 | src/pages/journal-2-0/lib/importer/exportFormats.roundtrip.test.js | env | format_export_bridge.py: `import conftest` fails | importer (`feat(importer)`) |
+| 32 | src/pages/journal-2-0/lib/importer/exportRoundtrip.test.js | env | roundtrip_export_fixture.py driver exit 1 | notebook (wave 7) |
+| 33 | src/pages/journal-2-0/lib/importer/fidelityCarryovers.roundtrip.test.js | env | format_export_bridge.py: `import conftest` fails | notebook (wave 8) |
+| 34 | src/pages/journal-2-0/lib/iteratorGlobalFloor.test.js | env | app/dist/assets missing (needs a build) | notebook (`fix(notebook)`) |
+| 35 | src/pages/journal-2-0/lib/noteBatch.jsonRoundtrip.test.js | env | selection_export_bridge.py: `import conftest` fails | notebook (wave 9) |
+| 36 | src/pages/journal-2-0/lib/offline/noteCopy.test.js | env | sentence not found in notes.py (CRLF checkout) | notebook (`perf(notebook)`) |
+| 37 | src/pages/journal-2-0/lib/selectionExport.roundtrip.test.js | env | selection_export_bridge.py: `import conftest` fails | importer (`fix(importer)`) |
+| 38 | src/pages/journal-2-0/lib/templateLibrary.server.test.js | env | regex over the Python router fails on a CRLF checkout | notebook (`test(notebook)`) |
+| 39 | src/pages/journal-2-0/lib/widgetFormula/widgetFormula.lazy.test.js | other | first-open closure entries: 3, 2 expected | notebook (`feat(notebook)`) |
+| 40 | src/pages/journal-2-0/rawErrorSurface.test.js | census | raw-error violations | notebook (`fix(notebook)`) |
+| 41 | src/pages/study/DrillPlayer.test.jsx | timing | element still in the document after the 1-4 keys and Enter | study (`feat(study)`) |
+| 42 | src/pages/terminal/a11y/terminalA11yStatic.test.js | census | unnamed table: agent/AgentResult.jsx:42 | terminal (revert of a revert) |
+| 43 | src/pages/terminal/a11y/terminalReachableContrast.test.js | census | --loss/--gain as text; new text under AA | a11y (`test(a11y)`) |
+| 44 | src/pages/terminal/formControls.terminal.test.js | census | native select/input remain | ui (`feat(ui)`) |
+| 45 | src/pages/terminal/themeColours.rail.test.js | census | hardcoded colours in terminal-mounted code | terminal (`test(terminal)`) |
+| 46 | src/styles/tokens.reachable.test.js | census | an alias that re-points an alias target | W3 static sweep |
+| 47 | src/surfaces/manifest.test.js | census | routes with no manifest row: notebook/playbook, /admin/rare-preview | notebook (wave 6) |
+| 48 | src/utils/jsonFetcher.test.js | census | surfaces hand a non-OK body on as data | jsonFetcher (`test(jsonFetcher)`) |
 
-## Owner / category
-Deferred: to be added per file (census / golden / timing / other, with the owning team from `git log` of the subject file) against pl-exec's complete master run.
+**Counts:** census 27, env 13, timing 3, golden 1, other 4 (48).
+- None of these is in a file teach-keys touches. teach-keys changes the guide's key family and its rails only.
+- The timing rows (3, 17, 41) are the ones a head run may flip. Rule: a red that is new against this list, and that looks like a timing failure, gets a solo 5× run against this base, which must stay within 20%.
