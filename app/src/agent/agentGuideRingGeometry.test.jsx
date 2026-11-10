@@ -124,6 +124,23 @@ describe('2 · a moving control: the ring follows within one frame', () => {
     tr.stop()
   })
 
+  it('a board reflow that moves the cell by its style (no resize, the loop gone still): the ring follows in the SAME frame, before any frame runs', async () => {
+    const d = fixture('<div class="board"><div data-widget-id="c"><div data-guide="widget.resize.se"></div></div></div>')
+    const cell = d.querySelector('[data-widget-id]')
+    const h = d.querySelector('[data-guide]')
+    setBox(h, { top: 100, left: 100, width: 12, height: 12 })
+    const seen = []
+    const tr = trackRing(h, (r) => seen.push(r), { holder: cell })
+    for (let i = 0; i < STILL_FRAMES + 2; i++) frame()
+    expect(tr.running).toBe(false)                         // still: no frames
+    // the grid writes the cell's new position (a debounced reflow), and the handle with it
+    setBox(h, { top: 100, left: 80, width: 12, height: 12 })
+    cell.style.transform = 'translate(-20px, 0px)'
+    await Promise.resolve()                                // the observer's microtask: no frame has run
+    expect(seen.at(-1).left + seen.at(-1).width / 2).toBe(86)
+    tr.stop()
+  })
+
   it('a scroll or a window resize starts the loop again for a moment; a still control asks for no frames', () => {
     const d = fixture('<button data-guide="chart.settings">g</button>')
     const b = d.firstElementChild
