@@ -7,7 +7,7 @@
   - It ran from `C:\w\pl-exec-master\app` through `agent_suite_lock.py` at BelowNormal.
   - Install: `C:\w\pl-mc-fw\app\node_modules`, pl-mc-fw's install with the same package-lock.
 - **Commit:** master `dfc645ccb3`.
-- **Scope:** the whole tree, 4580 test files collected. For comparison, `find app/src -name "*.test.*" | wc -l` gives 4584; the four extra paths match the pattern but are not collected test files.
+- **Scope:** the whole tree, 4580 test files collected. For comparison, `find app/src -name "*.test.*" | wc -l` gives 4584; vitest did not collect four of those paths. Which four, and why, has not been checked.
 - **Totals:**
   - `Test Files  48 failed | 4498 passed | 34 skipped (4580)`
   - `Tests  52 failed | 71048 passed | 243 skipped (71343)`
