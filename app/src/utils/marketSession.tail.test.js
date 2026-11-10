@@ -70,6 +70,43 @@ describe('classifyIntradayTail', () => {
     vi.setSystemTime(new Date('2026-09-20T21:00:00Z').getTime())   // Sun
     expect(classifyIntradayTail(Math.floor(Date.UTC(2026, 8, 18, 23, 55) / 1000), '5')).toBe('fresh')
   })
+
+  // 2026-11-10 (W-D): 'fresh' = within ONE expected bucket of the frontier, counted in
+  // session buckets — never a 3x-tf wall-clock window.
+  it('⛔ a 3h-old 60m cache is BEHIND (the old 3*tf window called it fresh)', () => {
+    // 13:17 → the newest completed 60m bar is 12:00; a 10:00 tail is missing 11:00 + 12:00.
+    expect(classifyIntradayTail(et(10, 0), '60')).toBe('behind')
+    expect(classifyIntradayTail(et(11, 0), '60')).toBe('fresh')     // one bucket behind
+    expect(classifyIntradayTail(et(12, 0), '60')).toBe('fresh')     // at the frontier
+  })
+
+  it('one bucket of tolerance on every timeframe — two missing bars is behind', () => {
+    // 13:17: 1m frontier 13:16, 5m 13:10, 15m 13:00, 30m 12:30
+    expect(classifyIntradayTail(et(13, 15), '1')).toBe('fresh')
+    expect(classifyIntradayTail(et(13, 14), '1')).toBe('behind')
+    expect(classifyIntradayTail(et(13, 5), '5')).toBe('fresh')
+    expect(classifyIntradayTail(et(13, 0), '5')).toBe('behind')
+    expect(classifyIntradayTail(et(12, 45), '15')).toBe('fresh')
+    expect(classifyIntradayTail(et(12, 30), '15')).toBe('behind')
+    expect(classifyIntradayTail(et(12, 0), '30')).toBe('fresh')
+    expect(classifyIntradayTail(et(11, 30), '30')).toBe('behind')
+  })
+
+  it('before the first RTH bucket closes, a same-day pre-market tail is judged on the EXTENDED frontier', () => {
+    vi.setSystemTime(new Date('2026-09-15T13:31:00Z').getTime())   // Tue 09:31 ET
+    expect(classifyIntradayTail(et(9, 25), '5')).toBe('fresh')     // newest ext bucket
+    expect(classifyIntradayTail(et(7, 0), '5')).toBe('behind')     // 2.5h of pre-market missing
+  })
+
+  it('half-day aware: on an early-close day the frontier still walks real buckets', () => {
+    // Fri 2026-11-27 (after Thanksgiving) closes 13:00 ET. At 12:20 EST on 5m the
+    // frontier is the 12:15 bar.
+    vi.setSystemTime(new Date('2026-11-27T17:20:00Z').getTime())
+    const est = (h, m) => Math.floor(Date.UTC(2026, 10, 27, h + 5, m) / 1000)
+    expect(classifyIntradayTail(est(12, 10), '5')).toBe('fresh')
+    expect(classifyIntradayTail(est(12, 5), '5')).toBe('behind')
+    expect(classifyIntradayTail(est(11, 0), '5')).toBe('behind')
+  })
 })
 
 describe('the IDB eviction policy rides on this classifier', () => {

@@ -595,8 +595,18 @@ export function classifyIntradayTail(lastTUnixSec, tf) {
   const expected = expectedLatestDailySessionET()   // last CLOSED trading session
   if (tailDate < expected) return 'gapped'          // missing a whole closed session
   if (tailDate > expected) {                        // inside today's still-open session
-    const tfSec = Math.max(60, (Number(tf) || 5) * 60)
-    return (Date.now() / 1000 - lastTUnixSec) > Math.max(3 * tfSec, 180) ? 'behind' : 'fresh'
+    // ⛔⛔ BUCKETS, NOT WALL-CLOCK SECONDS (2026-11-10). The old `max(3*tf, 180s)` age
+    // window meant a 60m cache THREE HOURS old answered 'fresh' — no catch-up poll, no
+    // warm repair — and on 1h that is two-plus missing bars. 'fresh' is now the same
+    // contract the paint gate uses: within ONE expected bucket of the session frontier
+    // (`expectedBarsBehind`: early-close, holiday/weekend and irregular-09:30 aware).
+    // RTH frontier first; before the first RTH bucket closes (pre-market, or 09:30-09:35
+    // on 5m) there is no RTH expectation, so the EXTENDED frontier judges a same-day
+    // pre-market tail instead of waving it through.
+    const nowMs = Date.now()
+    let behind = expectedBarsBehind(lastTUnixSec, tf, nowMs, { session: 'rth' })
+    if (behind == null) behind = expectedBarsBehind(lastTUnixSec, tf, nowMs, { session: 'extended' })
+    return (behind == null || behind <= 1) ? 'fresh' : 'behind'
   }
   // tailDate === expected → a CLOSED session by definition.
   // ⛔⛔ BUT "THE LAST CLOSED SESSION IS COMPLETE" IS NOT "CURRENT" ONCE TODAY HAS
