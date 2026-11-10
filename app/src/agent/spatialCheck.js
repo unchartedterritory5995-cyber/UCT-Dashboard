@@ -17,7 +17,7 @@
 // a line or place that is a move's destination, a comparison ("like the top row") or a source states none either.
 import { ordinalChart, chartsNamedBy, relativeChart, selectedChart, chartRefOf } from './deixis'
 
-const INERT = /\b(?:fine|alone|leave|leaving|left alone|can stay|stays?|stay put|untouched|as (?:it|they) (?:is|are)|don'?t|do not|doesn'?t|not|never|except|without|ignore|skip|keep)\b/i
+const INERT = /\b(?:fine|alone|leave|leaving|left alone|can stay|stays?|stay put|untouched|as (?:it|they) (?:is|are)|don'?t|do not|doesn'?t|not|never|ignore|skip|keep)\b/i
 const CLAUSES = /[,;.!?]|\b(?:and then|but|then|while|also|plus|although|though)\b/i
 const MOVE = /\b(?:move|moving|shift|drag|slide|swap|put (?:it|this|this one|this chart) (?:in|on|into))\b/i
 // a line / place introduced by these is not the change's target (a comparison, a source, a neighbour's anchor, a destination)
@@ -165,6 +165,8 @@ export function spatialTargetSpan(text, charts = []) {
 //   appos     "… this one, the first chart in its row" → the click when that place IS the click (an appositive), else asked
 const CL_DEIXIS = "(?:this|that|its|my|the\\s+same|the\\s+(?:clicked|selected)(?:\\s+(?:one|chart))?['’]s|this\\s+(?:one|chart)['’]s)"
 const CL_REST = new RegExp(`\\b(?:(?:the\\s+)?rest\\s+of|(?:the\\s+)?other\\s+(chart|one|cell|pane|charts|ones|cells|panes)\\s+(?:in|of|on|along)|everything\\s+else\\s+(?:in|on|of|along)|(?:all\\s+)?the\\s+others\\s+(?:in|on|of|along))\\s+${CL_DEIXIS}\\s+(row|column)\\b`, 'i')
+// (G3) "everything / all the charts in this row | column" — the WHOLE line, the click in it (an exclusion is taken out of it)
+const CL_ALL = new RegExp(`\\b(?:everything|all\\s+(?:of\\s+)?(?:the\\s+)?(?:charts|ones|cells|panes))\\s+(?:in|on|along|of)\\s+${CL_DEIXIS}\\s+(row|column)\\b`, 'i')
 const CL_SAME_OTHER = /\bsame\s+(row|column)\s*[,:;]?\s*(?:(?:but|and)\s+)?(?:the\s+|a\s+)?(?:other|another|different|opposite)\s+(row|column)\b/i
 const CL_FAR_END = /\b(?:same\s+(row|column)\s*[,:;]?\s*(?:at\s+)?(?:the\s+)?(?:far|other|opposite)\s+end|(?:the\s+)?(?:other|far|opposite)\s+(?:end|side)\s+of\s+(?:the|this|its|my)\s+(?:(top|bottom|middle|upper|lower|left|right|first|last|same)\s+)?(row|column)(?:\s+(?:from|to)\s+(?:this|it)(?:\s+(?:one|chart))?)?)\b/i
 const CL_CORNER = /\b(top|bottom|upper|lower)\s+corner\s+(?:on|in|along|at)\s+the\s+same\s+(?:side|column)\s+as\s+(?:this|it)\b/i
@@ -181,6 +183,8 @@ export function clickLineMatch(text) {
   if (m) return tag(m, { kind: 'appos', pos: m[1].toLowerCase(), axis: m[2].toLowerCase() })
   m = CL_REST.exec(s)
   if (m) return tag(m, { kind: 'rest', axis: m[2].toLowerCase(), one: !!m[1] && !/s$/i.test(m[1]) })
+  m = CL_ALL.exec(s)
+  if (m) return tag(m, { kind: 'all', axis: m[1].toLowerCase() })
   m = CL_SAME_OTHER.exec(s)
   if (m && m[1].toLowerCase() !== m[2].toLowerCase()) return tag(m, { kind: 'sameOther', axis: m[1].toLowerCase() })
   m = CL_FAR_END.exec(s)
@@ -202,7 +206,10 @@ function clickLine(charts, s, axis) {
 export function clickLineHits(m, charts, s) {
   const k = m?.clickLine
   if (!k || !s?.cell) return { hits: [], plural: false, onClick: false }
-  if (k.kind === 'rest') { const hits = clickLine(charts, s, k.axis).filter(c => c.ref !== s.ref); return { hits, plural: !k.one, onClick: false } }
+  // an exclusion in the same words ("… except SPY") is taken out of a line set
+  const ex = (k.kind === 'rest' || k.kind === 'all') ? excludedCharts(m.input, charts, s.ref) : new Set()
+  if (k.kind === 'rest') { const hits = clickLine(charts, s, k.axis).filter(c => c.ref !== s.ref && !ex.has(c.ref)); return { hits, plural: !k.one, onClick: false } }
+  if (k.kind === 'all') { const hits = clickLine(charts, s, k.axis).filter(c => !ex.has(c.ref)); return { hits, plural: true, onClick: hits.some(c => c.ref === s.ref) } }
   if (k.kind === 'sameOther') return { hits: clickLine(charts, s, k.axis).filter(c => c.ref !== s.ref), plural: false, onClick: false }
   if (k.kind === 'farEnd') {
     const line = k.which ? pickLine(linesOf(charts, k.axis), k.which, k.axis) : clickLine(charts, s, k.axis)
@@ -242,6 +249,43 @@ const REL_CLICK = /\b(beside|next to|alongside|above|over|on top of|below|under(
 function targetClauses(text) {
   return String(text || '').split(CLAUSES).map(s => s.trim()).filter(s => s && !INERT.test(s))
 }
+/** The words with every inert clause dropped: what names a TARGET (AUDIT probe 18 G5: "…, the QQQ chart next to SPY is fine"). */
+export function activeText(text) {
+  return targetClauses(text).join(', ')
+}
+
+// ── AUDIT probe 18 (#988) ──
+// (G3) an EXCLUSION: "everything in this row except SPY", "all the charts but not the QQQ one", "other than this one" — the
+// charts it names are never targets (a plan that includes one is asked, on the apply AND the proposal path)
+const EXCEPT = /\b(?:except(?:\s+for)?|but\s+not|other\s+than|apart\s+from|excluding|save\s+for|minus)\s+((?:the\s+)?[A-Za-z0-9 -]{1,30}?)(?=\s+(?:on|to|in|onto|at|for|from|please|thanks|weekly|daily|monthly|hourly)\b|\s*[,.;!?]|\s*$)/gi
+/** The charts an exclusion in the words names (by symbol, position, order, or "this one" = the click). */
+export function excludedCharts(text, charts = [], sel = null) {
+  const out = new Set()
+  for (const m of String(text || '').matchAll(EXCEPT)) {
+    const phrase = m[1].trim()
+    if (/^(?:the\s+)?(?:this(?:\s+(?:one|chart))?|it|the\s+(?:selected|clicked)\s+(?:one|chart))$/i.test(phrase)) { if (sel) out.add(sel); continue }
+    const a = namedAnchor(/\b(?:chart|one)$/i.test(phrase) ? phrase : `${phrase} chart`, charts) || namedAnchor(phrase, charts)
+    if (a) out.add(a.ref)
+  }
+  return out
+}
+// (G4) "the SPY chart on weekly, and the one to ITS right": a relation's possessive / pronoun anchor after a clause that names
+// exactly ONE chart (by symbol, position or order) is THAT chart — never the click
+const ANAPHOR = /\b(?:its|it)\b/i
+/** The anchor a relation in the words is read from: a chart named in an earlier clause when the relation says "its / it", else the click. */
+export function relationAnchor(text, charts = [], sel = null) {
+  const parts = String(text || '').split(CLAUSES).map(s => s.trim()).filter(Boolean)
+  for (let i = 1; i < parts.length; i++) {
+    if (!ANAPHOR.test(parts[i]) || /\bthis\b/i.test(parts[i])) continue
+    for (let j = i - 1; j >= 0; j--) {
+      if (INERT.test(parts[j]) || /\b(?:this|it)\b/i.test(parts[j])) break
+      const named = [...chartsNamedBy(parts[j], charts)]
+      if (named.length === 1) return named[0]
+      if (named.length > 1) break
+    }
+  }
+  return sel
+}
 
 /**
  * The constraints the words state over a board → { allowed: Set|null, excluded: Set, count: N|null, plural: bool, notes }.
@@ -279,8 +323,14 @@ export function spatialConstraints(text, charts = [], sel = null) {
     if (n) out.count = n[1] ? 2 : N_OF[n[2].toLowerCase()]
   }
   // the click as a relation's ANCHOR ("the one above this"): never a target unless the words also name it as one
-  if (sel) {
+  // (G4) "the SPY chart …, and the one to its right": the relation is read from THAT chart (a target itself), not the click
+  const anchor = relationAnchor(text, charts, sel)
+  if (anchor && anchor !== sel) {
+    const rel = relativeChart(text, charts, anchor)
+    if (rel?.hits?.length) { add(rel.hits.map(c => c.ref), 'relation-named'); add([anchor], 'named') }
+  } else if (sel) {
     const rel = relativeChart(text, charts, sel)
+    if (rel && rel.alsoClick && rel.match?.clickLine && rel.hits?.length) add(rel.hits.map(c => c.ref), 'line-click')
     if (rel && !rel.alsoClick && !rel.negated) {
       const hits = (rel.hits || []).map(c => c.ref)
       // the click is the anchor — unless the relation lands ON it ("the first chart in this row" with the first one clicked)
@@ -297,6 +347,8 @@ export function spatialConstraints(text, charts = [], sel = null) {
       else if (hits.length) add(hits, 'relation-click')
     }
   }
+  // (G3) an exclusion is never a target, whatever else the words name
+  for (const r of excludedCharts(text, charts, sel)) out.excluded.add(r)
   return out
 }
 

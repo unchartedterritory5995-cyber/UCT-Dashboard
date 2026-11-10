@@ -26,7 +26,7 @@ import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSa
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
 import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts } from './deixis'
-import { checkSpatialConstraints } from './spatialCheck'
+import { checkSpatialConstraints, excludedCharts } from './spatialCheck'
 import { groundSymbols } from './nl/tickers'
 import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } from './multiChart'
 import { scopeHostToGrid } from './host'
@@ -2907,6 +2907,17 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const deictic = onSubject ? null : sw0.changed
         ? { ask: { text: 'Which chart do you mean?', choices: (host?.charts?.list?.() || []).map(c => ({ ref: c.ref, label: c.label })) } }
         : screenDeicticOps({ host, ops: screened.ops, text, getTargetKind, getCapability, parse: fastParse })
+      // ⛔ AUDIT probe 18 (G3): a chart the words EXCLUDE ("everything in this row except SPY") is never offered by any question
+      const dropExcluded = (ask) => {
+        try {
+          const ex = excludedCharts(text, host?.charts?.list?.() || [], selectedChart(host))
+          if (!ex.size || !Array.isArray(ask?.choices)) return ask
+          const k = getTargetKind(getCapability(screened.ops[0]?.action)?.target)
+          const list = k?.list(host) || []
+          return { ...ask, choices: ask.choices.filter(c => { const snap = list.find(s => s.ref === c.ref); return !ex.has(snap ? chartRefOf(k, snap) : c.ref) }) }
+        } catch { return ask }
+      }
+      if (deictic?.ask) deictic.ask = dropExcluded(deictic.ask)
       if (deictic?.aim) screened.ops = deictic.aim
       if (deictic?.refuse) {
         const said = `I didn't change anything: ${deictic.refuse}`
@@ -2935,6 +2946,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // still stops at a ready draft when an R1 condition fails after the build (an acknowledgement, a name they already use)
       if (!nl1 && disposition === 'propose' && explicitIndicatorCreate(screened.ops)) { mark('deescalate', 'explicit-create'); disposition = 'apply' }
       const unnamed = onSubject ? null : screenUnnamedTargets({ host, ops: screened.ops, text, context: askedFor, pickedRefs: answeredRefs, getTargetKind, getCapability })
+      if (unnamed?.ask) unnamed.ask = dropExcluded(unnamed.ask)
       if (unnamed?.ask) {
         const kinds = kindsOf(screened.ops)
         if (kinds.length === 1) {

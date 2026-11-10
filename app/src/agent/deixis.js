@@ -12,7 +12,7 @@
 import { addableRows } from './capabilities/indicatorEdits'
 import { resolvedTicker } from './nl/tickers'
 import { sanitizeChartTabs } from '../pages/charts/chartTabs'
-import { namedAnchorRelation, wholeLinesNamed, clickLineMatch, clickLineHits } from './spatialCheck'
+import { namedAnchorRelation, wholeLinesNamed, clickLineMatch, clickLineHits, activeText, relationAnchor } from './spatialCheck'
 
 // Words that point at "the chart in front of me". "it" counts only for a CHART-kind op ("make it
 // weekly"), never on its own ("put it in Momentum", "what is it" are not about a chart).
@@ -631,6 +631,8 @@ export function describedCharts(text, charts = []) {
 export function pointsAtChart(text, { chartOp = false, charts = null } = {}) {
   const s = String(text || '')
   return !!relationMatch(s) || POINTS.test(s) || NAMED.test(s) || TF_NAMED.test(s) || (chartOp && IT.test(s)) || (!!charts && describedCharts(s, charts) != null)
+    // AUDIT probe 18 (G1): a relation from a chart named by its SYMBOL ("the one next to the SPY one") points at a chart too
+    || (!!charts && !!namedAnchorRelation(s, charts))
 }
 
 /** The chart ref behind a target of any chart-backed kind (chart itself, a chart's indicators…). */
@@ -664,7 +666,16 @@ export function resolveDeictic({ host, kind, candidates, text, chartOp = false }
   }
   if (candidates.length === 1) return { ref: candidates[0].ref }
   // "the one above this": the clicked chart's neighbour on that side, and only it. ⛔ The click is the anchor, never the target.
-  const rel = relativeChart(text, live, selectedChart(host))
+  // (G4, AUDIT probe 18) "the SPY chart …, and the one to its right": the relation is read from the chart the words named before it
+  const anc = relationAnchor(text, live, selectedChart(host))
+  const rel = relativeChart(text, live, anc)
+  // ...and that named chart is a TARGET too (its own clause says the change): the words name the SET of it and its neighbour
+  if (anc && anc !== selectedChart(host) && rel?.hits?.length && !rel.negated) {
+    const set = new Set([anc, ...rel.hits.map(c => c.ref)])
+    const fits = backed.filter(b => set.has(b.chart))
+    if (fits.length > 1) return { refs: fits.map(b => b.c.ref) }
+    if (fits.length === 1) return { ref: fits[0].c.ref }
+  }
   // a NEGATED relation beside a clause that points at the click ("this one weekly, leave the one below it alone"): the click is
   // the chart meant, and the chart the negated clause names is never it
   if (rel?.negated && rel.alsoClick) {
@@ -696,7 +707,8 @@ export function resolveDeictic({ host, kind, candidates, text, chartOp = false }
   }
   // "this NVDA chart" / "the 5 minute chart" / "the empty one": the charts the words describe. One → it. Several → the clicked
   // one only if it is among them. ⛔ Otherwise the member picks from those: the clicked chart never stands in for a description.
-  const said = describedCharts(text, live)
+  // (G5, AUDIT probe 18) a clause that says a chart is fine names no target: "this one …, the QQQ chart next to SPY is fine"
+  const said = describedCharts(activeText(text) || text, live)
   const sel = selectedChart(host)
   if (said) {
     const refs = new Set(said.map(c => c.ref))
@@ -1020,6 +1032,7 @@ function clauseReads(text, host, parse) {
   if (parts.length < 2 || typeof parse !== 'function') return null
   const charts = host?.charts?.list?.() || []
   const sel = selectedChart(host)
+  const relAnchor = relationAnchor(s, charts, sel)                       // (G4) "… and the one to its right"
   const out = []
   for (const part of parts) {
     const negated = NEGATION.test(part)
@@ -1027,7 +1040,7 @@ function clauseReads(text, host, parse) {
     //   a relation in it ("the chart below it") → the single neighbour on that side of the click
     //   "the other one / chart" on a board of two with a click → the chart that is not the click
     //   a name (one) → that chart; a pointer alone (this one / here / it) → the click
-    const rel = relationMatch(part) ? relativeChart(part, charts, sel) : null
+    const rel = relationMatch(part) ? relativeChart(part, charts, /\b(?:its|it)\b/i.test(part) ? relAnchor : sel) : null
     const other = OTHER_IN_CLAUSE.test(part) ? (charts.length === 2 && sel ? charts.find(c => c.ref !== sel)?.ref || null : null) : undefined
     const named = [...chartsNamedBy(part, charts, sel)]
     const pointer = CLAUSE_POINTER.test(part)
@@ -1048,8 +1061,10 @@ function clauseReads(text, host, parse) {
   // own, is THAT chart: the click is only the relation's anchor
   for (let i = 1; i < out.length; i++) {
     const r = out[i], prev = out[i - 1]
-    if (r.negated || prev.negated || !sel || r.chart !== sel || prev.ops?.length || !prev.chart || prev.chart === sel) continue
-    if (/\b(?:it|that\s+(?:one|chart))\b/i.test(r.part) && !/\bthis\b|\bhere\b/i.test(r.part) && relationMatch(prev.part)) r.chart = prev.chart
+    // (pl-auto V2 fb6170315e: "… and make THAT weekly", "… the one THERE" are the same back-reference)
+    const back = /\b(?:it|that(?:\s+(?:one|chart))?|there)\b/i.test(r.part) && !/\bthis\b|\bhere\b/i.test(r.part)
+    if (r.negated || prev.negated || !sel || !back || (r.chart !== sel && r.chart != null) || prev.ops?.length || !prev.chart || prev.chart === sel) continue
+    if (relationMatch(prev.part)) r.chart = prev.chart
   }
   // ⭐ 2026-11-07 (pl-auto u4-clauses-04/06/08/10): ONE change said once for two charts — "the TSLA chart to the hourly and this one
   // too", "draw a line at 120 on this one and on the TSLA chart", "this one and the one to its left on the weekly". A clause that
@@ -1073,6 +1088,13 @@ function clauseTargets({ host, ops, text, getTargetKind, getCapability, parse })
   // the family itself: one affirmative clause points at the click, another names a different chart
   const sel = selectedChart(host)
   if (!affirm.some(r => r.chart && r.chart === sel) || !affirm.some(r => r.chart && r.chart !== sel)) return null
+  // ⛔ (pl-auto V2): no question ever NAMES the click when the words relate a chart to it (it is that relation's anchor): the
+  // question is then asked without it
+  const rc = sel ? relativeChart(String(text || ''), host?.charts?.list?.() || [], sel) : null
+  const anchor = rc && !rc.alsoClick && !rc.negated ? sel : null
+  const askMeant = (meant, list, kind, action) => (meant && anchor && chartRefOf(kind, meant) === anchor
+    ? { ask: { text: 'Which chart do you mean?', choices: list.filter(c => chartRefOf(kind, c) !== anchor).map(c => ({ ref: c.ref, label: c.label })), action } }
+    : { ask: { text: `Did you mean ${meant?.label || 'that chart'} for that change?`, choices: list.filter(c => !anchor || chartRefOf(kind, c) !== anchor).map(c => ({ ref: c.ref, label: c.label })), action } })
   let any = false
   const used = new Set()
   for (const o of ops || []) {
@@ -1089,12 +1111,12 @@ function clauseTargets({ host, ops, text, getTargetKind, getCapability, parse })
     if (says.length > 1 && mine.length !== 1) {
       if (says.some(r => !r.chart)) return null
       const meant = list.find(x => chartRefOf(kind, x) === says.find(r => !used.has(r))?.chart)
-      return { ask: { text: `Did you mean ${meant?.label || 'that chart'} for that change?`, choices: list.map(c => ({ ref: c.ref, label: c.label })), action: o.action } }
+      return askMeant(meant, list, kind, o.action)
     }
     if (mine.length !== 1 || !mine[0].chart) return null                      // not certain: the gates below decide
     if (mine[0].chart !== chart) {
       const meant = list.find(x => chartRefOf(kind, x) === mine[0].chart)
-      return { ask: { text: `Did you mean ${meant?.label || 'that chart'} for that change?`, choices: list.map(c => ({ ref: c.ref, label: c.label })), action: o.action } }
+      return askMeant(meant, list, kind, o.action)
     }
     any = true
     used.add(mine[0])
