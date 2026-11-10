@@ -1227,7 +1227,7 @@ def test_the_rs_writers_are_read_and_disjoint():
     sets do not overlap, and every one is a real snapshot column."""
     bars, flags = _rs_bar_columns()
     ratings = _rs_rating_columns()
-    assert len(bars) == 10 and len(ratings) == 7, (bars, ratings)
+    assert len(bars) == 10 and len(ratings) == 8, (bars, ratings)  # 7 -> 8 on 2026-11-10: rs_rating_9m (S1)
     assert flags and flags < set(bars)
     assert not (set(bars) & set(ratings))
     assert set(bars) | set(ratings) <= set(snapshot_db.COLUMNS)
@@ -1282,7 +1282,7 @@ def test_rs_numbers_are_ranges_and_ship_BARE_except_the_published_rating():
     already publishes the same numbers (engineering map §2.5 "Controls")."""
     bars, flags = _rs_bar_columns()
     numeric = [c for c in bars if c not in flags] + list(_rs_rating_columns())
-    assert len(numeric) == 12, numeric
+    assert len(numeric) == 13, numeric  # 12 -> 13 on 2026-11-10: rs_rating_9m (S1)
     published = {(p["op"], p.get("min")) for p in filters.FILTERS["rs_rank"]["presets"]
                  if p.get("op")}
     assert published, "rs_rank publishes no thresholds — the exception below is vacuous"
@@ -1455,3 +1455,22 @@ def test_phase3_controls_run_end_to_end_with_NULL_as_neither(tmp_path, monkeypat
     assert tickers({"key": "clenow_score", "op": "gt", "min": 0}) == ["LEAD"]
     assert tickers({"key": "clenow_score", "op": "between", "min": -1, "max": 1}) == ["LEAD", "TURN"]
     assert tickers({"key": "clenow_score", "op": "lt", "max": 0}) == ["TURN"]
+
+
+def test_s1_picker_hidden_keys_stay_filterable_and_follow_the_ibd_flag(monkeypatch):
+    """S1 (2026-11-10): chg_5 and agree are always picker-hidden; rs_rating_ibd only
+    while RS_RANK_IBD_ENABLED is on (read per call). Hidden is not removed: the
+    control stays in FILTERS and in meta() flagged, and the RS view order is pinned."""
+    from api.services.screener import filters as F
+    monkeypatch.delenv("RS_RANK_IBD_ENABLED", raising=False)
+    assert F.picker_hidden_keys() == {"rs_rating_chg_5", "rs_benchmark_agree"}
+    monkeypatch.setenv("RS_RANK_IBD_ENABLED", "1")
+    assert F.picker_hidden_keys() == {"rs_rating_chg_5", "rs_benchmark_agree", "rs_rating_ibd"}
+    for k in ("rs_rating_ibd", "rs_rating_chg_5", "rs_benchmark_agree", "rs_rating_9m"):
+        assert k in F.FILTERS
+    cols = F.VIEWS["relative_strength"]["columns"]
+    assert cols[4:10] == ["rs_rank", "rs_rating_1m", "rs_rating_3m", "rs_rating_6m",
+                          "rs_rating_9m", "rs_rating_12m"]
+    views = F._member_views(frozenset(), True, F.picker_hidden_keys())
+    rs = next(v for v in views if v["key"] == "relative_strength")["columns"]
+    assert not {"rs_rating_ibd", "rs_rating_chg_5", "rs_benchmark_agree"} & set(rs)

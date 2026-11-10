@@ -353,7 +353,8 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
     #                             closedTable.json is dated.
     # The pair is what `closedTable.json` holds -- `len(scalars)` and
     # `len(_scalars_excluded)` -- and the JS pin on the excluded half is the same 110.
-    assert (len(declared), len(excluded)) == (149, 110)
+    # 110 -> 111 on 2026-11-10 (RS split S1): rs_rating_9m, a rating-history column excluded like its siblings (R8).
+    assert (len(declared), len(excluded)) == (149, 111)
 
 
 def test_a_scalar_tree_is_non_repainting_AND_as_of_snapshot__both_verdicts_or_neither():
