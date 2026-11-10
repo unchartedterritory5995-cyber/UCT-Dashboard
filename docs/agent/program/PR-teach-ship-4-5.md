@@ -30,12 +30,19 @@ commit id AUDIT reviewed is unchanged.
 - **Browser runner:** the coverage branches stacked on this lineage carry it. The latest clean pass is teach-cov-5
   `c47b1d0001`: 295 VERIFIED of 318.
 
-## Owed before the combined PR merges (V1 / V4)
-- **This branch is behind master.** It does not contain `fdd4d73bd1` (#998) or later. Merging master in, with a
-  merge commit and no rebase, is the Lead's call before AUDIT's GO.
-- **One locked full suite** on the combined head handed to AUDIT, quiet machine, and **one notebook-bytes delta** on
-  that head.
-- Whether raw run files (`runs/*.results.json`) belong in the repo is still the owner's call (from PR-teach-ship-5).
+## On the combined head `66b79052ca` (SIMULATED)
+- **Master merged in** (Lead's decision): `66b79052ca` = one merge commit of `origin/master` `8500e084ac` into this
+  branch.
+  - Both sides kept, with no conflicts. The diff over master is only ship-4 and ship-5's own files.
+- **Related tests** (`src/agent/agentGuide*`, `src/agent/guide`, `src/agent/contract`, `agentContracts`): 921/921.
+- **Notebook bytes:** 2,252,608 B on this head, the same as master `b554908dda`. **Delta 0**, verdict PASS.
+- **One locked full suite** (`src/agent`, `src/pages/command`; quiet machine; BelowNormal):
+  - `Test Files 2 failed | 295 passed | 5 skipped (302)`, `Tests 3 failed | 9672 passed | 6 skipped (9681)`.
+  - The 3 failures are pre-existing master reds: `src/pages/command/keyListenerCensus` ×2 and `shortcutRegistry`
+    DrillPlayer ×1. This PR touches neither.
+  - `src/agent` is all green.
+- **Still open:** whether raw run files (`runs/*.results.json`) belong in the repo is the owner's call (from
+  PR-teach-ship-5).
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 
