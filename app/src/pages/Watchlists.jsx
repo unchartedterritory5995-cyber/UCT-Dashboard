@@ -927,7 +927,6 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     exportQuota().then(q => { if (live) setServerExport(q) })
     return () => { live = false }
   }, [])
-  const [starred, setStarred] = useState(new Set()) // "listId:SYM" keys
   const [expandedNote, setExpandedNote] = useState(null) // item ID with note open
   const [noteText, setNoteText] = useState('')
   const [dragItemId, setDragItemId] = useState(null)
@@ -975,38 +974,10 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const [addingToList, setAddingToList] = useState(null)  // list id whose inline "+" row is open
   const [addErr, setAddErr] = useState(null)              // { listId, msg } — last failed add
 
-  function toggleStar(listId, sym) {
-    const key = `${listId}:${sym}`
-    setStarred(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n })
-  }
-
-  function getStarredSyms(listId) {
-    const prefix = `${listId}:`
-    return [...starred].filter(k => k.startsWith(prefix)).map(k => k.slice(prefix.length))
-  }
-
-  async function handleRemoveStarred(listId) {
-    const syms = getStarredSyms(listId)
-    if (!syms.length) return
-    if (listId === 'flagged') {
-      syms.forEach(s => removeFlagged(s))
-    } else {
-      const wl = myLists?.find(w => w.id === listId)
-      if (!wl) return
-      for (const sym of syms) {
-        const item = wl.items?.find(i => i.sym === sym)
-        if (item) await fetch(`/api/watchlists/${listId}/items/${item.id}`, { method: 'DELETE' })
-      }
-      mutateMine()
-    }
-    // Clear stars for this list
-    setStarred(prev => {
-      const n = new Set(prev)
-      for (const k of prev) { if (k.startsWith(`${listId}:`)) n.delete(k) }
-      return n
-    })
-    setCtxMenu(null)
-  }
+  // ⚰️ 2026-11-10 (owner: keep the feature removed): per-row star selection + "Remove starred (N)" lived here
+  // (`starred` state, toggleStar, getStarredSyms, handleRemoveStarred, and a list-menu row). Nothing called
+  // toggleStar any more — no row rendered a star — so `starred` was always empty and the menu row could never
+  // render. Deleted rather than revived.
 
   // sortAndFilterItems (the per-list text filter) is defined further down.
 
@@ -1121,7 +1092,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
 
   const { user, watchlistCopyOrLinkEnabled } = useAuth()
   const isTouch = useIsTouch()
-  const { flagged, toggle: toggleFlag, remove: removeFlagged, isFlagged, isShared, toggleShare, flaggedName, renameFlagged } = useFlagged()
+  const { flagged, toggle: toggleFlag, isFlagged, isShared, toggleShare, flaggedName, renameFlagged } = useFlagged()
   const { data: myLists, mutate: mutateMine } = useSWR('/api/watchlists', fetcher, { refreshInterval: 60000 })
   const { data: communityLists, mutate: mutateCommunity } = useSWR('/api/watchlists/public', fetcher, { refreshInterval: 60000 })
   // COV-06: version history on the member's own lists + Recently deleted. Both
@@ -3656,11 +3627,6 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 </>
               )
             })()}
-            {ctxMenu.isOwner && getStarredSyms(ctxMenu.id).length > 0 && !isLinkedList(myLists?.find(w => w.id === ctxMenu.id)) && (
-              <button className={`${styles.ctxItem} ${styles.ctxItemDanger}`} onClick={() => handleRemoveStarred(ctxMenu.id)}>
-                Remove starred ({getStarredSyms(ctxMenu.id).length})
-              </button>
-            )}
           </>
         )
         // Touch → bottom sheet with big tap targets; desktop → anchored popover.

@@ -5188,8 +5188,7 @@ data removal after ~30d of green prod.
 - **Filter within list**: text search input in column header row
 - **Column presets**: Price View / Performance / Short-Term one-click buttons
 - **7-color tags**: Green/Blue/Orange/Red/Purple/Gold/Teal with auto-lists, shareable to community
-- **Star selection + bulk remove**: star icon per row, right-click "Remove starred (N)"
-- **Right-click context menu**: rename, copy list, export CSV, import tickers, remove starred
+- **Right-click context menu**: rename, copy list, export CSV, import tickers (per-row star selection and "Remove starred" were removed 2026-11-10 — owner: the feature stays removed)
 - **Per-symbol alerts**: bell icon → popover (above/below + price), multi-channel delivery
 - **Flagged list**: renameable, shareable, server shadow sync with debounced localStorage
 

@@ -96,7 +96,7 @@ function inside(box, t) {
     const want = String(t.label || t.lead).toLowerCase()
     // the element whose OWN words these are: a row with an icon beside its text has children, and the text is still its own
     const own = (el) => [...el.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join('').trim().toLowerCase()
-    // `lead`: the label STARTS with these words ("Remove starred (3)" carries its count)
+    // `lead`: the label STARTS with these words (a label that carries a count, "Delete (3)")
     return [...box.querySelectorAll('span, div, label, h2, h3, h4, button')].filter(el => (t.lead ? own(el).startsWith(want) : own(el) === want))
   }
   if (t.cursor) {
