@@ -111,6 +111,20 @@ describe('(d) a real stay-clause keeps the click as it is', () => {
     said(text, r.t)
     expect(r.tf, r.t.slice(-200)).toBe('WWWD')
   }, 40000)
+  // the keep-at-a-setting family, said against the rest of the board: the click is kept, the others change
+  const KEEP = ['keep this one daily', 'keep it daily', 'leave this chart on daily', 'keep the one I clicked on the daily', 'keep this one on a daily', 'keep it on the 5 minute']
+  const REST = ['make the others weekly', 'put the rest on weekly', 'everything else weekly', 'make the other charts weekly', 'make all the others weekly']
+  const KEEP_CASES = KEEP.flatMap(k => REST.map(r => `${k}, ${r}`)).concat(REST.slice(0, 2).map(r => `${r}, keep this one daily`), ['make the others weekly but keep this one daily'])
+  it.each(KEEP_CASES)('pure: "%s" excludes the click', (text) => { expect(negatedClick(text).excludes).toBe(true) })
+  it.each(KEEP_CASES.filter((_, i) => i % 4 === 0))('"%s" (c3 clicked, plan c0 c1 c2) → the others go weekly, the click stays', async (text) => {
+    const r = await run(text, 'c3', weeklyOn('c0', 'c1', 'c2'))
+    said(text, r.t)
+    expect(r.tf, r.t.slice(-200)).toBe('WWWD')
+  }, 40000)
+  it.each(['keep it on log scale', 'keep this one on log', 'keep this chart on log scale please'])('control: "%s" alone (c1 clicked, plan c1) → applied on the click', async (text) => {
+    const r = await run(text, 'c1', logOn('c1'))
+    expect(r.log, r.t.slice(-200)).toEqual(['c1'])
+  }, 40000)
   it('control: "make the one I selected stay on weekly" (c2 clicked) applies or asks, never elsewhere', async () => {
     const text = 'make the one I selected stay on weekly'
     const r = await run(text, 'c2', weeklyOn('c2'))

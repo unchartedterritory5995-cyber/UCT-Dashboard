@@ -366,11 +366,20 @@ export function negatedRelations(text) {
   for (const part of String(text || '').split(CLAUSE_PARTS)) { const m = NEG_REL.exec(part); if (m) out.push(m[1]) }
   return out
 }
+// (#988, AUDIT control) "keep this one daily, make the others weekly": keep / leave the click AT A SETTING, said against the rest
+// of the board, keeps the click as it is (EXCLUDED, as "leave this alone"). Alone ("keep it on log scale") it can be the change
+// itself, so it excludes only when the words also name the rest (the others / the rest / everything else / the other charts).
+const KEEP_SETTING = '(?:daily|weekly|monthly|hourly|intraday|\\d{1,3}\\s*(?:m|min|mins|minutes?|h|hr|hours?)|(?:log|linear|normal|regular|arithmetic|percent(?:age)?)(?:\\s+scale)?'
+  + '|candles?|candlesticks?|bars|(?:a\\s+)?line(?:\\s+chart)?|heikin[\\s-]?ashi|the\\s+same)'
+const KEEP_SET_CLICK = new RegExp('^\\s*(?:(?:and|but|then|so|or)\\s+)?(?:please\\s+)?(?:keep|leave)\\s+' + CLICK_OBJ + '\\s+(?:(?:on|at|in)\\s+)?(?:(?:a|the)\\s+)?'
+  + KEEP_SETTING + '(?:\\s+(?:as\\s+(?:it\\s+)?is|for\\s+now|too))?\\s*[.!]?\\s*$', 'i')
+const REST_WORDS = /\b(?:(?:all\s+)?the\s+(?:rest|others|other\s+(?:ones?|charts?|\w+\s+charts?|two|three|four|five))|everything\s+else|all\s+(?:the\s+)?others|every\s+other\s+(?:one|chart)|the\s+remaining\s+(?:ones?|charts?))\b/i
 /** → { excludes: bool, text: the words with each such clause blanked (positions kept) }. */
 export function negatedClick(text) {
   let excludes = false
+  const rest = REST_WORDS.test(String(text || ''))
   const out = String(text || '').split(CLAUSE_PARTS).map(part => {
-    if (NEG_CLICK.test(part) || STAY_CLICK.test(part)) { excludes = true; return part.replace(/\S/g, ' ') }
+    if (NEG_CLICK.test(part) || STAY_CLICK.test(part) || (rest && KEEP_SET_CLICK.test(part))) { excludes = true; return part.replace(/\S/g, ' ') }
     if (NEG_REL.test(part)) return part.replace(/\S/g, ' ')
     return part
   }).join('')
