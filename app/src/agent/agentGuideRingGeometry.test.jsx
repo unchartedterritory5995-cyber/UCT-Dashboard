@@ -141,6 +141,27 @@ describe('2 · a moving control: the ring follows within one frame', () => {
     tr.stop()
   })
 
+  it('while a box the control sits in has a running animation (the board\'s 200 ms cell transition), the loop keeps going; it stops when that is done', () => {
+    const d = fixture('<div class="board"><div data-widget-id="c"><div data-guide="widget.resize.se"></div></div></div>')
+    const cell = d.querySelector('[data-widget-id]')
+    const h = d.querySelector('[data-guide]')
+    setBox(h, { top: 100, left: 100, width: 12, height: 12 })
+    let running = true
+    cell.getAnimations = () => (running ? [{ playState: 'running' }] : [])
+    const tr = trackRing(h, () => {}, { holder: cell })
+    for (let i = 0; i < STILL_FRAMES + 4; i++) frame()
+    expect(tr.running).toBe(true)                          // still in place, but the cell is still animating
+    running = false
+    for (let i = 0; i < STILL_FRAMES + 2; i++) frame()
+    expect(tr.running).toBe(false)
+    // a transition starting above the control starts it again
+    act(() => { cell.dispatchEvent(new Event('transitionrun', { bubbles: true })) })
+    expect(tr.running).toBe(true)
+    tr.stop()
+    for (let i = 0; i < 3; i++) frame()
+    expect(tr.running).toBe(false)
+  })
+
   it('a scroll or a window resize starts the loop again for a moment; a still control asks for no frames', () => {
     const d = fixture('<button data-guide="chart.settings">g</button>')
     const b = d.firstElementChild
