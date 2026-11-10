@@ -4819,6 +4819,39 @@
       ]
     },
     {
+      "id": "watchlist.showList",
+      "source": "pl-exec watchlist group A (C3-065): one Watchlist widget shows the Flagged list exactly as its picker picks it; Undo puts back what it showed",
+      "capabilities": [
+        "watchlist.showList"
+      ],
+      "board": "WLW",
+      "needs": [
+        "watchlist.showList"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "watchlist.showList",
+            "target": "$board",
+            "args": {
+              "widget": null,
+              "source": "flagged",
+              "name": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "put the Flagged list in my watchlist widget",
+        "switch my watchlist over to the flagged one",
+        "show Flagged in the watchlist"
+      ]
+    },
+    {
       "id": "layout.rename",
       "source": "Batch E3 (11-04): saved layouts (rename, delete, copy, create, list) on the Layout Dock fixture (approval; a protected layout is refused: GW-07)",
       "capabilities": [

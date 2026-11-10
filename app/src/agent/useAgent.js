@@ -26,6 +26,7 @@ import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSa
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
 import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts } from './deixis'
+import { screenWatchlistWidget } from './watchlistTarget'
 import { groundSymbols } from './nl/tickers'
 import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } from './multiChart'
 import { scopeHostToGrid } from './host'
@@ -2936,6 +2937,15 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         record({ member: null, outcome: unnamed.ask.text, outcomeData: { kind: 'clarify-unnamed-chart', actions: screened.ops.map(o => o?.action) }, telemetry: { path: 'model', disposition: 'clarify', voice } })
         return
       }
+      // watchlist group A (Lead 2026-11-09): which Watchlist widget a showList acts on is decided by the WORDS — several widgets and
+      // none named is asked, never guessed (watchlistTarget.js)
+      const wlTarget = screenWatchlistWidget({ host, ops: screened.ops, text })
+      if (wlTarget?.ask) {
+        push({ role: 'agent', text: wlTarget.ask })
+        record({ member: null, outcome: wlTarget.ask, outcomeData: { kind: 'clarify-watchlist-widget', actions: screened.ops.map(o => o?.action) }, telemetry: { path: 'model', disposition: 'clarify', voice } })
+        return
+      }
+      if (wlTarget?.ops) screened.ops = wlTarget.ops
       if (unnamed?.propose && disposition === 'apply') {
         mark('escalate', 'unnamed-charts')
         push({ role: 'agent', text: unnamed.note })

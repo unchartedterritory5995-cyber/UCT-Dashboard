@@ -53,6 +53,7 @@ import { BASE_GROUPS, EXTRA_GROUPS, NOT_LINKED, isExtraGroup, linkGroups } from 
 import { PRESET_SCANS } from '../../pages/charts/widgets/ScannerPicker'
 import { CHART_THEMES, CHART_THEME_BY_ID } from '../../components/chart/chartThemes'
 import { positionWord } from '../host'
+import { loadCatalog, matchListName } from '../watchlistCatalog'
 import { withoutDerivedOpts } from '../derivedOpts'
 import { mergeChartSettings } from '../../components/chart/chartDefaults'
 import { addChartTab, closeChartTab, setActiveChartTab, renameChartTab, patchChartTab, chartTabList, sanitizeChartTabs } from '../../pages/charts/chartTabs'
@@ -1381,6 +1382,87 @@ export function registerBoardCapabilities() {
     },
     describe: (b, a) => (a.opened && a.opened !== b.opened ? `Opened “${a.opened.name}” in ${a.opened.where}` : null),
     noop: (st, _a, { list }, env) => `“${listName(list, env) || 'That list'}” is already open in your Watchlist widget`,
+  })
+
+  // ── watchlist.showList (pl-exec, watchlist group A; Lead decisions 2026-11-09): what ONE Watchlist widget shows, written exactly
+  // as its own picker writes it (WatchlistWidget pick / exitPick: opts.watchKey, watchName, watchTab) — the member's own list,
+  // UCT's prebuilt directory, a community list, Flagged, or back to the picker. Only on an explicit request (the receipt names the
+  // list or the mode; Undo puts the previous watchKey back exactly). A colour-tag list has no door in the widget: refused. A name
+  // that matches nothing (or several) is said with the near names — never picked. Several widgets and none named: asked.
+  const SHOW_SOURCES = ['mine', 'prebuilt', 'community', 'flagged', 'picker', 'tag']
+  const SOURCE_WORD = { mine: 'your list', prebuilt: 'UCT prebuilt list', community: 'community list' }
+  const showable = (st, env) => st.board.filter(w => w.type === 'watchlist' && !w.opts?.source && !w.opts?.listSub
+    && !(env?.target?.detached || []).includes(String(w.id)))
+  function showTarget(st, widget, env) {
+    const all = showable(st, env)
+    if (widget != null && String(widget) !== '') {
+      const t = widgetOf(st, widget)
+      if (!t) return { why: notOnBoard(widget) }
+      if (t.type !== 'watchlist') return { why: `The ${label(t.type)} isn't a Watchlist widget.` }
+      if (!all.includes(t)) return { why: 'That Watchlist widget shows a list UCT chose or one you follow, or it is floating; switch it from its own list menu.' }
+      return { w: t }
+    }
+    if (all.length === 1) return { w: all[0] }
+    if (!all.length) return { why: 'There is no Watchlist widget on this board I can switch — add one (Widgets ▾), then ask again.' }
+    const lists = st.board.filter(w => w.type === 'watchlist')
+    return { why: `Which Watchlist widget — ${all.map(w => `the ${positionOf(w, lists) || nameOf(w, st.board)}`).join(' or ')}? Nothing changed yet.` }
+  }
+  const positionOf = (w, lists) => { try { return positionWord(w, lists) } catch { return '' } }
+  function showPick(st, { source, name }, env) {
+    if (source === 'picker') return { key: null, name: null }
+    if (source === 'flagged') return { key: 'flagged', name: 'Flagged', tab: 'mine' }
+    if (source === 'tag') return { why: 'Colour-tag lists open on the Watchlists page — the Watchlist widget picks a saved, prebuilt, community or Flagged list from its own picker.' }
+    if (!String(name || '').trim()) return { why: 'Which list? Say its name.' }
+    if (source === 'mine') {
+      const rows = [...(env?.target?.lists || new Map()).entries()].map(([id, n]) => ({ id, name: n }))
+      const m = matchListName(rows, name)
+      if (m.hit) return { key: `user:${m.hit.id}`, name: m.hit.name, tab: 'mine' }
+      return { why: nearWhy(name, m.near, 'of your watchlists') }
+    }
+    const cat = env?.listCatalog
+    if (!cat) return { why: 'I couldn\'t read the prebuilt and community lists just now, so nothing changed — try again in a moment.' }
+    const m = matchListName(cat[source] || [], name)
+    if (m.hit) return { key: m.hit.key, name: m.hit.name, tab: source }
+    return { why: nearWhy(name, m.near, source === 'prebuilt' ? 'of UCT\'s prebuilt lists' : 'of the community lists') }
+  }
+  const nearWhy = (name, near, where) => (near.length
+    ? `“${name}” isn't one ${where} I can match exactly — did you mean ${near.map(n => `“${n}”`).join(' or ')}? Nothing changed yet.`
+    : `There's no “${name}” among ${where.replace(/^of /, '')}. Nothing changed yet.`)
+  reg({
+    ...common,
+    name: 'watchlist.showList',
+    summary: 'Make ONE Watchlist widget show a list exactly as its picker does: one of the member\'s lists, a UCT prebuilt or community list, Flagged — or go back to its list picker. Undo puts back what it showed.',
+    hints: 'target = the board entry; widget = the Watchlist widget\'s id, or null when only one; source = mine | prebuilt | community | flagged | picker (tag = a colour tag: refused); name = the list\'s name as said, null for flagged / picker.',
+    args: { type: 'object', properties: { widget: { type: ['string', 'null'] }, source: { type: 'string', enum: SHOW_SOURCES }, name: { type: ['string', 'null'] } }, required: ['widget', 'source', 'name'], additionalProperties: false },
+    async prepare(ops) {
+      if (!ops.some(o => ['prebuilt', 'community'].includes(o?.args?.source))) return {}
+      return { listCatalog: await loadCatalog() }
+    },
+    check(st, args, env) {
+      const t = showTarget(st, args.widget, env)
+      if (t.why) return t.why
+      return showPick(st, args, env).why || null
+    },
+    apply(st, args, env) {
+      const t = showTarget(st, args.widget, env)
+      const pick = showPick(st, args, env)
+      if (t.why || pick.why) return st
+      const cur = t.w.opts || {}
+      const opts = pick.key == null
+        ? { ...cur, watchKey: null, watchName: null }                                       // exitPick: watchTab kept (the picker reopens on it)
+        : { ...cur, watchKey: pick.key, watchName: pick.name, watchTab: pick.tab }
+      if ((cur.watchKey ?? null) === (opts.watchKey ?? null)) return st
+      return { ...st, board: st.board.map(w => (w.id === t.w.id ? { ...w, opts } : w)), shown: { id: t.w.id, name: pick.name, source: args.source } }
+    },
+    describe(b, a) {
+      const sh = a.shown && a.shown !== b.shown ? a.shown : null
+      if (!sh) return null
+      const w = b.board.find(x => x.id === sh.id)
+      const where = w ? `the ${nameOf(w, b.board)}` : 'your Watchlist widget'
+      if (sh.source === 'picker') return `${where[0].toUpperCase()}${where.slice(1)} is back on its list picker`
+      return `${where[0].toUpperCase()}${where.slice(1)} now shows “${sh.name}”${SOURCE_WORD[sh.source] ? ` (${SOURCE_WORD[sh.source]})` : ''}`
+    },
+    noop: (st, _a, { source, name } = {}) => (source === 'picker' ? 'That Watchlist widget is already on its list picker' : `It already shows “${name || 'Flagged'}”`),
   })
 
   reg({

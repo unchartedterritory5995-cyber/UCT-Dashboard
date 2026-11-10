@@ -46,6 +46,9 @@ export const BOARDS = {
     boards: { 1: [chart('c1', 0, 0, 24, 20)], 2: [chart('m1', 0, 0, 12, 20), chart('m2', 12, 0, 12, 20)] }, active: 1 } }],
   // saved watchlists behind the real routes' semantics (__fixtures__/board.js)
   WATCH: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { watchlists: [{ id: 'w1', name: 'Momentum', symbols: ['NVDA', 'TSLA'] }, { id: 'w2', name: 'Earnings', symbols: ['AAPL'] }] }],
+  // watchlist group A (pl-exec): a chart + ONE Watchlist widget showing Momentum, with the saved watchlists (watchlist.showList)
+  WLW: () => [[chart('c1', 0, 0, 12, 20), { id: 'wl1', type: 'watchlist', x: 12, y: 0, w: 12, h: 20, color: 'N', opts: { watchKey: 'user:w1', watchName: 'Momentum', watchTab: 'mine' } }],
+    { 'N:c1': 'NVDA' }, { watchlists: [{ id: 'w1', name: 'Momentum', symbols: ['NVDA', 'TSLA'] }, { id: 'w2', name: 'Earnings', symbols: ['AAPL'] }] }],
   // PKG2: a half-width chart (room for new charts) + the saved watchlists — a screen's results go to a list and onto new charts
   SCAN: () => [[chart('c1', 0, 0, 12, 20)], { 'N:c1': 'NVDA' }, { watchlists: [{ id: 'w1', name: 'Momentum', symbols: ['NVDA', 'TSLA'] }, { id: 'w2', name: 'Earnings', symbols: ['AAPL'] }] }],
   // + the chart's drawings (the real drawings store through host.buildDrawingSource) and the indicator-alert library

@@ -11,6 +11,7 @@
 // Only charts on the visible grid are targets; popped-out / floating ones are not.
 // While Multi Chart is on screen the targets are its cells instead (gridEntries; a cell's ref is its persisted cell id).
 
+import { loadCatalog, setCatalogReader } from './watchlistCatalog'
 import { planPlacement, planGroupPlacement } from '../pages/charts/placement/place'
 import { FIXED_ROWS } from '../pages/charts/rowHeight'
 import { boardWidgetCount, boardCanGrow, MAX_BOARD_WIDGETS } from '../pages/charts/boardBound'
@@ -471,9 +472,13 @@ export function buildWatchlistSource({ getLists, getWidgets, revalidate, request
     return r.json()
   }
   const enc = encodeURIComponent
+  // watchlist group A (C3-064): the picker's prebuilt / community catalogue is read through this source's own request
+  setCatalogReader(request)
   const send = (method, body) => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
   return {
     loaded: () => Array.isArray(getLists()),
+    /** The picker's other lists (UCT's prebuilt directory, community lists): names and ids, or null (watchlistCatalog.js). */
+    catalog: () => loadCatalog(request),
     snapshot() {
       const widgets = getWidgets() || []
       return rows().map(row => ({

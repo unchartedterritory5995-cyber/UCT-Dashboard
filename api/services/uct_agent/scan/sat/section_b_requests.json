@@ -11248,6 +11248,10 @@
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -11559,6 +11563,10 @@
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -11866,6 +11874,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
      },
      {
       "id": "guide",
@@ -12183,6 +12195,10 @@
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -12489,6 +12505,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
      },
      {
       "id": "guide",
@@ -12800,6 +12820,10 @@
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -13107,6 +13131,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
      },
      {
       "id": "guide",
@@ -13685,6 +13713,10 @@
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -13995,6 +14027,10 @@
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -14301,6 +14337,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
      },
      {
       "id": "guide",
@@ -14872,6 +14912,10 @@
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -15179,6 +15223,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
      },
      {
       "id": "guide",
@@ -15757,6 +15805,10 @@
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -16325,6 +16377,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
      },
      {
       "id": "guide",
@@ -16897,6 +16953,10 @@
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -17204,6 +17264,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
      },
      {
       "id": "guide",
@@ -17782,6 +17846,10 @@
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -18089,6 +18157,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
      },
      {
       "id": "guide",
@@ -18406,6 +18478,10 @@
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -18719,6 +18795,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
      },
      {
       "id": "guide",
@@ -19036,6 +19116,10 @@
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -19343,6 +19427,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
      },
      {
       "id": "guide",
@@ -19654,6 +19742,10 @@
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -19960,6 +20052,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
      },
      {
       "id": "guide",
@@ -20269,6 +20365,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
      },
      {
       "id": "guide",
@@ -20838,6 +20938,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
      },
      {
       "id": "guide",
@@ -21411,6 +21515,10 @@
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -21979,6 +22087,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
      },
      {
       "id": "guide",
@@ -22551,6 +22663,10 @@
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
      },
      {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
      }
@@ -22857,6 +22973,10 @@
      {
       "id": "undo",
       "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker"
      },
      {
       "id": "guide",

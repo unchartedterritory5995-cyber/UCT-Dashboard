@@ -3621,6 +3621,56 @@
    "shape": null
   },
   {
+   "name": "watchlist.showList",
+   "domain": "watchlist",
+   "target": "board",
+   "summary": "Make ONE Watchlist widget show a list exactly as its picker does: one of the member's lists, a UCT prebuilt or community list, Flagged — or go back to its list picker. Undo puts back what it showed.",
+   "hints": "target = the board entry; widget = the Watchlist widget's id, or null when only one; source = mine | prebuilt | community | flagged | picker (tag = a colour tag: refused); name = the list's name as said, null for flagged / picker.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "source": {
+      "type": "string",
+      "enum": [
+       "mine",
+       "prebuilt",
+       "community",
+       "flagged",
+       "picker",
+       "tag"
+      ]
+     },
+     "name": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "widget",
+     "source",
+     "name"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "widget.showScan",
    "domain": "widget",
    "target": "board",

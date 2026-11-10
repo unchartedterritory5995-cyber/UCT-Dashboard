@@ -2060,6 +2060,19 @@
    ],
    "fast": true
   },
+  "watchlist.showList": {
+   "domain": "watchlist",
+   "group": "watchlistShow",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
   "watchlist.sortColumn": {
    "domain": "watchlist",
    "group": "lists",

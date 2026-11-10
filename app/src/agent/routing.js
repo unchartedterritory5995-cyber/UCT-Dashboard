@@ -293,6 +293,13 @@ export const GROUPS = [
       // W2 (CG-9): "put my layout back", "put the charts back"
       /\bput (?:my|the) (?:layout|board|charts?|workspace|widgets) back\b/,
       /\btake (?:it|that|this|them|those|everything|all (?:of )?(?:that|it|this)) (?:all )?back\b|\btake back (?:that|what (?:you|u)|the last|my last|your last|those changes|that change|everything|whatever (?:you|u))\b/] },
+  // watchlist group A (pl-exec): what ONE Watchlist widget shows — its own, UCT's prebuilt, community or Flagged lists, or back to
+  // its picker. Its OWN one-action group by action name, WORDS-ONLY (never a filler: the lists group and every request keep their size)
+  { id: 'watchlistShow', title: 'What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker',
+    domains: [], actions: ['watchlist.showList'], fillLast: true, wordsOnly: true,
+    words: [/\b(?:list\s+)?picker\b/, /\b(?:prebuilt|community|public|flagged|uct['’]s)\b.*\b(?:lists?|watch ?lists?|widget|tickers)\b|\b(?:lists?|watch ?lists?)\b.*\b(?:prebuilt|community|flagged)\b/,
+      /\b(?:switch|change|put|show|open|load)\b.*\bwatch ?list(?:\s+widget)?\b.*\bto\b|\b(?:in|into|on)\s+(?:my|the|this)\s+(?:left |right |top |bottom |other )?watch ?list\b/,
+      /\b(?:red|blue|green|yellow|orange|purple|pink)\s+(?:tags?|tag list)\b/] },
   // ⭐ PHASE 2 Workstream B: EXPLAIN a term or feature, SHOW ME where a control is — both change nothing
   { id: 'guide', title: 'Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing', domains: ['guide'],
     // (show-me words only: an explanation question is the model's to answer, as before — it may reroute to this group)
@@ -431,7 +438,10 @@ export function selectGroups(message, { pendingActions = [], recentActions = [],
   // recognised, every group is a candidate in catalog order (charts first — the page's own
   // controls), so a catalog bigger than one request still sends as much as fits, not just the
   // always-on group; the rest are named and the model can ask for them.
-  const own = matched ? GROUPS.map(g => g.id).filter(id => hits.has(id)) : [...addOnlyHits, ...soft, ...GROUPS.map(g => g.id)]
+  // `wordsOnly` (Lead 2026-11-09): a NICHE group is sent only when the words name it — never as filler for a message nothing
+  // recognised (or a knowledge-only one), so adding one never displaces what such a request packs
+  const filler = GROUPS.filter(g => !g.wordsOnly || hits.has(g.id)).map(g => g.id)
+  const own = matched ? GROUPS.map(g => g.id).filter(id => hits.has(id)) : [...addOnlyHits, ...soft, ...filler]
   const priority = [...new Set([...always, ...followUps, ...own])]
   return { selected: GROUPS.map(g => g.id).filter(id => priority.includes(id)), priority, matched, soft }
 }
