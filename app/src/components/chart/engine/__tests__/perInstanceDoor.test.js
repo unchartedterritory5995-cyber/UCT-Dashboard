@@ -502,7 +502,16 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
       // else touched) digests to the prior value f53b16f1… byte for byte. The elements that
       // differ are rsLine's own and only in `defVersion`; the first `int` input is still
       // `maLength`. No door moved. (Prior value: f53b16f12b19922f82c8159640a351296031b5d9e81a0b993cbd686b3180d0d4)
-      .toBe('c922cb55165e84ffece9fb0ec6f4618c4b5645062de946c825a588a3eef41832')
+      // 2026-11-10: re-pinned for the UCT RS split (U6 + U7), a REGISTRY ADDITION, not a door
+      // change. ⛔ INVESTIGATED BY MEASUREMENT, NOT REGENERATED: the corpus walks
+      // `listDefinitions()` (56 definitions now). Rebuilt with `rsRating`, `rsPhases` and
+      // `rsVsEma` SKIPPED it digests to the prior value c922cb55… byte for byte (and the
+      // toggle corpus to dff12cc1… below), so every pre-existing definition's blobs, rsLine's
+      // slim/V5 pair included, are untouched. The three add 40 of the 800 elements
+      // (5 bases x [rsRating 3 + rsPhases 3 + rsVsEma 2]): rsRating and rsPhases each declare
+      // an `int` input (on/input/off), rsVsEma declares none (on/off). No door moved.
+      // (Prior value: c922cb55165e84ffece9fb0ec6f4618c4b5645062de946c825a588a3eef41832)
+      .toBe('49d9202ed0712dc3e31489061a997cad71a3a5d5a6bc94fda9206182900ae2c3')
   })
 
   // ⭐ A1 (D3, owner-approved 2026-10-13): the definition door hides; the old literal now
@@ -568,6 +577,9 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
     // mapped 5 → 4 on the 15 rsLine elements reproduces the prior value 07ee0bff… byte for
     // byte. (Prior value: 07ee0bff1d2a3c05259dfe63c94fac2685a90b188475cb769ffd18e7a3b901ec)
     expect(digest(corpus().map(digest).join('|')))
-      .toBe('dff12cc182d3d17c16617670e436bdc1aa8ef7258f460d64cde42972c39544d0')
+      // 2026-11-10: re-pinned for the UCT RS split (U6 + U7); see the literal above: the
+      // toggle corpus with the three new ids skipped reproduces the prior value byte for byte.
+      // (Prior value: dff12cc182d3d17c16617670e436bdc1aa8ef7258f460d64cde42972c39544d0)
+      .toBe('5e2845d4ae574e4f822a053e2945b0c24a6fc11b8e4af345aa88803722ebe894')
   })
 })
