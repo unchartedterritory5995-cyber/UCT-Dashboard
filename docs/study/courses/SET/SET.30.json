@@ -439,13 +439,13 @@
   {
    "id": "s05",
    "source": "p3",
-   "quote": "The most ideal scenario would be a significant gap down over the weekend, ideally 1 full ATR or more on the indexes.",
+   "quote": "ideally 1 full ATR or more on the indexes.",
    "claim": "Bracco wants an index gap down of 1 ATR or more over the weekend."
   },
   {
    "id": "s06",
    "source": "p3",
-   "quote": "Whenever I am looking for a potential mean reversion turning point out of a downtrend, I really try to focus on a few characteristics. First will be range and volume expansion.",
+   "quote": "First will be range and volume expansion",
    "claim": "Bracco looks first for range and volume expansion at a turning point."
   },
   {
@@ -1079,9 +1079,9 @@
    "title": "BABA, March 2022: the clearest V",
    "steps": [
     "BABA, March 2022. A China washout: 43.4% off the high in 17 sessions, all five boxes, the fall getting steeper.",
-    "2022-03-15: a 3.4% gap down on 3.6x volume. The low prints, then price reclaims VWAP. Buy at market, 76.76.",
-    "Stop a few cents under the climax low, 73.20. The target is the daily 9 EMA from below.",
-    "Failure mode: the bar loses VWAP and the low breaks. Instead it closes near its high; 3R the next session."
+    "2022-03-15: a 3.4% gap down on 3.6x volume. The low prints, then price reclaims VWAP. Buy at market.",
+    "Stop a few cents under the climax low, 73.20. Target: the 9 EMA. Our bars use the close, 76.76, as the fill.",
+    "Failure mode: the bar loses VWAP and the low breaks. Instead it closed 2.2% above its open; 3R came next session."
    ],
    "facts": [
     "d01",
@@ -1100,9 +1100,9 @@
    "title": "DB, August 2024: the short, sharp burst on a Monday",
    "steps": [
     "DB, August 2024. Nine sessions down, 19.7% off the high, four boxes ticked, the whole market unwinding.",
-    "Monday 2024-08-05: a 4.2% gap down on 2.3x volume. The turn comes; the first 5-minute close over VWAP is the buy, 14.08.",
-    "Stop a few cents under the day's low, 13.67. A Monday after a weak week: Bracco's best turns.",
-    "Failure mode: a new low under 13.67 means the selling was not done. Instead 3R came in 9 sessions."
+    "Monday 2024-08-05: a 4.2% gap down on 2.3x volume. The first 5-minute close over VWAP is the buy.",
+    "Stop a few cents under the day's low, 13.67. Our bars use the close, 14.08, as the fill.",
+    "Bracco's best turns come on Mondays. A new low under 13.67 would have ended it; instead 3R came in 9 sessions."
    ],
    "facts": [
     "d03",
@@ -1121,8 +1121,8 @@
    "title": "HTHT, July 2021: a crowded group unwinding at once",
    "steps": [
     "HTHT, July 2021. The China liquidation: six names fire the same day. 29% off the high, all five boxes.",
-    "2021-07-27: a 4.5% gap down on 7.2x volume, the heaviest of the run. Reclaims VWAP; buy at market, 40.75.",
-    "Stop under the climax low, 38.97. The 9 EMA sits well above: room to the target.",
+    "2021-07-27: a 4.5% gap down on 7.2x volume. It reclaims VWAP; buy at market.",
+    "Stop under the climax low, 38.97. Our bars use the close, 40.75, as the fill. Room to the 9 EMA.",
     "Failure mode: the first bounce stalls and a new low prints. Instead 3R came the next session, 5R within six weeks."
    ],
    "facts": [
@@ -1164,7 +1164,7 @@
    ],
    "house": true,
    "wrong": {
-    "Riding a stock up its vertical run": "That is the old Model Book card, and it is overruled. Ours is the mirror of a burst down.",
+    "Riding a stock up its vertical run": "That is buying the run up, the opposite trade. Ours is the mirror of a burst down.",
     "A breakout from a tight base": "A base is a rest. This setup has no rest; it is a panic and a turn.",
     "A bottom built over months": "Months of basing is a different trade. This bounce lives for days."
    }
@@ -1274,7 +1274,7 @@
    "criterion": "pl.rs_exempt",
    "q": "A parabolic long needs an RS rating of 80 or more, like every other long we buy.",
    "answer": "False",
-   "why": "False. The leader rule exempts parabolic and mean-reversion trades. A stock that just crashed has no RS rating worth reading.",
+   "why": "False. The leader rule exempts parabolic and mean-reversion trades. The burst is the test here, not the rating.",
    "lesson_line": "RS does not apply here. The burst is the whole story.",
    "facts": [
     "h14",
@@ -1607,7 +1607,7 @@
     },
     "round": 1
    },
-   "why": "7.5 ATR. The 50-day minus the close, divided by the ATR. Bracco measures a stretch in ATRs under the 50-day, not in percent alone.",
+   "why": "7.5 ATR. The 50-day minus the close, divided by the ATR. Bracco looks for range and volume expansion; the ATR stretch tells you how far price has run.",
    "lesson_line": "Stretch is measured in ATRs under the 50-day. Do the division.",
    "facts": [
     "s06",
@@ -1701,7 +1701,7 @@
     "Short it into Monday"
    ],
    "answer": "Wait; Monday may bring the real flush",
-   "why": "Wait. Do not buy the Friday before a possible Monday flush; Bracco's best turns come on Mondays. Three of our four failures were Friday buys.",
+   "why": "Wait. Do not buy the Friday before a possible Monday flush; Bracco's best turns come on Mondays. Three of the four stopped-out examples we studied (BAC, WDC, KRE) were Friday buys.",
    "lesson_line": "Friday's turn is often Monday's gap. Let the weekend decide.",
    "facts": [
     "c15",
@@ -1723,7 +1723,7 @@
    "criterion": "pl.retries",
    "q": "On one name you may try a parabolic long at most 3 times in a week and 6 in a month.",
    "answer": "True",
-   "why": "True. At most 3 tries in a week and 6 in a month, each on a new trigger. Bracco took three failed attempts over two sessions on one short.",
+   "why": "True. At most 3 tries in a week and 6 in a month, each on a new trigger. After three tries the name is telling you something.",
    "lesson_line": "Three tries a week. After that the name is telling you something.",
    "facts": [
     "h29",
@@ -2009,7 +2009,7 @@
     "The second; a calm index is safer"
    ],
    "answer": "The first grades higher",
-   "why": "The first. The index capitulating too is the A+ row; the index calm or only starting to break down is the B- row. Same boxes, different grade.",
+   "why": "The first. An index capitulating too makes the stronger case; a calm index or one only starting to break down weakens it. Same boxes, different grade.",
    "lesson_line": "Grade the market with the stock. A calm index drops the grade.",
    "facts": [
     "c40",
@@ -2019,7 +2019,7 @@
    "house": true,
    "wrong": {
     "Equal; the boxes decide": "The boxes are the pattern. The market is the context, and it grades.",
-    "The second; a calm index is safer": "A calm index means a lone crash, often the company's own news. That is the B- row."
+    "The second; a calm index is safer": "A calm index means a lone crash, often the company's own news. That weakens the case."
    }
   },
   {
@@ -2057,7 +2057,7 @@
    "criterion": "pl.trim_gap_open",
    "q": "If the stock opens above a trim level, the trim is taken at the open.",
    "answer": "True",
-   "why": "True. A trim level the day opens past is taken at the open. After a climax, gaps up are common; do not wait for the fill.",
+   "why": "True. A trim level the day opens past is taken at the open. Do not wait for a better price.",
    "lesson_line": "A gap through a trim level is the trim. Take it at the open.",
    "facts": [
     "h25"
@@ -2107,7 +2107,7 @@
     "Only the index itself"
    ],
    "answer": "Mid and large caps; broad or sector ETFs",
-   "why": "Mid and large caps and broad or sector ETFs, index ETFs welcome. Bracco prefers mid to large caps; most of our own parabolic longs were in index ETFs.",
+   "why": "Mid and large caps and broad or sector ETFs. Bracco prefers mid to large caps, and ETFs are fine with no extra rules.",
    "lesson_line": "Trade the panic in something you can get out of.",
    "facts": [
     "c28",
@@ -2136,7 +2136,7 @@
     "Wait a week for the retest"
    ],
    "answer": "The best setting; a group unwinding",
-   "why": "The best setting. A crowded group unwinding all at once is the A+ context. HTHT fired with six names that day and reached 3R the next session.",
+   "why": "The best setting. A crowded group unwinding all at once is where this setup works best. HTHT fired with six names that day and reached 3R the next session.",
    "lesson_line": "When a whole crowd gets out at once, the turn is a group event.",
    "facts": [
     "c23",
@@ -2236,7 +2236,7 @@
     "Buy more at the Monday close"
    ],
    "answer": "A new low said the selling was not done",
-   "why": "A new low under the climax low means the selling was not done, and the stop is the exit. The Monday low, not the Friday turn, was the trade.",
+   "why": "A new low under the climax low means the selling was not done, and the stop is the exit. The next turn, not the Friday turn, was the trade.",
    "lesson_line": "The first turn is often a day early. The stop costs one R; the next turn is a new trade.",
    "facts": [
     "c25",
@@ -2259,7 +2259,7 @@
    "criterion": "pl.leveraged_etf",
    "q": "3x ETFs are the preferred vehicles for the index version, with no extra rules.",
    "answer": "True",
-   "why": "True. 3x ETFs are preferred and carry no extra rules. UCT's own index turns were traded in TQQQ and SOXL.",
+   "why": "True. 3x ETFs are preferred and carry no extra rules.",
    "lesson_line": "For the index turn, the 3x ETF is the tool, not the exception.",
    "facts": [
     "h21",
@@ -2289,7 +2289,7 @@
     },
     "round": 0
    },
-   "why": "5,000 shares. Never own more than 1% of the average daily volume. Bracco's own KORU caveat was liquidity and spreads.",
+   "why": "5,000 shares. Never own more than 1% of the average daily volume, and 1% of 500,000 is 5,000.",
    "lesson_line": "One percent of the daily volume. In a panic, getting out is the whole game.",
    "facts": [
     "h19"
@@ -2468,7 +2468,7 @@
    },
    "wrong": {
     "Pass; a stair-step, no burst": "Look again: the last days are the steepest, with gaps. That is a burst.",
-    "Pass; the climax day closed at its low": "The last bar closed near its high, off the open. The V is there."
+    "Pass; the climax day closed at its low": "The last bar closed 2.2% above its open. The V is there."
    }
   },
   {
@@ -2512,7 +2512,7 @@
    "q": "Bracco's best turns come on a Monday, after down days into the weekend.",
    "answer": "True",
    "why": "True. Bracco's Monday Effect: notable capitulations and turns have come on a Monday. DB and GE in our examples were Monday climaxes.",
-   "lesson_line": "Mondays end panics. Fridays start them.",
+   "lesson_line": "Bracco's best turns have come on Mondays. Do not buy the Friday before one.",
    "facts": [
     "c15",
     "s04",
@@ -2607,7 +2607,7 @@
     "Skip; the 9 EMA is too close"
    ],
    "answer": "The 9 EMA can be out of reach for weeks",
-   "why": "The 9 EMA can be out of reach. After a crash from far above, CAR's 9 EMA was not reached for weeks; AGQ's never was. Expecting it every time is a named mistake.",
+   "why": "The 9 EMA can be out of reach. After a crash from far above, CAR's 9 EMA was not reached for weeks. Expecting it every time is a named mistake.",
    "lesson_line": "Room to the target is good. A target in another zip code is a warning.",
    "facts": [
     "c33",
@@ -2658,7 +2658,7 @@
    "format": "scenario",
    "criterion": "pl.inv_linear",
    "q": "What is the lesson?",
-   "story": "A 44% fall to 8.2 ATR under the 50-day, four boxes, 4.4x volume, a green close. Bought at 23.10, stop 21.70; stopped at 0R the next day. Six sessions later another name in the group turned and ran.",
+   "story": "A 44% fall to 8.2 ATR under the 50-day, four boxes, 4.4x volume, a green close. Bought at 23.10, stop 21.70; stopped out the next day. Six sessions later, in the same panic, a different stock turned and ran.",
    "choices": [
     "The first turn after a shock is early",
     "Never buy a bank",
@@ -2678,7 +2678,7 @@
    "wrong": {
     "Never buy a bank": "The sector was not the problem. The timing inside the panic was.",
     "Widen the stop next time": "A wider stop would have paid more for the same wrong day. The stop only moves up.",
-    "Heavy volume was the warning": "Heavy volume is the A+ row. The shock had one more leg, that is all."
+    "Heavy volume was the warning": "Heavy volume is part of the setup, not a warning. The shock had one more leg, that is all."
    }
   },
   {
@@ -2688,7 +2688,7 @@
    "format": "scenario",
    "criterion": "pl.retries",
    "q": "Buy again?",
-   "story": "You were stopped out of a parabolic long on Tuesday. Thursday the same stock prints a new low, turns, and reclaims VWAP again.",
+   "story": "You were stopped out of a parabolic long on Tuesday. Thursday the same stock prints a new low, turns, and reclaims VWAP again, with the burst boxes still ticked.",
    "choices": [
     "Yes; a new trade with its own stop",
     "No; one try per climax",
@@ -2771,12 +2771,12 @@
    "q": "Write the plan: entry, stop, target.",
    "story": "BABA, 2022-03-15: 43% off the high in 17 sessions, all five boxes, a 3.4% gap down on 3.6x volume. Late morning it reclaims VWAP after the low.",
    "choices": [
-    "Market 76.76; stop 73.20; the 9 EMA",
-    "Limit 70.00; stop 65.00; hold a month",
+    "Market at reclaim; stop under low; 9 EMA",
+    "Limit far below; wide stop; hold a month",
     "Buy the open; stop under the 200-day"
    ],
-   "answer": "Market 76.76; stop 73.20; the 9 EMA",
-   "why": "Market at the reclaim, 76.76; stop a few cents under the climax low, 73.20; target the daily 9 EMA. It closed near the high and reached 3R the next session.",
+   "answer": "Market at reclaim; stop under low; 9 EMA",
+   "why": "Market order at the reclaim, stop a few cents under the climax low, target the daily 9 EMA. On our bars BABA closed 2.2% above its open and reached 3R the next session.",
    "lesson_line": "Entry at the reclaim, stop under the low, target the 9 EMA. Write it before the turn.",
    "facts": [
     "d01",
@@ -2787,7 +2787,7 @@
    ],
    "house": true,
    "wrong": {
-    "Limit 70.00; stop 65.00; hold a month": "A limit under the low never fills on the turn, and a month is not this trade.",
+    "Limit far below; wide stop; hold a month": "A limit far under the low never fills on the turn, and a month is not this trade.",
     "Buy the open; stop under the 200-day": "The open is before the turn, and the 200-day is nowhere near the stop."
    }
   },
@@ -2805,7 +2805,7 @@
     "Pass; a Monday gap is a trap"
    ],
    "answer": "Take it; the index is capitulating too",
-   "why": "Take it. The index capitulating too, a gap down of an ATR or more, a Monday, a fast VIX move into 30. That is the A+ context and Bracco's own checklist for an index turn.",
+   "why": "Take it. The index capitulating too, a gap down of an ATR or more, a Monday, a fast VIX move into 30. That is the best context and Bracco's own cue list for an index turn.",
    "lesson_line": "A Monday gap with the VIX spiking and the index stretched: that is the day.",
    "facts": [
     "c22",
@@ -2919,7 +2919,435 @@
   "The target: Bracco's 9 EMA magnet claim is for the short; the card (c19) records that only about 4 in 10 longs reached the 9 EMA before the stop in the dossier's test, so q57 keys the claim as not true for longs and q58 teaches the out-of-reach case (CAR, AGQ). Kullamagi's 10/20-day target and Kell's 20 EMA retest are not taught.",
   "The chart questions (q52 BABA asof 2022-03-15, q53 APD asof 2025-04-07) end on the climax day itself, because the trigger is intraday on that day; the keys rest on the dossier's reads (d01, d02, d20, d21), and q53 states the volume ratio in the question so the member is asked the rule, not asked to read 1.5x off a volume bar.",
   "The short mirror (the Parabolic Short, setup 39) is its own unit; q49 teaches only the tell. The 'leveraged' word is kept out of member-facing text (the importer's banned list catches it); 3x ETFs is the phrase used.",
-  "Unit id SET.30 and skill id setup.parabolic_long are the brief's; the plan row exists but describes the overruled trade (above), so the unit is written from the card alone."
+  "Unit id SET.30 and skill id setup.parabolic_long are the brief's; the plan row exists but describes the overruled trade (above), so the unit is written from the card alone.",
+  "Cold check 2026-11-10: 68 pass (65 questions and 3 walk-throughs; 22 fixed, 3 of them walk-throughs), 0 fix, 3 cut (q22 and q66 as duplicates of q03 and q01, q68 for an invented index fact and a hindsight key). Look first at: (1) the VWAP-reclaim trigger (q08, q31, q64) is keyed while D-003 is still pending, and every example fill (76.76, 14.08, 40.75) is the daily close standing in for it; (2) q30 keys 2R breakeven, the card's pick inside B19's 2R-to-5R window, and q32 keys Bracco's opening-volume claim for the long with no test of it on the long side; (3) q01 and q66 touched the app's old Model Book 'Parabolic Long' card (D-014): the Model Book still teaches riding the run up, so decide before any member-facing line calls it overruled. Also fixed: s05 and s06 quoted more than the dossier holds and now carry only the verbatim fragment."
  ],
- "verify": {}
+ "verify": {
+  "q01": {
+   "status": "pass",
+   "notes": "c01/c02/k04/p01 verbatim. Key is the owner's B26 mirror (h10b). Wrong note named the app's 'Model Book' card as overruled; that is the owner's call (D-014) and the Model Book still teaches it, so the note now says only that riding the run up is the opposite trade.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "h10b (B26, 'confirmed 1, yes') and c01 verbatim; the five-box text matches. True as written.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "pl.target is settled (D47 mirrored, h16 verbatim) and Bracco's p12 is verbatim in dossier 3.1. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "B26 verbatim (h10). Key is only the rulebook's own exception; the D-009 narrowing is not keyed. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "c11 verbatim (pl.climax_day, proposed). The gap is taught as box five of the settled pattern, not as a gate, so D-119 is not leaned on.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "C31 verbatim (h14). Why said a crashed stock 'has no RS rating worth reading', which is not a rule or a fact; replaced with 'the burst is the test, not the rating'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "A5 settled (D-135): h03b, c13 verbatim. Recall version of the one-entry rule; q28 applies it to averaging down, a different circumstance, so both kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "c12 verbatim; Bracco's p10 verbatim. pl.trigger_vwap is pending D-003 but keyed on the coordinator's instruction (conflicts); the key is the card's default and no number is graded. Owner should confirm D-003.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "A3/F62 settled (h24, h01); c16 verbatim; p11 verbatim. True.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "p01/p07 verbatim; pl.length is a proposed line. Wrong notes true (one-day flush is Mean Reversion per the card's lookalike row).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "c06 verbatim; the 2x is a proposed line (pl.volume_climax, the dossier's number), not pending-owner.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "c09 verbatim (plus, not a trigger); p13 and the owner's s13 verbatim. False is right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "c05, b01, b02 verbatim (Bulkowski; site refuses plain downloads, quotes found in the dossier). Key and wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "c27 verbatim; s08 verbatim (Bracco's 2026-11-01 pass: second down day and first break of a 3-month support). Story matches the quote closely enough that the key (No) needs no outside information.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "B22 verbatim (h08): no new buys in the 3 days before a report. True.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "c03/c03b verbatim list the five boxes; the 200-day is not one of them. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "c26 and c25 verbatim, A4 (h02). Out at the stop under the day's low is the rule; Add and a wider stop break A5 and A4.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "calc pct_change 20 to 21 = 5.0%; C28 (h11) is a 4% line. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "calc (180-150)/4 = 7.5 checked. The why said 'Bracco measures a stretch in ATRs under the 50-day'; the cited facts (s06, p17) do not say that, so the claim is gone and s06 now quotes only the dossier's verbatim fragment. No pending threshold is keyed (the 3/5/7 ATR line, D-118, is not asked).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "D41 verbatim (h18); k03 verbatim. False is right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "c22 verbatim, e04 verbatim (Kell, archive capture). pl.market_index is proposed. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "cut",
+   "notes": "duplicate of q03: the same fact (the target is the daily 9 EMA, from Bracco and D47) recalled a second way; q03 keeps it.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "c15 verbatim; s04 verbatim; d26 verbatim ('three of the four were bought on a Friday': BAC 2020-02-28, WDC 2022-09-23, KRE 2025-04-04, all Fridays). The why said 'our four failures' with no antecedent; now names the three.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "E56 verbatim (h29). The Bracco '3 failed attempts over 2 sessions' sentence was not in a cited fact (it is in dossier 6.2 only) and is removed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "calc drawdown_pct(88, 50) = 43.2 checked. k01 verbatim. No threshold from pl.context_unwind (pending D-118) is keyed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "calc r_multiple (21.7-20.5)/(20.5-19.8) = 1.714, rounds to 1.7 checked. The 2R floor is a proposed line (pl.room_to_target, c08 verbatim).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "Re-derived: 1R = 1.00; the open (28.70) is a 1.3R loss and the first 30-minute low (28.50) a 1.5R loss, inside B20's 2R ceiling (h06, h07 verbatim). Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "A5 (h03b) and Bracco's s09 verbatim. Application of the one-entry rule to averaging down; kept beside q07.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "c17 verbatim (3% to 8% size down; over 8% skip; proposed); A13 (h04); d07 AGQ buy 89.56, stop 83.01 = 7.31%, 6.67R best, verified. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "c20 and h05 verbatim. 2R is the card's pick inside B19's 2R-to-5R window (the owner said '2-5R ideally'); the question says 'our card', so the claim is true as written. The owner may want to settle the exact number.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "c12, c32, k06 verbatim. Never before the turn is the card's default under D-003 (pending), keyed on the coordinator's instruction. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "c07 (proposed, 'not coded in the daily scan') and Bracco's p09 verbatim. The claim is Bracco's for the short, mirrored; no test of it on the long side exists. Kept as a mirror claim, labelled as Bracco's in the why.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "c25 verbatim (A4 settled); w03 verbatim (Wyckoff tutorial). Recall of the rule q44 applies; kept as the fill format.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "d11/d12 and the dossier failures table verbatim: BAC 2020-02-28 buy 28.50, stop 27.67, 3.9% gap, 3.6x, 6.2 ATR, close 1.8% off the open, Monday low 27.44, 17.95 on 03-23 (37% under the buy: (28.5-17.95)/28.5 = 37.0%). A loss at the planned stop is not framed as a mistake. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "c40/c41 are card rows. The why called them 'the A+ row' and 'the B- row', but E50 (settled) says grading is discretionary with no fixed checklist taught as ours; reworded to 'stronger case / weakens it'. The key (the first grades higher) holds either way.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "c21 verbatim, s10 verbatim. The exit fraction (D-013, pending) is not keyed; 'sold what the plan called for' leaves it open. The wrong note about Bracco keeping SOXL is in dossier 3.2.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "F63 verbatim (h25). The why's 'after a climax, gaps up are common' is unsourced and removed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "B23 verbatim (h09). A $7 stock on $6 million a day fails B23 under either D-018 option (the pending exception is for 3x ETFs only).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "c28 and p14 verbatim. The why said 'most of our own parabolic longs were in index ETFs'; the card says 3x ETFs (TQQQ, SOXL, KORU, AGQ, ETHU), not index ETFs, so the why now says ETFs are fine with no extra rules (h21).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "c23, d05, d06 verbatim (six names fired 2021-07-27; HTHT 3R the next session). The why called it 'the A+ context', a grade line E50 does not teach; now 'the best setting'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "B22 verbatim (h08): hold through a report only if up 5R. d10 (GE) verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "calc shares_from_risk: 40,000 x 0.5% = 200; 200 / (76.76-73.20 = 3.56) = 56.18, rounds down to 56. 3.56/76.76 = 4.6% checked. A5 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "c05 and b02 verbatim; the drift story has no acceleration or gaps. Percent alone is Bracco's named mistake (p17).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "d14/d15 verbatim: WDC 2022-09-23 (Friday) buy 25.58, stop 24.94, Monday close 24.49, low 09-29 at 23.85 (a Thursday), 9 EMA on 09-30 (a Friday). The why said 'the Monday low ... was the trade', which contradicts the story (the low came Thursday); now 'the next turn'. Key right.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "E54 verbatim (h21); c30 verbatim. The why's 'UCT's own index turns were traded in TQQQ and SOXL' called SOXL (a semiconductor fund) an index trade and cited no fact; removed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "D42 verbatim (h19); calc 500,000 x 1% = 5,000 checked. The KORU liquidity sentence was in no cited fact and is removed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "Re-derived: 1R = 1.10; the 48.70 low is a 3.30 loss = 3.0R, past B20's 2R ceiling (h06, h07 verbatim). Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "c29 verbatim (proposed); k01 and s02 verbatim. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "c35 verbatim (the lookalike tell). The story is the short's burst mirrored; the key needs no outside information.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "c36 verbatim (the Mean Reversion tell: a one-day flush in a leader into a level). 'Mean Reversion form A' is the card's name for it, taught in another unit.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "c37 verbatim (the U&R tell). Only 'a U&R needs a level' and B26's exception are keyed; the D-009 narrowing is not.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "pass",
+   "notes": "d01/d02 verbatim (BABA 2022-03-15: 43.4%, 17 sessions, gap 3.4%, 3.6x, close 2.2% off the open, 3R next session). A wrong note said the last bar 'closed near its high'; the data say 2.2% above the open, now stated.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "d20/d21 verbatim (APD 2025-04-07: volume 1.5x, 4/5 boxes, the volume climax was in SPY at 4.1x). The 2x is a proposed line.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "c15 and s04 verbatim; DB 2024-08-05 and GE 2025-04-07 were both Mondays. The lesson line 'Fridays start them' was an unsupported claim; replaced with Bracco's Monday preference and the Friday rule.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "Re-derived: stop = 19.00 - 0.05 = 18.95; (20.50-18.95)/20.50 = 7.56%. d08 SLG stop 7.2%, 3R in 6 sessions, verified.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "C33 verbatim (h15). The key (sold after 10 trading days under 1R) holds under both D-019 options, so the pending 3-session rule is not leaned on.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "c19 verbatim: about 4 in 10 reached the 9 EMA before the stop in the dossier's own daily test (not a published statistic; the question says 'our test'). Bracco's p12 verbatim. False is right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "d24 verbatim (CAR 847.70 to 202.31, 9 EMA above 260, not reached until 05-21); c33 verbatim. The why's 'AGQ's never was' rests on a different AGQ (2026-02) and is in no cited fact; removed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "d13/d13b/d27 verbatim (83 names on 2020-02-28, a Friday, all stopped, none to 5R, the low 16 sessions later). The market reading is what the card says decides (c24).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "d16/d17 verbatim (BKU 2023-03-16 buy 23.10, stop 21.70, 44%, 8.2 ATR, 4.4x). The story said 'stopped at 0R', which reads as a zero-R exit (a stop is -1R; the dossier's 0R means it never made progress), and 'another name in the group' (SLG is an office REIT, not a bank); reworded. A wrong note called heavy volume 'the A+ row'; fixed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "B21 (h28) and E56 (h29) verbatim. The story did not say the setup triggered again; added 'with the burst boxes still ticked' so the key follows from B21.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "calc pct_change 20 to 34 = 70.0 checked; c29 verbatim (proposed 50% prior run).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "c38 and d22/d23 verbatim (SQQQ 2020-08-27: 35% off its high, five boxes, 0.01R). The key rests on logic (an inverse fund falls when the index rises), not on the pending D-018 option.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "d01 verbatim. The correct choice named 'Market 76.76; stop 73.20', numbers the member cannot derive from the story, and 76.76 is the scan's close stand-in, not a VWAP-reclaim fill (conflicts). Choices now state the plan without prices; the why says BABA closed 2.2% above its open and reached 3R the next session.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "c22, s04, s05, s07 verbatim (s05 trimmed to the dossier's fragment). The why's 'A+ context' became 'best context' (E50). The market reading (D-023, pending) is not asked.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q66": {
+   "status": "cut",
+   "notes": "duplicate of q01 (the same fact: our parabolic long is the mirror of the burst, not riding the run up), and it teaches that the app's Model Book card is 'overruled', which is the owner's call (D-014) while that card still teaches the old trade. Its wrong note was also false: riding a run up is not the parabolic short's setup.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "Re-derived: 3R = 40.00 + 3 x 1.50 = 44.50 (calc arith); the 9 EMA at 45.10 is 3.4R, so 3R comes first. h05 (B19) verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q68": {
+   "status": "cut",
+   "notes": "the story says 'the index has just lost its 200-day for the first time in a year', which the dossier does not support (the Nasdaq lost its 200-day in early November, after 2026-10-15), and with that line removed nothing in the story tells the member what happened next: the key is hindsight. Not fixable in one edit.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w1": {
+   "status": "pass",
+   "notes": "d01/d02 verbatim in dossier section 12 (BABA 2022-03-15: 43.4% in 17 sessions, 5/5 boxes, gap 3.4%, 3.6x, close 2.2% off the open, buy 76.76, stop 73.20, 3R in 1 session). Steps said 'Buy at market, 76.76' after the VWAP reclaim and 'closes near its high'; 76.76 is the scan's CLOSE standing in for the fill (conflicts), and 'near its high' is not in the data. Now the close is labelled as the stand-in and the bar 'closed 2.2% above its open'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "d03/d04 verbatim (DB 2024-08-05: 9 sessions, 19.7%, 4/5 boxes, gap 4.2%, 2.3x, buy 14.08, stop 13.67, 3R in 9 sessions). 14.08 was presented as the first 5-minute close over VWAP; it is the daily close stand-in, now said so.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "d05/d06 verbatim (HTHT 2021-07-27: 29.0%, 5/5, gap 4.5%, 7.2x, buy 40.75, stop 38.97, 3R next session, 5R within six weeks, six names). Removed 'the heaviest of the run' (7.2x is against the 50-day average; no run-wide volume ranking is in the data) and labelled 40.75 as the close stand-in.",
+   "fixed": true,
+   "by": "checker"
+  }
+ }
 }
