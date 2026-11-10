@@ -423,6 +423,8 @@ export function buildListViewSource({ getWidgets }) {
         ref, type: v.type, key: v.key, listId: v.type === 'watchlist' && String(v.key).startsWith('user:') ? String(v.key).slice(5) : null,
         label: name, name, rows: live.rows(), cfg: live.cfg, sort: live.sort, columns: live.columns, fixedColumns: live.fixedColumns, persisted: live.persisted,
         selected: live.selected || null, active: live.active, position: positionWord(w, siblings) || null,
+        // the header drag's and the gridline's own results (Watchlists.jsx), for watchlist.arrangeColumns: pure over a cfg
+        ...(live.movedCfg ? { cols: { moved: live.movedCfg, resized: live.resizedCfg, min: live.minWidthOf, width: live.widthOf } } : {}),
       }
     }),
     /** Is a widget showing this saved list sorted by a column? (No rows are read: this runs per list, per turn.) */

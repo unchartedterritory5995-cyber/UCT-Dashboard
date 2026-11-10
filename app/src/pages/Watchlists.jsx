@@ -2126,18 +2126,23 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     else saveColCfg(withColumn({ ...colCfg, order: curOrder }, key))
   }, [colCfg, saveColCfg])
 
-  // Drag a header column onto another to reorder the columns.
-  const moveColumn = (fromKey, toKey) => {
-    if (!fromKey || fromKey === toKey) return
-    const order = [...colOrder]
+  // Drag a header column onto another to reorder the columns. `movedColCfg` is the drop's own result (null = no move): the
+  // header drag and UCT Agent's watchlist.arrangeColumns both write it, so the two can never order columns differently.
+  const movedColCfg = (cfg, fromKey, toKey) => {
+    if (!fromKey || fromKey === toKey) return null
+    const order = (Array.isArray(cfg.order) && cfg.order.length ? cfg.order : DEFAULT_COL_ORDER).filter(k => COL_META[k])
     DEFAULT_COL_ORDER.forEach(k => { if (!order.includes(k)) order.push(k) })
     const from = order.indexOf(fromKey)
     const to = order.indexOf(toKey)
-    if (from < 0 || to < 0) return
+    if (from < 0 || to < 0) return null
     order.splice(from, 1)
     order.splice(to, 0, fromKey)
-    saveColCfg({ ...colCfg, order })
+    return { ...cfg, order }
   }
+  const moveColumn = (fromKey, toKey) => { const next = movedColCfg(colCfg, fromKey, toKey); if (next) saveColCfg(next) }
+  // A gridline drop's own result: the column's width, never under its minimum (the drag's own clamp)
+  const colMinWidth = (key) => COL_META[key]?.min || 40
+  const resizedColCfg = (cfg, key, w) => ({ ...cfg, widths: { ...(cfg.widths || {}), [key]: Math.max(colMinWidth(key), Math.round(w)) } })
 
   // Drag a gridline (an independent divider overlaid on the header, NOT tied to a
   // header cell — so dragging never sorts/selects the column) to resize the column to
@@ -2147,7 +2152,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     resizingRef.current = true
     const startX = e.clientX
     const startW = colWidth(key)
-    const min = COL_META[key]?.min || 40
+    const min = colMinWidth(key)
     // Widths are stored UNSCALED but painted scaled — convert the cursor delta back
     // into unscaled space so the gridline tracks the pointer 1:1 while shrunk-to-fit.
     const rawTotal = orderedKeys.reduce((a, k) => a + colWidth(k), 0)
@@ -2160,7 +2165,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       window.removeEventListener('mouseup', onUp)
       const w = calc(ev)
       setLiveResize(null)
-      saveColCfg({ ...colCfg, widths: { ...(colCfg.widths || {}), [key]: w } })
+      saveColCfg(resizedColCfg(colCfg, key, w))
       setTimeout(() => { resizingRef.current = false }, 0)   // let the trailing click be swallowed first
     }
     window.addEventListener('mousemove', onMove)
@@ -2385,6 +2390,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     cfg: colCfg, sort: colSort, columns: orderedKeys, fixedColumns: !!isAllIdxList, persisted: !ephemeralCols,
     selected: selectedSym, active: !!(activeRef && widgetKey && activeRef.current === widgetKey),
     saveCols: saveColCfg,
+    // UCT Agent (watchlist.arrangeColumns): the header drag's and the gridline's own results, and each column's width now
+    movedCfg: movedColCfg, resizedCfg: resizedColCfg, minWidthOf: colMinWidth,
+    widthOf: (cfg, k) => cfg.widths?.[k] ?? COL_META[k]?.def ?? null,
     select: (sym) => { setSelectedSym(sym); setHubSym(sym) },
   }
 

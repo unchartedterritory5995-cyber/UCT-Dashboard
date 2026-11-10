@@ -11,6 +11,7 @@
 //   watchlist.sortColumn         the header click: sort by a column, or go back to the saved order. A column that is not
 //                                showing joins first (its data is only fetched while it shows), and the receipt says so.
 //   watchlist.setColumns         the right-click column menu: add, hide, reset
+//   watchlist.arrangeColumns     the header drag (move a column) and the gridline drag (its width)
 //   watchlist.step               the arrow keys: next / previous / first / last, wrapping the same way
 //   watchlist.readView           what the widget shows, in its on-screen order (a producer: "the top three of this list")
 //   watchlist.setFlag            the star: flag or unflag tickers
@@ -241,6 +242,72 @@ export function registerListViewCapabilities() {
       if (a.hid.length) parts.push(`Hid ${andList(a.hid.map(columnLabel))} on ${quote(a.name)}`)
       if (!parts.length) return null
       return `${parts.join(' · ')}${a.sortDropped ? ' · it is no longer sorted by that column' : ''}${notKept(a)}`
+    },
+  })
+
+  // ── watchlist.arrangeColumns (pl-widget, C3-085 / C3-086): a column moved as the header drag drops it, or resized as its
+  // gridline does — each the widget's OWN result (Watchlists.jsx movedColCfg / resizedColCfg, on the snapshot as `cols`), never
+  // a second copy of the rule. Only a column that shows; a width only inside its own minimum and a fixed maximum. ──
+  const MAX_COL_PX = 600
+  const arrangeWhy = (st, { column, before, after, width }, env) => {
+    const cols = env?.target?.cols
+    if (!cols) return `${quote(st.name)} has no draggable column header here.`
+    if (st.fixedColumns) return `${quote(st.name)} has fixed columns.`
+    const k = keyOf(column, st)
+    if (!k || k === 'flag' || !st.columns.includes(k)) return k && k !== 'flag' ? `${columnLabel(k)} isn't showing on ${quote(st.name)}: add it first.` : unknownColumn(column, st)
+    if (before != null && after != null) return 'Before or after — which one?'
+    if (before == null && after == null && width == null) return `Move ${columnLabel(k)} where, or to what width?`
+    const to = before ?? after
+    if (to != null) {
+      const t = keyOf(to, st)
+      if (!t || t === 'flag' || !st.columns.includes(t)) return t && t !== 'flag' ? `${columnLabel(t)} isn't showing on ${quote(st.name)}.` : unknownColumn(to, st)
+      if (t === k) return `Before or after another column than ${columnLabel(k)}.`
+    }
+    if (width != null) {
+      const min = cols.min(k)
+      if (!Number.isFinite(Number(width)) || Number(width) < min || Number(width) > MAX_COL_PX) return `${columnLabel(k)} can be from ${min} to ${MAX_COL_PX} pixels wide.`
+    }
+    return null
+  }
+  registerCapability({
+    name: 'watchlist.arrangeColumns',
+    surfaces: ['charts'],
+    target: 'listView',
+    absentAsNull: ['before', 'after', 'width'],
+    summary: 'Move a column on a Watchlist or Scanner widget (as dragging its header does) or set its width in pixels (as dragging its gridline does). Undo puts the old columns back.',
+    hints: `${WHICH} column = a column that shows; before / after = another showing column (one of them, or neither); width = pixels (a column's minimum to ${MAX_COL_PX}), or null.`,
+    args: { type: 'object', properties: { column: { type: 'string' }, before: { type: ['string', 'null'] }, after: { type: ['string', 'null'] }, width: { type: ['number', 'null'] } }, required: ['column', 'before', 'after', 'width'], additionalProperties: false },
+    check: (st, a, env) => arrangeWhy(st, a, env),
+    apply(st, { column, before, after, width }, env) {
+      const cols = env.target.cols
+      const k = keyOf(column, st)
+      let cfg = st.cfg, columns = st.columns
+      const to = before ?? after
+      if (to != null) {
+        const t = keyOf(to, st)
+        const at = (c) => columns.indexOf(c)
+        // the header drop puts the dragged column where the one it is dropped on was; pick that one so it lands before / after
+        const onto = before != null ? (at(k) > at(t) ? t : columns[at(t) - 1]) : (at(k) < at(t) ? t : columns[at(t) + 1])
+        const next = onto && onto !== k ? cols.moved(cfg, k, onto) : null
+        if (next) {
+          cfg = next
+          const rest = columns.filter(c => c !== k)
+          const i = rest.indexOf(t) + (before != null ? 0 : 1)
+          columns = [...rest.slice(0, i), k, ...rest.slice(i)]
+        }
+      }
+      if (width != null && cols.width(cfg, k) !== Math.max(cols.min(k), Math.round(Number(width)))) cfg = cols.resized(cfg, k, Number(width))
+      if (same(cfg, st.cfg)) return st
+      return { ...st, cfg, columns, arranged: { key: k, before: before != null ? keyOf(before, st) : null, after: after != null ? keyOf(after, st) : null, width: width != null ? cfg.widths?.[k] : null } }
+    },
+    noop: (st, _a, { column }) => `${columnLabel(keyOf(column, st) || column)} on ${quote(st.name)} is already there`,
+    describe(b, a) {
+      const r = a.arranged
+      if (!r || same(b.cfg, a.cfg)) return null
+      const parts = []
+      if (r.before || r.after) parts.push(`moved ${columnLabel(r.key)} ${r.before ? `before ${columnLabel(r.before)}` : `after ${columnLabel(r.after)}`}`)
+      if (r.width != null) parts.push(`set ${columnLabel(r.key)} to ${r.width} px wide`)
+      return `On ${quote(a.name)}: ${parts.join(' and ')}${notKept(a)}`
     },
   })
 
