@@ -53,6 +53,14 @@ from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_u
 router = APIRouter()
 log = logging.getLogger(__name__)
 
+# G1: name the knowledge guard's action-name source ONCE at server boot (main.py imports this router at boot).
+# One line, counts only: "[uct-agent] knowledge guard action source: registry (N names, M families)".
+try:
+    from api.services.uct_agent.knowledge import guard as _knowledge_guard
+    _knowledge_guard.log_action_source_once()
+except Exception:  # noqa: BLE001 -- a boot log line must never stop the server
+    log.exception("[uct-agent] knowledge guard action source: unavailable")
+
 #: What a member sees when something unexpected breaks. TRUE by construction:
 #: the server never mutates a workspace, and the browser only executes after a
 #: valid envelope arrives — a failed request has changed nothing.

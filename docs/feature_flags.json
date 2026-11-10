@@ -3720,9 +3720,10 @@
         "knowledge kinds (knowledge.search, setup.playbook, setup.record)"
       ],
       "since": "2026-11-10",
-      "status": "hard precondition, open until verified",
-      "precondition": "No widening of UCT_AGENT_KNOWLEDGE, UCT_AGENT_DATA or the knowledge kinds beyond admin until agent/pl/knowledge-guard-bare-names (G1) is merged and verified. Before G1, api/services/uct_agent/knowledge/guard.py failed OPEN on 45 capability action names written bare (e.g. chart.goToDate, watchlist.keepOnly, agent.undo), so a curated verbatim trader post that names an Agent action could reach the planner as clean data.",
-      "verified_by": "tests/test_uct_agent_server_capability_mirrors.py (GUARD_KNOWN_UNWITHHELD empty; registry-derived families; PLANTED quoted posts withheld; ORDINARY prose over-flag 0) green in CI on master after G1 merges, AND an AUDIT check that guard.action_source() == 'registry' on the deployed build.",
+      "status": "hard precondition, open: lifted by AUDIT after production check",
+      "lifted_on": null,
+      "precondition": "No widening of UCT_AGENT_KNOWLEDGE, UCT_AGENT_DATA or the knowledge kinds beyond admin until agent/pl/knowledge-guard-bare-names (G1) is merged and this precondition is lifted by AUDIT after production check. Before G1, api/services/uct_agent/knowledge/guard.py failed OPEN on 45 capability action names written bare (e.g. chart.goToDate, watchlist.keepOnly, agent.undo), so a curated verbatim trader post that names an Agent action could reach the planner as clean data.",
+      "lifted_by": "lifted by AUDIT after production check: on the deployed build, the boot log line '[uct-agent] knowledge guard action source: registry (N names, M families)'. A green rail does NOT close it; tests/test_uct_agent_server_capability_mirrors.py green in CI is necessary, not sufficient. lifted_on stays null until AUDIT lifts it.",
       "doc": "docs/agent/program/PR-knowledge-guard-bare-names.md"
     }
   }

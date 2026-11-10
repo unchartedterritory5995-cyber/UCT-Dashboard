@@ -82,6 +82,26 @@ def action_source() -> str:
     return _ACTION_SOURCE
 
 
+def source_line() -> str:
+    """The one boot line naming where the guard's action names came from (counts only, never content)."""
+    return (f"[uct-agent] knowledge guard action source: {_ACTION_SOURCE} "
+            f"({len(_ACTION_NAMES)} names, {len(_ACTION_FAMILIES)} families)")
+
+
+_BOOT_LOGGED = {"done": False}
+
+
+def log_action_source_once() -> str | None:
+    """Log source_line() ONCE per process (server boot: api/routers/uct_agent.py at import). Returns the line it
+    logged, or None when it already ran. A fallback source is a WARNING: the guard is failing closed."""
+    if _BOOT_LOGGED["done"]:
+        return None
+    _BOOT_LOGGED["done"] = True
+    line = source_line()
+    (log.info if _ACTION_SOURCE == "registry" else log.warning)("%s", line)
+    return line
+
+
 _INJECTION = re.compile(
     r"(ignore|disregard|forget|override)\s+(all\s+|any\s+|the\s+|your\s+|previous\s+|prior\s+|above\s+)*"
     r"(instructions?|rules?|prompts?|system|directions?)"

@@ -199,3 +199,71 @@ def test_PLANTED_quoted_posts_that_embed_a_bare_action_name_are_WITHHELD():
 def test_ORDINARY_trading_prose_is_not_over_flagged():
     flagged = [t for t in ORDINARY_POSTS if guard.suspicious(t)]
     assert flagged == [], f"over-flag {len(flagged)}/{len(ORDINARY_POSTS)}: {flagged}"
+
+
+#: PLANTED (all families): one quoted trader post per action FAMILY, generated from the same registry list the
+#: guard derives from, so a family the registry gains is planted too. Every family can occur in KB text (a post
+#: can quote any dotted name), so none is exempt.
+_POST_SHAPES = (
+    '"From the desk: {n} on the leaders before the open, then review the rest." (trader post)',
+    'Quoted post: "I keep it simple, {n} first and then I size the position."',
+    '> as one member wrote, {n} right after the fill, while it is fresh',
+    'From the archive: "weekend routine is {n} and a cup of coffee."',
+)
+
+
+def _one_name_per_family() -> dict:
+    out = {}
+    for n in sorted(guard._ACTION_NAMES):
+        out.setdefault(n.split(".", 1)[0], n)
+    return out
+
+
+def test_PLANTED_one_quoted_post_per_FAMILY_is_WITHHELD():
+    per = _one_name_per_family()
+    assert set(per) == set(guard.action_families()) and len(per) >= 32, sorted(set(guard.action_families()) - set(per))
+    posts = {f: _POST_SHAPES[i % len(_POST_SHAPES)].format(n=n) for i, (f, n) in enumerate(sorted(per.items()))}
+    missed = sorted(f for f, t in posts.items() if guard.check(t) != ("", ["instruction_like"]))
+    assert missed == [], f"{len(missed)}/{len(posts)} families' planted posts passed the guard: {missed}"
+
+
+# ── G1 (AUDIT b): the action source is named once at boot; "registry" from the repo, "fallback" without it ──
+def test_the_action_source_is_REGISTRY_from_the_repo_root():
+    assert guard.action_source() == "registry"
+    line = guard.source_line()
+    assert re.fullmatch(r"\[uct-agent\] knowledge guard action source: registry \(\d+ names, \d+ families\)", line), line
+    assert f"({len(guard._ACTION_NAMES)} names, {len(guard.action_families())} families)" in line
+
+
+def _guard_copy_without_registry():
+    # the same guard.py, loaded from a tree with no app/ (parents[4] has no registry): the fallback path, for real
+    import importlib.util, shutil, tempfile
+    tmp = Path(tempfile.mkdtemp())
+    dst = tmp / "a" / "b" / "c" / "d" / "guard.py"
+    dst.parent.mkdir(parents=True)
+    shutil.copy(Path(guard.__file__), dst)
+    spec = importlib.util.spec_from_file_location("_guard_fallback_copy", dst)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod, tmp
+
+
+def test_the_FALLBACK_path_reports_fallback_and_fails_closed():
+    import shutil
+    mod, tmp = _guard_copy_without_registry()
+    try:
+        assert mod.action_source() == "fallback"
+        assert mod.action_families() == frozenset()
+        assert mod.source_line() == "[uct-agent] knowledge guard action source: fallback (0 names, 0 families)"
+        assert mod.suspicious("Next, chart.goToDate with the default settings.")     # closed, never open
+        assert mod.log_action_source_once() == mod.source_line()
+        assert mod.log_action_source_once() is None                                 # once per process
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_the_server_boot_logs_the_action_source_once():
+    src = (ROOT / "api" / "routers" / "uct_agent.py").read_text(encoding="utf-8")
+    assert src.count("log_action_source_once()") == 1
+    boot = (ROOT / "api" / "main.py").read_text(encoding="utf-8")
+    assert "from api.routers import uct_agent as uct_agent_router" in boot
