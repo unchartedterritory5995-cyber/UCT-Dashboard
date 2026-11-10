@@ -1,0 +1,16 @@
+[
+ {
+  "id": "HG-16",
+  "say": "how do I find out why my alert won't fire",
+  "feature": "alertAction",
+  "title": "Why an alert can’t fire",
+  "note": "added after the alert AFTER run: HG-14/15 never reached the guide (why-questions are not routed), so blockedAlert had no held-out coverage"
+ },
+ {
+  "id": "HG-17",
+  "say": "show me why my indicator alert can't fire",
+  "feature": "alertAction",
+  "title": "Why an alert can’t fire",
+  "note": "added after the alert AFTER run, same reason"
+ }
+]
