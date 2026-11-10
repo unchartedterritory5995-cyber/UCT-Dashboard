@@ -1,0 +1,140 @@
+[
+ {
+  "id": "C1-047",
+  "say": "how do I toggle grid",
+  "feature": "chartSetting",
+  "title": "Changing Grid lines"
+ },
+ {
+  "id": "C1-173",
+  "say": "show me how to 2x2 grid",
+  "feature": "multiChart",
+  "title": "Setting up a 2×2 chart grid"
+ },
+ {
+  "id": "C3-042",
+  "say": "show me how to use the 3x3 multi chart",
+  "feature": "multiChart",
+  "title": "Setting up a 3×3 chart grid"
+ },
+ {
+  "id": "C3-043",
+  "say": "show me how to multi chart 2 by 5",
+  "feature": "multiChart",
+  "title": "Setting up a 2×2 chart grid"
+ },
+ {
+  "id": "C3-044",
+  "say": "how do I exit Multi Chart",
+  "feature": "gridAction",
+  "title": "Leaving Multi Chart"
+ },
+ {
+  "id": "C3-045",
+  "say": "show me how to sync the crosshairs",
+  "feature": "gridAction",
+  "title": "Syncing the crosshair"
+ },
+ {
+  "id": "C3-046",
+  "say": "show me how to sync the time range",
+  "feature": "gridAction",
+  "title": "Syncing the time range"
+ },
+ {
+  "id": "C3-047",
+  "say": "how do I turn on Groups mode",
+  "feature": "gridAction",
+  "title": "Groups mode"
+ },
+ {
+  "id": "C3-048",
+  "say": "how do I pick a group for the grid",
+  "feature": "gridAction",
+  "title": "Picking a group"
+ },
+ {
+  "id": "C3-049",
+  "say": "show me how to next group",
+  "feature": "gridAction",
+  "title": "Stepping through groups"
+ },
+ {
+  "id": "C3-050",
+  "say": "how do I refresh the group",
+  "feature": "gridAction",
+  "title": "Refreshing a group"
+ },
+ {
+  "id": "C3-051",
+  "say": "how do I exit Groups",
+  "feature": "gridAction",
+  "title": "Leaving Groups mode"
+ },
+ {
+  "id": "C3-052",
+  "say": "how do I apply a saved grid",
+  "feature": "gridAction",
+  "title": "Opening a saved grid"
+ },
+ {
+  "id": "C3-053",
+  "say": "how do I save a grid",
+  "feature": "gridAction",
+  "title": "Saving a grid"
+ },
+ {
+  "id": "C3-054",
+  "say": "how do I save a grid as global (admin)",
+  "feature": "gridAction",
+  "title": "Saving a prebuilt grid"
+ },
+ {
+  "id": "C3-055",
+  "say": "how do I delete a saved grid",
+  "feature": "gridAction",
+  "title": "Deleting a saved grid"
+ },
+ {
+  "id": "C3-056",
+  "say": "how do I set a cell's timeframe",
+  "feature": "gridAction",
+  "title": "One chart’s timeframe in the grid"
+ },
+ {
+  "id": "C3-057",
+  "say": "how do I set a cell's chart style",
+  "feature": "gridAction",
+  "title": "One chart’s style in the grid"
+ },
+ {
+  "id": "C3-058",
+  "say": "how do I toggle a cell's session",
+  "feature": "gridAction",
+  "title": "One chart’s session in the grid"
+ },
+ {
+  "id": "C3-059",
+  "say": "how do I reset a cell to my chart",
+  "feature": "gridAction",
+  "title": "Resetting a chart in the grid"
+ },
+ {
+  "id": "C3-060",
+  "say": "how do I maximize or restore a cell",
+  "feature": "gridAction",
+  "title": "Maximizing a chart in the grid"
+ },
+ {
+  "id": "C3-061",
+  "say": "how do I open shared grid settings",
+  "feature": "gridAction",
+  "title": "The grid’s shared settings"
+ },
+ {
+  "id": "C3-062",
+  "say": "how do I set an alert from a cell",
+  "feature": "gridAction",
+  "title": "An alert from a grid chart"
+ }
+]
