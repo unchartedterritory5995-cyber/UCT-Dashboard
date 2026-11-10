@@ -129,3 +129,31 @@ describe('(A) negative: "this one" plus an appositive that describes the SAME ch
     expect(asked(), transcript()).toBe(false)
   }, 40000)
 })
+
+// pl-auto V2 (fb6170315e, unseen12 #22 — written as the family): a back-reference after a STEP or a relation from the click ("…
+// from this chart and make it | that | that one | the one there weekly") is the chart REACHED; no question ever names the anchor
+describe('back-references after a step: the reached chart, never the click', () => {
+  const REFS = ['it', 'that', 'that one', 'the one there']
+  const B = []
+  for (const g of Object.keys(BOARDS)) for (const c of BOARDS[g]) {
+    for (const [dir, dr, dc, unit] of [['right', 0, 1, 'column'], ['left', 0, -1, 'column'], ['down', 1, 0, 'row'], ['up', -1, 0, 'row']]) {
+      const to = at(g, c.r + dr, c.c + dc)
+      if (to) B.push([`step one ${unit} ${dir} from this chart and make ${REFS[(c.r + c.c + dr + dc + 4) % REFS.length]} weekly`, g, c.id, to])
+    }
+  }
+  it.each(pick(B, 4))('"%s" (%s, clicked %s → %s): that plan runs, nothing asked', async (t, g, sel, to) => {
+    const m = mount(g, sel)
+    p.st.envelopes.push(planOn(to))
+    await m.say(t)
+    expect(changed(m.board), transcript()).toEqual([to])
+    expect(asked(), transcript()).toBe(false)
+  }, 40000)
+  it.each(pick(B, 4))('"%s" (%s, clicked %s): a plan on the click never runs; no question names it', async (t, g, sel) => {
+    const m = mount(g, sel)
+    p.st.envelopes.push(planOn(sel))
+    await m.say(t)
+    expect(changed(m.board), transcript()).not.toContain(sel)
+    expect(offered(), transcript()).not.toContain(sel)
+    expect(transcript(), transcript()).not.toMatch(new RegExp(`Did you mean Chart \(${sel}\)`))
+  }, 40000)
+})
