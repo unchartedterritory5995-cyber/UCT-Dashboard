@@ -13,5 +13,7 @@
  {"id":"HG-12","say":"how do I pick which line my alert watches","feature":"alertAction","title":"Which line an alert watches","given":["alertFormMultiLine"]},
  {"id":"HG-13","say":"how do I make an alert on a yes/no signal fire only once","feature":"alertAction","title":"When a signal alert fires","given":["alertFormSignal"]},
  {"id":"HG-14","say":"why won't my alert fire","feature":"alertAction","title":"Why an alert can’t fire","given":["blockedAlert"]},
- {"id":"HG-15","say":"why is my indicator alert never going off","feature":"alertAction","title":"Why an alert can’t fire","given":["blockedAlert"]}
+ {"id":"HG-15","say":"why is my indicator alert never going off","feature":"alertAction","title":"Why an alert can’t fire","given":["blockedAlert"]},
+ {"id":"HG-16","say":"how do I find out why my alert won't fire","feature":"alertAction","title":"Why an alert can’t fire","given":["blockedAlert"],"note":"added after the alert AFTER run: HG-14/15 never reached the guide (why-questions are not routed), so blockedAlert had no held-out coverage"},
+ {"id":"HG-17","say":"show me why my indicator alert can't fire","feature":"alertAction","title":"Why an alert can’t fire","given":["blockedAlert"],"note":"added after the alert AFTER run, same reason"}
 ]
