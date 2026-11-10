@@ -34,3 +34,9 @@ node src/testing/agent/guide/status.mjs teach-results.json [more-results.json...
   - `aiAnswer`: an AI Search widget with one answer, asked by the member and answered on `/api/ai-search`.
   - `noteOpen`: a Notebook widget with a note open (`opts.noteId`, served on `/api/j2/notes/<id>`).
   - `replayRunning`: Replay Mode started from Tools ▾ → Replay Mode → date → Start replay.
+  - `savedIndicator`: one of the member's own saved definitions, on the definitions list route.
+  - `alertFormMultiLine` and `alertFormSignal`: the alert catalog lists MACD, or one of the member's own yes/no formulas, first, so the form opens on it.
+  - `blockedAlert`: an indicator alert whose indicator the catalog no longer offers.
+- There are two kinds, and evidence names them. A **given via store/route seed** uses widgets, prefs, routes, query, `iaCatalog` or setup. A **given via real-input prelude** is the member's act.
+  - The real-input preludes are `aiAnswer` and `replayRunning`.
+  - All the others are store/route seeds.
