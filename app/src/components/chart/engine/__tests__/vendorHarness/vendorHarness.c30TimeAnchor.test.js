@@ -154,12 +154,14 @@ describe('C30 — date for date against TradingView (derived capture, the real m
   }
 
   for (const title of Object.keys(CHANGES)) {
-    it(`${title}: the new-period event agrees on every bar but bar 0, which reads the anchor of a bar before the series`, () => {
+    // ⭐ DIV-1 RE-PIN (2026-11-09): was "every bar but bar 0, which reads the anchor of a bar
+    // before the series". The capture is now replayed over SPY's proved history from its
+    // 1993 listing (the member's daily chart computes the same series), so the bar before
+    // bar 0 IS in the series and bar 0 agrees too.
+    it(`${title}: the new-period event agrees on all 900 bars, bar 0 included (DIV-1)`, () => {
       const p = byTitle.get(title)
-      expect(p.stats.valueMismatches).toBe(0)
-      expect(p.stats.naMismatches).toBe(1)
-      expect(p.stats.matching).toBe(899)
-      expect(p.stats.firstDivergence).toMatchObject({ bar: 0, kind: 'na', ours: null })
+      expect(p.verdict, p.reason).toBe('MATCH')
+      expect(p.stats).toMatchObject({ matching: 900, valueMismatches: 0, naMismatches: 0 })
     })
   }
 
@@ -241,38 +243,30 @@ describe('C30 — the object lane withholds what it cannot know, and prints what
     expect(ours.objects.texts.labels).toEqual([String(vendorW[vendorW.length - 1])])
   })
 
-  it('⭐ C49 — a label on the FIRST bar (inside the partial week) prints the vendor\'s offset to an open this series does not hold — never an `na`', () => {
-    // ⭐ 2026-11-09 — the first bar is named by its distance from the newest one
-    // (`last_bar_index - bar_index`, the same number on TradingView): this 900-bar
-    // window does not start at the listing, so `barstate.isfirst` is TradingView's
-    // 1993 bar, not this one, and is withheld here (`bar-index:first-bar`, below).
+  // ⭐ DIV-1 RE-PIN (2026-11-09): was "prints the vendor's offset on the window's first bar
+  // (-3)". The capture is now replayed from SPY's 1993 listing, so `barstate.isfirst` is the
+  // LISTING bar — Fri 1993-01-29, whose week opened Mon 1993-01-25: -4 — exactly what a
+  // member's daily chart (which starts at the listing) prints. Still never an `na`.
+  it('⭐ C49 / DIV-1 — a label on the FIRST bar prints its week offset from the series\' own first bar (the listing, -4) — never an `na`', () => {
     const ours = on(pine([
       'd = na(time("W")) ? -99999 : (time("W") - time) / 86400000',
-      `if last_bar_index - bar_index == ${CAPTURE.bars.rows.length - 1}`,
+      'if barstate.isfirst',
       '    label.new(bar_index, high, str.tostring(d))',
     ]))
     expect(ours.objects.ok).toBe(true)
     expect(ours.objects.texts.labels).not.toContain('-99999')
-    // Fri 2023-02-24 → Tue 02-21 (Presidents' Day Monday is a closure the calendar applies)
+    // the window's own first bar (Fri 2023-02-24 → Tue 02-21) is no longer the series' first
     expect(vendorW[0]).toBe(-3)
-    expect(ours.objects.texts.labels).toEqual([String(vendorW[0])])
+    expect(ours.historyReplay.kind).toBe('replayed')
+    expect(ours.objects.texts.labels).toEqual(['-4'])
   })
 
   it('CONTROL: the same first-bar label over a known clock IS drawn — the withholding is the anchor\'s', () => {
     const ours = on(pine([
-      `if last_bar_index - bar_index == ${CAPTURE.bars.rows.length - 1}`,
-      '    label.new(bar_index, high, str.tostring(dayofweek))',
-    ]))
-    expect(ours.objects.counts.labels).toBe(1)
-  })
-
-  it('⭐ 2026-11-09 — `if barstate.isfirst` off the listing draws NO label here: TradingView\'s first bar is the listing', () => {
-    expect(CAPTURE.history.startsAtBar0).not.toBe(true)
-    const ours = on(pine([
       'if barstate.isfirst',
       '    label.new(bar_index, high, str.tostring(dayofweek))',
     ]))
-    expect(ours.objects.counts.labels).toBe(0)
+    expect(ours.objects.counts.labels).toBe(1)
   })
 })
 

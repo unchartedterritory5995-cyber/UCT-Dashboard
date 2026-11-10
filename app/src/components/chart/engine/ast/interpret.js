@@ -60,7 +60,7 @@ import {
 // `export function` bindings are hoisted; `budget.js`'s header states the whole
 // contract and `budget.test.js` proves it from a graph whose ENTRY is that file.
 import { assertBudget } from './budget.js'
-import { barIndexVerdict, thresholdUnknown, FIRST_BAR_TEST } from './barIndexShift.js'
+import { barIndexVerdict, thresholdUnknown, readsBarIndex, readsRunningTotal, FIRST_BAR_TEST } from './barIndexShift.js'
 
 // ⭐⭐ THE LANE'S ONE ANSWER TO "DOES THIS TREE YIELD A YES/NO", IMPORTED RATHER
 // THAN RE-DERIVED. `assertArgRoles` below needs it for the manifest's
@@ -5244,6 +5244,24 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + 'there, and where it is false here it may not be. What this indicator draws from such a test is '
     + 'withheld on those early bars of the loaded history (and as far forward as the script reads back to '
     + 'them); the rest is drawn. What would settle it: nothing to capture — bars reaching the listing.',
+  // ⭐⭐ 2026-11-09 — a running total (`barIndexShift.js::RUNNING_TOTAL_CALLS`: `ta.cum`, and
+  // `ta.obv`, `ta.pvt`, `ta.wad`, `ta.accdist`, `ta.nvi`, `ta.pvi`, which are built from it).
+  'running-total:window': () => 'A running total — `ta.cum`, and `ta.obv`, `ta.pvt`, `ta.wad`, '
+    + '`ta.accdist`, `ta.nvi` and `ta.pvi`, which are built from it — adds up every bar since the first '
+    + 'bar of the symbol\'s history on TradingView. This chart\'s loaded bars start later, so the total here '
+    + 'is missing everything before them (measured: capture `vw-bar-counters-spy-1-2026-10-02` reads '
+    + '`ta.cum(1)` as 11,761 on the bar this chart would show as 1). A value that depends on the total '
+    + 'itself would not be TradingView\'s, so everything this indicator draws from it is withheld on this '
+    + 'chart rather than drawn wrong. What compares the total with itself a few bars earlier, or with its '
+    + 'own average, is drawn. On a chart whose bars start at the symbol\'s listing it draws. What would '
+    + 'settle it: nothing to capture — bars reaching the listing.',
+  'running-total:early-bars': () => 'A test of a running count (`ta.cum(1) < 16`) against a fixed number '
+    + 'is answered here only where TradingView\'s longer history cannot change the answer. This chart\'s '
+    + 'count is lower than TradingView\'s by an unknown number of bars: where the test is already true here '
+    + 'it is true there, and where it is false here it may not be. What this indicator draws from such a '
+    + 'test is withheld on those early bars of the loaded history (and as far forward as the script reads '
+    + 'back to them); the rest is drawn. What would settle it: nothing to capture — bars reaching the '
+    + 'listing.',
   // ⭐⭐ 2026-11-09 — `barstate.isfirst` (`barIndexShift.js::FIRST_BAR_LEAVES`).
   'bar-index:first-bar': () => '`barstate.isfirst` is true on the first bar of the symbol\'s history on '
     + 'TradingView. This chart\'s loaded bars start later, so its first bar is not that bar (measured: capture '
@@ -5273,7 +5291,7 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
 export const CHART_CLOCK_WHOLE = Object.freeze(['time-anchor:other-bars', 'time-clock:unreadable',
   'time-anchor:not-daily', 'time-anchor:weekend-bars', 'time-own:chart-unwitnessed', 'time-close:not-daily',
   'time-close:weekend-bars', 'time-clock:outside-session', 'request:other-timeframe', 'bar-index:window',
-  'time-clock:weekend-session', 'var-origin:window'])
+  'time-clock:weekend-session', 'running-total:window', 'var-origin:window'])
 
 /** ⭐⭐ 2026-10-31 — THE CLOCK LEAVES THAT READ THE TIME OF DAY, not the date:
  *  the ones a 09:30 New York stamp answers differently from a 17:00 one. On a
@@ -5718,8 +5736,11 @@ export function barIndexMask(tree, bars, inputs, budget, scalars, opts) {
   if (!opts || opts.barIndexAbsolute !== true || opts.historyFromListing === true) return null
   const verdict = barIndexVerdict(tree)
   const n = Array.isArray(bars) ? bars.length : 0
+  // ⭐ 2026-11-09 — named by WHAT the tree reads from before the window: the
+  // index, a running total (`RUNNING_TOTAL_CALLS`), or both.
   const whole = () => {
-    nameChartClock(opts, ['bar-index:window'], opts.tf)
+    nameChartClock(opts, [...(readsBarIndex(tree) ? ['bar-index:window'] : []),
+      ...(readsRunningTotal(tree) ? ['running-total:window'] : [])], opts.tf)
     return new Float64Array(n).fill(1)
   }
   if (verdict.cls === 'dep' || (verdict.cls === 'pos' && opts.barIndexUse !== 'position')) return whole()
@@ -5755,7 +5776,8 @@ export function barIndexMask(tree, bars, inputs, budget, scalars, opts) {
       bars, inputs, budget, scalars,
       { ...opts, crossMemo: undefined, probeBase: undefined, chartClockSink: undefined }), n)
     const reach = Math.max(0, rootReach - maxLookback(t.node))
-    const code = first ? 'bar-index:first-bar' : 'bar-index:early-bars'
+    const code = first ? 'bar-index:first-bar'
+      : readsRunningTotal(t.node) ? 'running-total:early-bars' : 'bar-index:early-bars'
     let last = -Infinity
     for (let i = 0; i < n; i++) {
       if (thresholdUnknown(cmp.name, t.sign, gap[i])) last = unbounded && last !== -Infinity ? last : i

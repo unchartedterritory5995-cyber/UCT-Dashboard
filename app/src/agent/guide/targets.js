@@ -136,13 +136,17 @@ export function findTarget(target, { chartRef = null, widgetRef = null } = {}) {
   // out of the cell is looked for on the page
   if (typeof target === 'object' && target.within === '@chart') {
     const cell = cellOf(chartRef)
-    if (!cell) return pick(inside(document.body, target), target)
+    // ⭐ the chart talked about is GONE (closed): nothing on another chart stands in for it (the walkthrough pauses and says so)
+    if (!cell) return chartRef ? pick(inside(document.body, target).filter(el => !el.closest?.('[data-widget-id]')), target) : pick(inside(document.body, target), target)
     // …never the same control on ANOTHER chart: outside this cell, only what sits in no board cell at all (a portal)
     return pick(inside(cell, target), target) || pick(inside(document.body, target).filter(el => !el.closest?.('[data-widget-id]')), target)
   }
   if (typeof target === 'object' && target.within) {
     // a box on a chart: the chart being talked about, when it has one (a menu it opened may be portalled)
-    const cell = /^chart\.(?!.*Menu$)/.test(String(target.within)) ? cellOf(chartRef) : null
+    const onChart = /^chart\.(?!.*Menu$)/.test(String(target.within))
+    const cell = onChart ? cellOf(chartRef) : null
+    // ⭐ a box on a chart that is GONE: never the same box on another chart
+    if (onChart && chartRef && !cell) return null
     const boxes = (cell || document).querySelectorAll(`[data-guide="${esc(target.within)}"]`)
     for (const box of boxes) {
       const hit = pick(inside(box, target), target)
@@ -162,7 +166,8 @@ export function findTarget(target, { chartRef = null, widgetRef = null } = {}) {
     const inChart = cell ? pick(said([...cell.querySelectorAll(sel)]), { on }) : null
     if (inChart) return inChart
     // with a chart named, a control on ANOTHER chart is not this one — except what that chart opened (a menu)
-    if (cell && !/Menu$/.test(id)) return null
+    // ⭐ and when that chart is GONE (closed), nothing on another chart stands in for it: the walkthrough pauses and says so
+    if ((cell || chartRef) && !/Menu$/.test(id)) return null
   }
   return pick(said([...document.querySelectorAll(sel)]), { on })
 }
@@ -236,6 +241,12 @@ export function coveredBy(el) {
   if (!layer || layer.contains(el) || layer.matches?.('[data-testid="guide-card"]')) return null
   return layer
 }
+
+/** Is this target found on the chart the walkthrough is about (rather than anywhere on the page)? */
+export const chartScoped = (x) => (Array.isArray(x) ? x.some(chartScoped) : typeof x === 'string' ? /^(chart|widget)\./.test(x) : !!x && (x.within === '@chart' || /^chart\./.test(String(x.within || '')) || chartScoped(x.id || '') || (x.not ? chartScoped(x.not) : false)))
+/** ⭐ A step on a chart whose result is a window the page cannot tie to a chart (Chart Settings is portalled to the page):
+ *  only a press on THIS step's own control counts as done — another chart's gear opening it is not this chart's step (pl-auto) */
+export const needsOwnPress = (step) => !!step?.waitFor && chartScoped(step.target) && !chartScoped(step.waitFor)
 
 /** ⭐ STATE AWARENESS. Where a walkthrough starts: the furthest step whose predecessor's RESULT is already true on
  *  screen and whose own control is visible — never "open the gear" with the settings already open. */

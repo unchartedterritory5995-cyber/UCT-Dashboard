@@ -19,6 +19,8 @@
  * stale chunk weeks later still self-heals.
  */
 
+import { shouldDeferReload, announceUpdateRequired } from '../lib/reloadGuard'
+
 const STAMP = 'uct:staleChunkReload'
 const COOLDOWN_MS = 60_000
 
@@ -55,6 +57,11 @@ export function recoverFromStaleChunk(err, {
   now = () => Date.now(),
 } = {}) {
   if (!isStaleChunkError(err)) return false
+  // Pop-outs open (or this is one): never reload on the member's behalf. Ask, via the toast.
+  if (shouldDeferReload()) {
+    announceUpdateRequired()
+    return false
+  }
   try {
     const last = Number(storage?.getItem(STAMP) || 0)
     if (last && now() - last < COOLDOWN_MS) return false   // already tried

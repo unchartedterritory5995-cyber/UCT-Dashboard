@@ -14124,6 +14124,13 @@ export class Resolver {
     // that does not start at the listing, where today it matches TradingView after
     // its first 15 bars. That is a pre-existing host rule (`cum` sums the loaded
     // bars), named here rather than changed by this lane.
+    // ⭐⭐ 2026-11-09 — THE TREE STAYS `cum`, AND OFF THE LISTING IT IS NO LONGER
+    // SERVED AS THE LOADED COUNT. `barIndexShift.js::RUNNING_TOTAL_CALLS` reads
+    // `cum(1)` as `bar_index + 1`, so `interpret.js::barIndexMask` withholds a plotted
+    // `ta.cum(1)` by name (`running-total:window`: TradingView 11,761 where this
+    // chart drew 1, `vw-bar-counters-spy-1-2026-10-02`), while the
+    // `atr-trailing-stoploss` guard `cum_1 < 16` is a THRESHOLD and keeps exactly
+    // the served bars it had — withheld on its first 15 only (`running-total:early-bars`).
     // ⛔⛔ `|| hostOnly` IS LOAD-BEARING AND A CORPUS SCRIPT PROVED IT. The
     // `pineName !== base || !key` test is a SPELLING carve-out: it lets a member
     // write a DECLARED table name directly without meeting the refusal aimed at

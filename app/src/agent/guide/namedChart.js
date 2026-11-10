@@ -11,7 +11,7 @@
 // exactly like walking the right one. Nothing here is a phrase rule: it only reads which chart, once a walkthrough is chosen.
 // ⭐ ONE CHART IS THE EXCEPTION: there is nothing to choose, so it walks there, and says so when the words named another.
 
-import { ordinalChart } from '../deixis'
+import { ordinalChart, relativeChart, negatedPointer, saysOtherChart } from '../deixis'
 import { readIndicator } from './slots'
 
 const POSITION = /\b(?:the\s+)?((?:top|bottom|upper|lower)[- ]?(?:left|right)|left|right|top|bottom|upper|lower)(?:[- ]hand)?(?:[- ]side)?\s+(?:chart|cell|one)\b/i
@@ -91,13 +91,36 @@ function namesAnother(s, only) {
 const absent = (word, charts) => `There’s no ${word} chart on this board, so I can’t show that on it. Your charts are: ${listOf(charts)}.`
 const onlyNote = (c) => `This board only has ${c.symbol || 'one chart'}, so I’ll show it there.`
 
-/** → { chart, note? } | { say } | null (the words name no chart: the clicked one stands). */
-export function namedChart(words, charts = []) {
+/** → { chart, note? } | { say } | null (the words name no chart: the clicked one stands). `sel`: the clicked chart's ref. */
+export function namedChart(words, charts = [], sel = null) {
   const s = String(words || '')
   if (!s || !charts.length) return null
   // one chart: nothing to choose between, and nothing to refuse
   if (charts.length === 1) return namesAnother(s, charts[0]) ? { chart: charts[0], note: onlyNote(charts[0]) } : null
   const names = new Set()
+  // ⭐ AUDIT T1 (2026-11-07): a chart named RELATIVE to the clicked one ("the chart below this one"), or the click NEGATED ("every
+  // chart except this one"). Read by deixis.js's own detector, the one execution uses: ONE authority over which chart the words
+  // mean (agentGuideRelational.test.jsx proves they agree). The click is the anchor there, never the chart meant.
+  const clicked = sel ? charts.find(c => c.ref === sel) : null
+  const others = clicked ? charts.filter(c => c !== clicked) : charts
+  const rel = relativeChart(s, charts, sel)
+  if (rel) {
+    const where = rel.match[0].trim()
+    if (rel.negated) return { say: `A walkthrough shows one chart at a time, and you asked to leave out the chart ${where}. Which one do you mean: ${listOf(charts.filter(c => !rel.excluded.includes(c)))}?` }
+    if (rel.alsoClick) return { say: `You named this chart and the one ${where}. Which one do you mean: ${listOf(charts)}?` }
+    if (!clicked) return { say: `Which chart is it relative to? Click that chart first, or ask about one by name: ${listOf(charts)}.` }
+    if (!rel.hits.length) return { say: `There’s no chart ${where} here. Your charts are: ${listOf(charts)}.` }
+    if (rel.hits.length > 1) return { say: `More than one chart is ${where}. Which one do you mean: ${listOf(rel.hits)}?` }
+    names.add(rel.hits[0].ref)
+  } else if (saysOtherChart(s)) {
+    // "the other chart": one chart only on a board of two (the one not clicked); with more, it fits several — asked
+    if (charts.length === 2 && clicked) names.add(others[0].ref)
+    else return { say: `Which other chart do you mean: ${listOf(others)}?` }
+  } else if (negatedPointer(s)) {
+    // never the click: the walkthrough is about one chart, and the member left this one out. Exactly one left → that one
+    if (clicked && others.length === 1) names.add(others[0].ref)
+    else return { say: `A walkthrough shows one chart at a time, and you left out the one you clicked. Which one do you mean: ${listOf(others)}?` }
+  }
   const ord = ordinalChart(s, charts)
   if (ord && /chart/i.test(ord.match[0])) {
     if (ord.ask) return { say: `${ord.ask.text} ${listOf(charts)}.` }
@@ -149,4 +172,4 @@ export function namedChart(words, charts = []) {
 }
 
 /** Do these words name a chart at all (so they must reach `namedChart`)? */
-export const namesAChart = (words, charts = []) => !!namedChart(words, charts)
+export const namesAChart = (words, charts = [], sel = null) => !!namedChart(words, charts, sel)

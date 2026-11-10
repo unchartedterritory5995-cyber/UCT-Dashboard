@@ -6,7 +6,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react'
 import GuideOverlay from './guide/GuideOverlay'
-import { startGuide, endGuide, guideState, onGuideDoIt, _resetGuide } from './guide/guideStore'
+import { startGuide, endGuide, guideState, onGuideDoIt, _resetGuide, endForNewRequest, escapeOnBoard } from './guide/guideStore'
 import { placeCard, LOST_MS, LATE_MS, POLL_MS } from './guide/placement'
 import { findTarget, startIndex, reachableAfter, earlierOnScreen, isDisabled, isOn, unclip, restoreClipped, exists } from './guide/targets'
 import { stepsFor, titleFor, slotValues, readIndicator, readWidget, readSetting, settingRows } from './guide/slots'
@@ -288,5 +288,210 @@ describe('the overlay', () => {
     go([{ target: 'a', text: 'A' }])
     act(() => { endGuide('exit') })
     expect(card()).toBeNull()
+  })
+})
+
+// pl-auto howto-10: a step with no result to wait for, whose control STAYS after the member presses it (a menu that does not
+// close), must not leave its ring and card up over a thing already done
+describe('a pressed control finishes its step, even when it stays on screen', () => {
+  it('a middle step moves on, and the last step ends the walkthrough: no ring is left behind', async () => {
+    dom('<button data-guide="a">A</button><button data-guide="b">B</button><input data-guide="c" />')
+    render(<GuideOverlay />)
+    act(() => { startGuide(F, { steps: [{ target: 'a', text: 'Click A.' }, { target: 'c', text: 'Type here.' }, { target: 'b', text: 'Click B.' }] }) })
+    await waitFor(() => expect(text()).toBe('Click A.'))
+    fireEvent.pointerDown(document.querySelector('[data-guide="a"]'), { button: 0 })
+    await waitFor(() => expect(text()).toBe('Type here.'))
+    // a click into a field is the start of typing, not the step done
+    fireEvent.pointerDown(document.querySelector('[data-guide="c"]'), { button: 0 })
+    await new Promise(r => setTimeout(r, POLL_MS * 4))
+    expect(text()).toBe('Type here.')
+    act(() => { guideState() && fireEvent.click(screen.getByText('Next')) })
+    await waitFor(() => expect(text()).toBe('Click B.'))
+    fireEvent.pointerDown(document.querySelector('[data-guide="b"]'), { button: 0 })
+    await waitFor(() => expect(card()).toBeNull())
+    expect(screen.queryByTestId('guide-ring')).toBeNull()
+    expect(guideState()).toBeNull()
+  })
+  it('a right-click on the control does not count as the click the step asked for', async () => {
+    dom('<button data-guide="a">A</button>')
+    render(<GuideOverlay />)
+    act(() => { startGuide(F, { steps: [{ target: 'a', text: 'Click A.' }, { target: 'a', text: 'Again.' }] }) })
+    await waitFor(() => expect(text()).toBe('Click A.'))
+    fireEvent.pointerDown(document.querySelector('[data-guide="a"]'), { button: 2 })
+    await new Promise(r => setTimeout(r, POLL_MS * 4))
+    expect(text()).toBe('Click A.')
+  })
+})
+
+// round 4 (Layouts ▾ → Multi Chart): a card placed under the member's pointer closes a hover menu (its onMouseLeave fires as
+// the pointer is suddenly over the card). The card never lands under the pointer — with a control found, or still looking
+describe('the card is never placed under the pointer', () => {
+  const hit = (c, p, h) => c.left < p.left + p.width && c.left + c.width > p.left && c.top < p.top + p.height && c.top + h > p.top
+  it('while still looking for the control (no rect): a corner away from the pointer', () => {
+    const pointer = { top: 76, left: 220, width: 32, height: 32 }
+    const c = placeCard(null, { vw: 1600, vh: 950, cardH: 120, pointer })
+    expect(hit(c, pointer, 120)).toBe(false)
+  })
+  it('beside a control, never over the pointer either', () => {
+    for (let x = 40; x < 1500; x += 97) for (let y = 40; y < 900; y += 83) {
+      const pointer = { top: y - 16, left: x - 16, width: 32, height: 32 }
+      const rect = { top: 300, left: 500, width: 120, height: 30 }
+      const c = placeCard(rect, { vw: 1600, vh: 950, cardH: 140, pointer })
+      expect(hit(c, pointer, 140), JSON.stringify({ x, y, c })).toBe(false)
+    }
+  })
+})
+
+// pl-auto tutorial batch, 2026-11-07 (BROWSER-MOCK): the walkthrough's chart, its own window, Escape on the board, a new request
+describe('a walkthrough stays on ITS chart and ends when it should', () => {
+  const two = () => dom(`
+    <div data-widget-id="a"><button data-guide="chart.timeframe">A tf</button><button data-guide="chart.settings">A gear</button></div>
+    <div data-widget-id="b"><button data-guide="chart.timeframe">B tf</button><button data-guide="chart.settings">B gear</button></div>`)
+  it('P1 its chart closed: nothing on another chart stands in for it (it pauses, saying so)', async () => {
+    const root = two()
+    render(<GuideOverlay />)
+    act(() => { startGuide(F, { chartRef: 'a', steps: [{ target: 'chart.timeframe', text: 'These buttons switch this chart’s timeframe.' }] }) })
+    await waitFor(() => expect(text()).toMatch(/These buttons/))
+    act(() => { root.querySelector('[data-widget-id="a"]').remove() })
+    expect(findTarget('chart.timeframe', { chartRef: 'a' })).toBeNull()
+    await waitFor(() => expect(text()).toMatch(/Looking for it|can’t see/), { timeout: LOST_MS + 2000 })
+    expect(text()).not.toMatch(/These buttons/)
+  }, 15000)
+  it('P2 another chart opening its settings window does not advance this chart’s step; its own gear does', async () => {
+    const root = two()
+    render(<GuideOverlay />)
+    act(() => { startGuide(F, { chartRef: 'a', steps: [{ target: 'chart.settings', text: 'Open the gear.', waitFor: 'chartSettings' }, { target: 'chart.timeframe', text: 'Step two.' }] }) })
+    await waitFor(() => expect(text()).toBe('Open the gear.'))
+    // a settings window opens that this step's own gear did not open (B's, from its keyboard shortcut: portalled, so nothing
+    // ties it to a chart). (Pressing B itself now ends the walkthrough: the owner's rule, tested below.)
+    const win = document.createElement('div'); win.setAttribute('data-guide', 'chartSettings'); win.setAttribute('data-fixture', ''); document.body.appendChild(win)
+    await new Promise(r => setTimeout(r, POLL_MS * 4))
+    expect(text()).toBe('Open the gear.')
+    // its own gear
+    win.remove()
+    fireEvent.pointerDown(root.querySelector('[data-widget-id="a"] [data-guide="chart.settings"]'), { button: 0 })
+    const win2 = document.createElement('div'); win2.setAttribute('data-guide', 'chartSettings'); win2.setAttribute('data-fixture', ''); document.body.appendChild(win2)
+    await waitFor(() => expect(text()).toBe('Step two.'))
+  }, 15000)
+  it('P2 a new request sent with the Agent’s Send button ends the walkthrough', async () => {
+    dom('<button data-guide="a">A</button><textarea aria-label="Message UCT Agent"></textarea><button aria-label="Send">Send</button>')
+    render(<GuideOverlay />)
+    act(() => { startGuide(F, { steps: [{ target: 'a', text: 'Click A.', waitFor: 'nothing-here' }] }) })
+    await waitFor(() => expect(text()).toBe('Click A.'))
+    document.querySelector('[aria-label="Message UCT Agent"]').value = 'make this chart weekly'
+    fireEvent.pointerDown(document.querySelector('[aria-label="Send"]'), { button: 0 })
+    await waitFor(() => expect(card()).toBeNull())
+  }, 15000)
+  it('endForNewRequest ends a running walkthrough, and is a no-op with none', () => {
+    startGuide(F, { steps: [{ target: 'a', text: 'x' }] })
+    endForNewRequest()
+    expect(guideState()).toBeNull()
+    expect(() => endForNewRequest()).not.toThrow()
+  })
+  it('escapeOnBoard: ends the walkthrough unless a field, a menu, a dialog, an armed tool or a selected drawing had the press', () => {
+    const own = (html) => { const r = dom(html); startGuide(F, { steps: [{ target: 'a', text: 'x' }] }); const said = escapeOnBoard(); r.remove(); _resetGuide(); return said }
+    expect(own('<div></div>')).toBe(true)
+    expect(own('<div role="menu"></div>')).toBe(false)
+    expect(own('<div role="dialog" aria-modal="true"></div>')).toBe(false)
+    expect(own('<button data-guide="chart.tool.trendline" aria-pressed="true"></button>')).toBe(false)
+    expect(own('<div aria-label="Drawing actions"></div>')).toBe(false)
+  })
+})
+
+// OWNER DECISION 2026-11-07: pressing ANOTHER chart ends a walkthrough on a chart, cleanly, and never restarts it there.
+// Its own chart, the card, a portalled menu and a widget that is not a chart (a watchlist) do not end it.
+describe('pressing another chart ends the walkthrough', () => {
+  const board = () => dom(`
+    <div data-widget-id="a" data-widget-type="chart"><button data-guide="chart.timeframe">A tf</button><canvas></canvas></div>
+    <div data-widget-id="b" data-widget-type="chart"><button data-guide="chart.timeframe">B tf</button><canvas></canvas></div>
+    <div data-widget-id="g1" data-grid-cell-id="g1"><canvas></canvas></div>
+    <div data-widget-id="w" data-widget-type="watchlist"><span data-watch-sym="NVDA">NVDA</span></div>
+    <div data-guide="chart.contextMenu"><button>Reset view</button></div>`)
+  const start = async () => {
+    render(<GuideOverlay />)
+    act(() => { startGuide(F, { chartRef: 'a', steps: [{ target: 'chart.timeframe', text: 'These buttons.' }, { target: 'chart.timeframe', text: 'Again.' }] }) })
+    await waitFor(() => expect(text()).toBe('These buttons.'))
+  }
+  it('another board chart: ended, ring and card gone, no notice, nothing restarted on the chart pressed', async () => {
+    const root = board(); await start()
+    fireEvent.pointerDown(root.querySelector('[data-widget-id="b"] canvas'), { button: 0 })
+    await waitFor(() => expect(card()).toBeNull())
+    expect(screen.queryByTestId('guide-ring')).toBeNull()
+    expect(notice()).toBeNull()
+    expect(guideState()).toBeNull()
+  })
+  it('another Multi Chart cell ends it too', async () => {
+    const root = board(); await start()
+    fireEvent.pointerDown(root.querySelector('[data-grid-cell-id="g1"] canvas'), { button: 0 })
+    await waitFor(() => expect(guideState()).toBeNull())
+  })
+  it.each([
+    ['its own chart', '[data-widget-id="a"] canvas'],
+    ['a watchlist row (it changes what a linked chart shows, not which chart the walkthrough is on)', '[data-watch-sym="NVDA"]'],
+    ['a menu outside any board cell', '[data-guide="chart.contextMenu"] button'],
+  ])('a press on %s does not end it', async (_what, sel) => {
+    const root = board(); await start()
+    fireEvent.pointerDown(root.querySelector(sel), { button: 0 })
+    await new Promise(r => setTimeout(r, POLL_MS * 3))
+    expect(guideState()).not.toBeNull()
+  })
+  it('a board-level walkthrough (no chart) is not ended by pressing a chart', async () => {
+    const root = board()
+    render(<GuideOverlay />)
+    act(() => { startGuide(F, { steps: [{ target: 'chart.timeframe', text: 'Board step.' }] }) })
+    fireEvent.pointerDown(root.querySelector('[data-widget-id="b"] canvas'), { button: 0 })
+    await new Promise(r => setTimeout(r, POLL_MS * 3))
+    expect(guideState()).not.toBeNull()
+  })
+})
+
+// OWNER RULE (2026-11-07, pl-auto watchlist-row-loads): the walkthrough chart's symbol changed from outside its own steps (a
+// linked watchlist row loaded into it): the walkthrough ends cleanly. Read from the chart's own label, not the click.
+describe('the walkthrough chart loads another symbol from outside', () => {
+  const chartCell = () => dom('<div data-widget-id="a" data-widget-type="chart"><span data-testid="sym-label">SPY</span><button data-guide="chart.timeframe">tf</button></div>')
+  it('ends it: ring and card gone, no notice, no restart', async () => {
+    const root = chartCell()
+    render(<GuideOverlay />)
+    act(() => { startGuide(F, { chartRef: 'a', steps: [{ target: 'chart.timeframe', text: 'These buttons.' }, { target: 'chart.timeframe', text: 'Again.' }] }) })
+    await waitFor(() => expect(text()).toBe('These buttons.'))
+    act(() => { root.querySelector('[data-testid="sym-label"]').textContent = 'NVDA' })
+    await waitFor(() => expect(card()).toBeNull())
+    expect(notice()).toBeNull()
+    expect(guideState()).toBeNull()
+  })
+  it('a walkthrough whose own steps change the symbol (the symbol search) carries on', async () => {
+    const root = chartCell()
+    render(<GuideOverlay />)
+    act(() => { startGuide({ ...F, id: 'symbol' }, { chartRef: 'a', steps: [{ target: 'chart.timeframe', text: 'Type a ticker.' }] }) })
+    await waitFor(() => expect(text()).toBe('Type a ticker.'))
+    act(() => { root.querySelector('[data-testid="sym-label"]').textContent = 'NVDA' })
+    await new Promise(r => setTimeout(r, POLL_MS * 4))
+    expect(guideState()).not.toBeNull()
+  })
+})
+
+// pl-auto tut9 (SIX, 3×2): a walkthrough on the top-left chart, then a press on the bottom-middle chart, ends it cleanly
+describe('pressing another chart on a six-chart board ends the walkthrough', () => {
+  const SIX = ['tl', 'tm', 'tr', 'bl', 'bm', 'br']
+  const board = () => dom(SIX.map(id => `<div data-widget-id="${id}" data-widget-type="chart"><button data-guide="chart.timeframe">${id} tf</button><canvas></canvas></div>`).join(''))
+  it.each(SIX.filter(id => id !== 'tl'))('a press on %s ends it: ring and card gone, no notice, nothing restarted', async (id) => {
+    const root = board()
+    render(<GuideOverlay />)
+    act(() => { startGuide(F, { chartRef: 'tl', steps: [{ target: 'chart.timeframe', text: 'These buttons.' }, { target: 'chart.timeframe', text: 'Again.' }] }) })
+    await waitFor(() => expect(text()).toBe('These buttons.'))
+    fireEvent.pointerDown(root.querySelector(`[data-widget-id="${id}"] canvas`), { button: 0 })
+    await waitFor(() => expect(card()).toBeNull())
+    expect(screen.queryByTestId('guide-ring')).toBeNull()
+    expect(notice()).toBeNull()
+    expect(guideState()).toBeNull()
+  })
+  it('a press on its own chart (top-left) does not end it', async () => {
+    const root = board()
+    render(<GuideOverlay />)
+    act(() => { startGuide(F, { chartRef: 'tl', steps: [{ target: 'chart.timeframe', text: 'These buttons.' }] }) })
+    await waitFor(() => expect(text()).toBe('These buttons.'))
+    fireEvent.pointerDown(root.querySelector('[data-widget-id="tl"] canvas'), { button: 0 })
+    await new Promise(r => setTimeout(r, POLL_MS * 3))
+    expect(guideState()).not.toBeNull()
   })
 })
