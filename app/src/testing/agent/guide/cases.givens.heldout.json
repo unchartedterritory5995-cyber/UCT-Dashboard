@@ -1,0 +1,8 @@
+[
+ {"id":"HG-01","say":"how do I copy the AI search answer","feature":"control","title":"Copying an answer","given":["aiAnswer"]},
+ {"id":"HG-02","say":"show me how to keep this AI answer for later","feature":"control","title":"Saving an answer","given":["aiAnswer"]},
+ {"id":"HG-03","say":"show me how to copy what the AI search said","feature":"control","title":"Copying an answer","given":["aiAnswer"]},
+ {"id":"HG-04","say":"how do I send my AI search chat to the journal","feature":"control","title":"Sending AI Search to the Journal","given":["aiAnswer"]},
+ {"id":"HG-05","say":"how do I rename my note","feature":"control","title":"Editing a note","given":["noteOpen"]},
+ {"id":"HG-06","say":"how do I change the text of this note","feature":"control","title":"Editing a note","given":["noteOpen"]}
+]
