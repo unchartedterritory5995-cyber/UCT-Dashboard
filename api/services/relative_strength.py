@@ -1133,6 +1133,30 @@ def compute_rs_phases_columns(bars: Sequence[dict], benchmark_bars: Sequence[dic
     }
 
 
+def rs_phase_flip_columns(cols: Dict[str, Column]) -> Dict[str, Column]:
+    """RS Phases flip events (alert lane, RS split lane S2), over the columns
+    `compute_rs_phases_columns` returns::
+
+        flipBlue[t] = 1 if phase[t] == 1 and phase[t-1] != 1     (RS turned blue)
+        flipRed[t]  = 1 if phase[t] == 0 and phase[t-1] != 0     (RS turned red)
+
+    ``phase[t-1] != x`` includes the neutral (None) bar before it: neutral to blue
+    is a flip. {0, 1, None}: None where either bar cannot be judged, i.e. a bar
+    whose ``rsTrend`` or ``benchTrend`` is None (warm-up, a gap bar) -- so the
+    first judged bar never reads as a flip out of nothing. Same convention as
+    `cross_columns`: a flip is an edge, a held phase is 0 after its first bar."""
+    phase, rs_t, b_t = cols["phase"], cols["rsTrend"], cols["benchTrend"]
+    n = len(phase)
+    blue: Column = [None] * n
+    red: Column = [None] * n
+    for i in range(1, n):
+        if not (_is_num(rs_t[i]) and _is_num(b_t[i]) and _is_num(rs_t[i - 1]) and _is_num(b_t[i - 1])):
+            continue
+        blue[i] = 1.0 if (phase[i] == 1.0 and phase[i - 1] != 1.0) else 0.0
+        red[i] = 1.0 if (phase[i] == 0.0 and phase[i - 1] != 0.0) else 0.0
+    return {"flipBlue": blue, "flipRed": red}
+
+
 def compute_rs_vs_ema_columns(bars: Sequence[dict], benchmark_bars: Sequence[dict],
                               ema: int = DEFAULT_VS_EMA_LENGTH,
                               fast: int = DEFAULT_VS_EMA_FAST,

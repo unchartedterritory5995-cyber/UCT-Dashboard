@@ -1474,6 +1474,10 @@ REFUSAL_RS_TIMEFRAME = "are judged on closed daily"
 #: address whose flag is dark (`ev.rs_address_offered`). Disjoint from the five
 #: above (`tests/test_rs_fix_u1_alert_lane.py` asserts it both ways).
 REFUSAL_RS_NOT_OFFERED = "are not offered yet"
+#: 2026-11-10 (RS split, lane S2) -- the anchor of the WITHHELD-address refusal (the
+#: three Mansfield addresses: registered and evaluating, but not offered to a new
+#: alert). Disjoint from `REFUSAL_RS_NOT_OFFERED` ("yet" would be a promise).
+REFUSAL_RS_WITHHELD = "are no longer offered for new alerts"
 #: 2026-11-07 (RS fix U1, review #17) — the anchor of the self-benchmark gate
 #: (`alert_rs_series.self_benchmark_refusal`'s sentence carries it).
 REFUSAL_RS_SELF_BENCHMARK = "would measure the symbol against itself"
@@ -1654,6 +1658,14 @@ def _rs_not_offered_sentence(address: str) -> str:
         return (f"IBD-style RS rating alerts {REFUSAL_RS_NOT_OFFERED}: the nightly "
                 f"rating job they read from is not switched on, so an alert armed "
                 f"now could never fire.")
+    if address in alert_rs_series.RS_WITHHELD_ADDRESSES:
+        # 2026-11-10 (RS split, lane S2): withheld, not removed.
+        return (f"Mansfield RS alerts {REFUSAL_RS_WITHHELD}. An alert you already set "
+                f"on Mansfield RS keeps running. Use the RS line, RS Phases or RS vs "
+                f"21 EMA alerts instead.")
+    if address in alert_rs_series.RS_SPLIT_ADDRESSES:
+        return (f"UCT RS Phases and RS vs 21 EMA alerts {REFUSAL_RS_NOT_OFFERED}: they "
+                f"open with those indicators on the chart.")
     return (f"UCT Relative Strength alerts {REFUSAL_RS_NOT_OFFERED}: they open with "
             f"the next version of the RS line on the chart.")
 

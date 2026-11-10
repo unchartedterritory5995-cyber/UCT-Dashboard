@@ -46,6 +46,8 @@ from api.services.signature import registry_defs as rd
 def _rs_alert_flags_lit(monkeypatch):
     from api.services.signature import registry_defs as _rs_flag_defs
     monkeypatch.setattr(_rs_flag_defs, "RS_V2_ENABLED", True)
+    import api.main  # noqa: F401 -- import BEFORE lighting RS_SPLIT_ENABLED: api.main registers providers for the split rows, which registry_defs only built if the flag was on at ITS import
+    monkeypatch.setattr(_rs_flag_defs, "RS_SPLIT_ENABLED", True)  # 2026-11-10 (RS split, S2): the lit shape includes the split alerts
     monkeypatch.setenv("RS_HISTORY_ENABLED", "1")
 
 
@@ -180,11 +182,13 @@ def test_the_rs_addresses_are_appended_last_and_declare_the_benchmark_shape():
     keys = list(alert_series.SERIES_FUNCS)
     assert keys[31] == "ma_cross", "the 32 pre-RS entries are unmoved"
     assert keys[32:] == list(ars.RS_ADDRESSES) == list(ars.RS_SERIES)
-    assert len(ars.RS_ADDRESSES) == 12 and all(a.startswith("rs_line.") for a in ars.RS_ADDRESSES)  # 2026-11-07 (RS 2b-06): +rs_line.rating
-    assert ars.RS_ADDRESSES[-1] == "rs_line.rating" == ars.RS_RATING_ADDRESS, "2b-06: the rating, LAST"
+    # 2026-11-10 (RS split, S2): 16 = the 12 `rs_line.*` + the 4 split addresses, appended after the rating
+    assert len(ars.RS_ADDRESSES) == 16 and all(a.startswith("rs_line.") for a in ars.RS_ADDRESSES[:12])
+    assert ars.RS_ADDRESSES[11] == "rs_line.rating" == ars.RS_RATING_ADDRESS, "2b-06: the rating closes the rs_line block"
+    assert ars.RS_ADDRESSES[12:] == ars.RS_SPLIT_ADDRESSES
     assert len(ars.RS_ADDRESS_SPECS) == 11 and "rs_line.rating" not in ars.RS_ADDRESS_SPECS, \
         "the eleven COMPUTE-backed specs; the rating is read, not computed"
-    assert set(ars.RS_ADDRESSES) == set(ars.RS_ADDRESS_SPECS) | {"rs_line.rating"}
+    assert set(ars.RS_ADDRESSES) == set(ars.RS_ADDRESS_SPECS) | {"rs_line.rating"} | set(ars.RS_SPLIT_SPECS)
     for address, spec in ars.RS_ADDRESS_SPECS.items():
         fn = alert_series.SERIES_FUNCS[address]
         assert alert_series.series_function(address) is fn
@@ -766,6 +770,12 @@ def test_the_rating_is_daily_only_and_the_eleven_stay_daily_or_weekly():
         assert ars.timeframe_refusal("W", a) is None and ars.timeframe_refusal("D", a) is None
         assert "daily or weekly bars only" in ars.timeframe_refusal("5", a)
         assert ias.REFUSAL_RS_TIMEFRAME in ars.timeframe_refusal("5", a)
+        if a in ars.RS_WITHHELD_ADDRESSES:
+            # 2026-11-10 (RS split, S2): withheld from the offer, so the door refuses a NEW
+            # alert with the withheld sentence (and not the timeframe one) -- see
+            # tests/test_rs_split_alerts.py for both halves.
+            assert ias.REFUSAL_RS_WITHHELD in ias.refusal_for(a, ev.ALERT_CONDITIONS[a][0]["value"], "W", 0.0)
+            continue
         assert ias.refusal_for(a, ev.ALERT_CONDITIONS[a][0]["value"], "W", 0.0) is None
 
 
