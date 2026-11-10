@@ -109,7 +109,7 @@ const REGIONS = `((ref, text) => {
   // (no \b here: REGIONS is a template string, where \b is a backspace)
   // a candle, the watermark, or the empty chart: the location-aware row keys to which one is under the pointer, so a person
   // tries points down the plot until the row they were told about is offered
-  else if (/ a candle|watermark|empty part/.test(' ' + t)) { for (const fx of [0.5, 0.75, 0.25]) for (let fy = 0.05; fy <= 0.951; fy += 0.05) out.push(at(p0, fx, fy)) }
+  else if (/ a candle|watermark|empty part/.test(' ' + t)) { for (const fx of [0.5, 0.75, 0.25]) for (let fy = 0.05; fy <= 0.951; fy += 0.05) out.push(at(p0, fx, fy)); if (/watermark/.test(t)) { const c = at(p0, 0.5, 0.5); out.sort((m, n) => Math.hypot(m.x - c.x, m.y - c.y) - Math.hypot(n.x - c.x, n.y - c.y)) } }
   else if (/moving average/.test(t)) { for (const fx of [0.6, 0.8, 0.4]) for (let fy = 0.05; fy <= 0.95; fy += 0.01) out.push(at(p0, fx, fy)) }
   else { for (const fy of [0.4, 0.5, 0.3, 0.6]) out.push(at(p0, 0.5, fy)) }
   return out
