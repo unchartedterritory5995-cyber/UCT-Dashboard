@@ -25,7 +25,13 @@
 /** The tagline, unparaphrased. It appears exactly once: at the end of the last tour card. */
 export const TAGLINE = 'Navigate the market, effectively.'
 
-// ─── glossary: the 15 terms of 04 §c, in brand voice (v3 §18 wording, v4 §18 fix) ──
+// ─── glossary: the 15 terms of 04 §c, in brand voice (v3 §18 wording, v4 §18 fix),
+// plus the three RS indicators the split added (U9, 2026-11-09): 18 terms. ⛔ TRUE
+// UNDER BOTH BUILD FLAGS: this file is static data (no `rsSplitEnabled()` here), so
+// a term says what a thing IS and where UCT computes it (a screener column, the
+// Terminal's rotation graph, an indicator's own pane), never which chart Reading
+// shows it today. Mansfield, Rotation, Clenow, VARS, Agreement and Regime are no
+// longer chart readings of UCT RS once the slim RS Line ships (map §(a) U7).
 export const GLOSSARY = Object.freeze([
   { key: 'rsLine', term: 'RS line',
     definition: 'The stock\'s price divided by the benchmark\'s price, drawn as a line: up means the stock is beating the market, down means it is lagging. Only its direction and its own prior highs matter, not where it sits beside price.',
@@ -45,10 +51,14 @@ export const GLOSSARY = Object.freeze([
   { key: 'benchmark', term: 'Benchmark',
     definition: 'What the stock is compared against: the S&P 500, the equal-weight S&P 500, the Nasdaq 100, the Russell 2000, or the stock\'s sector or industry group. Change it and the question changes.' },
   { key: 'mansfieldRs', term: 'Mansfield RS',
-    definition: 'Weinstein\'s version: the RS ratio measured against its own long average (52 weeks on his weekly charts), so it swings around zero. Above zero and rising means the stock is outperforming its own trend against the benchmark.',
+    // U9: where UCT computes it. The screener's Mansfield RS column (200 daily bars) is
+    // the reading that stays once the slim RS Line ships; the sentence is true today too.
+    definition: 'Weinstein\'s version: the RS ratio measured against its own long average (52 weeks on his weekly charts), so it swings around zero, and above zero and rising means the stock is outperforming its own trend against the benchmark. On UCT it is the screener\'s Mansfield RS column, read on 200 daily bars.',
     aliases: ['Mansfield relative strength'] },
   { key: 'rotationQuadrant', term: 'Rotation quadrant',
-    definition: 'Leading (strong and gaining), Weakening (strong but fading), Lagging (weak and fading) or Improving (weak but gaining), read from the trend of the RS ratio and that trend\'s momentum. A map, not a system.',
+    // U9: where UCT computes it: the Terminal's rotation graph and the screener's weekly
+    // Rotation Quadrant column, both UCT's RRG-style formula.
+    definition: 'Leading (strong and gaining), Weakening (strong but fading), Lagging (weak and fading) or Improving (weak but gaining), read from the trend of the RS ratio and that trend\'s momentum on the Terminal\'s rotation graph and in the screener\'s weekly Rotation Quadrant column. A map, not a system.',
     aliases: ['RRG quadrant'] },
   { key: 'momentum', term: 'Momentum',
     definition: 'How fast a price, or an RS line, is moving. In academic research it is also the name for relative strength itself.' },
@@ -68,6 +78,22 @@ export const GLOSSARY = Object.freeze([
   { key: 'rotation', term: 'Rotation',
     definition: 'Money moving from one group of stocks to another. The RS lines of the new group turn up while the old group\'s turn down.',
     aliases: ['sector rotation'] },
+  // ─── the three RS indicators the split added (U9): what each DRAWS, one or two
+  // sentences from its `meta.description` and readout copy in `nativeRegistry.js`
+  // (`RS_RATING_RAW`, `RS_PHASES_RAW`, `RS_VS_EMA_RAW`). The RS line itself is the
+  // `rsLine` term above. Numbers: the rating average and guides (`rs_provider._RS_RATING_MA`,
+  // the `ratingGuides` plot), the Phases smoothing (`relative_strength.DEFAULT_PHASES_*`)
+  // and the 21 EMA with its 3 and 13 EMAs (`relative_strength.DEFAULT_VS_EMA_*`);
+  // `RsGlossary.test.jsx` pins the glossary page's copies of them to the server.
+  { key: 'uctRsRating', term: 'UCT RS Rating',
+    definition: 'An indicator that draws the stock\'s RS Rating, 1 to 99, session by session on daily charts, with its 21-session average and guides at 80 and 90. The 1, 3, 6, 9 and 12-month ranks print in the corner of its pane.',
+    aliases: ['RS Rating history', 'rating line'] },
+  { key: 'uctRsPhases', term: 'UCT RS Phases',
+    definition: 'An indicator that shades the bars where the RS line and the market pull apart: blue while RS rises as the market falls, red for the reverse, with a histogram of how unusual the split is for this stock. Both trends are a short average of the line against a longer one, 3 and 10 bars by default.',
+    aliases: ['RS phases', 'RS divergence shading'] },
+  { key: 'uctRsVsEma', term: 'UCT RS vs 21 EMA',
+    definition: 'An indicator that draws how far the RS line sits above or below its 21 EMA, in percent, bar by bar, blue above and red below, with a 3 and a 13 EMA of that distance. It is the same number the RS line\'s readout prints as its distance from the average.',
+    aliases: ['RS vs 21 EMA', 'Webby RS line'] },
 ].map((t) => Object.freeze(t)))
 
 // ─── misconceptions: the 8 of 04 §e, each with its one-line correction ──────────
@@ -93,6 +119,10 @@ export const MISCONCEPTIONS = Object.freeze([
 // ─── tour: five cards, shown on the first add of UCT RS (D12, v4 §6.11) ─────────
 // Card 3 has no "87" (no published sample, v4 §1.7). Card 4 is v4 §6.11 verbatim,
 // its forward claim removed. Card 5 ends with the tagline, once.
+// ⭐ U9 (2026-11-09) re-read every card against the slim UCT RS Line: the line and
+// its slope (cards 1, 2), the RS new high and the gold dot (card 3), the red-day
+// dot (card 4, `showRedDay` stays a switch) and "where to look" (card 5) all ship
+// under both build flags, and no card names a preset or a Reading. Unchanged.
 export const TOUR = Object.freeze([
   { title: 'Beating the market, or just riding it?',
     body: 'RS compares your stock with the S&P 500. A stock can go up and still lose the race.' },

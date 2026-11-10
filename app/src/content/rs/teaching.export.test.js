@@ -11,11 +11,14 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import * as defSchema from '../../components/chart/engine/defSchema.js'
-import { getDefinition } from '../../components/chart/engine/nativeRegistry.js'
+import { RS_LINE_SLIM_RAW, RS_LINE_V5_RAW, rsSplitEnabled } from '../../components/chart/engine/nativeRegistry.js'
 import {
   CARD_FIELDS, CARD_KEYS, CARDS, GLOSSARY, MISCONCEPTIONS, RS_DEF_ID, TAGLINE, TEACHING_VERSION, TOUR,
-  buildTeachingExport, cardsFromReadout, serializeTeachingExport,
+  buildTeachingExport, cardsFromReadout, rsTeachingReadout, serializeTeachingExport,
 } from './teaching.js'
+
+// U9: 15 terms of 04 §c + the three RS indicators the split added (teachingData.js).
+const GLOSSARY_COUNT = 18
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const EXPORT_PATH = path.resolve(HERE, '..', '..', '..', '..', 'api', 'data', 'rs_teaching.json')
@@ -68,7 +71,7 @@ describe('rs teaching export', () => {
   it('has the shape {version, glossary, misconceptions, tour, cards}', () => {
     const obj = buildTeachingExport()
     expect(obj.version).toBe(TEACHING_VERSION)
-    expect(obj.glossary).toHaveLength(15)
+    expect(obj.glossary).toHaveLength(GLOSSARY_COUNT)
     expect(obj.misconceptions).toHaveLength(8)
     expect(obj.tour).toHaveLength(5)
     expect(Object.keys(obj.cards)).toEqual([...CARD_KEYS])
@@ -76,9 +79,9 @@ describe('rs teaching export', () => {
 })
 
 describe('glossary', () => {
-  it('15 unique keys and terms, each with a definition and optional string aliases', () => {
-    expect(new Set(GLOSSARY.map((t) => t.key)).size).toBe(15)
-    expect(new Set(GLOSSARY.map((t) => t.term.toLowerCase())).size).toBe(15)
+  it('18 unique keys and terms, each with a definition and optional string aliases', () => {
+    expect(new Set(GLOSSARY.map((t) => t.key)).size).toBe(GLOSSARY_COUNT)
+    expect(new Set(GLOSSARY.map((t) => t.term.toLowerCase())).size).toBe(GLOSSARY_COUNT)
     for (const t of GLOSSARY) {
       expect(Object.keys(t).every((k) => ['key', 'term', 'definition', 'aliases'].includes(k)), t.key).toBe(true)
       expect(typeof t.term).toBe('string')
@@ -166,11 +169,32 @@ describe('tour (D12)', () => {
 })
 
 describe('readout cards (read from the definition, never retyped)', () => {
-  const readout = getDefinition(RS_DEF_ID).readout
+  const readout = rsTeachingReadout()
 
   it('CARD_KEYS are the readout rows that carry a card, in reading order', () => {
     expect(CARD_KEYS.length).toBeGreaterThan(0)
     expect([...CARD_KEYS]).toEqual(readout.filter((r) => r.card).map((r) => r.key))
+  })
+
+  // U9: the export does not depend on which `rsLine` the build registered. The suite runs
+  // with the flag OFF (test-setup.js), where the registered definition is V5 with its eight
+  // extra cards; the export still carries the slim RS Line's seven, so the committed JSON is
+  // the same file under either flag and names no Reading the slim chart does not draw.
+  it('reads the SLIM UCT RS Line readout whichever rsLine the build registered (U9)', () => {
+    expect(rsSplitEnabled()).toBe(false)
+    expect(readout).toBe(RS_LINE_SLIM_RAW.readout)
+    expect(RS_LINE_SLIM_RAW.id).toBe(RS_DEF_ID)
+    const v5Cards = RS_LINE_V5_RAW.readout.filter((r) => r.card).map((r) => r.key)
+    expect(v5Cards).toEqual(expect.arrayContaining([...CARD_KEYS]))
+    for (const gone of ['mansfield', 'rotation', 'quality', 'vars', 'sensitivity', 'regime', 'fastRating', 'ratingView']) {
+      expect(v5Cards, `${gone} is a V5 card`).toContain(gone)
+      expect(CARD_KEYS, `${gone} must not be exported`).not.toContain(gone)
+    }
+    const text = serializeTeachingExport()
+    for (const word of ['Mansfield Relative Strength', 'Clenow', 'UCT fast', 'RS-Ratio', 'Regime', 'Agreement']) {
+      expect(JSON.stringify(buildTeachingExport().cards), word).not.toContain(word)
+    }
+    expect(text).toContain('"checks"')
   })
 
   it('each card is {label, what, origin, evidence} straight from its row', () => {

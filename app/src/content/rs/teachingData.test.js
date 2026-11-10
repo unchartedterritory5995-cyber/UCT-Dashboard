@@ -16,7 +16,7 @@ describe('rs teachingData', () => {
     expect(data.GLOSSARY).toEqual(exported.glossary)
     expect(data.MISCONCEPTIONS).toEqual(exported.misconceptions)
     expect(data.TOUR).toEqual(exported.tour)
-    expect(data.GLOSSARY).toHaveLength(15)
+    expect(data.GLOSSARY).toHaveLength(18)   // 15 of 04 §c + the three RS indicators the split added (U9)
     expect(data.MISCONCEPTIONS).toHaveLength(8)
   })
 

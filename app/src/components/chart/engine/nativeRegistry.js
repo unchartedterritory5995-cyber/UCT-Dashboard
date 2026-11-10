@@ -175,6 +175,7 @@ import { runtimeWarmupOf } from './runtime/runtimeObjects'
 // `teaching.js` reads the readout cards off this registry, so importing it here
 // is an import cycle. `teachingData.js` imports nothing.
 import { TOUR as RS_TOUR } from '../../../content/rs/teachingData.js'
+import { rsSplitEnabled } from '../../../lib/rsSplitFlag.js'
 
 // ─── shared fragments ────────────────────────────────────────────────────────
 
@@ -3997,14 +3998,11 @@ export const RS_CLASSIC_INPUTS = Object.freeze({ maLength: 21, maType: 'EMA', lo
  * definition registers the raw it needs (`registerDefinitions([RS_LINE_SLIM_RAW])`)
  * or re-imports this module under the stubbed env. Same convention as every other
  * build flag (`memberPaneGate.js`): default OFF means `=== '1'`, fail closed.
+ * ⭐ U9: the read itself is `lib/rsSplitFlag.js` (engine-free, so the public
+ * glossary page can branch on it without loading this module); re-exported here
+ * so every engine caller keeps its import.
  */
-export function rsSplitEnabled() {
-  try {
-    return import.meta.env.VITE_RS_SPLIT_ENABLED === '1'
-  } catch {
-    return false
-  }
-}
+export { rsSplitEnabled }
 
 // ⛔ THE PYTHON RAILS PARSE THIS DEFINITION BY NAME. `tests/test_rs_columns_provider.py`
 // and `tests/test_rs_telemetry_door.py` split the source text at

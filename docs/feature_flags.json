@@ -3420,7 +3420,7 @@
       "baked_value": "'' (empty - the ENV mirror in Dockerfile.web)",
       "baked_measured_on": "7663f85ef1",
       "last_changed": "never set",
-      "note": "UCT RS section 13 telemetry counts (rs_on, rs_off_within_60s, rs_preset, rs_benchmark, rs_marker_card, rs_learn) through the existing indicator-telemetry door. Unset and the read defaults ON (`!== '0'`); the server accepts only the six events with closed value sets (api/services/indicator_telemetry.py). Setting it to '0' is the build-time kill switch."
+      "note": "UCT RS section 13 telemetry counts (rs_on, rs_off_within_60s, rs_benchmark, rs_marker_card, rs_learn; rs_preset retired with the presets by the RS split, U9 2026-11-09) through the existing indicator-telemetry door. Unset and the read defaults ON (`!== '0'`); the server accepts only the five events with closed value sets (api/services/indicator_telemetry.py). Setting it to '0' is the build-time kill switch."
     },
     "VITE_INDICATOR_TEMPLATES_ENABLED": {
       "status": "armed",

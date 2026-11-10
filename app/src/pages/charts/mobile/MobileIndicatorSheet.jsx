@@ -350,7 +350,6 @@ function SwitchRow({ inputKey, label, labelId, tip, tipId, active = true, value,
 // instance so the switch here and the chart agree.
 import { averageSlotView, writeAverageSlot, MA_DEF_ID } from '../../../components/chart/maAdoption'
 import { safeCssColour } from '../../../components/chart/engine/objectColour'
-import { noteRsPreset } from '../../../lib/rsTelemetry'
 
 const QUICK_STUDY_IDS = ['rsi', 'macd', 'bb', 'vwap', 'atr', 'stoch']
 
@@ -523,7 +522,7 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
   const applyPreset = (preset) => {
     if (!studyDef || !studyInst || !preset) return
     haptics.tap()
-    noteRsPreset(studyDef, preset)
+    // (the `rs_preset` count was retired with the presets, RS split U9)
     const next = applyPresetInputs(cs, studyInst.instanceId, studyDef, preset, engineRegistry)
     if (next !== cs) onWrite({ ...next, preset: 'custom' })
   }
