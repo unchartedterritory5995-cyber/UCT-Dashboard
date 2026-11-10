@@ -19,5 +19,11 @@
  {"id":"HG-18","say":"how do I copy the AI search response","feature":"control","title":"Copying an answer","given":["aiAnswer"],"note":"answer-named-indirectly family (HG-03 class), written before the words.js change"},
  {"id":"HG-19","say":"show me how to save the response I got from AI search","feature":"control","title":"Saving an answer","given":["aiAnswer"],"note":"answer-named-indirectly family (HG-03 class), written before the words.js change"},
  {"id":"HG-20","say":"how do I copy what it wrote in AI search","feature":"control","title":"Copying an answer","given":["aiAnswer"],"note":"answer-named-indirectly family (HG-03 class), written before the words.js change"},
- {"id":"HG-21","say":"how do I save what the AI told me","feature":"control","title":"Saving an answer","given":["aiAnswer"],"note":"answer-named-indirectly family (HG-03 class), written before the words.js change"}
+ {"id":"HG-21","say":"how do I save what the AI told me","feature":"control","title":"Saving an answer","given":["aiAnswer"],"note":"answer-named-indirectly family (HG-03 class), written before the words.js change"},
+ {"id":"HG-22","say":"how do I put a dot above the bar when my formula is true","feature":"builderAction","title":"Signal markers and colours","note":"written before the 2026-11-10 walkthrough-gap fixes"},
+ {"id":"HG-23","say":"how do I shade the background when the formula is true","feature":"builderAction","title":"Signal markers and colours","note":"written before the 2026-11-10 walkthrough-gap fixes"},
+ {"id":"HG-24","say":"how do I rename a Volume Surge list","feature":"control","title":"Renaming a Volume Surge list","note":"written before the 2026-11-10 walkthrough-gap fixes"},
+ {"id":"HG-25","say":"how do I delete one of my Volume Surge lists","feature":"control","title":"Deleting a Volume Surge list","note":"written before the 2026-11-10 walkthrough-gap fixes"},
+ {"id":"HG-26","say":"how do I choose which line an alert follows","feature":"alertAction","title":"Which line an alert watches","given":["alertFormMultiLine"],"note":"written before the 2026-11-10 walkthrough-gap fixes"},
+ {"id":"HG-27","say":"how do I change which series my alert tracks","feature":"alertAction","title":"Which line an alert watches","given":["alertFormMultiLine"],"note":"written before the 2026-11-10 walkthrough-gap fixes"}
 ]
