@@ -42,7 +42,7 @@ function widget() {
     <button data-guide="workspace.widgets">Widgets ▾</button>
     <div data-widget-id="w1" data-widget-type="watchlist">
       <button data-guide="watchlist.lists" title="Choose a different list">‹ Lists</button>
-      <span data-guide="watchlist.title">Momentum</span>
+      <span><span data-guide="watchlist.title">Momentum</span></span>
       <button data-guide="watchlist.listMenu" aria-haspopup="menu" aria-label="List actions">⋯</button>
       <button data-guide="watchlist.addSymbol" aria-label="Add a symbol">+</button>
       <button data-guide="widget.settings" title="Watchlist settings">⚙</button>
@@ -65,11 +65,11 @@ const CASES = [
   ['how do I change the colours of my watchlist', 'Changing a watchlist’s look', /⚙/],
   ['how do I see the attention facts for a ticker in my watchlist', 'A ticker’s attention facts', /Right-click/],
   ['how do I drag columns around in my list', 'Reordering a list’s columns', /Drag/],
-  // the list's own menu from its title (#1005): the member presses ⋯ List actions (the title's right-click is taught once it is fixed)
-  ['how do I change the name of my watchlist', 'Renaming a list', /Click ⋯ \(List actions\)/],
-  ['how do I download my watchlist as a spreadsheet', 'Exporting a list', /Click ⋯ \(List actions\)/],
-  ['how do I get back an older version of my watchlist', 'A list’s version history', /Click ⋯ \(List actions\)/],
-  ['how do I share my watchlist with everyone', 'Sharing a list with the community', /Click ⋯ \(List actions\)/],
+  // the list's own menu from its title (#1005, #1006): the member right-clicks the list's name or presses ⋯ List actions
+  ['how do I change the name of my watchlist', 'Renaming a list', /Right-click the list’s name, or click ⋯ \(List actions\) beside it/],
+  ['how do I download my watchlist as a spreadsheet', 'Exporting a list', /Right-click the list’s name, or click ⋯ \(List actions\) beside it/],
+  ['how do I get back an older version of my watchlist', 'A list’s version history', /Right-click the list’s name, or click ⋯ \(List actions\) beside it/],
+  ['how do I share my watchlist with everyone', 'Sharing a list with the community', /Right-click the list’s name, or click ⋯ \(List actions\) beside it/],
 ]
 
 describe('watchlist rows in the Charts widget: highlight, instruction, cancel, no write', () => {
