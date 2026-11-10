@@ -161,7 +161,10 @@ import {
   computeATRBands,
   AVWAP_ANCHORS,
 } from '../indicators'
-import { serverColumnsFor, notifyColumnsLanded } from './serverCompute'
+import { serverColumnsFor, notifyColumnsLanded, scalarsFor } from './serverCompute'
+// ⭐ U2b — the live forming-bar tail of a server definition (`plots[].liveTail`):
+// `computeSignature` carries the benchmark tail's version into the binder's memo.
+import { definitionHasLiveTail, liveTailSignature } from './liveTail'
 import { runtimeKillOf } from './runtimeKill'
 import { runtimePaneEnabled, runtimePanePermitted } from './runtimePaneGate'
 // ⭐ W5-T2 — the lower-timeframe gate is registered at this door (`lowerTfServing.js`),
@@ -3102,6 +3105,22 @@ function runtimeColumnsOrReasons(def, bars, inputs, ctx) {
   }
 }
 
+/**
+ * ⭐ U2b — WHAT A COMPUTE READS BEYOND BARS AND INPUTS that can change under an
+ * unchanged (def, bars, inputs) key. The binder memoises `computeFor` on that
+ * key; a server definition with a `plots[].liveTail` also reads the benchmark's
+ * forming bar (`liveTail.benchmarkTailFor`), which lands AFTER the compute that
+ * asked for it. This string joins the memo key, so a landed tail is a miss and
+ * the repaint `useServerColumns` triggers recomputes the forming bar instead of
+ * drawing the stale one again. `''` for every other definition: their key is
+ * unchanged byte for byte.
+ */
+export function computeSignature(def, inputs, ctx) {
+  if (def?.compute?.kind !== 'server' || !definitionHasLiveTail(def)) return ''
+  const resolved = resolveInputs(def, inputs)
+  return liveTailSignature(def, scalarsFor(def, resolved, ctx), resolved, ctx && ctx.sym, ctx && ctx.tf)
+}
+
 export function computeFor(def, bars, inputs, ctx) {
   if (def?.compute?.kind === 'runtime') {
     return runtimeColumnsOrReasons(def, Array.isArray(bars) ? bars : [], inputs, ctx)
@@ -4355,13 +4374,25 @@ const RS_LINE_RAW = {
       // (visual review D1: the tag rounded to 0.25 while the legend read 0.2477).
       // It takes `pool`'s matching `minMove: 0.0001` (decision B1) to do so: LWC
       // rounds to `minMove`, so precision alone printed 0.2500.
-      precision: 4, role: 'primary', legend: { decimals: 4 } },
+      precision: 4, role: 'primary', legend: { decimals: 4 },
+      // ⭐ UCT RS split, U2 — THE LINE-END TAG (`engine/endLabel.js`): MarketSurge
+      // prints the RS Rating at the right end of its RS line, so ours reads `RS 96`
+      // at the last point, on the price pane and in the RS pane alike. The same
+      // nightly rating the pane label and the ranks strip print, gated on the
+      // member's RS Rating switch; no row on the server, no tag.
+      endLabel: { source: 'scalar:rating.ibd', prefix: 'RS ', when: ['input:showRating'] },
+      // ⭐ U2b (RS split, 2026-11-09): the forming bar's cell is `close / benchmark
+      // close` on the chart's own last bar (`liveTail.js`); the cached history and
+      // every dot, the rating and the readout stay the session's server values.
+      liveTail: { kind: 'ratio', benchmark: 'scalar:benchmark.resolved' } },
     // ⭐ The condition column, HIDDEN: computed by the server (`rsAbove[t] =
     // rs[t] ≥ rsMA[t]`, 0/1/null — `relative_strength.py`), drawn by nobody, read
     // by the line's colour rule. The Awesome Oscillator's `rising` is the
     // precedent, field for field.
     { key: 'rsAbove', label: 'Above average', style: 'line', hidden: true, color: '#7f8ea3', width: 1, role: 'context', legend: { hide: true } },
-    { key: 'rsMa', label: 'Average', style: 'line', color: '$maColor', width: 1, lineStyle: 'largeDashed', precision: 4, role: 'context', legend: { hide: true } },
+    { key: 'rsMa', label: 'Average', style: 'line', color: '$maColor', width: 1, lineStyle: 'largeDashed', precision: 4, role: 'context', legend: { hide: true },
+      // ⭐ U2b: the average's last point continues one exact step from the live ratio.
+      liveTail: { kind: 'ma', of: 'rsLine', length: 'input:maLength', type: 'input:maType' } },
     // ⭐ THE MANSFIELD LINE, on the RS pane's own scale. It is a PERCENT distance
     // from the ratio's average (−20…+20 on most names), so it never shares the
     // scale with the ratio (near 0.25): under Mansfield view the server blanks the

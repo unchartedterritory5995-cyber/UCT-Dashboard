@@ -151,9 +151,15 @@ import { isValidTf } from '../timeframes'
 // validator live beside its reader, `paneTable.js`, which imports nothing of
 // this module — so there is no cycle.
 import { validatePaneTable } from './paneTable'
+// ⭐ The line-end label (`plots[].endLabel`, UCT RS split U2): grammar beside its
+// reader, `endLabel.js`, which imports nothing of this module.
+import { validateEndLabel } from './endLabel'
 // ⭐ The client-derived column (`plots[].derive`, same round): grammar beside its
 // one reader, `derivedColumns.js`, which imports nothing of this module.
 import { DERIVE_FIELDS } from './derivedColumns'
+// ⭐ The live forming-bar tail (`plots[].liveTail`, RS split U2b): grammar beside
+// its one reader, `liveTail.js`, which imports only `readoutSchema`.
+import { LIVE_TAIL_KINDS, LIVE_TAIL_FIELDS, LIVE_TAIL_MA_TYPES } from './liveTail'
 
 /** Schema major. A definition MUST declare exactly this to register. */
 export const SCHEMA_VERSION = 1
@@ -3172,6 +3178,10 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
       `got ${fmt(plot.restyle)}`,
     )
   }
+  // ⭐ UCT RS split, U2 — `plots[].endLabel`: a small tag at the plot's last finite
+  // point (`RS 96`, MarketSurge's line-end rating). Declared per plot, drawn by
+  // the surface from the host series' own coordinates; fail-closed in `endLabel.js`.
+  if (plot.endLabel !== undefined) validateEndLabel(plot.endLabel, `${path}.endLabel`, inputsByKey.keys(), errors)
   validatePlotActiveWhen(plot, path, inputsByKey, errors)
 }
 
@@ -3548,6 +3558,97 @@ function validateDerives(def, plots, errors, inputsByKey) {
       errors.push(`${path}.where: expected the name of a 0/1 event column, got ${fmt(d.where)}`)
     }
     if (d.activeWhen !== undefined) validateInputCondition(d.activeWhen, `${path}.activeWhen`, inputsByKey, errors)
+  })
+}
+
+/**
+ * ⭐ `plots[].liveTail` (RS split, unit U2b, 2026-11-09) — the FORMING bar's cell
+ * of a server column recomputed on the client while the cached envelope's history
+ * is served as it is (`liveTail.js`):
+ *
+ *   {kind: 'ratio', benchmark: 'scalar:<path>', scale?}   last = close / benchClose × scale
+ *   {kind: 'ma', of: <ratio plot>, length, type?}         the average's exact one-step continuation
+ *
+ * Fail closed: only on the SERVER lane (the one lane whose last cell is a cached
+ * value); only on a plot that draws a VALUE (never a guide, which has no column,
+ * nor a marker, whose column is an event); the benchmark is a payload `scalar:`
+ * path (an `input:` would be the REQUESTED benchmark — `SECTOR` — not the ticker
+ * the server resolved it to); `of` names a declared `ratio` tail that is not this
+ * plot; `length` is a whole number ≥ 1 or an `input:` key of a declared `int` /
+ * `float` input; `type` is EMA / SMA or an `input:` key of a declared enum whose
+ * every option is one of them (both averages are linear in their newest term, so
+ * the step is exact — a third kind would be a guess); unknown fields are refused.
+ */
+function validateLiveTails(def, plots, errors, inputsByKey) {
+  const serverLane = isPlainObject(def && def.compute) && def.compute.kind === 'server'
+  const byKey = new Map()
+  for (const p of plots) if (isPlainObject(p) && isNonEmptyString(p.key) && !byKey.has(p.key)) byKey.set(p.key, p)
+  const inputSource = (v) => {
+    const parsed = parseReadoutSource(v)
+    return parsed && parsed.kind === 'input' && parsed.path.length === 1 ? parsed.path[0] : null
+  }
+  plots.forEach((plot, index) => {
+    if (!isPlainObject(plot) || plot.liveTail === undefined) return
+    const path = `plots[${index}].liveTail`
+    const lt = plot.liveTail
+    if (!isPlainObject(lt)) { errors.push(`${path}: expected {kind, …}, got ${fmt(lt)}`); return }
+    if (!LIVE_TAIL_KINDS.includes(lt.kind)) {
+      errors.push(`${path}.kind: ${fmt(lt.kind)} is not a live-tail kind — expected one of: ${list(LIVE_TAIL_KINDS)}`)
+      return
+    }
+    const fields = LIVE_TAIL_FIELDS[lt.kind]
+    for (const k of Object.keys(lt)) {
+      if (!fields.includes(k)) errors.push(`${path}.${k}: unknown field for kind ${fmt(lt.kind)} — expected one of: ${list(fields)}`)
+    }
+    if (!serverLane) {
+      errors.push(`${path}: a live tail moves the last cell of a CACHED server column (\`serverColumnsFor\`), so only a compute.kind "server" definition may declare one`)
+    }
+    if (plot.style === 'hlines' || plot.style === 'markers') {
+      errors.push(`${path}: a live tail moves a VALUE — a ${fmt(plot.style)} plot has no value to move (a guide returns no column; a marker's column is an event)`)
+    }
+    if (lt.kind === 'ratio') {
+      const parsed = parseReadoutSource(lt.benchmark)
+      if (!parsed || parsed.kind !== 'scalar') {
+        errors.push(`${path}.benchmark: expected a payload \`scalar:<path>\` naming the RESOLVED benchmark ticker, got ${fmt(lt.benchmark)}`)
+      }
+      if (lt.scale !== undefined && !(Number.isFinite(lt.scale) && lt.scale > 0)) {
+        errors.push(`${path}.scale: expected a finite number > 0, got ${fmt(lt.scale)}`)
+      }
+      return
+    }
+    // kind: 'ma'
+    const of = byKey.get(lt.of)
+    if (!isNonEmptyString(lt.of) || !of) {
+      errors.push(`${path}.of: ${fmt(lt.of)} names no declared plot`)
+    } else if (lt.of === plot.key) {
+      errors.push(`${path}.of: a plot cannot continue from itself`)
+    } else if (!isPlainObject(of.liveTail) || of.liveTail.kind !== 'ratio') {
+      errors.push(`${path}.of: ${fmt(lt.of)} declares no \`liveTail: {kind: 'ratio'}\` — an average is continued from a LIVE ratio, never a cached one`)
+    }
+    if (Number.isInteger(lt.length) && lt.length >= 1) {
+      // a literal length
+    } else {
+      const key = inputSource(lt.length)
+      const spec = key ? inputsByKey.get(key) : null
+      if (!spec || !['int', 'float'].includes(spec.type)) {
+        errors.push(`${path}.length: expected a whole number ≥ 1 or \`input:<key>\` of a declared "int" / "float" input, got ${fmt(lt.length)}`)
+      }
+    }
+    if (lt.type !== undefined) {
+      const literal = typeof lt.type === 'string' && LIVE_TAIL_MA_TYPES.includes(lt.type.toUpperCase())
+      if (!literal) {
+        const key = inputSource(lt.type)
+        const spec = key ? inputsByKey.get(key) : null
+        const options = spec && spec.type === 'enum' && Array.isArray(spec.options)
+          ? spec.options.map((o) => (Array.isArray(o) ? o[0] : (isPlainObject(o) && 'value' in o ? o.value : o)))
+          : null
+        const allKnown = !!options && options.length > 0
+          && options.every((v) => typeof v === 'string' && LIVE_TAIL_MA_TYPES.includes(v.toUpperCase()))
+        if (!allKnown) {
+          errors.push(`${path}.type: expected ${list(LIVE_TAIL_MA_TYPES)} or \`input:<key>\` of a declared enum whose every option is one of them, got ${fmt(lt.type)}`)
+        }
+      }
+    }
   })
 }
 
@@ -4020,6 +4121,7 @@ export function validateDefinition(def) {
     validateOhlc(plots, new Set([...plotKeyIndex.keys(), ...eventKeyIndex.keys()]), errors)
     validateFills(plots, errors, inputsByKey)
     validateDerives(out, plots, errors, inputsByKey)
+    validateLiveTails(out, plots, errors, inputsByKey)
     validateTreesAgainstPlots(out.compute, plots, errors)
     validateObjectProgramField(out, errors)
     validatePaints(out.paints, new Set([...plotKeyIndex.keys(), ...eventKeyIndex.keys()]), errors)

@@ -187,6 +187,10 @@ import LegendRow from './chart/legend/LegendRow'
 // ⭐ UCT RS design round (2026-11-08) — a pane's corner table (`meta.paneTable`).
 import PaneRanksTable from './chart/pane/PaneRanksTable'
 import { paneTableShownOn, paneTableFits } from './chart/engine/paneTable'
+// ⭐ UCT RS split, U2 — the line-end tag (`plots[].endLabel`) and the ranks strip's
+// price-pane host (`engine/endLabel.js`, `chart/pane/PlotEndLabel.jsx`).
+import PlotEndLabel from './chart/pane/PlotEndLabel'
+import { lastFinitePoint, endLabelText, endLabelPlacement } from './chart/engine/endLabel'
 import chipStyles from './chart/legend/IndicatorChip.module.css'
 import { chipMenuItems, paneMenuItems, presetLabelOf } from './chart/legend/chipMenu'
 // ⭐ UCT RS Phase 4 (unit 4-05) — the teaching surfaces on the chip menu: the
@@ -291,6 +295,34 @@ const NO_PANE_KEYS = Object.freeze([])
  * @param {object} [cs]  chart settings, for `paneSeriesOrder`
  * @returns {{key: string, index: number, chips: object[]}[]}
  */
+/**
+ * ⭐ UCT RS split, U2 — WHAT THE PRICE PANE HOSTS BESIDES ITS LEGEND. The first
+ * chip DRAWN ON PRICE (`hostOf` answers `null`: the candles' pane, including an
+ * `own:`-scale instance) whose definition declares a ranks table shown on this
+ * timeframe, and every chip, on any pane, whose plot declares a line-end tag
+ * (`readout.stampReadout` stamps both; a hidden chip stamps neither). One table on
+ * the price pane, as in an indicator pane; a tag per plot, pinned by its own series.
+ *
+ * @param {object[]} chips `crosshairData.chips`
+ * @param {Function} hostOf `chipPaneHost`
+ * @param {string} tf the chart timeframe
+ * @returns {{table: object|null, ends: object[]}}
+ */
+function priceHostChips(chips, hostOf, tf) {
+  const out = { table: null, ends: [] }
+  if (!Array.isArray(chips) || !chips.length) return out
+  for (const c of chips) {
+    if (!c || c.hidden === true) continue
+    if (c.endLabel) out.ends.push(c)
+    if (!out.table && c.paneTable && paneTableShownOn(c.paneTable, tf)) {
+      let host = null
+      try { host = hostOf ? hostOf(c) : null } catch { host = null }
+      if (host === null) out.table = c
+    }
+  }
+  return out
+}
+
 function paneReadoutRows(chips, layout, hostOf, cs) {
   const panes = (layout && Array.isArray(layout.panes)) ? layout.panes : null
   if (!panes || !panes.length || !Array.isArray(chips) || !chips.length) return EMPTY_CHIPS
@@ -3613,6 +3645,13 @@ export default function StockChart({
     const rgb = parseColor(canvasSample.low)
     return rgb ? luminance(rgb) > 0.5 : false
   }, [canvasSample])
+  // ⭐ UCT RS split, U2 — and at the TOP of the canvas, for the ranks strip when it
+  // sits on the price pane beside the price legend (a gradient canvas is darkest
+  // or lightest at one end; the strip reads the end it is on).
+  const topCanvasIsLight = useMemo(() => {
+    const rgb = parseColor(canvasSample.top)
+    return rgb ? luminance(rgb) > 0.5 : false
+  }, [canvasSample])
   const separatorColors = useMemo(() => {
     const light = lowCanvasIsLight
     return light
@@ -4773,6 +4812,18 @@ export default function StockChart({
    *  same pane key. Pinned by `pinPaneLegend` in the same frame as the label it
    *  must never touch. */
   const paneTableRefs = useRef(new Map())
+  // ⭐ UCT RS split, U2 — the ranks strip hosted by the PRICE pane (one at most), and
+  // every plot's line-end tag by `instanceId::plotKey` → `{el, model}`; the pins
+  // run from the rAF sampler below, so both are refs, never state.
+  const priceTableRef = useRef(null)
+  const endLabelRefs = useRef(new Map())
+  // The last finite point per binding, so the series' data is walked once per
+  // sync rather than once per frame. Keyed by the binding OBJECT: the binder
+  // rebuilds its bindings on every sync, so a stale entry cannot outlive the data
+  // it describes.
+  const endLabelLastRef = useRef(new WeakMap())
+  // What the price chrome looks like this render, for the `[]`-deps pin below.
+  const priceChromeRef = useRef({ legendFlush: false, toolbarCollapsed: false })
   /** Which indicator panes exist, in order — published by the layout effect.
    *
    *  ⭐ STATE, NOT A READ OF `paneLayoutRef` DURING RENDER. The layout lives in a
@@ -18428,6 +18479,144 @@ export default function StockChart({
     } catch { /* pane API missing → the CSS default */ }
   }, [])
 
+  /** The top of a renderer pane in the container, and its height: the sum of every
+   *  pane above it plus their separators, read off `chart.panes()` as `pinPaneLegend`
+   *  reads it. `null` when the renderer cannot answer. */
+  const paneBandOf = useCallback((index) => {
+    const chart = chartRef.current
+    if (!chart || !Number.isInteger(index) || index < 0) return null
+    const panes = chart.panes ? chart.panes() : null
+    if (!panes || panes.length <= index) return null
+    let top = 0
+    for (let i = 0; i < index; i++) {
+      const h = panes[i] && panes[i].getHeight ? panes[i].getHeight() : 0
+      top += (Number.isFinite(h) ? h : 0) + SEPARATOR_PX
+    }
+    const height = panes[index] && panes[index].getHeight ? panes[index].getHeight() : 0
+    return { top, height: Number.isFinite(height) ? height : 0 }
+  }, [])
+
+  /**
+   * ⭐ UCT RS split, U2 — THE RANKS STRIP ON THE PRICE PANE (`meta.paneTable` for an
+   * instance drawn with the candles, `placement.target === 'price'`).
+   *
+   * WHERE: on the price legend's first row, right-aligned 6 px left of the price
+   * scale — "to the right of the price legend". The alternatives were measured out
+   * (map §(f) risk 4): the pane's TOP band is the drawing toolbar's (`.toolbar`
+   * spans `left: 12px` to `right: 84px`), and the own-scale band's top edge (62 %
+   * down the pane) floats over the candles and over the RS line's newest bars when
+   * the stock leads. The legend row is the one band that is already legend
+   * furniture, clear of the toolbar, the volume band at the pane's bottom and the
+   * axis' last-value tags (the strip ends left of the axis). When the legend is not
+   * drawn (hover-only, hidden by the host), the row is where it WOULD be: 28 px
+   * under the pane top beneath a toolbar, 2 px without one (`.legend`'s own
+   * offsets).
+   *
+   * COLLISION: `paneTableFits`, the pane version's rule, against the legend's right
+   * edge while the legend's box reaches the strip's row. On a 1536 px desktop the
+   * study stack is a few hundred px wide and the strip fits; on a 390 px phone the
+   * plot is ~286 px and the strip (~230 px) steps aside, as it does in a pane, and
+   * the same numbers stay one tap away in the readout's Rating card.
+   */
+  const pinPriceTable = useCallback((el) => {
+    if (!el) return
+    try {
+      const chart = chartRef.current, host = wrapperRef.current
+      if (!chart || !host) return
+      let idx = 0
+      try { idx = candleSeriesRef.current?.getPane?.()?.paneIndex?.() ?? 0 } catch { idx = 0 }
+      const band = paneBandOf(idx)
+      if (!band) return
+      const hr = host.getBoundingClientRect()
+      const leg = legendRef.current
+      const lr = leg ? leg.getBoundingClientRect() : null
+      const chrome = priceChromeRef.current || {}
+      const rowTop = lr
+        ? lr.top - hr.top
+        : band.top + (chrome.legendFlush || chrome.toolbarCollapsed ? 2 : 28)
+      const want = `${Math.round(rowTop)}px`
+      if (el.style.top !== want) el.style.top = want
+      let axisW = 0
+      try { axisW = chart.priceScale('right').width() || 0 } catch { axisW = 0 }
+      let leftW = 0
+      try { leftW = chart.priceScale('left').width() || 0 } catch { leftW = 0 }
+      let plotW = 0
+      try { plotW = chart.timeScale().width() || 0 } catch { plotW = 0 }
+      const right = `${Math.round(axisW + 6)}px`
+      if (el.style.right !== right) el.style.right = right
+      // The legend counts only while its box reaches the strip's 16 px row.
+      const stripH = el.offsetHeight || 16
+      const reaches = lr ? (lr.top - hr.top) < rowTop + stripH && (lr.bottom - hr.top) > rowTop : false
+      const fits = paneTableFits({
+        plotWidth: leftW + plotW,
+        labelRight: reaches ? lr.right - hr.left : 0,
+        tableWidth: el.offsetWidth || 0,
+      })
+      if (el.hasAttribute('data-collapsed') === fits) {
+        if (fits) { el.removeAttribute('data-collapsed'); el.removeAttribute('aria-hidden') }
+        else { el.setAttribute('data-collapsed', ''); el.setAttribute('aria-hidden', 'true') }
+      }
+    } catch { /* pane API missing → the CSS default */ }
+  }, [paneBandOf])
+
+  /**
+   * ⭐ UCT RS split, U2 — THE LINE-END TAG (`plots[].endLabel`): `RS 96` at the last
+   * finite point of the plot, positioned with the HOST SERIES' OWN
+   * `priceToCoordinate` — which is what makes it land on an `own:` scale in the
+   * price pane (`placement.ownScaleOf`) and in an indicator pane alike — and the
+   * time scale's `timeToCoordinate`, so it rides the line through scroll and zoom.
+   * The geometry is `endLabel.endLabelPlacement`'s: right-aligned a few px left of
+   * the point, centred on it, inside its pane; hidden while the point is off the
+   * plot or the tag would not fit. Called every frame from the sampler and from
+   * the ref callback, like `pinPaneLegend`, so the first painted frame is right.
+   *
+   * ⛔ FAIL CLOSED: no binding, no series, no finite point, no text → hidden.
+   * A `value` tag prints the point's own value; a scalar tag prints what the chip
+   * already resolved (`readout.stampReadout`).
+   */
+  const pinEndLabel = useCallback((el, key, model) => {
+    if (!el) return
+    const hide = () => { if (!el.hasAttribute('data-hidden')) el.setAttribute('data-hidden', '') }
+    try {
+      const chart = chartRef.current, eng = engineRef.current
+      if (!chart || !eng || !eng.binder) { hide(); return }
+      const b = eng.binder.bindings().find((x) => x && x.series && `${x.instanceId}::${x.plotKey}` === key) || null
+      if (!b) { hide(); return }
+      let last = endLabelLastRef.current.get(b)
+      if (last === undefined) {
+        let points = null
+        try { points = typeof b.series.data === 'function' ? b.series.data() : null } catch { points = null }
+        last = lastFinitePoint(points)
+        endLabelLastRef.current.set(b, last)
+      }
+      if (!last) { hide(); return }
+      const text = model && model.fromValue
+        ? endLabelText(model.spec, { value: last.value })
+        : (model && typeof model.text === 'string' ? model.text : null)
+      if (!text) { hide(); return }
+      if (el.textContent !== text) el.textContent = text
+      let x = null, y = null, idx = null
+      try { x = chart.timeScale().timeToCoordinate(last.time) } catch { x = null }
+      try { y = b.series.priceToCoordinate(last.value) } catch { y = null }
+      try { idx = b.series.getPane().paneIndex() } catch { idx = null }
+      const band = paneBandOf(idx)
+      if (x == null || y == null || !band) { hide(); return }
+      let leftW = 0
+      try { leftW = chart.priceScale('left').width() || 0 } catch { leftW = 0 }
+      let plotW = 0
+      try { plotW = chart.timeScale().width() || 0 } catch { plotW = 0 }
+      const place = endLabelPlacement({
+        x, y, plotLeft: leftW, plotWidth: plotW, paneTop: band.top, paneHeight: band.height,
+        width: el.offsetWidth, height: el.offsetHeight,
+      })
+      if (place.hidden) { hide(); return }
+      const left = `${place.left}px`, top = `${place.top}px`
+      if (el.style.left !== left) el.style.left = left
+      if (el.style.top !== top) el.style.top = top
+      if (el.hasAttribute('data-hidden')) el.removeAttribute('data-hidden')
+    } catch { hide() }
+  }, [paneBandOf])
+
   useEffect(() => {
     if ((!showRangeSelector && !showVolLegend && !verticalLegend && !paneLegendKeys.length) || !chartReady) return
     const chart = chartRef.current, container = containerRef.current
@@ -18542,6 +18731,12 @@ export default function StockChart({
           if (paneLegendRefs.current.size) {
             paneLegendRefs.current.forEach(pinPaneLegend)
           }
+          // ⭐ UCT RS split, U2 — the price pane's ranks strip and every line-end
+          // tag, by the same rule, in the same frame.
+          if (priceTableRef.current) pinPriceTable(priceTableRef.current)
+          if (endLabelRefs.current.size) {
+            endLabelRefs.current.forEach((entry, key) => pinEndLabel(entry.el, key, entry.model))
+          }
           // …and the Price pane's own chrome, by the same rule, in the same frame.
           pinPriceChrome()
           // Responsive vertical legend: measure its bottom against the price/volume
@@ -18606,7 +18801,7 @@ export default function StockChart({
     }
     tick()
     return () => { if (raf) cancelAnimationFrame(raf) }
-  }, [showRangeSelector, showVolLegend, verticalLegend, paneLegendKeys, pinPaneLegend, pinPriceChrome, chartReady])
+  }, [showRangeSelector, showVolLegend, verticalLegend, paneLegendKeys, pinPaneLegend, pinPriceChrome, pinPriceTable, pinEndLabel, chartReady])
 
   useEffect(() => {
     const el = containerRef.current
@@ -22116,6 +22311,49 @@ export default function StockChart({
         </Fragment>
         )
       })}
+      {/* ⭐ UCT RS split, U2 — WHAT THE PRICE PANE HOSTS BESIDES ITS LEGEND.
+          (a) The ranks strip (`meta.paneTable`) for an instance drawn with the
+              candles — the same `PaneRanksTable`, same markup, same classes as the
+              pane version above, pinned by `pinPriceTable` to the price legend's
+              row, left of the price scale (see that callback for the placement
+              decision). One per chart, like one per pane.
+          (b) Every plot's line-end tag (`plots[].endLabel`), on whichever pane its
+              series draws in, pinned by `pinEndLabel` from the series' own
+              coordinates. Both follow the pane readouts' gates: declutter hides the
+              lines, so it hides their labels too. */}
+      {chartReady && !indicatorsHidden && crosshairData ? (() => {
+        priceChromeRef.current = { legendFlush, toolbarCollapsed }
+        const hosted = priceHostChips(crosshairData.chips, chipPaneHost, resolvedTf)
+        if (!hosted.table && !hosted.ends.length) return null
+        return (
+          <Fragment>
+            {hosted.table ? (
+              <PaneRanksTable
+                table={hosted.table.paneTable}
+                paneKey="price"
+                host="price"
+                canvas={topCanvasIsLight ? 'light' : 'dark'}
+                ref={(el) => { priceTableRef.current = el; if (el) pinPriceTable(el) }}
+              />
+            ) : null}
+            {hosted.ends.map((c) => {
+              const key = `${c.instanceId}::${c.plotKey}`
+              return (
+                <PlotEndLabel
+                  key={key}
+                  labelKey={key}
+                  text={typeof c.endLabel.text === 'string' ? c.endLabel.text : ''}
+                  color={c.color}
+                  ref={(el) => {
+                    const m = endLabelRefs.current
+                    if (el) { m.set(key, { el, model: c.endLabel }); pinEndLabel(el, key, c.endLabel) } else m.delete(key)
+                  }}
+                />
+              )
+            })}
+          </Fragment>
+        )
+      })() : null}
       {/* ONE pattern engine draws at a time (owner, 2026-11-01): while Chart IQ is drawing this daily chart, Auto Structures'
           overlay steps aside, and it is back the moment Chart IQ is off or the chart leaves 1D. Nothing is retired. */}
       {!disablePatterns && !chartIqActive && bars?.length > 0 && (
