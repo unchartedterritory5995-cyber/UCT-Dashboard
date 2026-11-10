@@ -91,6 +91,8 @@ timeout 900 python C:/w/pl-auto/tools/agent_suite_lock.py run --who pl-auto -- p
 Result (vitest, scripted model (jsdom/panel), not a real browser):
 `Test Files 1 passed (1) · Tests 33 passed | 7 todo (40)`
 
+After the held-out routing block was added (2026-11-10 follow-up, see `PR-exec-chart-settings.md`): `Test Files 1 passed (1) · Tests 40 passed | 7 todo (47)`.
+
 Caveats:
 - The model is scripted. This proves the request carries the target, and that a correct plan changes the chart's stored settings and Undo restores them. It does not prove that a paid model picks this plan.
 - It does not prove that StockChart paints the stored value. `settingsLiveness.test.js` is the source-level rail for that.

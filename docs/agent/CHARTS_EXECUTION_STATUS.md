@@ -8,12 +8,23 @@ Built on `agent/pl/bar-time-coverage` from `agent/pl/integration-1` `b07a97d526`
 
 ## The number
 
-**158 of 484 actions, 32.6%, are VERIFIED at panel level with a scripted model.** That proves the Agent is given what it needs and that a correct plan reaches the right state. It does not prove the real model picks that plan, and it does not prove the real chart redraws.
+**190 of 484 actions, 39.3%, are VERIFIED at panel level with a scripted model** (158 in the 2026-11-05 run, plus 32 from the chart-settings outcome test on 2026-11-10; see "Update 2026-11-10" below). That proves the Agent is given what it needs and that a correct plan reaches the right state. It does not prove the real model picks that plan, and it does not prove the real chart redraws.
 
 - Production evidence with the real planner covers 13 of those 158 rows, from the 2026-11-03 live run on the older build `463a4bcba5`, read by receipt and some server reads.
 - Real component in a browser, Agent executing: 0 rows. The browser runs in teach-status.md prove walkthroughs, where a person clicks. They never ran an Agent plan.
-- A further 43 rows have a passing runtime test (capability and writer, no panel). They are IMPLEMENTED / UNVERIFIED and are not in the 158.
-- P0 actions: 58 of 74 VERIFIED.
+- A further 36 rows have a passing runtime test (capability and writer, no panel). They are IMPLEMENTED / UNVERIFIED and are not in the 190. (It was 43; 7 of them were raised on 2026-11-10.)
+- P0 actions: 58 of 74 VERIFIED (as of 2026-11-05; this doc carries no per-row P0 tag, so the 2026-11-10 update did not recount it).
+
+## Update 2026-11-10: chart display settings (pl-auto)
+
+32 rows were raised to VERIFIED by one table-driven outcome test, `app/src/agent/qa/chartsOutcome/chartSettings.outcome.test.jsx` (branch `agent/pl/exec-chart-settings`, commit `837eb55376`): vitest, scripted model (jsdom/panel), not a real browser, `Tests 33 passed | 7 todo (40)`. Each case reads the chart's stored settings back through `settingValue`, checks the other three charts are untouched, and checks Undo restores the chart. Rows cite the case by its row id; the state reads "VERIFIED (SIMULATED outcome test, scripted model, jsdom)".
+
+- Was IMPLEMENTED / UNVERIFIED (30): C1-015, 017, 018, 024, 050, 051, 052, 053, 054, 055, 056, 057, 059, 062, 063, 064, 068, 069, 070, 071, 072, 073, 075, 076, 080, 087, 090, 091, 144, C2-013.
+- Was UNMAPPED (1): C1-016 (Heikin Ashi is a chart.setSetting row, `heikinAshi`).
+- Was MISSING (1): C1-061 (reset watermark to centre).
+- Qualified (the qualification is in the row's status): C1-055 (text size only; colour is refused as inert by design), C1-061 (same end state by a different write than the product's Reset), C1-144 (calculator inputs only).
+- Not raised, status unchanged, and the row now points to the gap list in `docs/agent/program/EXEC-CHART-SETTINGS.md`: C1-058, 067, 077, 078, 081, 092, 127.
+- How the counts were updated: by hand, with no generator (none exists in tools/ or app/src/testing/). A script recounted the "All actions" table, confirmed it reproduced every "Counts by area" row exactly before the edit, then rewrote the changed rows and the totals from the recount. The 2026-11-05 sections below (Raised, Dropped, Other state changes) are left as that run wrote them.
 
 ## Rules used
 
@@ -92,17 +103,17 @@ Every file:line citation in the control column was checked against this tree: 33
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | C1 | Symbol | 3 | 1 | 1 | 0 | 0 | 5 | 0 |
 | C1 | Timeframe | 2 | 4 | 0 | 0 | 0 | 6 | 1 |
-| C1 | Chart type | 1 | 3 | 0 | 0 | 1 | 5 | 1 |
+| C1 | Chart type | 5 | 0 | 0 | 0 | 0 | 5 | 1 |
 | C1 | Session | 1 | 1 | 0 | 0 | 0 | 2 | 1 |
-| C1 | Scale | 1 | 2 | 1 | 1 | 0 | 5 | 0 |
+| C1 | Scale | 2 | 1 | 1 | 1 | 0 | 5 | 0 |
 | C1 | View | 2 | 0 | 0 | 1 | 0 | 3 | 0 |
 | C1 | Go to date | 2 | 1 | 1 | 0 | 0 | 4 | 0 |
 | C1 | Compare | 1 | 4 | 3 | 0 | 0 | 8 | 0 |
 | C1 | Replay | 2 | 0 | 1 | 1 | 1 | 5 | 0 |
-| C1 | Settings | 5 | 20 | 7 | 0 | 0 | 32 | 0 |
-| C1 | Themes | 1 | 1 | 1 | 0 | 0 | 3 | 0 |
+| C1 | Settings | 26 | 0 | 6 | 0 | 0 | 32 | 0 |
+| C1 | Themes | 2 | 0 | 1 | 0 | 0 | 3 | 0 |
 | C1 | Templates | 3 | 0 | 0 | 0 | 0 | 3 | 1 |
-| C1 | Volume | 2 | 4 | 0 | 0 | 0 | 6 | 1 |
+| C1 | Volume | 5 | 1 | 0 | 0 | 0 | 6 | 1 |
 | C1 | Panes | 1 | 1 | 0 | 0 | 0 | 2 | 1 |
 | C1 | Crosshair | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
 | C1 | Legend | 6 | 2 | 1 | 0 | 0 | 9 | 0 |
@@ -111,11 +122,11 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1 | Alerts | 6 | 1 | 1 | 0 | 0 | 8 | 0 |
 | C1 | Right-click | 1 | 1 | 4 | 0 | 0 | 6 | 3 |
 | C1 | Settings door | 0 | 0 | 1 | 0 | 0 | 1 | 0 |
-| C1 | Drawing | 27 | 3 | 3 | 3 | 2 | 38 | 1 |
+| C1 | Drawing | 28 | 2 | 3 | 3 | 2 | 38 | 1 |
 | C1 | Boards | 0 | 0 | 4 | 0 | 0 | 4 | 0 |
 | C1 | Keyboard | 2 | 0 | 0 | 1 | 2 | 5 | 0 |
 | C2 | Picker | 0 | 2 | 1 | 0 | 0 | 3 | 0 |
-| C2 | Add | 3 | 3 | 2 | 0 | 2 | 10 | 0 |
+| C2 | Add | 4 | 2 | 2 | 0 | 2 | 10 | 0 |
 | C2 | Remove | 3 | 0 | 0 | 0 | 1 | 4 | 0 |
 | C2 | Visibility | 4 | 0 | 0 | 0 | 0 | 4 | 0 |
 | C2 | Read | 1 | 1 | 0 | 0 | 0 | 2 | 0 |
@@ -166,10 +177,10 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3 | Review | 0 | 0 | 0 | 0 | 0 | 0 | 3 |
 | C3 | Company dock | 0 | 2 | 3 | 0 | 0 | 5 | 0 |
 | C3 | Workspace | 0 | 0 | 1 | 1 | 1 | 3 | 0 |
-| C1 | **all** | 73 | 49 | 29 | 11 | 6 | 168 | 11 |
-| C2 | **all** | 37 | 33 | 21 | 5 | 4 | 100 | 1 |
+| C1 | **all** | 104 | 20 | 28 | 11 | 5 | 168 | 11 |
+| C2 | **all** | 38 | 32 | 21 | 5 | 4 | 100 | 1 |
 | C3 | **all** | 48 | 30 | 104 | 31 | 3 | 216 | 7 |
-| | **Total** | 158 | 112 | 154 | 47 | 13 | 484 | 19 |
+| | **Total** | 190 | 82 | 153 | 47 | 12 | 484 | 19 |
 
 ## Raised to VERIFIED (47)
 
@@ -313,16 +324,16 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-012 | Timeframe | Change timeframe from right-click | NOT ON /CHARTS | none named | n/a | n/a |
 | C1-013 | Chart type | Choose chart type in settings | VERIFIED | c:charttype.line | pass 5/5 | panel, scripted model |
 | C1-014 | Chart type | Choose chart type from right-click | NOT ON /CHARTS | c:charttype.line | pass 5/5 | n/a |
-| C1-015 | Chart type | Breadth Line/Candles quick toggle | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
-| C1-016 | Chart type | Heikin Ashi candles | UNMAPPED | none | n/a | none |
-| C1-017 | Chart type | Candle colour mode | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
-| C1-018 | Chart type | Thin bars | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
+| C1-015 | Chart type | Breadth Line/Candles quick toggle | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-015 "show the breadth chart as a line" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-016 | Chart type | Heikin Ashi candles | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-016 "switch this chart to heikin ashi candles" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-017 | Chart type | Candle colour mode | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-017 "color the candles by open vs close" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-018 | Chart type | Thin bars | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-018 "make the bars thicker on this chart" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-019 | Session | Regular/extended on intraday | IMPLEMENTED / UNVERIFIED | c:session.extended | pass 5/5 | panel, partial |
 | C1-020 | Session | Regular/extended on D/W/M | VERIFIED | c:session.extended | pass 5/5 | panel, scripted model |
 | C1-021 | Session | Extended hours from price-axis menu | NOT ON /CHARTS | c:session.extended | pass 5/5 | n/a |
 | C1-022 | Scale | Arithmetic/log/percent from menu | IMPLEMENTED / UNVERIFIED | c:scale.log; g:GW-01 | pass 7/7 | panel, partial |
 | C1-023 | Scale | Toggle log (Shift+L) | VERIFIED | c:scale.log; g:GW-01 | pass 7/7 | production (E-01) and panel |
-| C1-024 | Scale | Invert scale (Alt+I) | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
+| C1-024 | Scale | Invert scale (Alt+I) | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-024 "flip the price scale upside down" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-025 | Scale | Auto-scale | MISSING | none | n/a | none |
 | C1-026 | Scale | Drag price axis to compress | BLOCKED | none | n/a | none |
 | C1-027 | View | Reset view | VERIFIED † | c:chartSetup.resetView; agentChartViewControls: reaches the chart's reset and is read back | pass 5/5 | panel, scripted model |
@@ -348,49 +359,49 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-047 | Settings | Toggle grid | VERIFIED | c:chart.setSetting.grid | pass 5/5 | panel, scripted model |
 | C1-048 | Settings | Solid/gradient background | VERIFIED | c:chart.setSetting.gradient | pass 5/5 | panel, scripted model |
 | C1-049 | Settings | Solid background colour | VERIFIED | c:chart.setBackground | pass 5/5 | panel, scripted model |
-| C1-050 | Settings | Gradient colours | IMPLEMENTED / UNVERIFIED | agentChartSettingsW1B.test.jsx | pass 4/4 | panel, partial |
-| C1-051 | Settings | Crosshair mode | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
-| C1-052 | Settings | Crosshair colour/width/style | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
-| C1-053 | Settings | Magnet crosshair | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
-| C1-054 | Settings | Price labels / MA labels | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
-| C1-055 | Settings | Scale text size and colour | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
-| C1-056 | Settings | Watermark on/off (Alt+Shift+W) | IMPLEMENTED / UNVERIFIED | agentBatch6.test.jsx | pass 11/11 | runtime, no panel |
-| C1-057 | Settings | Watermark lines | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
-| C1-058 | Settings | Watermark alignment | MISSING | none | n/a | none |
-| C1-059 | Settings | Watermark size/weight/colour/opacity | IMPLEMENTED / UNVERIFIED | agentBatch6.test.jsx | pass 11/11 | runtime, no panel |
+| C1-050 | Settings | Gradient colours | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-050 "give this chart a gradient background with a navy top" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-051 | Settings | Crosshair mode | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-051 "only show the crosshair while I hold the mouse" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-052 | Settings | Crosshair colour/width/style | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-052 "make the crosshair red, 2px and dashed" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-053 | Settings | Magnet crosshair | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-053 "turn on the magnet crosshair" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-054 | Settings | Price labels / MA labels | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-054 "hide the last price label and show the moving average labels" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-055 | Settings | Scale text size and colour | VERIFIED (SIMULATED outcome test, scripted model, jsdom) — qualified: text size only; scale text colour is refused as inert by design (the axes take their ink from the canvas), asserted in "C1-055 (colour half)" | chartSettings.outcome.test.jsx: C1-055 "bump the scale text up to 14" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-056 | Settings | Watermark on/off (Alt+Shift+W) | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-056 "hide the watermark on this chart" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-057 | Settings | Watermark lines | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-057 "take the company name off the watermark and add the logo" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-058 | Settings | Watermark alignment | MISSING | none; gap: docs/agent/program/EXEC-CHART-SETTINGS.md (gap list) | n/a | none |
+| C1-059 | Settings | Watermark size/weight/colour/opacity | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-059 "make the watermark bigger, bold, blue and 30% opacity" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-060 | Settings | Move watermark | VERIFIED | agentChartSettingsTruth: writes opts.watermarkPos | pass 1/1 | panel, scripted model |
-| C1-061 | Settings | Reset watermark to centre | MISSING | none | n/a | none |
-| C1-062 | Settings | Title shows ticker/company/both | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
-| C1-063 | Settings | Day change beside title | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
-| C1-064 | Settings | Legend mode | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
+| C1-061 | Settings | Reset watermark to centre | VERIFIED (SIMULATED outcome test, scripted model, jsdom) — qualified: same end state by a different write (watermark.x/y = 0.5); the product's right-click Reset writes watermarkPos: null (ChartWidget.jsx:499) | chartSettings.outcome.test.jsx: C1-061 "put the watermark back in the middle" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-062 | Settings | Title shows ticker/company/both | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-062 "show the ticker and the company name in the title" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-063 | Settings | Day change beside title | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-063 "hide the day change next to the title" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-064 | Settings | Legend mode | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-064 "only show the legend when I hold the crosshair" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-065 | Settings | Legend bar-info fields | MISSING | none | n/a | none |
 | C1-066 | Settings | Info-row fields | MISSING | none | n/a | none |
-| C1-067 | Settings | Header colours | MISSING | none | n/a | none |
-| C1-068 | Settings | Swing labels on/off and sensitivity | IMPLEMENTED / UNVERIFIED | agentBatch6.test.jsx | pass 11/11 | runtime, no panel |
-| C1-069 | Settings | Swing label background, tint, colours | IMPLEMENTED / UNVERIFIED | agentBatch6.test.jsx | pass 11/11 | runtime, no panel |
-| C1-070 | Settings | Event markers | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
-| C1-071 | Settings | Earnings beat/miss and IPO colours | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
-| C1-072 | Settings | Prev-day lines on/off | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
-| C1-073 | Settings | Prev-day line style/width/colour | IMPLEMENTED / UNVERIFIED | agentBatch6.test.jsx | pass 11/11 | runtime, no panel |
+| C1-067 | Settings | Header colours | MISSING | none; gap: docs/agent/program/EXEC-CHART-SETTINGS.md (gap list) | n/a | none |
+| C1-068 | Settings | Swing labels on/off and sensitivity | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-068 "turn on swing labels with high sensitivity" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-069 | Settings | Swing label background, tint, colours | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-069 "swing labels on, tinted by high and low, green highs, red lows, dark grey background" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-070 | Settings | Event markers | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-070 "show earnings and news markers" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-071 | Settings | Earnings beat/miss and IPO colours | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-071 "earnings beats in green, misses in red, and a yellow IPO badge" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-072 | Settings | Prev-day lines on/off | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-072 "turn off the previous day high line" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-073 | Settings | Prev-day line style/width/colour | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-073 "make the prior day low line solid, 3px and magenta" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-074 | Settings | Dark-pool levels | VERIFIED | agentChartSettingsW1B: turn on dark pool | pass 1/1 | panel, scripted model |
-| C1-075 | Settings | Bar-close countdown (Shift+C) | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
-| C1-076 | Settings | Restore defaults | IMPLEMENTED / UNVERIFIED | agentChartsOperatorP1.test.jsx; agentBatch6.test.jsx | pass 59/59 | runtime, no panel |
-| C1-077 | Settings | Save / delete a custom colour | MISSING | none | n/a | none |
-| C1-078 | Settings | Light/dark palette (Shift+T) | MISSING | none | n/a | none |
+| C1-075 | Settings | Bar-close countdown (Shift+C) | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-075 "show the bar close countdown" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-076 | Settings | Restore defaults | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-076 "restore this chart to the default look" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-077 | Settings | Save / delete a custom colour | MISSING | none; gap: docs/agent/program/EXEC-CHART-SETTINGS.md (gap list) | n/a | none |
+| C1-078 | Settings | Light/dark palette (Shift+T) | MISSING | none; gap: docs/agent/program/EXEC-CHART-SETTINGS.md (gap list) | n/a | none |
 | C1-079 | Themes | Apply a theme to one chart | VERIFIED | c:chart.applyTheme | pass 5/5 | panel, scripted model |
-| C1-080 | Themes | Apply a theme to all charts | IMPLEMENTED / UNVERIFIED | agentBoard.test.jsx | pass 22/22 | runtime, no panel |
-| C1-081 | Themes | Apply a theme to all widgets | MISSING | none | n/a | none |
+| C1-080 | Themes | Apply a theme to all charts | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-080 "apply a theme to all my charts" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-081 | Themes | Apply a theme to all widgets | MISSING | none; gap: docs/agent/program/EXEC-CHART-SETTINGS.md (gap list) | n/a | none |
 | C1-082 | Templates | Apply a template | VERIFIED | c:chart.applyTemplate | pass 4/4 | panel, scripted model |
 | C1-083 | Templates | Save a template | VERIFIED | c:chartSetup.saveTemplate | pass 5/5 | panel, scripted model |
 | C1-084 | Templates | Delete a template | VERIFIED | c:chartSetup.deleteTemplate | pass 4/4 | panel, scripted model |
 | C1-085 | Templates | Copy another chart's look | NOT ON /CHARTS | agentChartsOperatorAcceptance.test.jsx | pass 10/10 | n/a |
 | C1-086 | Volume | Show/hide volume (Ctrl+V, menu) | VERIFIED | c:volume.hide | pass 5/5 | panel, scripted model |
-| C1-087 | Volume | Remove volume | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
+| C1-087 | Volume | Remove volume | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-087 "remove volume from this chart" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-088 | Volume | Separate pane toggle | NOT ON /CHARTS | none | n/a | n/a |
 | C1-089 | Volume | Resize volume pane by drag | VERIFIED | agentChartSettingsTruth: the height: writes the pref | pass 1/1 | panel, scripted model |
-| C1-090 | Volume | HVC highlight | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
-| C1-091 | Volume | Volume colours, MA, label, bar style | IMPLEMENTED / UNVERIFIED | agentChartSettingsW1B.test.jsx | pass 4/4 | panel, partial |
-| C1-092 | Volume | Overlay indicator on volume | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
+| C1-090 | Volume | HVC highlight | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-090 "stop highlighting the highest volume candle" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-091 | Volume | Volume colours, MA, label, bar style | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-091 "volume bars blue up and orange down, a 50 period volume average in white, hide the volume label, histogram bars" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-092 | Volume | Overlay indicator on volume | IMPLEMENTED / UNVERIFIED | none; gap: docs/agent/program/EXEC-CHART-SETTINGS.md (gap list) | n/a | source only |
 | C1-093 | Panes | Move a pane | VERIFIED | agentIndicatorsP2: E4 | pass 1/1 | panel, scripted model |
 | C1-094 | Panes | Resize a pane | IMPLEMENTED / UNVERIFIED | agentIndicatorsP2.test.jsx | pass 19/19 | panel, partial |
 | C1-095 | Panes | Collapse a pane | NOT ON /CHARTS | none | n/a | n/a |
@@ -425,7 +436,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-124 | Right-click | Open indicator settings | NOT ON /CHARTS | none named | n/a | n/a |
 | C1-125 | Right-click | Clear all drawings | VERIFIED | c:drawing.clear; drawings.outcome: a hidden drawing and "clear everything" | pass 5/5 | production (I-03) and panel |
 | C1-126 | Right-click | Hide all drawings | IMPLEMENTED / UNVERIFIED | c:drawing.hideAll | pass 4/4 | panel, partial |
-| C1-127 | Settings door | Open chart settings (Alt+,, gear) | MISSING | none | n/a | none |
+| C1-127 | Settings door | Open chart settings (Alt+,, gear) | MISSING | none; gap: docs/agent/program/EXEC-CHART-SETTINGS.md (gap list) | n/a | none |
 | C1-128 | Drawing | Trendline | VERIFIED | c:drawing.trendline | pass 5/5 | production (B-01b) and panel |
 | C1-129 | Drawing | Ray | NOT ON /CHARTS | c:drawing.ray | pass 5/5 | n/a |
 | C1-130 | Drawing | Extended line | VERIFIED | drawingFamily: extended: the right symbol | pass 1/1 | panel, scripted model |
@@ -442,7 +453,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-141 | Drawing | Cup curve | VERIFIED | drawingFamily: cup: the right symbol | pass 1/1 | panel, scripted model |
 | C1-142 | Drawing | Anchored VWAP | VERIFIED | c:drawing.avwap | pass 5/5 | panel, scripted model |
 | C1-143 | Drawing | Text note | VERIFIED | c:drawing.text | pass 5/5 | panel, scripted model |
-| C1-144 | Drawing | Position calculator | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
+| C1-144 | Drawing | Position calculator | VERIFIED (SIMULATED outcome test, scripted model, jsdom) — qualified: the calculator's inputs only (positionCalc.accountSize / riskPct); placing the position-calculator drawing is the drawing family | chartSettings.outcome.test.jsx: C1-144 "set my position calculator to a 25k account risking half a percent" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-145 | Drawing | Eraser | VERIFIED | c:drawing.remove | pass 5/5 | panel, scripted model |
 | C1-146 | Drawing | Delete selected (Del, button) | VERIFIED | c:drawing.remove; drawings.outcome: one visible drawing goes at once | pass 6/6 | panel, scripted model |
 | C1-147 | Drawing | Recolour | VERIFIED | c:drawing.style | pass 4/4 | panel, scripted model |
@@ -486,7 +497,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C2-010 | Add | Keyboard chord toggles RSI, MACD, BB, VWAP | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
 | C2-011 | Add | Enable classic overlay average | MISSING | agentIndicatorsM2.test.jsx:141 | pass 1/1 | none |
 | C2-012 | Add | Add Volume Profile | MISSING | agentIndicatorsM2.test.jsx:141 | pass 1/1 | none |
-| C2-013 | Add | Toggle Chart IQ pattern recognition | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
+| C2-013 | Add | Toggle Chart IQ pattern recognition | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C2-013 "turn on Chart IQ pattern recognition" | pass 33/33 (7 todo) | panel, scripted model |
 | C2-014 | Remove | Delete indicator from legend | VERIFIED | c:indicator.remove-sma200 | pass 5/5 | panel, scripted model |
 | C2-015 | Remove | Delete from Chart Settings | VERIFIED | c:indicator.remove-sma200 | pass 5/5 | panel, scripted model |
 | C2-016 | Remove | Delete classic average row | VERIFIED | c:indicator.remove-sma200 | pass 5/5 | panel, scripted model |

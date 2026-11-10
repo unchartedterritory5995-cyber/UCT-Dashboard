@@ -172,3 +172,31 @@ describe('chart display settings, through the real panel (one table)', () => {
   it.todo('C1-092 overlay an indicator on the volume pane — GAP: `volumeOverlayIndicators` is owned:indicator (chartSettingsDescriptors.js:226); not this family')
   it.todo('C1-127 open Chart Settings (Alt+, / gear) — GAP: no capability opens the dialog (none in capabilities/chart.js or chartSetup.js)')
 })
+
+// ── HELD-OUT ROUTING (pl-exec routing family): a chart noun is never a ticker ──
+// A display-settings request that carries a price word ("price label", "price scale") is read by the pre-model price
+// fast path (capabilities/marketDataPhrases.js parsePriceSentence: QUOTE_FRAME / PRICE_CTX) and every word that is not
+// grammar or in its NOT_A_TICKER list becomes a ticker candidate; the resolver then answers with
+// capabilities/marketDataResolve.js clarifyText: "I'm not sure which instrument "axis" means …" — the request never
+// reaches the model or a plan (seen live in this file's C1-054 first phrasing). The rule held out here: a sentence whose
+// only candidate is a chart noun is not a price question (parsePriceSentence → null, so it goes on to the model).
+// `it.fails` = the product does NOT meet the rule today (the case passes while the parser still claims the noun, and
+// turns RED once it is fixed: then make it a plain `it`). `it` = already holds. No product change here.
+import { parsePriceSentence } from '../../capabilities/marketDataPhrases'
+const NOUN_HELD_OUT = [
+  { noun: 'axis', text: 'hide the price label on the axis', holds: false },
+  { noun: 'scale', text: 'show me the price scale', holds: false },
+  { noun: 'crosshair', text: 'show the price on the crosshair', holds: false },
+  { noun: 'legend', text: 'show the price legend', holds: false },
+  { noun: 'watermark', text: 'show the price in the watermark', holds: false },
+  { noun: 'grid', text: 'show the grid lines at the price', holds: true },
+  { noun: 'label', text: 'hide the price labels', holds: true },
+]
+describe('held-out routing: chart nouns are never ticker symbols (pre-model price fast path)', () => {
+  for (const c of NOUN_HELD_OUT) {
+    const name = `ROUTE-NOUN ${c.noun} "${c.text}": not read as a price question for ${c.noun.toUpperCase()} (reaches the model)`
+    const body = () => expect(parsePriceSentence(c.text), `${c.text} → ${JSON.stringify(parsePriceSentence(c.text))}`).toBeNull()
+    if (c.holds) it(name, body)
+    else it.fails(`${name} — KNOWN GAP: "${c.noun}" is not in NOT_A_TICKER (marketDataPhrases.js:31), so it is a candidate and the resolver asks which instrument it means`, body)
+  }
+})
