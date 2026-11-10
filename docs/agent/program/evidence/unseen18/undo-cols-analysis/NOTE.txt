@@ -1,0 +1,21 @@
+u18-cols-01..04, 06 "one undo restores the board" failures: what differs, from the committed attempt-1 failure.json files (8a3977c833,
+which ran on the STALE 11-06 node_modules; the a7d44da95a re-run on the junctioned install is to be checked the same way).
+
+Lead / pl-widget hypothesis: the only post-undo difference is written.charts_workspace_groups (absent -> {A:SPY,...}), a first-save side effect.
+Finding: NOT the cause. That key does change (undodiff-*.txt), but `written` is not part of the undo fingerprint:
+  oracle.mjs:177 compares stateOnly(before) === stateOnly(ev.undo.after); stateOnly = worldPrint, whose keys are charts, widgets, wl,
+  drawings (counts), alerts / ialerts (counts), layouts, grid, wlCols. No `written`. So a groups first-save cannot fail this check.
+The ONE fingerprinted difference, identical on all five rows: wlCols['uct.watchlist.cols'] ABSENT before -> {} after the undo
+  (the columns' content is the default again: after the change it held {order:[...]} / {widths:{...}}).
+Why: agent/capabilities/listView.js undoPatch: `if (p.cfg) out.cfg = item.before?.cfg ?? {}`; the widget's saveColCfg then writes '{}'
+  to the shared key. Nothing removes the key (boardDocument.js:57-58 does removeItem for a board document; the Agent undo does not).
+Does it matter to a member (CODE READ, not run): Watchlists.jsx:1232 `if (s && typeof s === 'object') return s` - a stored {} WINS over
+  a widget's defaultColCfg. The key is shared by every Watchlist widget; WatchlistWidget.jsx:200 gives a PREBUILT list's widget
+  PREBUILT_COL_DEFAULTS as defaultColCfg. So after arrange + undo, a prebuilt-list Watchlist widget mounted later shows {} (plain
+  default columns), not its prebuilt defaults, where before the change it showed the prebuilt defaults. On these rows' own widget
+  (a member list, defaultColCfg null) {} and absent render the same.
+Decision: NO harness change. The check fails on a real, narrow undo-fidelity miss (storage not restored to absent), not a capture-timing
+  artifact. Excluding the key or normalising {} to absent would hide the prebuilt-widget consequence above.
+Product fix (for #1027's owner, not done here): carry "absent" in the undo item and remove the key (or write back the exact prior
+  string) instead of writing {}.
+Control already in place: any other wlCols difference (order / widths left behind) is fingerprinted and fails the same check.

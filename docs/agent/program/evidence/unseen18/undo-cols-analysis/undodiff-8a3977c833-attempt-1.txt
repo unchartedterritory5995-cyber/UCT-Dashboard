@@ -1,0 +1,15 @@
+u18-cols-01 (put % change right before price on my watchlist)
+   written.charts_workspace_groups: ABSENT -> "{\"A\":\"SPY\",\"B\":\"AAPL\",\"C\":\"AMD\",\"D\":\"MSFT\"}  [not in undo fingerprint]
+   wlCols.uct.watchlist.cols: ABSENT -> {}  [IN undo fingerprint]
+u18-cols-02 (move volume to the end of the watchlist columns)
+   written.charts_workspace_groups: ABSENT -> "{\"A\":\"SPY\",\"B\":\"AAPL\",\"C\":\"AMD\",\"D\":\"MSFT\"}  [not in undo fingerprint]
+   wlCols.uct.watchlist.cols: ABSENT -> {}  [IN undo fingerprint]
+u18-cols-03 (widen the symbol column to 150 px)
+   written.charts_workspace_groups: ABSENT -> "{\"A\":\"SPY\",\"B\":\"AAPL\",\"C\":\"AMD\",\"D\":\"MSFT\"}  [not in undo fingerprint]
+   wlCols.uct.watchlist.cols: ABSENT -> {}  [IN undo fingerprint]
+u18-cols-04 (make the price column 70 wide)
+   written.charts_workspace_groups: ABSENT -> "{\"A\":\"SPY\",\"B\":\"AAPL\",\"C\":\"AMD\",\"D\":\"MSFT\"}  [not in undo fingerprint]
+   wlCols.uct.watchlist.cols: ABSENT -> {}  [IN undo fingerprint]
+u18-cols-06 (on the Swing list, move volume right after symbol)
+   written.charts_workspace_groups: ABSENT -> "{\"A\":\"SPY\",\"B\":\"AAPL\",\"C\":\"AMD\",\"D\":\"MSFT\"}  [not in undo fingerprint]
+   wlCols.uct.watchlist.cols: ABSENT -> {}  [IN undo fingerprint]
