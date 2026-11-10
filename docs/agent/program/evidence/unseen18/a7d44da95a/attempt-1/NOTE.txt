@@ -1,0 +1,10 @@
+unseen18 BROWSER-MOCK-MODEL, product head a7d44da95a (#1027 pushed head), LOCAL, C:\w\pl-auto, suite lock who=pl-auto.
+Harness: agent/pl/autotest-2 at 6f9abd8515 (u13.sh checked out the branch by name at 21:44:53Z; branch not moved since). Scratch commit f5e4d8b9f3.
+node_modules: C:\w\pl-auto\app\node_modules junction created 2026-11-10T21:43:10Z; checked ﻿2026-11-10T21:48:37Z C:\w\pl-auto\app\node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+  (the run started 21:44:53Z, AFTER the junction; this log has no junction header because u13.sh was started before that AUDIT rule; u13y.sh adds it from chain40 on).
+Vite cache: new folder cache-u13-a7d44da95a (no earlier run used it).
+Diffstat (git diff --stat a7d44da95a f5e4d8b9f3), non-harness paths:
+0
+ 68 files changed, 7848 insertions(+), 18 deletions(-)
+Runner line: [BROWSER-MOCK-MODEL] 1/1 passed; 1 model calls; 0 failure families
+Raw only; classification is a separate later commit. Screenshots not committed (pl-auto scratch runs/u13/a7d44da95a/unseen18/shots).

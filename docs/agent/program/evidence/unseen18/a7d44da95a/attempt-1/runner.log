@@ -1,0 +1,129 @@
+[suite-lock] all 2 slots busy (pl-teach, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-teach, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-teach, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-teach, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-teach, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-teach, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-teach, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-teach, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-teach, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-teach, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-teach, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-teach, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-teach, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-teach, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-teach, pl-exec); waiting 15s
+[bn] free memory GB: 36.3
+[BROWSER-MOCK-MODEL] 42 requests, set unseen18, out C:\Users\blake\AppData\Local\Temp\claude\2ef397b80db79bf7\56266831-c770-46eb-8e87-f65def6d19f9\scratchpad\pl-auto\runs\u13\a7d44da95a\unseen18
+[BROWSER-MOCK-MODEL] PASS u18-refresh-01 model
+[BROWSER-MOCK-MODEL] 1/1 passed; 1 model calls; 0 failure families
+[BROWSER-MOCK-MODEL] PASS u18-refresh-02 model
+[BROWSER-MOCK-MODEL] 2/2 passed; 3 model calls; 0 failure families
+[BROWSER-MOCK-MODEL] PASS u18-refresh-03 model
+[BROWSER-MOCK-MODEL] 3/3 passed; 4 model calls; 0 failure families
+[BROWSER-MOCK-MODEL] PASS u18-refresh-04 model
+[BROWSER-MOCK-MODEL] 4/4 passed; 6 model calls; 0 failure families
+[BROWSER-MOCK-MODEL] PASS u18-refresh-05 model
+[BROWSER-MOCK-MODEL] 5/5 passed; 7 model calls; 0 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-refresh-06 model [read-back] scanGets.byRoute./api/scans/ipo-1y changed: got 1 was 1
+[BROWSER-MOCK-MODEL] 5/6 passed; 8 model calls; 1 failure families
+[BROWSER-MOCK-MODEL] PASS u18-refresh-07 model
+[BROWSER-MOCK-MODEL] 6/7 passed; 9 model calls; 1 failure families
+[BROWSER-MOCK-MODEL] PASS u18-refresh-08 model
+[BROWSER-MOCK-MODEL] 7/8 passed; 10 model calls; 1 failure families
+[BROWSER-MOCK-MODEL] PASS u18-refresh-09 model
+[BROWSER-MOCK-MODEL] 8/9 passed; 11 model calls; 1 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-refresh-10 model [interpretation] no success receipt: Refreshed the Scanner
+[BROWSER-MOCK-MODEL] 8/10 passed; 12 model calls; 2 failure families
+[BROWSER-MOCK-MODEL] PASS u18-look-01 model
+[BROWSER-MOCK-MODEL] 9/11 passed; 13 model calls; 2 failure families
+[BROWSER-MOCK-MODEL] PASS u18-look-02 model
+[BROWSER-MOCK-MODEL] 10/12 passed; 15 model calls; 2 failure families
+[BROWSER-MOCK-MODEL] PASS u18-look-03 model
+[BROWSER-MOCK-MODEL] 11/13 passed; 16 model calls; 2 failure families
+[BROWSER-MOCK-MODEL] PASS u18-look-04 model
+[BROWSER-MOCK-MODEL] 12/14 passed; 17 model calls; 2 failure families
+[BROWSER-MOCK-MODEL] PASS u18-look-05 model
+[BROWSER-MOCK-MODEL] 13/15 passed; 18 model calls; 2 failure families
+[BROWSER-MOCK-MODEL] PASS u18-look-06 model
+[BROWSER-MOCK-MODEL] 14/16 passed; 19 model calls; 2 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-look-07 model [interpretation] no success receipt: The Watchlist (top-right): canvasColor is now #000000 (was #0e0f0d)
+[BROWSER-MOCK-MODEL] 14/17 passed; 20 model calls; 2 failure families
+[BROWSER-MOCK-MODEL] PASS u18-look-08 model
+[BROWSER-MOCK-MODEL] 15/18 passed; 21 model calls; 2 failure families
+[BROWSER-MOCK-MODEL] PASS u18-looks-01 model
+[BROWSER-MOCK-MODEL] 16/19 passed; 22 model calls; 2 failure families
+[BROWSER-MOCK-MODEL] PASS u18-looks-02 model
+[BROWSER-MOCK-MODEL] 17/20 passed; 23 model calls; 2 failure families
+[BROWSER-MOCK-MODEL] PASS u18-looks-03 model
+[BROWSER-MOCK-MODEL] 18/21 passed; 24 model calls; 2 failure families
+[BROWSER-MOCK-MODEL] PASS u18-looks-04 model
+[BROWSER-MOCK-MODEL] 19/22 passed; 25 model calls; 2 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-flagged-01 model [read-back] faces.watchlist re Top Ideas: got WATCHLIST
++
+▣
+⧉
+‹ Lists
+Flagged
+⋯
+Symbol
+Price
+Vol
+% Chg
+No flagged tickers. Press Shift+F on any chart.
+0 stocks
+[BROWSER-MOCK-MODEL] 19/23 passed; 27 model calls; 3 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-flagged-02 model [read-back] faces.watchlist re Shortlist: got WATCHLIST
++
+▣
+⧉
+‹ Lists
+Flagged
+⋯
+Symbol
+Price
+Vol
+% Chg
+No flagged tickers. Press Shift+F on any chart.
+0 stocks
+[BROWSER-MOCK-MODEL] 19/24 passed; 29 model calls; 4 failure families
+[BROWSER-MOCK-MODEL] PASS u18-flagged-03 model
+[BROWSER-MOCK-MODEL] 20/25 passed; 31 model calls; 4 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-cols-01 model [primitive] one undo restores the board: {"charts":{"A":"[\"SPY\",\"D\",\"linear\",\"RTH\",true,[\"EMA 9\",\"EMA 20\",\"SMA 50\",\"SMA 200\"],3,null]"},"widgets":["w-chart-a@12,72,357,788","w-psort@375
+[BROWSER-MOCK-MODEL] 20/26 passed; 32 model calls; 5 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-cols-02 model [primitive] one undo restores the board: {"charts":{"A":"[\"SPY\",\"D\",\"linear\",\"RTH\",true,[\"EMA 9\",\"EMA 20\",\"SMA 50\",\"SMA 200\"],3,null]"},"widgets":["w-chart-a@12,72,357,788","w-psort@375
+[BROWSER-MOCK-MODEL] 20/27 passed; 33 model calls; 5 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-cols-03 model [primitive] one undo restores the board: {"charts":{"A":"[\"SPY\",\"D\",\"linear\",\"RTH\",true,[\"EMA 9\",\"EMA 20\",\"SMA 50\",\"SMA 200\"],3,null]"},"widgets":["w-chart-a@12,72,357,788","w-psort@375
+[BROWSER-MOCK-MODEL] 20/28 passed; 35 model calls; 5 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-cols-04 model [primitive] one undo restores the board: {"charts":{"A":"[\"SPY\",\"D\",\"linear\",\"RTH\",true,[\"EMA 9\",\"EMA 20\",\"SMA 50\",\"SMA 200\"],3,null]"},"widgets":["w-chart-a@12,72,357,788","w-psort@375
+[BROWSER-MOCK-MODEL] 20/29 passed; 36 model calls; 5 failure families
+[BROWSER-MOCK-MODEL] PASS u18-cols-05 model
+[BROWSER-MOCK-MODEL] 21/30 passed; 38 model calls; 5 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-cols-06 model [primitive] one undo restores the board: {"charts":{"A":"[\"SPY\",\"D\",\"linear\",\"RTH\",true,[\"EMA 9\",\"EMA 20\",\"SMA 50\",\"SMA 200\"],3,null]"},"widgets":["w-chart-a@12,72,357,788","w-scan2@375
+[BROWSER-MOCK-MODEL] 21/31 passed; 39 model calls; 5 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-cols-07 model [interpretation] nothing changed: {"charts":{"A":"[\"SPY\",\"D\",\"linear\",\"RTH\",true,[\"EMA 9\",\"EMA 20\",\"SMA 50\",\"SMA 200\"],3,\"74dc3e39.78d45515.a2854f78.2f88a865.31adb1b5.eaeb276d.6
+[BROWSER-MOCK-MODEL] 21/32 passed; 40 model calls; 6 failure families
+[BROWSER-MOCK-MODEL] PASS u18-show-01 model
+[BROWSER-MOCK-MODEL] 22/33 passed; 41 model calls; 6 failure families
+[BROWSER-MOCK-MODEL] PASS u18-show-02 model
+[BROWSER-MOCK-MODEL] 23/34 passed; 42 model calls; 6 failure families
+[BROWSER-MOCK-MODEL] PASS u18-show-03 model
+[BROWSER-MOCK-MODEL] 24/35 passed; 43 model calls; 6 failure families
+[BROWSER-MOCK-MODEL] PASS u18-show-04 model
+[BROWSER-MOCK-MODEL] 25/36 passed; 44 model calls; 6 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-show-05 model [validation] written re watchKey\W+user:l1: got {"charts_layout_dock":"{\"pins\":[\"uct-default\"],\"known\":[\"uct-default\"],\"hidden\":false}","charts_workspace_layout":"{\"version\":1,\"cols\":24,\"wi
+[BROWSER-MOCK-MODEL] 25/37 passed; 46 model calls; 7 failure families
+[BROWSER-MOCK-MODEL] PASS u18-show-06 model
+[BROWSER-MOCK-MODEL] 26/38 passed; 47 model calls; 7 failure families
+[BROWSER-MOCK-MODEL] PASS u18-export-01 model
+[BROWSER-MOCK-MODEL] 27/39 passed; 48 model calls; 7 failure families
+[BROWSER-MOCK-MODEL] PASS u18-export-02 model
+[BROWSER-MOCK-MODEL] 28/40 passed; 49 model calls; 7 failure families
+[BROWSER-MOCK-MODEL] PASS u18-export-03 model
+[BROWSER-MOCK-MODEL] 29/41 passed; 50 model calls; 7 failure families
+[BROWSER-MOCK-MODEL] FAIL u18-export-04 model [read-back] a receipt reports the change: no receipt; said: UCT Agent
+4:59 PM
+
+You have 2 Watchlist widgets — which one: the top one or the bottom one? Nothing changed yet. // Not done: I can’t export t
+[BROWSER-MOCK-MODEL] 29/42 passed; 51 model calls; 8 failure families
+[BROWSER-MOCK-MODEL] 29/42 passed; 51 model calls; 8 failure families

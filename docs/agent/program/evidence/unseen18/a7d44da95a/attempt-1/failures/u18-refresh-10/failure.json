@@ -1,0 +1,871 @@
+{
+ "MODE": "BROWSER-MOCK-MODEL",
+ "request": {
+  "id": "u18-refresh-10",
+  "family": "u18-refresh",
+  "kind": "target",
+  "inventory": [
+   "C3-112"
+  ],
+  "board": "DATA2",
+  "select": null,
+  "turns": [
+   {
+    "say": "refresh the scanner",
+    "plan": {
+     "ops": [
+      {
+       "action": "widget.setOption",
+       "target": "$list:board",
+       "args": {
+        "widget": "w-scan",
+        "key": "refresh",
+        "value": "run"
+       }
+      }
+     ]
+    },
+    "approve": false,
+    "settleMs": 2500
+   }
+  ],
+  "oracle": {
+   "outcome": "clarify"
+  },
+  "unverifiable": [],
+  "set": "unseen18"
+ },
+ "row": {
+  "id": "u18-refresh-10",
+  "set": "unseen18",
+  "family": "u18-refresh",
+  "kind": "target",
+  "board": "DATA2",
+  "inventory": [
+   "C3-112"
+  ],
+  "pass": false,
+  "graded": 5,
+  "na": 0,
+  "modelCalls": 1,
+  "usd": null,
+  "ms": 3390,
+  "path": "model",
+  "layer": "interpretation",
+  "why": "it acted or answered where it had to ask",
+  "firstCheck": "no success receipt",
+  "failed": [
+   {
+    "name": "no success receipt",
+    "detail": "Refreshed the Scanner",
+    "tag": "receipt"
+   },
+   {
+    "name": "it asked",
+    "detail": "Harness\n4:51 PM\nrefresh the scanner // UCT Agent\n4:51 PM\nRefreshed the Scanner",
+    "tag": "clarify"
+   }
+  ],
+  "expectedActions": [
+   "widget.setOption"
+  ],
+  "say": [
+   "refresh the scanner"
+  ]
+ },
+ "turns": [
+  {
+   "say": "refresh the scanner",
+   "ms": 3390,
+   "context": {
+    "surface": "charts",
+    "charts": [
+     {
+      "ref": "c1",
+      "label": "Chart (SPY)",
+      "position": null,
+      "symbol": "SPY",
+      "timeframe": "D",
+      "timeframeLabel": "Daily",
+      "chartType": "candles",
+      "volume": "visible",
+      "background": "#17181a",
+      "upColor": "#2faf68",
+      "downColor": "#df4646",
+      "extendedHours": false,
+      "scale": "linear",
+      "linkedWidgets": 4
+     }
+    ],
+    "otherWidgets": [
+     "Scanner",
+     "Scanner",
+     "Watchlist",
+     "Watchlist"
+    ],
+    "workspace": [
+     {
+      "ref": "w1",
+      "label": "Workspace",
+      "widgetCount": 5,
+      "widgetLimit": 16,
+      "openSlots": {
+       "chart": 0
+      },
+      "visibleWidgets": [
+       {
+        "type": "chart",
+        "label": "Chart",
+        "position": "left"
+       },
+       {
+        "type": "scanner",
+        "label": "Scanner",
+        "position": "top-middle"
+       },
+       {
+        "type": "scanner",
+        "label": "Scanner",
+        "position": "bottom-middle"
+       },
+       {
+        "type": "watchlist",
+        "label": "Watchlist",
+        "position": "top-right"
+       },
+       {
+        "type": "watchlist",
+        "label": "Watchlist",
+        "position": "bottom-right"
+       }
+      ]
+     }
+    ],
+    "layouts": [
+     {
+      "ref": "l1",
+      "label": "Layouts",
+      "open": null,
+      "unsavedChanges": true,
+      "previous": null,
+      "layouts": [
+       {
+        "id": "uct-default",
+        "name": "UCT Default",
+        "kind": "built-in"
+       }
+      ]
+     }
+    ],
+    "watchlists": [
+     {
+      "ref": "w2",
+      "name": "Momentum",
+      "count": 4,
+      "symbols": [
+       "NVDA",
+       "TSLA",
+       "META",
+       "AAPL"
+      ],
+      "shownInWidget": [
+       "top"
+      ]
+     },
+     {
+      "ref": "w3",
+      "name": "Swing",
+      "count": 1,
+      "symbols": [
+       "MSFT"
+      ],
+      "shownInWidget": [
+       "bottom"
+      ]
+     },
+     {
+      "ref": "w4",
+      "name": "Long Term",
+      "count": 0,
+      "symbols": []
+     }
+    ],
+    "watchlistLibrary": [
+     {
+      "ref": "w5",
+      "label": "Watchlists (create new lists here)"
+     }
+    ],
+    "listViews": [
+     {
+      "ref": "l2",
+      "widget": "scanner",
+      "name": "IPOs",
+      "count": 2,
+      "rows": [
+       "AAA",
+       "BBB"
+      ],
+      "order": "sorted by IPO Date, high to low",
+      "columns": [
+       "Symbol",
+       "Price",
+       "Volume",
+       "% Change",
+       "IPO Date"
+      ],
+      "on": "SPY",
+      "position": "top"
+     },
+     {
+      "ref": "l3",
+      "widget": "scanner",
+      "name": "Top Gainers 30D",
+      "count": 2,
+      "rows": [
+       "AAA",
+       "BBB"
+      ],
+      "order": "sorted by 30-Day, high to low",
+      "columns": [
+       "Symbol",
+       "Price",
+       "% Change",
+       "30-Day"
+      ],
+      "on": "SPY",
+      "position": "bottom"
+     },
+     {
+      "ref": "l4",
+      "widget": "watchlist",
+      "name": "Momentum",
+      "count": 4,
+      "rows": [
+       "NVDA",
+       "TSLA",
+       "META",
+       "AAPL"
+      ],
+      "order": "in its saved order",
+      "columns": [
+       "Symbol",
+       "Price",
+       "Volume",
+       "% Change"
+      ],
+      "on": "SPY",
+      "position": "top",
+      "savedList": true
+     },
+     {
+      "ref": "l5",
+      "widget": "watchlist",
+      "name": "Swing",
+      "count": 1,
+      "rows": [
+       "MSFT"
+      ],
+      "order": "in its saved order",
+      "columns": [
+       "Symbol",
+       "Price",
+       "Volume",
+       "% Change"
+      ],
+      "on": "SPY",
+      "position": "bottom",
+      "savedList": true
+     }
+    ],
+    "flagged": [
+     {
+      "ref": "f1",
+      "count": 0,
+      "symbols": []
+     }
+    ],
+    "screener": [
+     {
+      "ref": "s1",
+      "label": "Screener",
+      "fields": "adr_pct:ADR %(%);price:Price($);chg_pct_1m:Change 1M(%);above_50sma:Above 50 SMA(yes/no);sector:Sector(list);dollar_volume_1d:Dollar Volume (latest session)($);volume_1d:Volume (latest session);close_1d:Close (latest session)($)",
+      "compose": "filters are ANDed. Field vs field: {field, op: gt_col|gte_col|lt_col|lte_col, other: a second number key} (\"above the price target\" = price gt_col pt_target). Candle Type: op contains, values = pattern words (every word must match); op in = any of them. OR / NOT: logic = a JSON STRING holding one tree of {\"any\":[…]}, {\"all\":[…]}, {\"none\":[…]} or {\"not\":x}, at most 4 deep; a leaf is one filter object, numbers in value/max as in filters; it is ANDed with filters. Up 5% today or 15% on the week: logic = \"{\\\"any\\\":[{\\\"field\\\":\\\"chg_pct_1d\\\",\\\"op\\\":\\\"gte\\\",\\\"value\\\":5},{\\\"field\\\":\\\"chg_pct_1w\\\",\\\"op\\\":\\\"gte\\\",\\\"value\\\":15}]}\". rank = a JSON STRING of [{\"field\":…,\"weight\":…,\"lower_better\":true|false}], number fields, percentile-weighted within the screen, sets the order (sort_field null). lower_better is the member's, ask if unclear. Never replace an any / none / not with a nearby flat filter, and never drop a condition you cannot say. mode: a request with its own stocks and conditions that does not point at the earlier results is new, even right after a screen; never copy lastScreen filters into it.",
+      "savedScreens": [
+       {
+        "id": "starter-momentum",
+        "name": "UCT Momentum",
+        "kind": "starter"
+       }
+      ]
+     }
+    ],
+    "alertLibrary": [
+     {
+      "ref": "a1",
+      "label": "Price alerts (create new alerts here)",
+      "active": 0,
+      "wentOff": 0
+     }
+    ],
+    "indicatorAlertLibrary": [
+     {
+      "ref": "i1",
+      "label": "Indicator alerts (RSI, MACD… — create new ones here; an instance id comes from the indicators entry)",
+      "active": 0,
+      "paused": 0
+     }
+    ],
+    "stockData": [
+     {
+      "ref": "m1",
+      "label": "UCT stock data (profile, fundamentals, earnings, comparisons, stored news, catalysts)"
+     }
+    ],
+    "breadth": [
+     {
+      "ref": "b1",
+      "label": "UCT market breadth (US, NYSE, Nasdaq — finalized end of day; dates only here)",
+      "today_et": "2026-10-12",
+      "latest_finalized": {
+       "us": "2026-10-09",
+       "nyse": "2026-10-09",
+       "nasdaq": "2026-10-09"
+      }
+     }
+    ],
+    "settings": [
+     {
+      "ref": "s2",
+      "label": "Your app settings",
+      "appTheme": "Graphite (default dark)",
+      "defaultChartTimeframe": "Daily",
+      "alertSound": "Chime"
+     }
+    ],
+    "app": [
+     {
+      "ref": "a2",
+      "label": "UCT pages (open one here)",
+      "current": "Charts"
+     }
+    ],
+    "watchlistDigest": [
+     {
+      "ref": "d1",
+      "label": "Watchlist email digest",
+      "setting": "unknown"
+     }
+    ],
+    "savedScreenLibrary": [
+     {
+      "ref": "s3",
+      "label": "Saved screens (save, rename, copy, delete here)",
+      "yours": [],
+      "starters": 1,
+      "lastScreenHere": null
+     }
+    ],
+    "board": [
+     {
+      "ref": "b2",
+      "label": "Board (arrange, remove, link and configure the widgets on it)",
+      "grid": {
+       "cols": 24,
+       "rows": 20
+      },
+      "widgets": [
+       {
+        "id": "w-chart-a",
+        "type": "chart",
+        "label": "Chart",
+        "position": "left",
+        "x": 0,
+        "y": 0,
+        "w": 8,
+        "h": 20,
+        "link": "A"
+       },
+       {
+        "id": "w-scan",
+        "type": "scanner",
+        "label": "Scanner",
+        "position": "top-middle",
+        "x": 8,
+        "y": 0,
+        "w": 8,
+        "h": 10,
+        "link": "A",
+        "shows": "IPOs"
+       },
+       {
+        "id": "w-scan2",
+        "type": "scanner",
+        "label": "Scanner",
+        "position": "bottom-middle",
+        "x": 8,
+        "y": 10,
+        "w": 8,
+        "h": 10,
+        "link": "A",
+        "shows": "Top Gainers 30D"
+       },
+       {
+        "id": "w-watch",
+        "type": "watchlist",
+        "label": "Watchlist",
+        "position": "top-right",
+        "x": 16,
+        "y": 0,
+        "w": 8,
+        "h": 10,
+        "link": "A",
+        "shows": "Momentum"
+       },
+       {
+        "id": "w-watch2",
+        "type": "watchlist",
+        "label": "Watchlist",
+        "position": "bottom-right",
+        "x": 16,
+        "y": 10,
+        "w": 8,
+        "h": 10,
+        "link": "A",
+        "shows": "Swing"
+       }
+      ]
+     }
+    ],
+    "widgetControls": [
+     {
+      "controls": {
+       "scanner": "refresh(run: its own button), scan(picker)"
+      },
+      "set": {
+       "w-scan": {
+        "scan": "ipo-1y"
+       },
+       "w-scan2": {
+        "scan": "top-gainers-30d"
+       }
+      }
+     }
+    ],
+    "drawings": [
+     {
+      "ref": "d2",
+      "symbol": "SPY",
+      "shownOn": [
+       "Chart (SPY)"
+      ],
+      "timeframe": "D",
+      "loadedHistory": "2025-01-02 to 2025-10-08",
+      "drawings": []
+     }
+    ],
+    "indicators": [
+     {
+      "ref": "i2",
+      "chart": "Chart (SPY)",
+      "position": null,
+      "symbol": "SPY",
+      "createIndicator": true,
+      "indicators": [
+       {
+        "name": "EMA 9",
+        "id": "ovl:0",
+        "placement": "price"
+       },
+       {
+        "name": "EMA 20",
+        "id": "ovl:1",
+        "placement": "price"
+       },
+       {
+        "name": "SMA 50",
+        "id": "ovl:2",
+        "placement": "price"
+       },
+       {
+        "name": "SMA 200",
+        "id": "ovl:3",
+        "placement": "price"
+       },
+       {
+        "name": "Volume",
+        "placement": "price",
+        "setting": true
+       }
+      ]
+     }
+    ],
+    "indicatorEdits": [
+     {
+      "ref": "i3",
+      "chart": "Chart (SPY)",
+      "position": null,
+      "symbol": "SPY",
+      "canManage": true
+     }
+    ],
+    "indicatorDrafts": [
+     {
+      "ref": "i4",
+      "new": true,
+      "label": "start a NEW indicator draft (or edit one of yourIndicators)",
+      "yourIndicators": []
+     }
+    ],
+    "chartTemplateLibrary": [
+     {
+      "ref": "c2",
+      "label": "Your saved chart templates (save one from a chart, or delete one, here)",
+      "names": []
+     }
+    ],
+    "definitionLibrary": [
+     {
+      "ref": "d3",
+      "label": "Indicator definitions (search, describe, copy, delete your own here)"
+     }
+    ],
+    "agent": [
+     {
+      "ref": "a3",
+      "label": "UCT Agent (ask what I can and cannot do)"
+     }
+    ]
+   },
+   "idle": true,
+   "card": null,
+   "newReceipt": true,
+   "receiptText": "Refreshed the Scanner",
+   "undoable": null,
+   "modelCalls": 1,
+   "last": "Harness\n4:51 PM\nrefresh the scanner // UCT Agent\n4:51 PM\nRefreshed the Scanner",
+   "envelope": {
+    "disposition": "apply",
+    "ops": [
+     {
+      "action": "widget.setOption",
+      "target": "b2",
+      "args": {
+       "widget": "w-scan",
+       "key": "refresh",
+       "value": "run"
+      }
+     }
+    ],
+    "reply": "",
+    "question": null,
+    "unsupported_category": null
+   },
+   "unreadable": false
+  }
+ ],
+ "guide": null,
+ "before": {
+  "charts": {
+   "A": {
+    "sym": "SPY",
+    "tf": "D",
+    "scale": "linear",
+    "session": "RTH",
+    "volume": true,
+    "chips": [
+     "EMA 9",
+     "EMA 20",
+     "SMA 50",
+     "SMA 200"
+    ],
+    "panes": 3,
+    "panePx": [
+     582,
+     79,
+     28
+    ],
+    "pixels": "74dc3e39.78d45515.a2854f78.2f88a865.31adb1b5.eaeb276d.6c048974.9c547bd5.165b933f.eb93c465.eb93c465.165b933f",
+    "axis": [
+     "SPY, 1D",
+     "144.00",
+     "148.00",
+     "152.00",
+     "156.00",
+     "160.00",
+     "164.00",
+     "168.00",
+     "172.00",
+     "176.00",
+     "180.00",
+     "184.00",
+     "188.00",
+     "192.00",
+     "196.00",
+     "200.00",
+     "204.00",
+     "208.00",
+     "212.00",
+     "185.07",
+     "2M",
+     "2.64M",
+     "Jul",
+     "Sep",
+     "2026"
+    ],
+    "x": 12,
+    "y": 72,
+    "w": 357,
+    "h": 788
+   }
+  },
+  "widgets": [
+   {
+    "id": "w-chart-a",
+    "type": "chart",
+    "x": 12,
+    "y": 72,
+    "w": 357,
+    "h": 788
+   },
+   {
+    "id": "w-scan",
+    "type": "scanner",
+    "x": 375,
+    "y": 72,
+    "w": 357,
+    "h": 391
+   },
+   {
+    "id": "w-scan2",
+    "type": "scanner",
+    "x": 375,
+    "y": 469,
+    "w": 357,
+    "h": 391
+   },
+   {
+    "id": "w-watch",
+    "type": "watchlist",
+    "x": 739,
+    "y": 72,
+    "w": 357,
+    "h": 391
+   },
+   {
+    "id": "w-watch2",
+    "type": "watchlist",
+    "x": 739,
+    "y": 469,
+    "w": 357,
+    "h": 391
+   }
+  ],
+  "chartCount": 1,
+  "types": [
+   "chart",
+   "scanner",
+   "scanner",
+   "watchlist",
+   "watchlist"
+  ],
+  "wl": {
+   "Momentum": [
+    "NVDA",
+    "TSLA",
+    "META",
+    "AAPL"
+   ],
+   "Swing": [
+    "MSFT"
+   ],
+   "Long Term": []
+  },
+  "wlNotes": {
+   "Momentum": {
+    "TSLA": "earnings 10/22"
+   },
+   "Swing": {},
+   "Long Term": {}
+  },
+  "drawings": {},
+  "alerts": [],
+  "ialerts": [],
+  "layouts": [],
+  "written": {
+   "charts_layout_dock": "{\"pins\":[\"uct-default\"],\"known\":[\"uct-default\"],\"hidden\":false}",
+   "charts_workspace_layout": "{\"version\":1,\"cols\":24,\"widgets\":[{\"id\":\"w-chart-a\",\"type\":\"chart\",\"color\":\"A\",\"x\":0,\"y\":0,\"w\":8,\"h\":20,\"opts\":{\"tf\":\"D\"}},{\"id\":\"w-scan\",\"type\":\"scanner\",\"color\":\"A\",\"x\":8,\"y\":0,\"w\":8,\"h\":10,\"opts\":{\"scanKey\":\"ipo-1y\",\"scanName\":\"IPOs\"}},{\"id\":\"w-scan2\",\"type\":\"scanner\",\"color\":\"A\",\"x\":8,\"y\":10,\"w\":8,\"h\":10,\"opts\":{\"scanKey\":\"top-gainers-30d\",\"scanName\":\"Top Gainers 30D\"}},{\"id\":\"w-watch\",\"type\":\"watchlist\",\"color\":\"A\",\"x\":16,\"y\":0,\"w\":8,\"h\":10,\"opts\":{\"watchKey\":\"user:m1\",\"watchName\":\"Momentum\",\"watchTab\":\"mine\"}},{\"id\":\"w-watch2\",\"type\":\"watchlist\",\"color\":\"A\",\"x\":16,\"y\":10,\"w\":8,\"h\":10,\"opts\":{\"watchKey\":\"user:s1\",\"watchName\":\"Swing\",\"watchTab\":\"mine\"}}]}"
+  },
+  "layoutWrites": [],
+  "screens": [],
+  "wlCols": {
+   "uct.watchlist.cols.scanner.ipo-1y.ipodate1": 1
+  },
+  "scanGets": {
+   "all": 2,
+   "period": 0,
+   "scanner": 2,
+   "byRoute": {
+    "/api/scans/ipo-1y": 1,
+    "/api/scans/top-gainers-30d": 1
+   }
+  },
+  "drawingCount": 0,
+  "unreadable": [
+   "type",
+   "settingsHash"
+  ]
+ },
+ "after": {
+  "charts": {
+   "A": {
+    "sym": "SPY",
+    "tf": "D",
+    "scale": "linear",
+    "session": "RTH",
+    "volume": true,
+    "chips": [
+     "EMA 9",
+     "EMA 20",
+     "SMA 50",
+     "SMA 200"
+    ],
+    "panes": 3,
+    "panePx": [
+     582,
+     79,
+     28
+    ],
+    "pixels": "74dc3e39.78d45515.a2854f78.2f88a865.31adb1b5.eaeb276d.6c048974.9c547bd5.165b933f.eb93c465.eb93c465.165b933f",
+    "axis": [
+     "SPY, 1D",
+     "144.00",
+     "148.00",
+     "152.00",
+     "156.00",
+     "160.00",
+     "164.00",
+     "168.00",
+     "172.00",
+     "176.00",
+     "180.00",
+     "184.00",
+     "188.00",
+     "192.00",
+     "196.00",
+     "200.00",
+     "204.00",
+     "208.00",
+     "212.00",
+     "185.07",
+     "2M",
+     "2.64M",
+     "Jul",
+     "Sep",
+     "2026"
+    ],
+    "x": 12,
+    "y": 72,
+    "w": 357,
+    "h": 788
+   }
+  },
+  "widgets": [
+   {
+    "id": "w-chart-a",
+    "type": "chart",
+    "x": 12,
+    "y": 72,
+    "w": 357,
+    "h": 788
+   },
+   {
+    "id": "w-scan",
+    "type": "scanner",
+    "x": 375,
+    "y": 72,
+    "w": 357,
+    "h": 391
+   },
+   {
+    "id": "w-scan2",
+    "type": "scanner",
+    "x": 375,
+    "y": 469,
+    "w": 357,
+    "h": 391
+   },
+   {
+    "id": "w-watch",
+    "type": "watchlist",
+    "x": 739,
+    "y": 72,
+    "w": 357,
+    "h": 391
+   },
+   {
+    "id": "w-watch2",
+    "type": "watchlist",
+    "x": 739,
+    "y": 469,
+    "w": 357,
+    "h": 391
+   }
+  ],
+  "chartCount": 1,
+  "types": [
+   "chart",
+   "scanner",
+   "scanner",
+   "watchlist",
+   "watchlist"
+  ],
+  "wl": {
+   "Momentum": [
+    "NVDA",
+    "TSLA",
+    "META",
+    "AAPL"
+   ],
+   "Swing": [
+    "MSFT"
+   ],
+   "Long Term": []
+  },
+  "wlNotes": {
+   "Momentum": {
+    "TSLA": "earnings 10/22"
+   },
+   "Swing": {},
+   "Long Term": {}
+  },
+  "drawings": {},
+  "alerts": [],
+  "ialerts": [],
+  "layouts": [],
+  "written": {
+   "charts_layout_dock": "{\"pins\":[\"uct-default\"],\"known\":[\"uct-default\"],\"hidden\":false}",
+   "charts_workspace_layout": "{\"version\":1,\"cols\":24,\"widgets\":[{\"id\":\"w-chart-a\",\"type\":\"chart\",\"color\":\"A\",\"x\":0,\"y\":0,\"w\":8,\"h\":20,\"opts\":{\"tf\":\"D\"}},{\"id\":\"w-scan\",\"type\":\"scanner\",\"color\":\"A\",\"x\":8,\"y\":0,\"w\":8,\"h\":10,\"opts\":{\"scanKey\":\"ipo-1y\",\"scanName\":\"IPOs\"}},{\"id\":\"w-scan2\",\"type\":\"scanner\",\"color\":\"A\",\"x\":8,\"y\":10,\"w\":8,\"h\":10,\"opts\":{\"scanKey\":\"top-gainers-30d\",\"scanName\":\"Top Gainers 30D\"}},{\"id\":\"w-watch\",\"type\":\"watchlist\",\"color\":\"A\",\"x\":16,\"y\":0,\"w\":8,\"h\":10,\"opts\":{\"watchKey\":\"user:m1\",\"watchName\":\"Momentum\",\"watchTab\":\"mine\"}},{\"id\":\"w-watch2\",\"type\":\"watchlist\",\"color\":\"A\",\"x\":16,\"y\":10,\"w\":8,\"h\":10,\"opts\":{\"watchKey\":\"user:s1\",\"watchName\":\"Swing\",\"watchTab\":\"mine\"}}]}",
+   "charts_workspace_groups": "{\"A\":\"SPY\",\"B\":\"AAPL\",\"C\":\"AMD\",\"D\":\"MSFT\"}"
+  },
+  "layoutWrites": [],
+  "screens": [],
+  "wlCols": {
+   "uct.watchlist.cols.scanner.ipo-1y.ipodate1": 1
+  },
+  "scanGets": {
+   "all": 3,
+   "period": 0,
+   "scanner": 3,
+   "byRoute": {
+    "/api/scans/ipo-1y": 2,
+    "/api/scans/top-gainers-30d": 1
+   }
+  },
+  "drawingCount": 0,
+  "unreadable": [
+   "type",
+   "settingsHash"
+  ]
+ }
+}
