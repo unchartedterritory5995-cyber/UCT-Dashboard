@@ -33,7 +33,7 @@ def test_only_bars_newer_than_the_local_tail_are_adopted(tmp_path):
     local, snap = str(tmp_path / "bars.db"), str(tmp_path / "delta.db")
     _db(local, [("AAA", "5", 100), ("AAA", "5", 300), ("AAA", "D", 100),
                 ("BBB", "5", 100)])
-    _db(snap, [("AAA", "5", 200),    # a gap below the local tail: not adopted
+    _db(snap, [("AAA", "5", 200),    # below the tail, basis UNPROVEN (no common row): not adopted
                ("AAA", "5", 400),    # newer than the tail: adopted
                ("AAA", "D", 100),    # already there
                ("CCC", "D", 50),     # a pair the pod has never seen: adopted
@@ -54,15 +54,18 @@ def test_a_snapshot_with_nothing_new_adopts_zero_not_minus_one(tmp_path):
 
 
 def test_the_merge_never_scans_the_local_table():
-    src = open(data_sync.__file__, encoding="utf-8").read()
-    fn = src[src.index("def _merge_ohlcv_from"):src.index("def merge_snapshot")]
-    sql = re.search(r'conn\.execute\(\s*"""(.*?)"""', fn, re.S).group(1)
+    """Every per-pair statement the chunked merge runs is a primary-key seek on BOTH
+    tables (2026-11-10: the single set-at-a-time statement became per-pair SQL)."""
     c = sqlite3.connect(":memory:")
     c.execute("ATTACH ':memory:' AS snap")
     for db in ("main", "snap"):
         c.execute(f"CREATE TABLE {db}.ohlcv (ticker TEXT NOT NULL, tf TEXT NOT NULL, "
                   "ts INTEGER NOT NULL, o REAL, h REAL, l REAL, c REAL, v INTEGER, "
                   "PRIMARY KEY (ticker, tf, ts))")
-    plan = [r[3] for r in c.execute("EXPLAIN QUERY PLAN " + sql)]
-    assert any(p.startswith("SEARCH m ") for p in plan), plan
-    assert not any(re.match(r"SCAN (m|main\.ohlcv|ohlcv)\b", p) for p in plan), plan
+    for sql in (data_sync._MERGE_ADD_SQL, data_sync._MERGE_CORRECT_SQL):
+        plan = [r[3] for r in c.execute("EXPLAIN QUERY PLAN " + sql, ("A", "5", 0))]
+        assert not any(re.match(r"SCAN\b", p) for p in plan), plan
+    for basis in (data_sync._MERGE_BASIS_NEWEST_SQL, data_sync._MERGE_BASIS_OLDEST_SQL):
+        plan = [r[3] for r in c.execute("EXPLAIN QUERY PLAN " + basis,
+                                        (0,) * basis.count("?"))]
+        assert not any(re.match(r"SCAN (main\.ohlcv|ohlcv|s)\b", p) for p in plan), plan
