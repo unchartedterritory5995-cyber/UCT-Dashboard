@@ -65,7 +65,8 @@ const C = {
   news: ['news', 'feed'],
   note: ['=note', '=notes'],
   collection: ['collection'],
-  answer: ['answer', 'reply'],
+  // an answer named indirectly: "the response", "what the AI said / wrote / told me" (a pattern piece: no literal spaces)
+  answer: ['answer', 'reply', 'respons', 'what\\s+(?:the\\s+)?(?:ai(?:\\s+search)?|it|search)\\s+(?:said|wrote|told\\s+me|gave\\s+me|came\\s+back\\s+with)'],
   scan: ['scan', 'screen'],
   index: ['index', 'indexes', 'indices', '=dow', 'nasdaq', 's&p'],
   journal: ['journal'],
