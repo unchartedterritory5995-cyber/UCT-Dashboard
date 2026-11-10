@@ -84,8 +84,14 @@
   "title": "Log, percent or arithmetic scale"
  },
  {
+  "id": "C1-023",
+  "say": "how do I toggle log (Shift+L)",
+  "feature": "chartKey",
+  "title": "Toggle log scale (Shift+L)"
+ },
+ {
   "id": "C1-024",
-  "say": "how do I invert scale (Alt+I)",
+  "say": "show me how to flip the chart upside down",
   "feature": "chartView",
   "title": "Inverting the scale"
  },
@@ -124,6 +130,12 @@
   "say": "show me how to go to 2020",
   "feature": "goToDate",
   "title": "Going to a date"
+ },
+ {
+  "id": "C1-033",
+  "say": "how do I open date box (Alt+G)",
+  "feature": "chartKey",
+  "title": "Go to date (Alt+G)"
  },
  {
   "id": "C1-034",
@@ -235,7 +247,7 @@
  },
  {
   "id": "C1-056",
-  "say": "how do I watermark on/off (Alt+Shift+W)",
+  "say": "show me how to hide the watermark",
   "feature": "chartSetting",
   "title": "Changing Watermark"
  },
@@ -343,7 +355,7 @@
  },
  {
   "id": "C1-075",
-  "say": "how do I bar-close countdown (Shift+C)",
+  "say": "show me how to show the countdown",
   "feature": "chartSetting",
   "title": "Changing Bar-close countdown"
  },
@@ -355,7 +367,7 @@
  },
  {
   "id": "C1-078",
-  "say": "how do I light/dark palette (Shift+T)",
+  "say": "show me how to light chart",
   "feature": "chartView",
   "title": "Light or dark chart"
  },
@@ -397,7 +409,7 @@
  },
  {
   "id": "C1-086",
-  "say": "how do I show/hide volume (Ctrl+V, menu)",
+  "say": "show me how to hide volume",
   "feature": "chartView",
   "title": "Showing or hiding volume"
  },
@@ -475,13 +487,13 @@
  },
  {
   "id": "C1-103",
-  "say": "how do I hide all indicators (Alt+Shift+I)",
+  "say": "show me how to hide all my indicators",
   "feature": "chartView",
   "title": "Hiding all indicators"
  },
  {
   "id": "C1-105",
-  "say": "how do I toggle moving averages (Ctrl+M)",
+  "say": "show me how to hide my moving averages",
   "feature": "chartView",
   "title": "Toggling moving averages"
  },
@@ -499,7 +511,7 @@
  },
  {
   "id": "C1-110",
-  "say": "how do I open share popover (Alt+S)",
+  "say": "show me how to screenshot this",
   "feature": "chartView",
   "title": "Sharing a chart"
  },
@@ -520,6 +532,12 @@
   "say": "how do I copy share link",
   "feature": "control",
   "title": "Sharing: Copy Share URL"
+ },
+ {
+  "id": "C1-114",
+  "say": "how do I price alert at the cursor (Alt+N)",
+  "feature": "chartKey",
+  "title": "Price alert at cursor (Alt+N)"
  },
  {
   "id": "C1-115",
@@ -571,7 +589,7 @@
  },
  {
   "id": "C1-127",
-  "say": "how do I open chart settings (Alt+,, gear)",
+  "say": "show me how to open chart settings",
   "feature": "settings",
   "title": "Finding chart settings"
  },
@@ -816,10 +834,28 @@
   "title": "Drawing boards: Delete"
  },
  {
+  "id": "C1-171",
+  "say": "how do I add ticker to watchlist (Alt+Q)",
+  "feature": "chartKey",
+  "title": "Add ticker to watchlist (Alt+Q)"
+ },
+ {
+  "id": "C1-172",
+  "say": "how do I add indicator dialog (Alt+Shift+A)",
+  "feature": "chartKey",
+  "title": "Add indicator (settings) (Alt+Shift+A)"
+ },
+ {
   "id": "C1-173",
   "say": "show me how to 2x2 grid",
   "feature": "multiChart",
   "title": "Setting up a 2×2 chart grid"
+ },
+ {
+  "id": "C1-174",
+  "say": "how do I keyboard help (?)",
+  "feature": "chartKey",
+  "title": "Show this help overlay (?)"
  },
  {
   "id": "C2-001",

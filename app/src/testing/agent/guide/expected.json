@@ -64,8 +64,10 @@
   "from": "2026-11-05 matrix Guide feature"
  },
  "C1-023": {
-  "feature": "chartView",
-  "from": "2026-11-05 matrix Guide feature"
+  "feature": "chartKey",
+  "title": "Toggle log scale (Shift+L)",
+  "from": "2026-11-10 teach-keys: the chart key, keyboardShortcuts.js SHORTCUTS (pl-teach)",
+  "was": "chartView"
  },
  "C1-024": {
   "feature": "chartView",
@@ -96,8 +98,10 @@
   "from": "2026-11-05 matrix Guide feature"
  },
  "C1-033": {
-  "feature": "goToDate",
-  "from": "2026-11-05 matrix Guide feature"
+  "feature": "chartKey",
+  "title": "Go to date (Alt+G)",
+  "from": "2026-11-10 teach-keys: the chart key, keyboardShortcuts.js SHORTCUTS (pl-teach)",
+  "was": "goToDate"
  },
  "C1-034": {
   "feature": "compare",
@@ -350,8 +354,10 @@
   "from": "2026-11-05 matrix Guide feature"
  },
  "C1-114": {
-  "feature": "chartMenu",
-  "from": "2026-11-05 matrix Guide feature"
+  "feature": "chartKey",
+  "title": "Price alert at cursor (Alt+N)",
+  "from": "2026-11-10 teach-keys: the chart key, keyboardShortcuts.js SHORTCUTS (pl-teach)",
+  "was": "chartMenu"
  },
  "C1-115": {
   "feature": "drawingEdit",
@@ -492,12 +498,16 @@
   "from": "2026-11-05 matrix Guide feature"
  },
  "C1-171": {
-  "feature": "chartView",
-  "from": "2026-11-05 matrix Guide feature"
+  "feature": "chartKey",
+  "title": "Add ticker to watchlist (Alt+Q)",
+  "from": "2026-11-10 teach-keys: the chart key, keyboardShortcuts.js SHORTCUTS (pl-teach)",
+  "was": "chartView"
  },
  "C1-172": {
-  "feature": "chartView",
-  "from": "2026-11-05 matrix Guide feature"
+  "feature": "chartKey",
+  "title": "Add indicator (settings) (Alt+Shift+A)",
+  "from": "2026-11-10 teach-keys: the chart key, keyboardShortcuts.js SHORTCUTS (pl-teach)",
+  "was": "chartView"
  },
  "C2-001": {
   "feature": "indicators",
@@ -1574,5 +1584,11 @@
   "feature": "control",
   "title": "A drawing’s Duplicate",
   "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Duplicate on a drawing’s menu)"
+ },
+ "C1-174": {
+  "feature": "chartKey",
+  "title": "Show this help overlay (?)",
+  "from": "2026-11-10 teach-keys: the chart key, keyboardShortcuts.js SHORTCUTS (pl-teach)",
+  "was": null
  }
 }
