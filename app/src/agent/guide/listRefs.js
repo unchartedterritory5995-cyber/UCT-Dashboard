@@ -17,6 +17,23 @@ export function listNamesOf(host) {
     .sort((a, b) => b.length - a.length)   // the longer name first: "Swing Ideas 2" before "Swing Ideas"
 }
 
+// "my Swing Ideas list" → "my watchlist", but never a name mid-word ("BigMomentum list"): with no my / the / this / our before
+// it, the character before the name must not be a letter or digit. Tested on the text, never a regex lookbehind (Safari
+// < 16.4 cannot parse one: agentNoLookbehindStrings); a vetoed match resumes one character on, as the engine did
+// (agentGuideListRefsNoLookbehind holds old and new equal).
+function replaceNamed(q, re) {
+  let out = '', i = 0, m
+  re.lastIndex = 0
+  while ((m = re.exec(q))) {
+    const at = m.index
+    if (!m[1] && at > 0 && /[a-z0-9]/i.test(q[at - 1])) { re.lastIndex = at + 1; continue }
+    out += q.slice(i, at) + 'my watchlist'
+    i = at + m[0].length
+    re.lastIndex = i
+  }
+  return out + q.slice(i)
+}
+
 /** The words with each named list read as "my watchlist" where they use it as a list → the words (unchanged if none). */
 export function withListRefs(text, names) {
   let q = String(text || '')
@@ -26,8 +43,8 @@ export function withListRefs(text, names) {
     // "to Momentum", "from my Swing Ideas", "in the Q4 Leaders list", "out of Momentum"
     const after = new RegExp(`\\b(to|from|in|into|on|onto|of|out of)\\s+(?:(?:my|the|this|our)\\s+)?${n}(?:\\s+(?:watch ?)?list)?(?=$|[^a-z0-9])`, 'gi')
     // "my Swing Ideas list", "the Momentum watchlist"
-    const named = new RegExp(`(?:\\b(?:my|the|this|our)\\s+)?(?<![a-z0-9])${n}\\s+(?:watch ?)?list\\b`, 'gi')
-    q = q.replace(after, (_m, prep) => `${prep} my watchlist`).replace(named, 'my watchlist')
+    const named = new RegExp(`(\\b(?:my|the|this|our)\\s+)?${n}\\s+(?:watch ?)?list\\b`, 'gi')
+    q = replaceNamed(q.replace(after, (_m, prep) => `${prep} my watchlist`), named)
   }
   return q
 }

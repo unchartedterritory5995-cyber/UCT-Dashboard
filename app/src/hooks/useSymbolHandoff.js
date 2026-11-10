@@ -27,7 +27,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { memPeek } from '../utils/barsMemCache'
-import { prefetchBarsToIDB, prepareForDisplay } from '../utils/prefetchBars'
+import { prefetchBarsToIDB, prepareForDisplay, prepareDailyForDisplay } from '../utils/prefetchBars'
 import { isCurrentEnoughForPaint } from '../utils/marketSession'
 import { isNativeTf, fetchTf } from '../components/chart/timeframes'
 
@@ -90,6 +90,11 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true } = 
     const gen = ++genRef.current
     const commit = () => { if (genRef.current === gen) setDisplayedSym(requestedSym) }
 
+    // ⛔ AN ECONOMIC SERIES (`ECON:USCPI`) IS NOT A BARS SYMBOL: nothing to prepare
+    // or prefetch through the bars lane (it would 404) — the chart loads it from
+    // /api/econ itself, so the request commits straight through.
+    if (/^ECON:/i.test(String(requestedSym))) { commit(); return undefined }
+
     // FAST PATH — synchronous, same tick, no scheduling latency added.
     // ⛔ THE SYNCHRONOUS setState IS THE POINT, NOT AN OVERSIGHT. A neighbour the
     // warmer already promoted to mem is displayable RIGHT NOW; deferring its
@@ -98,21 +103,34 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true } = 
     // must not cause. One extra render on a switch the member asked for is the
     // cheap half of that trade.
     // eslint-disable-next-line react-hooks/set-state-in-effect
+    // ⛔ D/W/M NEVER WAITS ON THE INTRADAY PREPARE, BUT IT MUST NOT BLANK EITHER.
+    // Measured on production: a daily symbol not yet in memory committed at once and
+    // tore the canvas down, 2 blank frames for a disk-cached name and 6 (~100 ms) for
+    // one never seen, then repainted in the same place. So a daily symbol not already
+    // in memory is promoted (or fetched) first, and A stays whole meanwhile. Bounded:
+    // past DAILY_HOLD_MAX_MS the chart gets the symbol and shows its own loading state.
+    // A pseudo symbol (`$IDX:…`) has no bars lane and commits straight through.
+    if (isNativeTf(tf) && !INTRADAY.has(String(tf))
+        && /^[A-Z0-9.^-]{1,12}$/i.test(String(requestedSym))
+        && !memPeek(requestedSym, tf)?.length) {
+      let live = true
+      const land = (outcome) => {
+        if (!live || genRef.current !== gen) return
+        lastOutcomeRef.current = outcome
+        commit()
+      }
+      // Aborted on any exit: a newer symbol, or past the bound, where the chart owns the fetch.
+      const ctl = new AbortController()
+      prepareDailyForDisplay(requestedSym, tf, { signal: ctl.signal }).then(land, () => land('error'))
+      const bound = setTimeout(() => land('hold-timeout'), DAILY_HOLD_MAX_MS)
+      return () => { live = false; clearTimeout(bound); ctl.abort() }
+    }
+
     if (peekDisplayable(requestedSym, tf)) { commit(); return undefined }
 
-    // ⛔ AN ECONOMIC SERIES (`ECON:USCPI`) IS NOT A BARS SYMBOL: nothing to prepare
-    // or prefetch through the bars lane (it would 404) — the chart loads it from
-    // /api/econ itself, so the request commits straight through.
-    if (/^ECON:/i.test(String(requestedSym))) { commit(); return undefined }
-
-    // ⛔ INTRADAY ONLY, AND THAT IS A SCOPE DECISION NOT AN OVERSIGHT.
-    //   • D/W/M: the defect is intraday (the frontier maths is bucket
-    //     arithmetic over a session), daily already paints from the pack, and
-    //     "do not regress global daily chart speed" is an explicit constraint.
-    //     A cold daily switch must not start waiting on this coordinator.
-    //   • Custom codes (2m, 45m…): the separately-deferred architecture fetches
-    //     its own base and this coordinator has no view of it.
-    // Both pass straight through, byte-for-byte as before.
+    // ⛔ THE INTRADAY PREPARE IS FOR INTRADAY ONLY. D/W/M took the bounded branch
+    // above; a custom code (2m, 45m...) fetches its own base, which this coordinator
+    // has no view of, and passes straight through.
     if (!isNativeTf(tf) || !INTRADAY.has(String(tf))) { commit(); return undefined }
 
     let alive = true
@@ -181,6 +199,8 @@ export function lastHandoffOutcome(ref) { return ref?.current ?? null }
 // Fast enough that a repair landing between ticks is not perceptible, slow
 // enough that a long prepare costs a handful of cache reads, not hundreds.
 const POLL_MS = 25
+// How long a daily symbol not yet in memory may hold the previous chart.
+export const DAILY_HOLD_MAX_MS = 400
 // ⚠️ A HANG GUARD, NOT A LATENCY BUDGET. `prepareForDisplay` settles on success
 // and on failure, so this only fires when a request never settles at all.
 // Deliberately generous: firing it early would race a slow-but-healthy prepare
