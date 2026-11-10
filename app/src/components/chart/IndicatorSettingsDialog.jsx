@@ -54,7 +54,6 @@ import { findInstance, setInstanceInput, setInstanceHidden,
          instanceDotSizeReading, DOT_SIZE_MIXED,
          saveInstanceAsDefault, resetInstanceToUctDefault, memberDefaultState,
          withIndicatorDefaultsOf } from './engine/instanceControls'
-import { noteRsPreset } from '../../lib/rsTelemetry'
 import { memberDefaultNote, saveDefaultIsNoop, SAVE_DEFAULT_LABEL, RESET_DEFAULT_LABEL } from './memberDefaultCopy'
 // ⭐ 2a-12 — the preset readers moved into the engine (`presetsOf`, `detectPreset`,
 // `CUSTOM_PRESET`) so this dialog and the phone sheet read ONE copy. The id is
@@ -402,7 +401,7 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
     setDraft((d) => { const out = { ...d }; for (const k of keys) delete out[k]; return out })
     setNotes((s) => { const out = { ...s }; for (const k of keys) out[k] = null; return out })
     setPickedPresetId(preset.id)
-    noteRsPreset(def, preset)
+    // (the `rs_preset` count was retired with the presets, RS split U9)
     writeSettings(applyPresetInputs(settingsRef.current, instanceId, def, preset, registry))
   }, [def, instanceId, registry, flushNow, writeSettings])
 

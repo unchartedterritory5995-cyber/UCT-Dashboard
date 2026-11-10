@@ -1,11 +1,9 @@
 /**
  * ⭐ UCT RS unit VA2 — the plan's §13 telemetry, as COUNTS ONLY.
  *
- * Six events (plan §13, "Telemetry counts as v3"):
+ * Five events (plan §13, "Telemetry counts as v3"; six until U9 retired `rs_preset`):
  *   rs_on               an RS copy started drawing on a chart this tab is showing
  *   rs_off_within_60s   that copy stopped drawing (hidden or removed) within 60 s
- *   rs_preset {name}    a preset was picked (the dialog, the phone sheet, the chip
- *                       menu's Preset page, the Chart Settings inspector)
  *   rs_benchmark {value} a copy's benchmark changed (whichever door changed it)
  *   rs_marker_card {kind} a readout card was opened (`kind` = the readout row key)
  *   rs_learn {target}   a Learn link was followed (`target` = the lesson key)
@@ -16,14 +14,20 @@
  *
  * ⭐ ON BY DEFAULT SINCE THE SERVER LISTS THE EVENTS (2026-11-07). That door refuses
  * any event outside `api/services/indicator_telemetry.CLIENT_FIREABLE_EVENTS` (400)
- * and any prop its `EVENT_SCHEMAS` / `_VALUE_RULES` do not allow (422). The six
+ * and any prop its `EVENT_SCHEMAS` / `_VALUE_RULES` do not allow (422). The five
  * `rs_*` events and their one prop each are on those lists now, each value held to
- * a closed set (preset ids, benchmark codes, card keys, lesson keys) or the ticker
- * pattern, so the gate is open. ⛔ KILL SWITCH: a build with
+ * a closed set (benchmark codes, card keys, lesson keys) or the ticker pattern, so
+ * the gate is open.
+ *
+ * ⚰️ `rs_preset {name}` (a preset was picked) was RETIRED by the RS split (U9,
+ * 2026-11-09): the slim UCT RS Line has no presets (map §(a) U7), so the count has
+ * nothing to count. The server allow-list dropped it the same day; a build that
+ * still sent it would be refused at the door (400), which is why it is gone here
+ * rather than left dangling. Today's definition's preset doors simply count nothing. ⛔ KILL SWITCH: a build with
  * `VITE_RS_TELEMETRY_ENABLED=0` sends nothing at all; any other value, or none, is on.
  *
- * ⛔ NO PERSONAL DATA. A prop is a ticker symbol, a preset id, a benchmark code, a
- * readout row key or a lesson key: a short identifier, checked against
+ * ⛔ NO PERSONAL DATA. A prop is a ticker symbol, a benchmark code, a readout row
+ * key or a lesson key: a short identifier, checked against
  * `PROP_VALUE_RE` and dropped otherwise. Never a name, an email, a note or a number
  * a member typed.
  *
@@ -35,17 +39,16 @@ import { logIndicatorTelemetry, newImportId } from './indicatorTelemetry'
 /** The definition these events describe. */
 export const RS_DEF_ID = 'rsLine'
 
-/** The six events and the one prop each may carry (besides `symbol`). */
+/** The five events and the one prop each may carry (besides `symbol`). */
 export const RS_TELEMETRY_EVENTS = Object.freeze({
   rs_on: Object.freeze(['symbol']),
   rs_off_within_60s: Object.freeze(['symbol']),
-  rs_preset: Object.freeze(['name']),
   rs_benchmark: Object.freeze(['value']),
   rs_marker_card: Object.freeze(['kind']),
   rs_learn: Object.freeze(['target']),
 })
 
-/** A prop value is a short identifier: a ticker (`BRK-B`, `BRK.B`), a preset id, a code. */
+/** A prop value is a short identifier: a ticker (`BRK-B`, `BRK.B`), a lesson key, a code. */
 export const PROP_VALUE_RE = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,31}$/
 
 /** ⭐ The server's ticker rule for `symbol` (`indicator_telemetry._RS_TICKER`), so a
@@ -133,12 +136,6 @@ export function logRsEvent(event, props, dedupeKey) {
 }
 
 const isRs = (defOrId) => (typeof defOrId === 'string' ? defOrId : defOrId && defOrId.id) === RS_DEF_ID
-
-/** A preset was picked on an RS copy (any door). */
-export function noteRsPreset(def, preset) {
-  if (!isRs(def) || !preset || typeof preset.id !== 'string') return false
-  return logRsEvent('rs_preset', { name: preset.id }, preset.id)
-}
 
 /** A readout card was opened on an RS chip. `kind` is the readout row key. */
 export function noteRsCard(defOrId, kind) {

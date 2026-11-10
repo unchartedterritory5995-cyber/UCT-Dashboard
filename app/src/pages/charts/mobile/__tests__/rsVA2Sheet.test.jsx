@@ -6,7 +6,7 @@
 //   · "Save as my default" / "Reset to UCT default" through the same engine
 //     writers as the desktop dialog, one `onWrite` each, disabled when a press
 //     would change nothing, with the same one-line note;
-//   · choosing a preset counts `rs_preset` (when RS telemetry is on).
+//   · choosing a preset counts NOTHING: `rs_preset` was retired with the presets (RS split U9).
 import { useState } from 'react'
 import { render, screen, cleanup, act, fireEvent } from '@testing-library/react'
 import { vi, describe, test, expect, afterEach } from 'vitest'
@@ -97,12 +97,15 @@ describe('Save as my default / Reset to UCT default on the phone', () => {
 })
 
 describe('telemetry', () => {
-  test('choosing a preset counts rs_preset with the preset id', async () => {
+  // U9: the `rs_preset` count is retired (the slim RS Line has no presets; the server refuses the event).
+  // Today's definition still offers the chips; picking one sends no telemetry at all.
+  test('choosing a preset sends no telemetry (rs_preset retired, U9)', async () => {
     const sent = []
     __setRsTelemetrySink((e, p) => sent.push([e, p]))
     mount(rsCs())
     const trend = editor().querySelector('[data-preset-id="trend"]')
+    expect(trend, 'the preset chip is still on today\'s definition').not.toBeNull()
     await act(async () => { fireEvent.click(trend) })
-    expect(sent).toEqual([['rs_preset', { name: 'trend' }]])
+    expect(sent).toEqual([])
   })
 })

@@ -169,7 +169,7 @@ import { COMPARE_OPEN_EVENT } from '../pages/charts/compareGroups'
 import { cardEvidenceText } from './chart/engine/readoutSchema'
 import { RS_LEARN_VIDEOS, learnHref } from '../lib/deskVideoHref'
 // ⭐ VA2 — the plan's §13 counts (on since the server lists the six events; `VITE_RS_TELEMETRY_ENABLED=0` turns them off; see the module).
-import { createRsInstanceTracker, noteRsPreset, noteRsCard, noteRsLearn } from '../lib/rsTelemetry'
+import { createRsInstanceTracker, noteRsCard, noteRsLearn } from '../lib/rsTelemetry'
 // ⛔ `Link` is rendered ONLY inside a router — see `LearnLink`. StockChart is
 // mounted without one on several surfaces (popups, the Model Book, its own
 // suites), and `<Link>` calls `useHref`, which throws there.
@@ -6207,7 +6207,7 @@ export default function StockChart({
     const def = inst ? engineRegistry.getDefinition(inst.defId) : null
     const preset = def ? presetsOf(def).find((p) => p.id === presetId) : null
     if (!preset) return
-    noteRsPreset(def, preset)
+    // (the `rs_preset` count was retired with the presets, RS split U9)
     const next = applyPresetInputs(cs, instanceId, def, preset, engineRegistry)
     if (next !== cs) writeInstance(next)
   }, [cs, writeInstance])
