@@ -5152,6 +5152,45 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logging.getLogger(__name__).exception("[startup] failed to schedule reconciliation_worker: %s", e)
 
+    # ── Schwab proactive token refresh ───────────────────────────────────────
+    #
+    # ⚰️ `schwab_service.start_auto_refresh()` HAS EXISTED AND HAS NEVER BEEN CALLED.
+    # Measured 2026-11-09: zero callers anywhere in the tree, while
+    # `_auto_refresh_loop`'s own docstring claims "As long as the app is running, users
+    # never need to re-authenticate." Two separate false claims in one function — the
+    # loop never ran, AND Schwab caps the refresh token at 7 days regardless, so a
+    # weekly manual OAuth is unavoidable either way.
+    #
+    # The observable consequence, measured the same evening: web's access token sat
+    # **53.4 minutes old** with an unchanged value, i.e. expired (they live 1800s),
+    # because the ONLY thing that ever refreshed was an on-demand `get_valid_token()`
+    # call and nothing had asked after hours.
+    #
+    # ⛔ WHY IT MATTERS NOW, AND WHY IT IS HERE RATHER THAN IN THE PUSHER. The token
+    # replication added alongside this ships ONLY the access token to flow-worker, and
+    # flow-worker cannot refresh by design (it never holds a refresh token). So
+    # flow-worker's coverage is exactly as fresh as web's last refresh. The pusher
+    # deliberately refuses to ship an expired token, so without a proactive refresh on
+    # web there are windows where there is nothing good to send. Refreshing from the
+    # pusher was rejected: it runs on a BackgroundScheduler THREAD, and driving an
+    # async refresh from there means a second event loop touching `_TOKEN_REFRESH_LOCK`
+    # — a second authority over the one thing that must stay single-flight.
+    #
+    # ⛔ MUST be created here, inside the async lifespan: `start_auto_refresh` calls
+    # `asyncio.create_task`, which needs the running loop.
+    #
+    # DARK by default — arm with the replication flags, not before, since its only
+    # purpose here is keeping the replicated token fresh.
+    try:
+        if os.environ.get("SCHWAB_AUTO_REFRESH_ENABLED", "0") == "1":
+            from api import schwab_service as _schwab
+            _schwab.start_auto_refresh()
+            logging.getLogger(__name__).info(
+                "[startup] schwab auto-refresh task started (25 min cadence)")
+    except Exception as e:
+        logging.getLogger(__name__).exception(
+            "[startup] failed to start schwab auto-refresh: %s", e)
+
     # Live options-flow SSE tailer (2026-07-08) — the instant-tape backend.
     # Reads flow.db for new prints and pushes them to connected browsers. Inert
     # unless MASSIVE_STREAM_ENABLED=1 (dark by default); decoupled from the OPRA

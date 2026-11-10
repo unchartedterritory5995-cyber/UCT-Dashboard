@@ -466,3 +466,34 @@ async def test_get_valid_token_returns_none_without_tokens(monkeypatch):
     import api.schwab_service as ss
     monkeypatch.setattr(ss, "load_tokens", lambda: None)
     assert await ss.get_valid_token() is None
+
+
+# ── the auto-refresh loop must stay WIRED ────────────────────────────────────
+
+def test_start_auto_refresh_is_actually_called_somewhere():
+    """⚰️ IT WASN'T, FOR AS LONG AS IT EXISTED. `start_auto_refresh()` had zero callers
+    in the tree while its loop's docstring promised "users never need to
+    re-authenticate", so web's token was measured sitting 53.4 minutes old — expired —
+    because the only refresh path was an incidental `get_valid_token()` call.
+
+    ⛔ THIS IS A WIRING RAIL, NOT A STYLE CHECK. flow-worker holds no refresh token by
+    design, so its Schwab coverage is exactly as fresh as web's last refresh. If this
+    goes dead again the replication degrades SILENTLY — a stale pushed token simply
+    falls back to Massive, which reads like normal operation.
+
+    An AST walk, not a grep: a mention inside a comment or a docstring is not a call.
+    """
+    import ast
+    from pathlib import Path
+
+    main_py = Path(__file__).resolve().parents[1] / "api" / "main.py"
+    tree = ast.parse(main_py.read_text(encoding="utf-8", errors="replace"))
+    called = {
+        node.func.attr if isinstance(node.func, ast.Attribute) else node.func.id
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, (ast.Attribute, ast.Name))
+    }
+    assert "start_auto_refresh" in called, (
+        "api/main.py no longer calls schwab_service.start_auto_refresh() — the "
+        "proactive refresh is dead again and the replicated token will go stale")

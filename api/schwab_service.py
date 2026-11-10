@@ -694,9 +694,27 @@ async def get_market_summary() -> list[dict]:
 
 # ─── Background Auto-Refresh ────────────────────────────────────────────────────
 async def _auto_refresh_loop():
-    """Refresh access token every 25 minutes so it never expires.
+    """Refresh the access token every 25 minutes so it never expires.
+
     Schwab access tokens last 30 min; refresh tokens last 7 days.
-    As long as the app is running, users never need to re-authenticate.
+
+    ⚰️ THIS DOCSTRING USED TO END "As long as the app is running, users never need to
+    re-authenticate." BOTH HALVES OF THAT WERE FALSE and it was load-bearing
+    misinformation — it is the sentence that made "why do I keep having to log in?" look
+    like a mystery.
+
+      1. **Nothing ever started this loop.** `start_auto_refresh()` had ZERO callers in
+         the tree (measured 2026-11-09). The only thing that ever refreshed was an
+         on-demand `get_valid_token()`, so web's token was measured sitting 53.4 minutes
+         old — expired — simply because nothing had asked after hours. It is now started
+         from web's lifespan behind `SCHWAB_AUTO_REFRESH_ENABLED`.
+      2. **Refreshing does not extend the 7-day refresh token.** Schwab caps the GRANT,
+         not the access token, so a manual OAuth re-auth roughly weekly is unavoidable no
+         matter how reliably this loop runs. Do not re-add a promise that it is not.
+
+    What this loop genuinely buys, now that it runs: web always holds a fresh access
+    token, which matters because `schwab_token_push` replicates that token to flow-worker
+    and flow-worker cannot refresh on its own by design.
     """
     while True:
         await asyncio.sleep(25 * 60)  # 25 minutes
