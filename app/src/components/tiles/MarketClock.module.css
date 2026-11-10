@@ -50,8 +50,12 @@
 .open .dot {
   background: var(--gain);
   box-shadow: 0 0 8px var(--gain);
-  animation: clockPulse 2s ease-in-out infinite;
 }
+/* ⛔ No endless animation: an infinite pulse makes the page produce a compositor frame at the
+   display rate forever (measured on the Charts clock dot, 2026-11-10: it alone saturated the GPU
+   process with 12 widgets open). The cue flips with the seconds on the render the time text
+   already causes. */
+.open .dot[data-beat="1"] { opacity: 0.5; }
 .ext    { color: var(--ut-gold); }
 .ext .dot { background: var(--ut-gold); box-shadow: 0 0 8px color-mix(in srgb, var(--ut-gold) 70%, transparent); }
 .closed { color: var(--text); }
@@ -65,10 +69,6 @@
   opacity: 0.85;
 }
 
-@keyframes clockPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
-}
 @media (prefers-reduced-motion: reduce) {
-  .open .dot { animation: none; }
+  .open .dot[data-beat="1"] { opacity: 1; }
 }

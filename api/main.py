@@ -13336,14 +13336,7 @@ def serve_indexes_csv():
     return _csv_response(os.path.join(PUBLIC, "Indexes-data.csv"), "Indexes-data.csv")
 
 # --- Serve React build (JS/CSS assets + SPA fallback) ------------------------
-class _ImmutableStaticFiles(StaticFiles):
-    async def get_response(self, path, scope):
-        response = await super().get_response(path, scope)
-        if response.status_code == 200:
-            response.headers["Cache-Control"] = (
-                "public, max-age=31536000, immutable, no-transform"
-            )
-        return response
+from api.services.static_assets import ImmutableStaticFiles as _ImmutableStaticFiles  # noqa: E402
 
 DIST = os.path.join(os.path.dirname(__file__), "..", "app", "dist")
 

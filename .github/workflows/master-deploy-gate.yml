@@ -319,8 +319,10 @@ jobs:
 
       # CI COST (2026-11-06, owner): the trigger shapes that keep the Actions bill from creeping back
       # (agent-ci push paths, PR-run cancellation, the pinned unfiltered sets). ~2 s, stdlib + PyYAML.
+      # + the promotion catch-up's decision (2026-11-10): the 8 cases, each with the never-master's-tip control,
+      # and the promote workflow's wiring. Same step, same runner, pure functions (~1 s).
       - name: CI cost rails
-        run: python -m pytest tests/test_ci_cost_rails.py -q -p no:cacheprovider
+        run: python -m pytest tests/test_ci_cost_rails.py tests/test_promote_decision.py -q -p no:cacheprovider
 
       # RAILWAY COST (2026-11-06): the memory observer's per-file page-cache probe (mincore, /proc) only runs
       # on Linux, so its tests skip on dev PCs; this is where they actually run. Stdlib only, ~1 s.

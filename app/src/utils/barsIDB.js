@@ -336,20 +336,40 @@ export async function idbDelete(sym, tf) {
 // pack self-heal: a stamped-but-empty store (an ingest that reported success on failed
 // shards, or IDB evicted under storage pressure while the tiny localStorage stamp
 // survived) reads far below the universe size, so the client re-ingests instead of
-// trusting the stamp and staying cold forever. Never throws — returns 0 on any failure.
+// trusting the stamp and staying cold forever. Returns 0 if the database cannot open; a failed read rejects.
+//
+// ⛔ THE READ IS IN PIECES ON PURPOSE. One getAllKeys() over the 45-47k keys took 1.1-3.0 s, each of
+// the three packs ran one per load, and IndexedDB work queues behind it. A chart's idbGet then outlasted
+// StockChart's 600 ms first-paint wait, which abandons a full local cache for a server fetch. Each piece
+// is short and a macrotask runs between pieces, so a chart read gets through. The packs share one walk.
+const KEY_WALK_PIECE = 1000
+let _keyWalk = null
+
+async function _readAllKeys(db) {
+  const all = []
+  let after
+  for (;;) {
+    const range = after === undefined ? undefined : IDBKeyRange.lowerBound(after, true)
+    const piece = await new Promise((resolve, reject) => {
+      const req = db.transaction(STORE, 'readonly').objectStore(STORE).getAllKeys(range, KEY_WALK_PIECE)
+      req.onsuccess = () => resolve(req.result || [])
+      req.onerror = () => reject(req.error)
+    })
+    for (const k of piece) all.push(k)
+    if (piece.length < KEY_WALK_PIECE) return all
+    after = piece[piece.length - 1]
+    await new Promise((r) => setTimeout(r, 0))
+  }
+}
+
 export async function idbCountKeys(suffix = '') {
   let db
   try { db = await _open() } catch { return 0 }
-  return new Promise((resolve) => {
-    let tx
-    try { tx = db.transaction(STORE, 'readonly') } catch { return resolve(0) }
-    const req = tx.objectStore(STORE).getAllKeys()
-    req.onsuccess = () => {
-      const keys = req.result || []
-      resolve(suffix ? keys.filter((k) => String(k).endsWith(suffix)).length : keys.length)
-    }
-    req.onerror = () => resolve(0)
-  })
+  if (!_keyWalk) _keyWalk = _readAllKeys(db).finally(() => { _keyWalk = null })
+  // A failed walk REJECTS instead of counting 0. "Could not read" is not "empty": a 0 here told every
+  // pack sharing the walk to re-download the universe. _packDataPresent's catch reads it as unverified.
+  const keys = await _keyWalk
+  return suffix ? keys.filter((k) => String(k).endsWith(suffix)).length : keys.length
 }
 
 export async function idbImportPack(entries, { batchSize = 250, yieldBetween = false, replaceIfNewer = false } = {}) {

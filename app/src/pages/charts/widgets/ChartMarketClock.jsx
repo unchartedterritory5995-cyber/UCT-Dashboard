@@ -91,7 +91,9 @@ export default function ChartMarketClock() {
       role="timer"
       aria-label={`Market clock, ${spokenTime} ET, ${detail}`}
     >
-      <span className={styles.clockDot} aria-hidden="true" />
+      {/* The live cue flips with the seconds on the render the time already causes; see
+          `.clockDot` in ChartsWorkspace.module.css for why it must never be a CSS animation. */}
+      <span className={styles.clockDot} data-beat={now.getSeconds() % 2} aria-hidden="true" />
       <span className={styles.clockTime}>{time}</span>
       <span className={styles.clockEt}>ET</span>
       {hover && pos && createPortal(
