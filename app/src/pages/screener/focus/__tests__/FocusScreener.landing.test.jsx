@@ -1,7 +1,7 @@
 // Task 7: where a bare first open lands. Owner decision (speed-3): the member's last-used screen, or the first pinned
 // screen for a first-timer, never waiting on counts and Perf 3 (seeded from the last-known pins, reconciled when the
 // server answers unless the member has touched the page).
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 import { vi, beforeEach, expect, test } from 'vitest'
@@ -32,6 +32,7 @@ let savedDelay
 let metaGate
 let fail
 let savedFails
+let savedRows
 const minOf = spec => (spec.filters || []).find(f => f.key === 'rs_rank')?.min
 beforeEach(() => {
   __resetCountCache()
@@ -44,6 +45,7 @@ beforeEach(() => {
   metaGate = null
   fail = false
   savedFails = false
+  savedRows = []
   globalThis.fetch = vi.fn(async (u, o) => {
     const url = String(u)
     if (url.startsWith('/api/screener/meta')) {
@@ -59,7 +61,7 @@ beforeEach(() => {
     }
     if (url.startsWith('/api/screener/saved-screens')) {
       if (savedFails) return { ok: false, status: 500, json: async () => ({}) }
-      const body = { ok: true, json: async () => ({ saved: [], starters }) }
+      const body = { ok: true, json: async () => ({ saved: savedRows, starters }) }
       return savedDelay ? new Promise(r => setTimeout(() => r(body), savedDelay)) : body
     }
     return { ok: true, json: async () => ([]) }
@@ -179,6 +181,34 @@ test('review: a failed saved-screens read keeps the member on their screen', asy
   expect(screen.getByRole('button', { name: /Other screen/ })).toBeInTheDocument()
   expect(scanMins()).toEqual([50])
 }, 6000)
+
+test('review: an untouched last-used screen takes the server copy, and remembers it', async () => {
+  localStorage.setItem(lastScreenKey('member-a'), JSON.stringify({ ...WIDE, kind: 'starter' }))
+  starters = [scr(WIDE.id, 'Wide screen', 75)]
+  countsByMin = { 70: 40, 75: 30 }
+  pin([WIDE.id])
+  savedDelay = 300
+  mount()
+  await waitFor(() => expect(scanMins()).toEqual([70, 75]), { timeout: 2000 })
+  expect(screen.queryByRole('button', { name: /edited/ })).toBeNull()
+  expect(JSON.parse(localStorage.getItem(lastScreenKey('member-a'))).spec.filters[0].min).toBe(75)
+}, 6000)
+test('review: Save changes is what the next open lands on', async () => {
+  const MINE = { id: 7, name: 'Mine', kind: 'saved', spec: { filters: [{ key: 'rs_rank', op: 'gte', min: 70 }] } }
+  savedRows = [MINE]
+  localStorage.setItem(lastScreenKey('member-a'), JSON.stringify(MINE))
+  pin([THIN.id])
+  mount()
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  await waitFor(() => screen.getByRole('button', { name: /^Mine/ }))
+  fireEvent.click(screen.getByRole('button', { name: /^Filters/ }))
+  const drawer = await screen.findByRole('dialog', { name: 'Filters' })
+  fireEvent.click(within(drawer).getAllByRole('button', { name: 'Clear all' })[0])
+  await waitFor(() => screen.getByRole('button', { name: /Mine \(edited\)/ }))
+  fireEvent.click(screen.getByRole('button', { name: /Mine \(edited\)/ }))
+  fireEvent.click(await screen.findByRole('button', { name: /Save changes to/ }))
+  await waitFor(() => expect(JSON.parse(localStorage.getItem(lastScreenKey('member-a'))).spec.filters || []).toEqual([]))
+}, 8000)
 
 test('Perf 3: with last-known pins, the scan starts before the saved screens answer', async () => {
   seed([WIDE])

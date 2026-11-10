@@ -619,9 +619,10 @@ function FocusList({ mode, onMode }) {
         if (hit) applyScreen(hit.spec || { filters: [] }, hit)
         else setCurrent(null)
       } else if (!sameScreen(srv, was)) {
-        // The server's copy under this id has another spec: the screen on view is that screen
-        // edited, never silently labelled as its current version.
-        setCurrent(c => (c && String(c.id) === String(srv.id) ? { ...c, name: srv.name, spec: srv.spec || { filters: [] } } : c))
+        // Untouched, so the member sees the screen as it now is, and the next open starts there.
+        const now = { ...srv, kind: was.kind }
+        writeLastScreen(uid, now)
+        applyScreen(srv.spec || { filters: [] }, now)
       }
       return
     }
@@ -707,6 +708,7 @@ function FocusList({ mode, onMode }) {
     refresh()
     if (!out.ok) { say(out.error); return }
     setCurrent(c => ({ ...c, spec: s.baseSpec }))
+    writeLastScreen(uid, { ...current, spec: s.baseSpec })
     say(`Saved changes to "${current.name}"`)
   }
   const rename = async () => {
