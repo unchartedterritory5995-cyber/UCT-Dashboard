@@ -102,7 +102,7 @@ import WatchlistSettingsPanel from './watchlist/WatchlistSettingsPanel'
 import TickerCombobox from '../components/watchlist/TickerCombobox'
 import { exportQuota, downloadExport } from '../lib/dataExport'
 import SymbolSearch from '../components/chart/SymbolSearch'
-import { OPTIONAL_COLS, EXTRA_COLS, DEFAULT_COL_ORDER, COL_LABELS, TEXT_COLS, withColumn, firstSortDir } from './watchlist/watchlistColumns'
+import { OPTIONAL_COLS, EXTRA_COLS, DEFAULT_COL_ORDER, COL_LABELS, TEXT_COLS, withColumn, firstSortDir, movedColumnCfg, resizedColumnCfg, columnMinWidth } from './watchlist/watchlistColumns'
 import { publishListView } from './watchlist/watchlistViews'
 import { useWidgetDoor } from './charts/widgetDoors'
 import { WATCHLIST_SETTINGS_KEY, WATCHLIST_DEFAULTS, WATCHLIST_BASE_FONT_PX, mergeWatchlistSettings, watchlistStyleVars, watchlistDefaultsForTheme } from './watchlist/watchlistSettings'
@@ -2125,23 +2125,12 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     else saveColCfg(withColumn({ ...colCfg, order: curOrder }, key))
   }, [colCfg, saveColCfg])
 
-  // Drag a header column onto another to reorder the columns. `movedColCfg` is the drop's own result (null = no move): the
-  // header drag and UCT Agent's watchlist.arrangeColumns both write it, so the two can never order columns differently.
-  const movedColCfg = (cfg, fromKey, toKey) => {
-    if (!fromKey || fromKey === toKey) return null
-    const order = (Array.isArray(cfg.order) && cfg.order.length ? cfg.order : DEFAULT_COL_ORDER).filter(k => COL_META[k])
-    DEFAULT_COL_ORDER.forEach(k => { if (!order.includes(k)) order.push(k) })
-    const from = order.indexOf(fromKey)
-    const to = order.indexOf(toKey)
-    if (from < 0 || to < 0) return null
-    order.splice(from, 1)
-    order.splice(to, 0, fromKey)
-    return { ...cfg, order }
-  }
+  // Drag a header column onto another to reorder the columns; drag a gridline to resize. The rules are pure
+  // (watchlist/watchlistColumns.js), shared with UCT Agent's watchlist.arrangeColumns through the listView below.
+  const movedColCfg = (cfg, fromKey, toKey) => movedColumnCfg(cfg, fromKey, toKey, COL_META)
   const moveColumn = (fromKey, toKey) => { const next = movedColCfg(colCfg, fromKey, toKey); if (next) saveColCfg(next) }
-  // A gridline drop's own result: the column's width, never under its minimum (the drag's own clamp)
-  const colMinWidth = (key) => COL_META[key]?.min || 40
-  const resizedColCfg = (cfg, key, w) => ({ ...cfg, widths: { ...(cfg.widths || {}), [key]: Math.max(colMinWidth(key), Math.round(w)) } })
+  const colMinWidth = (key) => columnMinWidth(key, COL_META)
+  const resizedColCfg = (cfg, key, w) => resizedColumnCfg(cfg, key, w, COL_META)
 
   // Drag a gridline (an independent divider overlaid on the header, NOT tied to a
   // header cell — so dragging never sorts/selects the column) to resize the column to

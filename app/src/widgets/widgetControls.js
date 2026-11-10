@@ -13,6 +13,9 @@
 //     words:   the words a person says for it (routing vocabulary), beside its key }
 // An `action` is one of the widget's own BUTTONS (Refresh): no value is kept, so there is nothing to read back or undo. It is
 // run through the mounted widget's door (`act(key)`, pages/charts/widgetDoors.js) and is done only once that resolves.
+// AUDIT #1027: every `action` row carries `effect`: 'read' (re-reads, changes nothing: runs), 'write' or 'destructive'. Only
+// 'read' is pressable today — a button that writes has no Undo here, so 'write' / 'destructive' (or no tag) are refused, never
+// pressed; agent/widgetActionKeys.test.js fails when a door can press a key that no tagged row lists.
 // A `set` takes "+member" / "-member". agent/settingsLiveness.test.js proves a row the same way as a `live` field: an `opts`
 // row is read back from opts by the mounted widget, a door row is read and written by its door.
 import { WIDGET_REGISTRY } from './registry'
@@ -27,7 +30,7 @@ const REFRESH_WORDS = ['refresh', 'reload', 'rerun', 'update']
 
 const OWN = {
   // C3-112 the scan's own Refresh (ScannerResults footer)
-  scanner: [{ key: 'refresh', type: 'action', words: REFRESH_WORDS }],
+  scanner: [{ key: 'refresh', type: 'action', effect: 'read', words: REFRESH_WORDS }],
   // watchlist group C (pl-widget): the ⚙ Watchlist Settings panel's own appearance writer (patchSettings → this widget's
   // opts.settings), and its look templates (C3-103 / C3-104). A colour is #rrggbb. Undo puts the widget's opts back whole.
   watchlist: [
@@ -40,7 +43,7 @@ const OWN = {
     { key: 'look', type: 'enum', from: 'door', door: true, inOpts: true, words: ['template'] },
   ],
   // C3-208 the ranking's own Refresh (PeriodSortResults footer)
-  periodsort: [{ key: 'refresh', type: 'action', words: REFRESH_WORDS }],
+  periodsort: [{ key: 'refresh', type: 'action', effect: 'read', words: REFRESH_WORDS }],
   themes: [
     { key: 'period', type: 'enum', options: ['1d', '1w', '1m', '3m', '1y', 'ytd'], default: '1d', door: true },
     { key: 'sortDir', type: 'enum', options: ['asc', 'desc'], default: 'desc', door: true },

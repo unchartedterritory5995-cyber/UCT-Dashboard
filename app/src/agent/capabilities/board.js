@@ -1298,6 +1298,8 @@ export function registerBoardCapabilities() {
       const door = doorFor(env, t)
       if ((f.door || f.from === 'door' || f.type === 'action') && !door) return `The ${label(t.type)} isn't showing right now, so I can't reach its ${f.key}.`
       if (f.type === 'action' && typeof door.act !== 'function') return `The ${label(t.type)} has no ${f.key} button right now.`
+      // AUDIT #1027: only a button that READS (re-reads, keeps nothing) is pressed; one that writes or destroys has no Undo here
+      if (f.type === 'action' && f.effect !== 'read') return `I can't press the ${label(t.type)}'s ${f.key} for you — use the button on the widget itself.`
       if (f.from === 'door' && !choicesOf(f, door).length) return `The ${label(t.type)} has nothing to choose for ${f.key} yet.`
       return coerced(st, t, f, value, env).why || null
     },
