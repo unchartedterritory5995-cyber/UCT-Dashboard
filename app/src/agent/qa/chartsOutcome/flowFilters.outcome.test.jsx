@@ -49,9 +49,10 @@ function Live({ board }) {
     </MemoryRouter>
   )
 }
-const flow = (id, opts = {}, x = 12) => ({ id, type: 'optionsflow', x, y: 0, w: 6, h: 20, color: 'N', opts })
+const flow = (id, opts = {}, x = 12) => ({ id, type: 'optionsflow', x, y: 0, w: 12, h: 14, color: 'N', opts })
+// one chart along the bottom, the flow widgets side by side above it: "the left / right options flow" is how the board reads
 function board(widgets) {
-  const m = open([chart('c1', 0, 0, 12, 20), ...widgets], { 'N:c1': 'AAA' })
+  const m = open([chart('c1', 0, 14, 24, 6), ...widgets], { 'N:c1': 'AAA' })
   render(<Live board={m.board} />)
   return m
 }
@@ -117,7 +118,7 @@ describe('NEGATIVE: what the chips do not allow is refused in the UI\'s own word
 
 describe('two Options Flow widgets: the one meant, or ASK', () => {
   it.each(FLOW_TWO_WIDGETS_HELD_OUT.map(c => [c.text, c]))('held-out "%s"', async (text, c) => {
-    const m = board([flow('of', {}, 12), flow('of2', {}, 18)])
+    const m = board([flow('of', {}, 0), flow('of2', {}, 12)])
     await waitFor(() => expect(drawn('of2').length).toBe(PRINTS.length))
     const a = optsOf(m, 'of'), b = optsOf(m, 'of2')
     const ops = /puts/.test(text) ? [{ key: 'callPut', value: 'Puts' }] : /bear/.test(text) ? [{ key: 'direction', value: 'Bear' }] : [{ key: 'printType', value: 'Sweep' }]
@@ -146,7 +147,7 @@ describe('two Options Flow widgets: the one meant, or ASK', () => {
 // request was asked BEFORE any proposal existed. (Once #988 merges, the guard takes its stored original words on approve.)
 describe('approving a proposal on a two-widget board', () => {
   it('a proposal from "puts only on the right options flow": Apply changes the right widget only', async () => {
-    const m = board([flow('of', {}, 12), flow('of2', {}, 18)])
+    const m = board([flow('of', {}, 0), flow('of2', {}, 12)])
     await waitFor(() => expect(drawn('of2').length).toBe(PRINTS.length))
     const a = optsOf(m, 'of'), b = optsOf(m, 'of2')
     await m.say('puts only on the right options flow, show me first', plan([{ key: 'callPut', value: 'Puts' }], { pos: 'right' }), { disposition: 'propose' })
@@ -156,15 +157,26 @@ describe('approving a proposal on a two-widget board', () => {
     await waitFor(() => expect(filtersOf(m, 'of2').cp).toBe('P'))
     expect(optsOf(m, 'of')).toBe(a)
   }, 60000)
-  it('an unnamed request is asked before any proposal exists; a typed "yes" afterwards approves nothing', async () => {
-    const m = board([flow('of', {}, 12), flow('of2', {}, 18)])
+  it('an unnamed request is asked before any proposal exists: nothing is proposed, nothing changes', async () => {
+    const m = board([flow('of', {}, 0), flow('of2', {}, 12)])
     await waitFor(() => expect(drawn('of2').length).toBe(PRINTS.length))
     const a = optsOf(m, 'of'), b = optsOf(m, 'of2')
     const out = await m.say('puts only in the options flow, show me first', plan([{ key: 'callPut', value: 'Puts' }]), { disposition: 'propose' })
     expect(out).toMatch(/Which Options Flow/i)
     expect(proposalsNow()).toHaveLength(0)
-    await m.say('yes')
     expect(optsOf(m, 'of')).toBe(a)
     expect(optsOf(m, 'of2')).toBe(b)
+  }, 60000)
+  it('a proposal from a named request, approved by a typed "yes": no second question; the named widget only', async () => {
+    const m = board([flow('of', {}, 0), flow('of2', {}, 12)])
+    await waitFor(() => expect(drawn('of2').length).toBe(PRINTS.length))
+    const a = optsOf(m, 'of')
+    await m.say('sweeps only on the left options flow, show me first', plan([{ key: 'printType', value: 'Sweep' }], { pos: 'left' }), { disposition: 'propose' })
+    expect(proposalsNow()).toHaveLength(1)
+    const out = await m.say('yes')
+    expect(out).not.toMatch(/Which Options Flow/i)
+    await waitFor(() => expect(filtersOf(m, 'of').type).toBe('SWEEP'))
+    expect(filtersOf(m, 'of2').type).toBe('all')
+    void a
   }, 60000)
 })

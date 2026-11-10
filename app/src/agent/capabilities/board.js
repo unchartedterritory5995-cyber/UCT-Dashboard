@@ -1217,24 +1217,31 @@ export function registerBoardCapabilities() {
   // what it shows (a list or scan name, its linked ticker) — the op is not run on the planner's pick: the member is asked, with
   // each candidate, and the op runs on the one they choose (resolveArgs → pickArg). Words that name one → that one, no question. ──
   const WORDS = (t) => ` ${String(t || '').toLowerCase().replace(/[^a-z0-9$]+/g, ' ').trim()} `
-  const namesOf = (w, same, syms) => {
-    const pos = positionWord(w, same) || ''
+  const callNames = (w, same, syms, all) => {
+    // its place among its own type ("the left one") and on the board as the request context words it ("the top-right one")
+    const pos = [positionWord(w, same), positionWord(w, all)].filter(Boolean).join('-')
     const shown = ['watchName', 'scanName', 'title', 'name'].map(k => w.opts?.[k]).filter(v => typeof v === 'string' && v.trim())
     const sym = syms?.[w.color]
     const symUnique = sym && same.filter(o => syms?.[o.color] === sym).length === 1
-    return [...(pos ? [pos.replace(/-/g, ' '), ...pos.split('-')] : []), ...shown, ...(symUnique ? [sym] : [])].map(WORDS).filter(x => x.trim())
+    const places = [positionWord(w, same), positionWord(w, all)].filter(Boolean)
+    return [...places.map(p => p.replace(/-/g, ' ')), ...pos.split('-').filter(Boolean), ...shown, ...(symUnique ? [sym] : [])].map(WORDS).filter(x => x.trim())
   }
-  function whichWidget(args, host, member) {
-    if (member == null) return null
+  // FAIL CLOSED (Lead 2026-11-10): no words at all (a path that passes none) is no name, so an ambiguous widget is asked.
+  // An APPROVED proposal is not asked again: it only exists because this guard already ran on the request that made it (the widget
+  // was named, or picked), and its ops carry that widget. (#988's stored original words replace this on rebase.)
+  function whichWidget(args, host, member, { approved = false } = {}) {
+    if (approved) return null
     let s = null
     try { s = host?.widgets?.snapshot?.() } catch { s = null }
-    const raw = s?.visible || s?.raw || []
+    // the widgets ON the board (the visible ones: a floating or popped-out widget is no candidate), whole (geometry, opts)
+    const vis = Array.isArray(s?.visible) ? new Set(s.visible.map(v => String(v.id))) : null
+    const raw = (s?.raw || []).filter(x => !vis || vis.has(String(x.id)))
     const w = raw.find(x => String(x.id) === String(args?.widget))
     if (!w) return null
     const same = raw.filter(x => x.type === w.type)
     if (same.length < 2) return null
     const said = WORDS(member)
-    const named = same.filter(x => namesOf(x, same, s?.groupSyms).some(n => said.includes(n)))
+    const named = same.filter(x => callNames(x, same, s?.groupSyms, raw).some(n => said.includes(n)))
     if (named.length === 1) return named[0].id === w.id ? null : { args: { ...args, widget: named[0].id } }
     const lbl = (x) => `${label(x.type)}${positionWord(x, same) ? ` (${positionWord(x, same)})` : ''}`
     return { ask: { arg: 'widget', text: `Which ${label(w.type)} — ${same.map(lbl).join(' or ')}?`, choices: same.map(x => ({ ref: String(x.id), label: lbl(x) })) } }
@@ -1244,7 +1251,7 @@ export function registerBoardCapabilities() {
   reg({
     ...common,
     name: 'widget.setOption',
-    resolveArgs: (args, host, member) => whichWidget(args, host, member),
+    resolveArgs: (args, host, member, how) => whichWidget(args, host, member, how),
     summary: 'Change ONE control of a widget on the board, exactly as the widget\'s own control does: a view, a filter, a period, the day shown, the open theme, a universe, an axis, a reading shown or hidden. Undo puts it back.',
     hints: 'target = the board entry; widget = the widget id; key and value from the widgetControls section, by type (never invented): “ask widget.readOptions” = the widget\'s own list right now, and a name is enough. (+/-) takes "+member" or "-member". `set` is how a widget is set now. No entry for its type: use widget.readOptions, which lists them.',
     args: { type: 'object', properties: { widget: widgetArg, key: { type: 'string' }, value: { type: ['string', 'number', 'boolean'] } }, required: ['widget', 'key', 'value'], additionalProperties: false },
@@ -1343,7 +1350,7 @@ export function registerBoardCapabilities() {
   reg({
     ...common,
     name: 'widget.sendToJournal',
-    resolveArgs: (args, host, member) => whichWidget(args, host, member),
+    resolveArgs: (args, host, member, how) => whichWidget(args, host, member, how),
     risk: 'confirm', reversible: false, undo: 'none',
     absentAsNull: ['where'],
     summary: 'Send a frozen capture of what a widget on the board shows now to the member\'s Journal, exactly as the widget\'s Send to Journal door does: a chart, scan, list, breadth, a calendar day, themes… One op per widget. There is no Undo.',
