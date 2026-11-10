@@ -130,9 +130,7 @@ def _push(bb, sym, p, s=100, c=None, t=1_700_000_000_000):
 
 
 def _partial(bb, sym, tf="5"):
-    with bb._lock:
-        pr = bb._partials.get((sym, tf))
-        return dict(pr) if pr else None
+    return bb.get_partial(sym, tf)
 
 
 def test_broadcaster_ghost_wick_blocked_volume_kept():
@@ -178,3 +176,27 @@ def test_apply_tick_ineligible_does_not_open_bar():
     rc.apply_tick("B", price=50.0, ts=1_700_000_000, size=1, tf="1",
                   update_hl=False, update_last=False)
     assert rc.get_current("B", "1") is None
+
+
+# ── D10: Finnhub codes are not SIP codes ───────────────────────────────────────
+
+def test_finnhub_codes_are_never_classified_with_the_sip_table(monkeypatch):
+    monkeypatch.setattr(tc, "FILTER_ENABLED", True)
+    assert tc.classify([37], source="sip") == (False, False)       # SIP odd lot
+    assert tc.classify([37], source="finnhub") == (True, True)     # unknown table => eligible
+    assert tc.classify(["37"], source="finnhub") == (True, True)
+
+
+def test_finnhub_trade_path_passes_its_source(monkeypatch):
+    from api.services import realtime_stream as rs
+    seen = []
+    monkeypatch.setattr(rs.trade_conditions, "classify",
+                        lambda c, source="sip": seen.append(source) or (True, True))
+    rs._process_finnhub_trade({"s": "ZZZ", "p": 1.0, "t": 1_700_000_000_000, "v": 1, "c": ["37"]})
+    assert seen == ["finnhub"]
+
+
+def test_filter_defaults_on():
+    """Correct by default: unset env => the SIP ghost-print filter is ON."""
+    import inspect
+    assert 'os.environ.get("TRADE_CONDITION_FILTER_ENABLED", "1") == "1"' in inspect.getsource(tc)
