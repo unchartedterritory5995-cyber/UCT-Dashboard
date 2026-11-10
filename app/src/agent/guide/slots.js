@@ -51,13 +51,13 @@ for (const t of DRAWING_TOOLS) {
 
 // pages/charts/grid/gridLayouts.js LAYOUTS
 export const GRID_PRESETS = [
-  { id: '1x2', label: 'Side by side', re: /\bside by side\b|\b(two|2)[- ]charts?\b|\b1 ?[x×] ?2\b/ },
-  { id: '2x1', label: 'Stacked', re: /\bstacked\b|\b2 ?[x×] ?1\b/ },
-  { id: '2x3', label: '2×3', re: /\b2 ?[x×] ?3\b|\b(six|6)[- ]charts?\b/ },
-  { id: '3x2', label: '3×2', re: /\b3 ?[x×] ?2\b/ },
-  { id: '3x3', label: '3×3', re: /\b3 ?[x×] ?3\b|\b(nine|9)[- ]charts?\b/ },
-  { id: '4x4', label: '4×4', re: /\b4 ?[x×] ?4\b|\b(sixteen|16)[- ]charts?\b/ },
-  { id: '2x2', label: '2×2', re: /\b2 ?[x×] ?2\b|\b(four|4)[- ]charts?\b|\bquad\b/ },
+  { id: '1x2', label: 'Side by side', re: /\bside by side\b|\b(two|2)[- ]charts?\b|\b(1|one) ?(by|[x×]) ?(2|two)\b/ },
+  { id: '2x1', label: 'Stacked', re: /\bstacked\b|\b(2|two) ?(by|[x×]) ?(1|one)\b/ },
+  { id: '2x3', label: '2×3', re: /\b(2|two) ?(by|[x×]) ?(3|three)\b|\b(six|6)[- ]charts?\b/ },
+  { id: '3x2', label: '3×2', re: /\b(3|three) ?(by|[x×]) ?(2|two)\b/ },
+  { id: '3x3', label: '3×3', re: /\b(3|three) ?(by|[x×]) ?(3|three)\b|\b(nine|9)[- ]charts?\b/ },
+  { id: '4x4', label: '4×4', re: /\b(4|four) ?(by|[x×]) ?(4|four)\b|\b(sixteen|16)[- ]charts?\b/ },
+  { id: '2x2', label: '2×2', re: /\b(2|two) ?(by|[x×]) ?(2|two)\b|\b(four|4)[- ]charts?\b|\bquad\b/ },
 ]
 const GRID_2X2 = GRID_PRESETS[GRID_PRESETS.length - 1]
 

@@ -169,7 +169,7 @@ export const GUIDE_FEATURES = [
   {
     // pages/charts/grid/MultiChartMenu.jsx, under Layouts ▾ → Multi Chart
     id: 'multiChart', slots: ['grid'], terms: ['multi chart', 'chart grid'], control: 'the Layouts menu', title: 'Setting up a {grid.label} chart grid', topic: 'layouts',
-    words: [/\bmulti[- ]?charts?\b/, /\b(four|4|six|6|nine|9|sixteen|16)[- ]charts?\b/, /\b\d ?[x×] ?\d\b/, /\bchart grid\b/, /\bgrid of charts\b/, /\bcharts? (in|on) a grid\b/, /\bquad\b/, /\bside by side\b/],
+    words: [/\bmulti[- ]?charts?\b/, /\b(four|4|six|6|nine|9|sixteen|16)[- ]charts?\b/, /\b\d ?[x×] ?\d\b/, /\b(one|two|three|four|[1-4]) by (one|two|three|four|[1-4])\b/, /\bchart grid\b/, /\bgrid of charts\b/, /\bcharts? (in|on) a grid\b/, /\bquad\b/, /\bside by side\b/],
     caps: ['chartGrid.set'],
     explain: 'Layouts ▾ → Multi Chart turns the board into a grid of linked charts: pick a preset such as 2×2, or type your own rows and columns. Workspace takes you back to your board.',
     steps: [
