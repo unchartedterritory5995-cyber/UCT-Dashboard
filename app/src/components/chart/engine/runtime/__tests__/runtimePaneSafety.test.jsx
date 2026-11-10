@@ -84,7 +84,7 @@ describe('RF — a VM throw and a limit stop are refusals by name, never `engine
     let err = null
     try { computeRuntimeColumns(rtDef(EMPTY_MAX), rows(30), { tf: 'D' }) } catch (e) { err = e }
     expect(err.guard).toBe(RUNTIME_FAILED_GUARD)
-    expect(err.message).toMatch(/stopped on bar 0 of 30/)
+    expect(err.message).toMatch(/stopped on bar 1 of 30/) // 1-based: the first bar (LIMITS r1)
     // ⭐ UIE PHASE 3 (M5) — `array.sum` of an empty array is measured now (na); `array.median`
     // is still a stop of the script's own
     expect(err.message).toMatch(/array\.median/)
@@ -101,7 +101,10 @@ describe('RF — a VM throw and a limit stop are refusals by name, never `engine
     const over = DEFAULT_LIMITS.HISTORY + 1
     try { computeRuntimeColumns(rtDef(TINY), rows(over), { tf: 'D' }) } catch (e) { err = e }
     expect(err.guard).toBe(RUNTIME_LIMIT_GUARD)
-    expect(err.message).toMatch(new RegExp(`HISTORY: at most ${DEFAULT_LIMITS.HISTORY}, it reached ${over}`))
+    // the NAME rides as a field; the member reads plain words and the numbers
+    expect(err.limit).toBe('HISTORY')
+    expect(err.message).toContain(`the number of bars a script may be drawn over (at most ${DEFAULT_LIMITS.HISTORY.toLocaleString('en-US')}, it reached ${over.toLocaleString('en-US')})`)
+    expect(err.message).not.toMatch(/HISTORY/)
     expect(err.message).not.toMatch(/_EXCEEDED/)
   })
 
@@ -122,7 +125,7 @@ describe('RF — `runtimeRunStopOf`: the sentence for a runtime pane that drew n
     const def = rtDef(EMPTY_MAX, 'u_rf_s1')
     const stop = registry.runtimeRunStopOf(def, registry.computeFor(def, rows(20), undefined, { tf: 'D' }))
     expect(stop.guard).toBe(RUNTIME_FAILED_GUARD)
-    expect(stop.sentence).toMatch(/^not drawn on this chart \(runtime:failed\): this script stopped on bar 0/)
+    expect(stop.sentence).toMatch(/^not drawn on this chart \(runtime:failed\): this script stopped on bar 1 /)
     const ok = rtDef(TINY, 'u_rf_s2')
     expect(registry.runtimeRunStopOf(ok, registry.computeFor(ok, rows(20), undefined, { tf: 'D' }))).toBeNull()
     expect(registry.runtimeRunStopOf(ok, {})).toBeNull() // in flight: no error recorded

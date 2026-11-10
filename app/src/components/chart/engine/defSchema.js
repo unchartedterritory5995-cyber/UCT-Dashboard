@@ -3740,6 +3740,41 @@ function validateFills(plots, errors, inputsByKey = new Map()) {
  * all, or a column no plot declares — each would register and draw nothing.
  */
 export const PAINT_KINDS = Object.freeze(['bgcolor', 'barcolor'])
+/** ⭐⭐ DIV-4 — `compute.runtimeColours = { source, at, keys }`: colours a HOST
+ *  document reads from the per-bar run (`memberPaneDefinition::runtimeReadPaints`).
+ *  Only on an `ast` definition; `keys[k]` names the column `at[k]` lands in, and a
+ *  key is never also a plot's. Returns the keys a paint may name (none when absent
+ *  or malformed). */
+function validateRuntimeColours(compute, plotKeyIndex, errors) {
+  const rc = compute && compute.runtimeColours
+  if (rc === undefined) return []
+  const at = 'compute.runtimeColours'
+  if (!compute || compute.kind !== 'ast') {
+    errors.push(`${at}: only an "ast" definition reads colours from the per-bar run, got kind ${fmt(compute && compute.kind)}`)
+    return []
+  }
+  if (!isPlainObject(rc) || !isNonEmptyString(rc.source) || !Array.isArray(rc.at) || !Array.isArray(rc.keys)
+      || rc.at.length === 0 || rc.at.length !== rc.keys.length) {
+    errors.push(`${at}: expected {source, at, keys} with one key per value, got ${fmt(rc)}`)
+    return []
+  }
+  const keys = []
+  for (const [i, k] of rc.keys.entries()) {
+    if (!isNonEmptyString(k) || keys.includes(k) || plotKeyIndex.has(k)) {
+      errors.push(`${at}.keys[${i}]: expected a unique key no plot declares, got ${fmt(k)}`)
+      return []
+    }
+    const spec = rc.at[i]
+    if (!isPlainObject(spec) || !Number.isInteger(spec.line) || !Number.isInteger(spec.column)
+        || spec.kind !== 'colour' || !isPlainObject(spec.node)) {
+      errors.push(`${at}.at[${i}]: expected a colour asked for at a statement ({line, column, node, kind: "colour"}), got ${fmt(spec)}`)
+      return []
+    }
+    keys.push(k)
+  }
+  return keys
+}
+
 function validatePaints(paints, columnKeys, errors) {
   if (paints === undefined) return
   if (!Array.isArray(paints)) {
@@ -4160,7 +4195,10 @@ export function validateDefinition(def) {
     validateLiveTails(out, plots, errors, inputsByKey)
     validateTreesAgainstPlots(out.compute, plots, errors)
     validateObjectProgramField(out, errors)
-    validatePaints(out.paints, new Set([...plotKeyIndex.keys(), ...eventKeyIndex.keys()]), errors)
+    // ⭐ DIV-4 — a paint may also read a colour column the per-bar run computes
+    // (`compute.runtimeColours`, `nativeRegistry.js::withRuntimeColours`).
+    const rtColourKeys = validateRuntimeColours(out.compute, plotKeyIndex, errors)
+    validatePaints(out.paints, new Set([...plotKeyIndex.keys(), ...eventKeyIndex.keys(), ...rtColourKeys]), errors)
 
     // A definition with no plots and no events returns no columns: it computes
     // something and hands it to nobody. Far more often this is a `plots` array

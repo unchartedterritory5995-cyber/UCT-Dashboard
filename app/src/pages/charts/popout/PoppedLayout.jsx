@@ -16,7 +16,7 @@ import PopoutShell from './PopoutShell'
  * breakpoints, viewport lock), and a second copy of that config would be free to
  * drift out of sync with the main board.
  */
-export default function PoppedLayout({ theme, title, initialWidgets, onClose, onBlocked, onWidgetsChange, renderGrid, computeRowHeight, initialRowHeight, merged = false }) {
+export default function PoppedLayout({ theme, title, windowName = '', initialWidgets, onClose, onBlocked, onWidgetsChange, renderGrid, computeRowHeight, initialRowHeight, merged = false }) {
   const [widgets, setWidgets] = useState(initialWidgets)
 
   // This board is viewport-locked to ITS window, not the one it came from, so it
@@ -120,6 +120,7 @@ export default function PoppedLayout({ theme, title, initialWidgets, onClose, on
   return (
     <PopoutWindow
       title={title}
+      windowName={windowName}
       width={winW}
       height={winH}
       onClose={handleClose}

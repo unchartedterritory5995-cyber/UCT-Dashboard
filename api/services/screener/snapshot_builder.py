@@ -269,7 +269,11 @@ def _ymd_int(d) -> int:
     return d.year * 10000 + d.month * 100 + d.day
 
 
-def stale_row_gate(conn, table="screener_rows"):
+class StaleGateUnreadable(Exception):
+    """`stale_row_gate(strict=True)` could not read the table, so it has no answer to keep."""
+
+
+def stale_row_gate(conn, table="screener_rows", *, strict=False):
     """The stale-ROW exclusion for this database, or ``None`` when no row is
     behind (or the table cannot say). The ONE implementation behind
     ``query.stale_gate`` (interactive scans; see the block above it there for
@@ -290,7 +294,11 @@ def stale_row_gate(conn, table="screener_rows"):
             f'SELECT MAX(CAST("bars_asof" AS INTEGER)), MIN(CAST("bars_asof" AS INTEGER)) '
             f'FROM {table} WHERE "bars_asof" IS NOT NULL').fetchone()
         ref = datetime.date(int(mx) // 10000, (int(mx) // 100) % 100, int(mx) % 100)
-    except Exception:  # noqa: BLE001 — no table / no column / no parseable date
+    except Exception as e:  # noqa: BLE001 — no table / no column / no parseable date
+        # `None` is every caller's answer. `strict` only tells a caller that keeps answers
+        # (query.stale_gate) that this None is a failed read, not "no row is behind".
+        if strict:
+            raise StaleGateUnreadable(str(e)) from e
         return None
     reference = _ymd_int(ref)
     day, cutoff = ref, None
