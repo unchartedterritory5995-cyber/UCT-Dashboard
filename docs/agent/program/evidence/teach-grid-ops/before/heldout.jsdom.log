@@ -1,0 +1,139 @@
+[suite-lock] all 2 slots busy (pl-auto, pl-grid); waiting 15s
+[suite-lock] all 2 slots busy (pl-auto, pl-grid); waiting 15s
+
+ RUN  v4.0.18 C:/w/pl-teach-gops/app
+
+ ❯ src/agent/agentGuideHeldOutGridOps.test.js (12 tests | 7 failed) 39ms
+     × "how do I fill my grid with a stock’s group automatically" → Groups Mode 7ms
+     ✓ "how do I stop using groups in multi chart" → Exit Groups 1ms
+     × "show me how to load the semiconductor group into the grid" → Search groups 1ms
+     × "how do I go to the previous group in my grid" → Previous group 1ms
+     ✓ "how do I move on to the next group in multi chart" → Next group 0ms
+     × "how do I switch the grid to another group this stock is also in" → Switch to  0ms
+     × "how do I re-rank the group in my grid right now" → ↻ Refresh group 1ms
+     ✓ "how do I save this grid so I can use it later" → Grid name 1ms
+     ✓ "show me how to open one of my saved grids" → My grids 0ms
+     × "how do I get rid of a grid I saved" → Delete 17ms
+     ✓ "where are the settings every chart in my grid shares" → chart.cellSettings 0ms
+     × "how do I get all the grid charts back on screen after maximizing one" → chart.cellMaximize 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 7 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/agent/agentGuideHeldOutGridOps.test.js > a grid op ask walks to its control > "how do I fill my grid with a stock’s group automatically" → Groups Mode
+AssertionError: expected 'Picking a group | {"within":"multiCha…' to contain 'Groups Mode'
+
+Expected: "Groups Mode"
+Received: "Picking a group | {"within":"multiChart.flyout","aria":"Search groups"}"
+
+ ❯ src/agent/agentGuideHeldOutGridOps.test.js:45:21
+     43| describe('a grid op ask walks to its control', () => {
+     44|   it.each(GRID_OPS_HELD_OUT)('"%s" → %s', (q, needle) => {
+     45|     expect(seen(q)).toContain(needle)
+       |                     ^
+     46|   })
+     47| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/7]⎯
+
+ FAIL  src/agent/agentGuideHeldOutGridOps.test.js > a grid op ask walks to its control > "show me how to load the semiconductor group into the grid" → Search groups
+AssertionError: expected 'Groups mode | {"within":"multiChart.f…' to contain 'Search groups'
+
+Expected: "Search groups"
+Received: "Groups mode | {"within":"multiChart.flyout","label":"Groups Mode (type a ticker to fill its group)"}"
+
+ ❯ src/agent/agentGuideHeldOutGridOps.test.js:45:21
+     43| describe('a grid op ask walks to its control', () => {
+     44|   it.each(GRID_OPS_HELD_OUT)('"%s" → %s', (q, needle) => {
+     45|     expect(seen(q)).toContain(needle)
+       |                     ^
+     46|   })
+     47| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/7]⎯
+
+ FAIL  src/agent/agentGuideHeldOutGridOps.test.js > a grid op ask walks to its control > "how do I go to the previous group in my grid" → Previous group
+AssertionError: expected 'Stepping through groups | [{"within":…' to contain 'Previous group'
+
+Expected: "Previous group"
+Received: "Stepping through groups | [{"within":"multiChart.flyout","aria":"Next group"},{"within":"multiChart.flyout","label":"Groups Mode (type a ticker to fill its group)"}]"
+
+ ❯ src/agent/agentGuideHeldOutGridOps.test.js:45:21
+     43| describe('a grid op ask walks to its control', () => {
+     44|   it.each(GRID_OPS_HELD_OUT)('"%s" → %s', (q, needle) => {
+     45|     expect(seen(q)).toContain(needle)
+       |                     ^
+     46|   })
+     47| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/7]⎯
+
+ FAIL  src/agent/agentGuideHeldOutGridOps.test.js > a grid op ask walks to its control > "how do I switch the grid to another group this stock is also in" → Switch to 
+AssertionError: expected 'Stepping through groups | [{"within":…' to contain 'Switch to '
+
+Expected: "Switch to "
+Received: "Stepping through groups | [{"within":"multiChart.flyout","aria":"Next group"},{"within":"multiChart.flyout","label":"Groups Mode (type a ticker to fill its group)"}]"
+
+ ❯ src/agent/agentGuideHeldOutGridOps.test.js:45:21
+     43| describe('a grid op ask walks to its control', () => {
+     44|   it.each(GRID_OPS_HELD_OUT)('"%s" → %s', (q, needle) => {
+     45|     expect(seen(q)).toContain(needle)
+       |                     ^
+     46|   })
+     47| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/7]⎯
+
+ FAIL  src/agent/agentGuideHeldOutGridOps.test.js > a grid op ask walks to its control > "how do I re-rank the group in my grid right now" → ↻ Refresh group
+AssertionError: expected 'Groups mode | {"within":"multiChart.f…' to contain '↻ Refresh group'
+
+Expected: "↻ Refresh group"
+Received: "Groups mode | {"within":"multiChart.flyout","label":"Groups Mode (type a ticker to fill its group)"}"
+
+ ❯ src/agent/agentGuideHeldOutGridOps.test.js:45:21
+     43| describe('a grid op ask walks to its control', () => {
+     44|   it.each(GRID_OPS_HELD_OUT)('"%s" → %s', (q, needle) => {
+     45|     expect(seen(q)).toContain(needle)
+       |                     ^
+     46|   })
+     47| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/7]⎯
+
+ FAIL  src/agent/agentGuideHeldOutGridOps.test.js > a grid op ask walks to its control > "how do I get rid of a grid I saved" → Delete
+AssertionError: expected 'Changing Grid lines | [{"within":"cha…' to contain 'Delete'
+
+Expected: "Delete"
+Received: "Changing Grid lines | [{"within":"chartSettings","label":"Grid"},"chartSettings.tab.canvas"]"
+
+ ❯ src/agent/agentGuideHeldOutGridOps.test.js:45:21
+     43| describe('a grid op ask walks to its control', () => {
+     44|   it.each(GRID_OPS_HELD_OUT)('"%s" → %s', (q, needle) => {
+     45|     expect(seen(q)).toContain(needle)
+       |                     ^
+     46|   })
+     47| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/7]⎯
+
+ FAIL  src/agent/agentGuideHeldOutGridOps.test.js > a grid op ask walks to its control > "how do I get all the grid charts back on screen after maximizing one" → chart.cellMaximize
+AssertionError: expected 'Back to the list of scans | [{"widget…' to contain 'chart.cellMaximize'
+
+Expected: "chart.cellMaximize"
+Received: "Back to the list of scans | [{"widgetType":"scanner","guide":"watchlist.lists"},{"widgetType":"scanner"}]"
+
+ ❯ src/agent/agentGuideHeldOutGridOps.test.js:45:21
+     43| describe('a grid op ask walks to its control', () => {
+     44|   it.each(GRID_OPS_HELD_OUT)('"%s" → %s', (q, needle) => {
+     45|     expect(seen(q)).toContain(needle)
+       |                     ^
+     46|   })
+     47| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/7]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  7 failed | 5 passed (12)
+   Start at  13:50:03
+   Duration  7.45s (transform 5.11s, setup 290ms, import 6.48s, tests 39ms, environment 512ms)
+
