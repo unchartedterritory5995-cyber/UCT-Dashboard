@@ -133,6 +133,11 @@ class Ceilings:
         self.turn_usd, self.turns_paid, self.total_turn_usd, self.errors, self.bad_stops = 0.0, 0, 0.0, 0, 0
         self.stopped: str | None = None
 
+    def limits(self) -> tuple:
+        """The program and stage ceilings, for the ledger to re-check INSIDE its reserve transaction (refuse() alone is a
+        read before the write: concurrent processes could all pass it)."""
+        return ((RUN_PREFIX, self.max_usd), (f"{RUN_PREFIX}{self.stage}-", self.stage_usd))
+
     def start_turn(self) -> None:
         self.turn_usd = 0.0
 
@@ -204,7 +209,7 @@ class Session:
             worst_box["worst"] = worst
             return self.c.refuse(worst)
         try:
-            resp, worst = self.c.led.guarded_call(self.c.run_id, self.create, kw, tool=TOOL, key_fp=self.key_fp, per_run_cap=run_cap)
+            resp, worst = self.c.led.guarded_call(self.c.run_id, self.create, kw, tool=TOOL, key_fp=self.key_fp, per_run_cap=run_cap, limits=self.c.limits())
         except ledger.LedgerRefused as e:
             self._stop(str(e))
             raise
@@ -303,7 +308,10 @@ def reserve_turn(led: ledger.Ledger, *, stage: str, usd: float, max_usd: float) 
     why = c.refuse(usd)
     if why:
         raise Refused(why)
-    return led.reserve(c.run_id, usd, tool=TOOL, model="claude-haiku-4-5", key_fp="production-session")
+    try:
+        return led.reserve(c.run_id, usd, tool=TOOL, model="claude-haiku-4-5", key_fp="production-session", limits=c.limits())
+    except ledger.LedgerRefused as e:
+        raise Refused(str(e))
 
 
 def serve(a) -> int:  # pragma: no cover -- the paid path: exercised only with the owner's file
@@ -357,7 +365,13 @@ def main(argv=None) -> int:
             return 0
         if a.cmd == "reserve":
             with open(auth_path(), encoding="utf-8") as f:
-                max_usd = float(json.load(f)["max_usd"])
+                au = json.load(f)
+            # re-checked on EVERY reservation, so a run cannot outlive its authorization (the hashes were checked at start)
+            if au.get("approved_by") != "owner" or "production" not in (au.get("targets") or []) or a.stage not in (au.get("stages") or []):
+                raise Refused(f"the authorization does not cover production stage {a.stage}")
+            if time.time() > time.mktime(time.strptime(str(au.get("expires")), "%Y-%m-%d")) + 86400:
+                raise Refused(f"the authorization expired on {au.get('expires')}")
+            max_usd = float(au["max_usd"])
             print(json.dumps({"id": reserve_turn(ledger.Ledger(), stage=a.stage, usd=a.usd, max_usd=min(max_usd, MAX_AUTHORIZED_USD))}))
             return 0
         if a.cmd == "settle":

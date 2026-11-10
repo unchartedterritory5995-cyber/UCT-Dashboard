@@ -311,8 +311,11 @@ class Ledger:
         return max(0.0, self.cap() - a - b)
 
     def reserve(self, run_id: str, worst_case_usd: float, *, tool: str = "", model: str | None = None,
-                key_fp: str | None = None) -> int:
-        """Admit one paid call or raise LedgerRefused. BEGIN IMMEDIATE: the sum and the insert are one transaction."""
+                key_fp: str | None = None, limits: tuple = ()) -> int:
+        """Admit one paid call or raise LedgerRefused. BEGIN IMMEDIATE: the sum and the insert are one transaction.
+        `limits`: ((run_id_prefix, usd), ...) further ceilings (the autotest program's max_usd, a stage's budget), each
+        summed over the rows whose run_id starts with the prefix INSIDE the same transaction, so two processes cannot
+        both pass a ceiling that has room for one (tests/test_agent_autotest_cap_race.py)."""
         if self.readonly:
             raise LedgerRefused("unavailable", "a read-only ledger handle (the report) never reserves")
         cap = self.cap()                                   # the file is read every time: lowering it takes effect at once
@@ -329,6 +332,14 @@ class Ledger:
                     if round(committed + worst, 6) > round(cap, 6):
                         c.execute("ROLLBACK")
                         raise LedgerRefused("cap", f"${committed:.4f} committed + worst ${worst:.4f} would pass the cumulative cap ${cap:.2f}")
+                    for prefix, lim in limits:
+                        r = c.execute("SELECT COALESCE(SUM(CASE status WHEN 'reserved' THEN reserved_usd"
+                                      " WHEN 'settled' THEN actual_usd ELSE 0 END),0) FROM eval_spend"
+                                      " WHERE substr(run_id, 1, ?) = ?", (len(str(prefix)), str(prefix))).fetchone()
+                        part = float(r[0] or 0)
+                        if round(part + worst, 6) > round(float(lim), 6):
+                            c.execute("ROLLBACK")
+                            raise LedgerRefused("run_cap", f"${part:.4f} committed under {prefix}* + worst ${worst:.4f} would pass ${float(lim):.2f}")
                     cur = c.execute("INSERT INTO eval_spend (run_id, tool, model, key_fp, status, reserved_usd, created_at)"
                                     " VALUES (?,?,?,?,'reserved',?,?)", (str(run_id), str(tool), model, key_fp, worst, int(time.time())))
                     c.execute("COMMIT")
@@ -387,7 +398,7 @@ class Ledger:
         except Exception:  # noqa: BLE001 -- the row stays reserved: over-counts, never under-counts
             return False
 
-    def guarded_call(self, run_id: str, fn, kwargs: dict, *, tool: str, key_fp: str | None = None, per_run_cap=None):
+    def guarded_call(self, run_id: str, fn, kwargs: dict, *, tool: str, key_fp: str | None = None, per_run_cap=None, limits: tuple = ()):
         """ONE metered Messages call: reserve its worst case, call, settle from usage. `per_run_cap(worst) -> str|None`
         may refuse the call for a run-level reason (the run's own --max-usd) before anything is reserved. Only an
         `anthropic.APIStatusError` releases; any other exception settles at the worst case and is re-raised."""
@@ -397,7 +408,7 @@ class Ledger:
             why = per_run_cap(worst)
             if why:
                 raise LedgerRefused("run_cap", why)
-        rid = self.reserve(run_id, worst, tool=tool, model=model, key_fp=key_fp)
+        rid = self.reserve(run_id, worst, tool=tool, model=model, key_fp=key_fp, limits=limits)
         try:
             resp = fn(**kwargs)
         except Exception as e:

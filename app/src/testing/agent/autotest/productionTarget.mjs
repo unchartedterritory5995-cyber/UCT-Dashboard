@@ -119,14 +119,17 @@ export async function runProduction({ authorization, list, dir, known }) {
     if (testLayoutId == null) throw new Error('the test layout was not created')
     const openFn = async (R) => prodPage(b, R, { layout: BOARDS.TWO.browser.prefs, run, testLayoutId })
     for (const req of requests) {
-      const r = gate(['reserve', '--stage', authorization.stage, '--usd', '0.25'])
+      // one production turn is capped at $0.25 by the server (budget.turn_cap_usd); a request may send several turns
+      const r = gate(['reserve', '--stage', authorization.stage, '--usd', String(0.25 * Math.max(1, req.turns?.length || 1))])
       if (r.status !== 0) { say(MODE, `STOP: the ledger refused: ${r.stdout.trim().slice(0, 200)}`); break }
       const reservation = JSON.parse(r.stdout).id
       const R = { turns: [], queue: [], ask() {}, port: 0 }
       const b0 = await spentToday(b)
       const { evidence, result } = await runRequest({ R, mock: false, openFn, turnTimeoutMs: 60000, valueFree: true }, req)
       const b1 = await spentToday(b)
-      const usd = b0 != null && b1 != null ? Math.max(0, b1 - b0) : null
+      // unknown, or a fall (the server's day rolled over between the reads): settle at the worst case, never at 0
+      // a crash or a turn timeout: the server may still be spending on that turn, so the delta could miss it -> worst case
+      const usd = !evidence?.crash && b0 != null && b1 != null && b1 >= b0 ? b1 - b0 : null
       const s = gate(['settle', '--id', String(reservation), ...(usd == null ? [] : ['--usd', String(usd)])])
       const row = rowOf(req, { ...evidence, usd }, result, { mode: MODE, known })
       rows.push({ ...row, failed: row.failed?.map(f => ({ name: f.name, tag: f.tag })), say: undefined })      // value-free
