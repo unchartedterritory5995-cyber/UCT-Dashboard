@@ -10,8 +10,9 @@
 //   §2  stop first, distance second, size last
 //   §3  shares = account × risk% ÷ (entry − stop), ROUNDED DOWN (the same as Position % = risk % ÷ stop % of the price,
 //       then Position $ ÷ entry)
-//   §4  no position over the top of the house ceiling table (houseSizing.json: GREEN A+ 25% of the account), so no card
-//       ever asks for a size our caps would cut
+//   §4  no position over the account rulebook's cap, 40% of the account (docs/study/sizing_rule.md §9, A7, the owner
+//       2026-11-09: "RAISE THE CAP TO 40% ACTUALLY"), so no card ever asks for a size our cap would cut. The market x grade
+//       ceiling table (houseSizing.json) is a guide that varies (A10), not the cap
 // Course unit: F9.02 "Stop first, then size" (docs/study/UNITS-foundations.md).
 import house from '../../../../constants/houseSizing.json'
 
@@ -28,8 +29,9 @@ export const LESSON_SOURCE = 'Our sizing rule · course unit F9.02, Stop first, 
 export const MIN_RISK_BPS = 25
 export const MAX_RISK_BPS = Math.round(Number(house.maxAccountRiskPct) * 100)   // 200: the pinned house ceiling
 export const RISK_BPS = [25, 50, 75, 100, 125, 150, 175, 200]
-/** §4: the largest cell of the house ceiling table, as a percent of the account (25). */
-export const MAX_POSITION_PCT = Math.max(...Object.values(house.ceilingPct).flatMap((row) => Object.values(row)))
+/** §4: the account rulebook's max position, as a percent of the account (A7, 40%). The ceiling table in houseSizing.json
+ *  is the market x grade guide (A10), kept for the Journal's sizing blocks; the cap a card never crosses is this one. */
+export const MAX_POSITION_PCT = 40
 /** Realistic cards (the game's brief): stops 1% to 8% under the entry, prices $8 to $400, accounts $10k to $500k. */
 export const MIN_STOP_PCT = 1
 export const MAX_STOP_PCT = 8
@@ -155,7 +157,7 @@ export function cardAt(seed, index) {
     // a price drawn evenly on a log scale, so $9 and $300 stocks both turn up
     const raw = Math.exp(Math.log(level.lo) + rnd() * (Math.log(level.hi) - Math.log(level.lo))) * 100
     const entryCents = Math.max(level.lo * 100, Math.min(level.hi * 100, Math.round(raw / level.step) * level.step))
-    // §4: a stop no tighter than the ceiling allows (risk % ÷ 25% of the account), and inside 1% to 8%
+    // §4: a stop no tighter than the cap allows (risk % ÷ 40% of the account), and inside 1% to 8%
     const lo = Math.max(MIN_STOP_PCT, (riskBps / 100) * (100 / MAX_POSITION_PCT))
     if (lo > MAX_STOP_PCT) continue
     const pct = lo + rnd() * (MAX_STOP_PCT - lo)

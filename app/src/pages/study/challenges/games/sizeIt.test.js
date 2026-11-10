@@ -25,7 +25,7 @@ describe('the house numbers', () => {
     expect(MAX_RISK_BPS).toBe(house.maxAccountRiskPct * 100)
     expect(Math.min(...RISK_BPS)).toBe(MIN_RISK_BPS)
     expect(Math.max(...RISK_BPS)).toBe(MAX_RISK_BPS)
-    expect(MAX_POSITION_PCT).toBe(25)   // GREEN A+ in houseSizing.json, the top of the table
+    expect(MAX_POSITION_PCT).toBe(40)   // the account rulebook's cap (sizing_rule.md §9 A7), not the ceiling table's top
     expect(SIZE_KIND).toBe('size')
     expect(SIZE_SECS).toBe(60)
     expect(LESSON).toBe('Stop first, distance second, size last.')
@@ -154,7 +154,7 @@ describe('a card', () => {
     expect(roundCard({ entryCents: 45000 })).toBe(null)                      // over $400
     expect(roundCard({ distCents: 45 })).toBe(null)                          // a 0.9% stop
     expect(roundCard({ distCents: 450 })).toBe(null)                         // a 9% stop
-    expect(roundCard({ distCents: 100 })).toBe(null)                         // 400 shares of $50 = 50% of the account, over our 25%
+    expect(roundCard({ distCents: 100 })).toBe(null)                         // 400 shares of $50 = 50% of the account, over our 40%
     expect(buildCard({ account: 10000, riskBps: 25, entryCents: 40000, distCents: 2000, order: ORDER })).toBe(null)   // $25 / $20 = 1 share
   })
   it('knows which mistake a tile was, and says what it teaches on the card\'s own numbers', () => {
@@ -215,7 +215,7 @@ describe('the generator', () => {
         expect(c.shares).toBeGreaterThanOrEqual(MIN_SHARES)
         expect(c.shares * c.distCents).toBeLessThanOrEqual(c.riskCents)                  // the loss at the stop stays inside the risk
         expect((c.shares + 1) * c.distCents).toBeGreaterThan(c.riskCents)                // and one more share would break it
-        expect(c.shares * c.entryCents).toBeLessThanOrEqual(c.account * MAX_POSITION_PCT) // no position over 25% of the account
+        expect(c.shares * c.entryCents).toBeLessThanOrEqual(c.account * MAX_POSITION_PCT) // no position over 40% of the account
         expect(c.choices).toHaveLength(4)
         const vals = c.choices.map((x) => x.value)
         expect(new Set(vals).size).toBe(4)

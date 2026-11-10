@@ -85,7 +85,7 @@ describe('prices in whole cents', () => {
 })
 
 describe('every template at seed 1: the right ticket, the quote and the named mistakes', () => {
-  it('buy the breakout: a buy stop a cent over the high (our entry), not on the high, not at the market', () => {
+  it('buy the breakout: a buy stop a cent over the high (the order that automates our trigger), not on the high, not at the market', () => {
     const s = buildSituation('buy-stop', 1)
     expect(s.quote).toEqual({ bid: 15609, ask: 15610, last: 15610, spread: 1 })
     expect(level(s)).toBe(16080)
@@ -281,7 +281,7 @@ describe('scoring and the working', () => {
     expect(w.rows[1].saidWhy).toBe('A buy limit at 160.81 buys now. A limit fills at your price or better, and the 156.10 ask is better.')
     expect(w.rows[2].saidWhy).toBe('No price is a market order, and that buys now near the 156.10 ask, before the break.')
     expect(w.rule).toBe('A buy stop sits over the market. Once the stock reaches the stop price, it becomes a market order.')
-    expect(w.house).toBe('Our entry is a cent over the trigger high (UCT trade plans).')
+    expect(w.house).toBe('Our entries are market orders once it trades through the trigger (UCT rulebook E57). A buy stop a cent over does the same job when you cannot watch.')
     expect(missLine(w)).toBe('You said Sell. Sell closes shares you own. You own none.')
     const right = working(s, pickRight(s))
     expect(right.ok).toBe(true)

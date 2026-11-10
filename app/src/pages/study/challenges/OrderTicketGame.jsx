@@ -6,7 +6,8 @@
 // and the first wrong field's lesson (kept short: the takeover cannot scroll, and its button must stay on a phone's
 // screen), and a heart goes; the review then draws the right order on the ladder against the market, marks each field,
 // and gives the whole working with the rule it comes from (the SEC's order definitions in plain words, course units
-// F10.01 and F10.02, and our entry, a cent over the trigger high). Every number is games/orderTicket.js's, dealt once
+// F10.01 and F10.02, and our entry, a market order once it trades through the trigger; a buy stop a cent over as the order
+// that automates it). Every number is games/orderTicket.js's, dealt once
 // from a seed at the start. The run reports itself once at the end (POST /api/study/game-runs) and the end screen's level
 // bar shows what the server granted; a failed report leaves the end screen whole, without the bar, and an answer for an
 // earlier run never lands on a later one. The hearts are the kit's (UIcon's shield, as in Options Payoff). The best run

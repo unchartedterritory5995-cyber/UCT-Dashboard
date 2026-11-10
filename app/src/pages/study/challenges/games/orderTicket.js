@@ -10,8 +10,11 @@
 //   stop        waits until the stock reaches the stop price, then becomes a market order (a buy stop sits over the
 //               market, a sell stop under it), so on a gap it can fill well past the stop
 //   stop-limit  waits for the stop price, then becomes a limit order, so it may not fill at all
-// and our house entry: a cent over the trigger high (docs/study/TRADE_PLANS.md, the Kicker's "11.05 over THE previous
-// day high"). Under a level is a cent under it, over a level a cent over it.
+// and our house entry: a MARKET order once the stock trades through the trigger (the account rulebook,
+// docs/study/sizing_rule.md §9 E57: "i market order everything"), the trigger being the level itself (the Kicker's
+// "11.05 over THE previous day high"). A buy stop a cent over the high is the order that does that job automatically
+// when you cannot watch; the game teaches it as the order type, not as our entry. Under a level is a cent under it,
+// over a level a cent over it.
 //
 // The situations are made up (the card says so). No ticker, no real quote: a game never invents a market fact.
 
@@ -28,7 +31,7 @@ export const SOURCES = {
   'F10.01': `Course F10.01, market and limit orders · ${SEC}`,
   'F10.02': `Course F10.02, stop and stop-limit orders · ${SEC} · FINRA on stop orders`,
 }
-export const HOUSE_ENTRY = 'Our entry is a cent over the trigger high (UCT trade plans).'
+export const HOUSE_ENTRY = 'Our entries are market orders once it trades through the trigger (UCT rulebook E57). A buy stop a cent over does the same job when you cannot watch.'
 
 /** A small seeded generator (mulberry32): the same seed gives the same numbers, every time. */
 export function rng(seed) {
@@ -167,7 +170,7 @@ export const TEMPLATES = {
       text: [`It has tightened under the ${fmt(v)} high all week, and you have no position.`, 'Buy it only if it trades over that high, and get filled when it does.'],
       levels: [{ key: 'level', label: 'The high', cents: v }],
       prices: [
-        { label: fmt(v + 1), cents: v + 1, ok: true, why: `A cent over the ${fmt(v)} high. It has to trade over the high, and our entry is a cent over it.` },
+        { label: fmt(v + 1), cents: v + 1, ok: true, why: `A cent over the ${fmt(v)} high. It has to trade over the high; a stop a cent over fires only once it has.` },
         { label: fmt(v), cents: v, why: `${fmt(v)} is the high itself. A stop there fires when it touches the high, before it trades over it.` },
         { label: NO_PRICE, cents: null, why: `No price is a market order, and that buys now near the ${fmt(q.ask)} ask, before the break.` },
       ],
