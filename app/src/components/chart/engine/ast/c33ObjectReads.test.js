@@ -459,6 +459,24 @@ describe('C33 (8) — a guard with a term nothing reads, gated by an input', () 
     expect(many.withheldBy).toEqual({ 'objects:collector': ['label'] })
   })
 
+  it('⛔ W-C22-DEL r4 — a VAR-HELD object is skipped by the collector and still takes a slot (objectPool.js C7): the reviewer\'s counterexample, through the engine', () => {
+    // cap 5. `anchor` (a var) is made first and held for good; every bar a gated
+    // line Pine MAY make, then a control line. The control of bar b has, after it,
+    // 19 - b controls and 19 - b maybe-lines, and ONE register can hold an older
+    // line in a slot: bound 1 + 2 (19 - b) + 1. Without the slot (r3) bar 17 read
+    // bound 5 = cap and was drawn, though TradingView keeps the anchor in that slot.
+    const t = host(['//@version=5', 'indicator("t", overlay=true, max_lines_count=5)',
+      'gate = input.bool(true, "G")', 'var line anchor = line.new(0, 7.5, 1, 7.5)',
+      'if gate and dayofweek(time, "GMT+10") == dayofweek.monday',
+      '    line.new(bar_index, low, bar_index + 1, low)',
+      'line.new(bar_index, high, bar_index + 1, high)'].join(LF))
+    expect((t.objects.regs || []).filter((g) => g.family === 'line')).toHaveLength(1)
+    const r = run(t, 20)
+    const drawn = r.live.filter((o) => o.family === 'line')
+    expect(drawn.map((o) => o.createdBar)).toEqual([18, 19])
+    expect(r.withheldBy).toEqual({ 'objects:collector': ['line'] })
+  })
+
   it('⛔ a program whose EVERY create stands under such a guard is no program: the door keeps its own sentence', () => {
     const t = host(src(5, 'gate = input.bool(true, "G")',
       'if gate and dayofweek(time, "GMT+10") == dayofweek.monday',

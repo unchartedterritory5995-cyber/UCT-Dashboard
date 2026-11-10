@@ -55264,8 +55264,8 @@
      {
       "family": "lines colour",
       "agree": true,
-      "slots": 412,
-      "agreeing": 412,
+      "slots": 364,
+      "agreeing": 364,
       "themeRelative": 0,
       "differing": 0,
       "undecodable": 0,
@@ -55290,7 +55290,7 @@
     ],
     "colourUnpaired": {
      "ours": 0,
-     "vendor": 92
+     "vendor": 140
     }
    },
    "verdict": "INCONCLUSIVE",

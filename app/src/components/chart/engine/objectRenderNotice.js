@@ -39,14 +39,16 @@ const emit = () => { for (const fn of [...listeners]) { try { fn() } catch { /* 
 
 /** Record (or clear, with a zero count) what ONE instance's render state dropped
  *  out of the objects its program held on the last bar. Emits only on a change. */
-export function setObjectRenderDrops(instanceId, dropped, held, scope = '', families = []) {
+export function setObjectRenderDrops(instanceId, dropped, held, scope = '', families = [], familiesAll = []) {
   if (!instanceId) return
   const d = Number.isInteger(dropped) && dropped > 0 ? dropped : 0
   const h = Number.isInteger(held) && held >= d ? held : d
-  const fams = [...new Set((Array.isArray(families) ? families : []).filter((f) => typeof f === 'string' && f))].sort()
+  const clean = (list) => [...new Set((Array.isArray(list) ? list : []).filter((f) => typeof f === 'string' && f))].sort()
+  const fams = clean(families)
+  const all = clean(familiesAll)
   const own = scoped(scope)
   const had = own ? own.get(instanceId) : undefined
-  if (!d && !fams.length) {
+  if (!d && !fams.length && !all.length) {
     if (had) {
       own.delete(instanceId)
       if (!own.size) drops.delete(scope || '')
@@ -54,9 +56,9 @@ export function setObjectRenderDrops(instanceId, dropped, held, scope = '', fami
     }
     return
   }
-  const entry = fams.length ? { dropped: d, held: h, families: fams } : { dropped: d, held: h }
+  const entry = { dropped: d, held: h, ...(fams.length ? { families: fams } : {}), ...(all.length ? { familiesAll: all } : {}) }
   if (had && had.dropped === d && had.held === h
-    && (had.families || []).join(',') === fams.join(',')) return
+    && (had.families || []).join(',') === fams.join(',') && (had.familiesAll || []).join(',') === all.join(',')) return
   if (own) own.set(instanceId, entry)
   else drops.set(scope || '', new Map([[instanceId, entry]]))
   emit()
@@ -67,7 +69,7 @@ export function objectRenderDropsFor(instanceId, scope = '') {
   const own = scoped(scope)
   if (!own || !own.has(instanceId)) return null
   const e = own.get(instanceId)
-  return e.families ? { ...e, families: [...e.families] } : { ...e }
+  return { ...e, ...(e.families ? { families: [...e.families] } : {}), ...(e.familiesAll ? { familiesAll: [...e.familiesAll] } : {}) }
 }
 
 /** ⭐ Subscribe; returns the unsubscribe. */

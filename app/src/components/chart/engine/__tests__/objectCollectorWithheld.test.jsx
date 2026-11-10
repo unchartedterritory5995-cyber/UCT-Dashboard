@@ -156,8 +156,9 @@ describe('⭐ the runtime: a known-false measured conjunct is a certain skip; ev
     for (const r0 of rows.filter((x) => x.ambiguous && !x.measured)) expect(lineWithheld).not.toContain(r0.i)
   })
 
-  it('⛔ past the collector\'s trigger the line family is NAMED, and only the lines CERTAINLY among TradingView\'s newest 50 are drawn (W-C22-DEL r3)', () => {
-    const r = run(translate(50), { trace: true })
+  it('⛔ past the collector\'s trigger the line family is NAMED, and only the lines certainly among what TradingView keeps are drawn (W-C22-DEL r3/r4)', () => {
+    const t = translate(50)
+    const r = run(t, { trace: true })
     // the rule by hand, off the run's own trace: a line's rank from TradingView's newest
     // is at most 1 + (our line creates after it) + (line creates Pine MAY have made
     // after it); the collector always leaves the newest 50, so rank <= 50 is certain
@@ -169,7 +170,10 @@ describe('⭐ the runtime: a known-false measured conjunct is a certain skip; ev
       if (e.k === 'create') made += 1
       else if (e.k === 'withheld') marks.push(made)
     }
-    const want = creates.filter((c, seq) => 1 + (creates.length - seq - 1) + marks.filter((m) => m > seq).length <= 50)
+    // P: one slot per register that may hold a line (objectPool.js C7) — none in this script
+    const P = (t.objects.regs || []).filter((g) => g.family === 'line' || !g.family || g.family === '*').length
+    expect(P).toBe(0)
+    const want = creates.filter((c, seq) => 1 + (creates.length - seq - 1) + marks.filter((m) => m > seq).length + P <= 50)
       .map((c) => c.id)
     expect(marks.length).toBeGreaterThan(0)
     expect(want.length).toBeGreaterThan(5)
@@ -182,7 +186,8 @@ describe('⭐ the runtime: a known-false measured conjunct is a certain skip; ev
   it('⛔ the boundary is exact: a line whose bound rank is EXACTLY the cap is drawn (the collector leaves the newest `cap`), across caps 50..80', () => {
     let boundaryHits = 0
     for (let cap = 50; cap <= 80; cap += 1) {
-      const r = run(translate(cap), { trace: true })
+      const t = translate(cap)
+      const r = run(t, { trace: true })
       const creates = r.events.filter((e) => e.k === 'create' && e.family === 'line')
       const marks = []
       let made = 0
@@ -192,7 +197,8 @@ describe('⭐ the runtime: a known-false measured conjunct is a certain skip; ev
         else if (e.k === 'withheld') marks.push(made)
       }
       if (!r.withheldBy) continue
-      const rank = (seq) => 1 + (creates.length - seq - 1) + marks.filter((m) => m > seq).length
+      const P = (t.objects.regs || []).filter((g) => g.family === 'line' || !g.family || g.family === '*').length
+      const rank = (seq) => 1 + (creates.length - seq - 1) + marks.filter((m) => m > seq).length + P
       if (creates.some((c, seq) => rank(seq) === cap)) boundaryHits += 1
       const want = creates.filter((c, seq) => rank(seq) <= cap).map((c) => c.id)
       expect(r.live.filter((o) => o.family === 'line').map((o) => o.id), `cap ${cap}`).toEqual(want)
@@ -261,13 +267,19 @@ describe('⛔ N1 — the skip is claimed only where it is certain', () => {
 })
 
 describe('⭐ the member is told, by name', () => {
-  it('the sentence names the families and says why; it joins a document note and stands alone', () => {
+  it('the sentences name the families and say why; partial says the newest are drawn, whole says none is', () => {
     const s = collectorFamiliesSentence(['line', 'linefill'])
     expect(s).toMatch(/^Older lines and fills between lines are held back on this chart: /)
-    expect(s).toMatch(/Only the ones TradingView certainly still shows are drawn/)
     expect(s).toMatch(/TradingView has already removed/)
+    expect(s).toMatch(/The newest ones are drawn\.$/)
+    expect(s).not.toMatch(/certainly/)
+    const w = collectorFamiliesSentence(['line', 'linefill'], { whole: true })
+    expect(w).toMatch(/^No lines and fills between lines are shown on this chart: /)
+    expect(w).not.toMatch(/drawn/)
     expect(withRenderDrops(null, { dropped: 0, held: 0, families: ['line'] }))
       .toEqual({ name: DRAWING_NOTE_NAME, note: collectorFamiliesSentence(['line']) })
+    expect(withRenderDrops(null, { dropped: 0, held: 0, familiesAll: ['line'] }))
+      .toEqual({ name: DRAWING_NOTE_NAME, note: collectorFamiliesSentence(['line'], { whole: true }) })
     expect(withRenderDrops({ name: DRAWING_NOTE_NAME, note: 'A partial.' }, { dropped: 0, held: 0, families: ['box'] }).note)
       .toBe(`A partial. ${collectorFamiliesSentence(['box'])}`)
     // ⛔ CONTROL: no families and no drops ⇒ the document's own note, untouched
@@ -278,6 +290,8 @@ describe('⭐ the member is told, by name', () => {
   it('the store keeps an entry that names families with nothing dropped, and clears when neither is left', () => {
     setObjectRenderDrops('x', 0, 0, '', ['line'])
     expect(objectRenderDropsFor('x')).toEqual({ dropped: 0, held: 0, families: ['line'] })
+    setObjectRenderDrops('x', 0, 0, '', [], ['box'])
+    expect(objectRenderDropsFor('x')).toEqual({ dropped: 0, held: 0, familiesAll: ['box'] })
     setObjectRenderDrops('x', 2, 4)
     expect(objectRenderDropsFor('x')).toEqual({ dropped: 2, held: 4 })
     setObjectRenderDrops('x', 0, 4, '', [])

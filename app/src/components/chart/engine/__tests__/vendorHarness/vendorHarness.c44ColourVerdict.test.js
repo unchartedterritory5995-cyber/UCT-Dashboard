@@ -439,16 +439,17 @@ describe('C44 — the pairing: `na` is `na` on both sides, and only an object NO
 // history, so our side holds more objects and their ids moved: 452 paired line
 // slots (was 272), and the price-only pairing now mis-pairs lines #2154, #2162 and
 // #2786 (was #35, #356). Re-measured on the merged tree; the intent is unchanged.
-// ⭐ RE-PINNED 2026-11-09 (fix/pine-c22-withheld-deletes r3, W-C22-DEL) — the object
-// lane now holds back every line not CERTAINLY among TradingView's newest 500 (C22
-// withheld creates Pine may have made move its collector), so we draw 412 lines, every
-// one TradingView's (`vendorHarness.f6SpyDrawings.test.js`), and the verdict is
-// INCONCLUSIVE with the lines withheld by name. Their colours are still graded: 412
-// paired slots, all agreeing; the price-only pairing now mis-pairs only #2786 (a
-// visible width-2 leg met with TradingView's alpha-00 helper). Re-measured, not edited.
-const LINE_SLOTS = 412
+// ⭐ RE-PINNED 2026-11-09 (fix/pine-c22-withheld-deletes r4, W-C22-DEL) — the object
+// lane now holds back every line TradingView may already have collected (C22 withheld
+// creates Pine may have made move its collector, and each line register can keep an
+// older line in a slot — objectPool.js C7), so we draw 364 lines, every one
+// TradingView's (`vendorHarness.f6SpyDrawings.test.js`), and the verdict is
+// INCONCLUSIVE with the lines withheld by name. Their colours are still graded: 364
+// paired slots, all agreeing; the price-only pairing mis-pairs only #2786 (a visible
+// width-2 leg met with TradingView's alpha-00 helper). Re-measured, not edited.
+const LINE_SLOTS = 364
 const OLD_PAIRING_DIFFERS = ['line #2786']
-const HELPER_ID = 2233 // a width-0 fill helper we draw, paired with TradingView's helper
+const HELPER_ID = 2302 // a width-0 fill helper we draw, paired with TradingView's helper
 describe('⭐ 2026-11-09 · lines at one pair of prices pair by width, so a fill helper meets a fill helper', () => {
   const ID = 'vdubus-pattern-gen-v2-restored-refined-spy-1d-2026-10-03'
   let graded

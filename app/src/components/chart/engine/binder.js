@@ -1125,12 +1125,14 @@ export function createBinder({ chart, LWC, scope = '' }) {
   // TradingView's collector may have removed objects this chart still holds
   // (`objectRuntime.js`, `withheldBy['objects:collector']`), said by name in the
   // same note.
-  const publishDrops = (instanceId, state, families = null) => {
+  // `familiesAll`: those withheld WHOLE (`withheldBy['objects:collector-all']`).
+  const publishDrops = (instanceId, state, families = null, familiesAll = null) => {
     const n = state ? renderDroppedCount(state) : 0
     const fams = Array.isArray(families) ? families : []
-    if (!n && !fams.length && !dropsPublished.has(instanceId)) return
-    attempt(() => setObjectRenderDrops(instanceId, n, state ? renderHeldCount(state) : 0, noticeScope, fams))
-    if (n || fams.length) dropsPublished.add(instanceId)
+    const all = Array.isArray(familiesAll) ? familiesAll : []
+    if (!n && !fams.length && !all.length && !dropsPublished.has(instanceId)) return
+    attempt(() => setObjectRenderDrops(instanceId, n, state ? renderHeldCount(state) : 0, noticeScope, fams, all))
+    if (n || fams.length || all.length) dropsPublished.add(instanceId)
     else dropsPublished.delete(instanceId)
   }
   // ⭐⭐ W9-T12 — the marker outcome per instance (served, or the refusal's sentence), for the
@@ -1378,7 +1380,8 @@ export function createBinder({ chart, LWC, scope = '' }) {
           meta.stats.dropped = hstate.dropped
         } else markersCleared()
       }
-      publishDrops(inst.instanceId, hstate, (built.value.run.withheldBy || {})['objects:collector'] || null)
+      publishDrops(inst.instanceId, hstate, (built.value.run.withheldBy || {})['objects:collector'] || null,
+        (built.value.run.withheldBy || {})['objects:collector-all'] || null)
       if (!attempt(() => layer.set(hstate, sig + markSig, meta)).ok) markersCleared()
     }
     for (const [id, layer] of objectLayers) {

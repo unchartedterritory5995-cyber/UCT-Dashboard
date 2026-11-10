@@ -282,8 +282,8 @@ function steppedReplay(c) {
 // TradingView's, and the oldest lines TradingView had already collected survived
 // here, DRAWN. The fix is C33's existing collector rule (`noteUnknownCreate` →
 // `collectorUnknown`, one authority): a create withheld by `op.withhold` is one Pine
-// MAY have made, so once ours plus those can pass the trigger, every line not CERTAINLY
-// among TradingView's newest 500 is held back (r3; r1/r2 held the family whole), by
+// MAY have made, so once ours plus those can pass the trigger, every line TradingView
+// may already have collected is held back (r3/r4; r1/r2 held the family whole), by
 // name (`withheldBy['objects:collector']`, the member's drawing note). A
 // bar the guard's MEASURED conjuncts are false (`withholdRuns`) is a certain skip, so
 // only the 20 bars Pine may really have drawn on count: labels stay drawn.
@@ -314,7 +314,7 @@ describe('F6 — vdubus SPY (DIV-1, W-C22-DEL fixed): the lines TradingView\'s c
     expect(vendorMaxId).toBeGreaterThan(run.stats.nextId - 1)
   }, T)
 
-  it('⭐ FIXED (r3): every object we draw is TradingView\'s, in order; only the lines CERTAINLY among its newest 500 are drawn, the older ones held back BY NAME', () => {
+  it('⭐ FIXED (r3): every object we draw is TradingView\'s, in order; only the lines it certainly still keeps are drawn, the older ones held back BY NAME', () => {
     const c = cap(ID)
     const o = ours(ID)
     const O = ourObjects(o)
@@ -322,10 +322,11 @@ describe('F6 — vdubus SPY (DIV-1, W-C22-DEL fixed): the lines TradingView\'s c
     // ⛔ THE HONESTY PROPERTY: nothing we draw is an object TradingView does not hold
     expect(unO).toEqual([])
     expect(pairs.length).toBe(O.length)
-    // ⭐ r3 — 412 of our 500 lines are certainly among TradingView's newest 500 (rank
-    // <= 1 + later creates + creates Pine may have made later); the 88 older ones, and
-    // the fills on them, are held back. ⚰️ r1/r2 held back all 500 (the family whole).
-    expect(O.filter((x) => x.f === 'line').length).toBe(412)
+    // ⭐ r4 — 364 of our 500 lines are certainly still kept by TradingView (rank <= 1 +
+    // later creates + creates Pine may have made later + one slot per line register,
+    // objectPool.js C7); the 136 older ones, and the fills on them, are held back.
+    // ⚰️ r1/r2 held back all 500 (the family whole); r3 drew 412 (no register slots).
+    expect(O.filter((x) => x.f === 'line').length).toBe(364)
     // a fill spans two lines: every fill we draw joins two lines we draw
     const drawnLines = new Set(o.objects.held.filter((x) => x.family === 'line').map((x) => x.id))
     const fills = o.objects.held.filter((x) => x.family === 'linefill')

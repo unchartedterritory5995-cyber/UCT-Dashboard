@@ -476,7 +476,8 @@ export const DRAWING_NOTE_NAME = 'Drawings'
 export function withRenderDrops(note, drops) {
   const n = drops && Number.isInteger(drops.dropped) ? drops.dropped : 0
   const fams = drops && Array.isArray(drops.families) ? drops.families : []
-  if (n <= 0 && !fams.length) return note || null
+  const all = drops && Array.isArray(drops.familiesAll) ? drops.familiesAll : []
+  if (n <= 0 && !fams.length && !all.length) return note || null
   const parts = note ? [note.note] : []
   if (n > 0) {
     const of = drops.held >= n ? drops.held : n
@@ -486,6 +487,7 @@ export function withRenderDrops(note, drops) {
     parts.push(note ? `On this chart, ${sentence}` : sentence)
   }
   // ⭐ W-C22-DEL — a family withheld whole, by name (`collectorFamiliesSentence`).
+  if (all.length) parts.push(collectorFamiliesSentence(all, { whole: true }))
   if (fams.length) parts.push(collectorFamiliesSentence(fams))
   return { name: (note && note.name) || DRAWING_NOTE_NAME, note: parts.join(' ') }
 }
@@ -495,12 +497,17 @@ export function withRenderDrops(note, drops) {
  *  `withheldBy['objects:collector']`): this chart could not tell whether the script
  *  drew on some bars, so it cannot know how many TradingView made, nor which old
  *  ones TradingView has since removed to stay under the script's limit. */
-export function collectorFamiliesSentence(families) {
-  const fs = (families || []).map((f) => (f === 'linefill' ? 'fills between lines' : f === 'box' ? 'boxes' : `${f}s`))
-  const list = fs.length === 1 ? fs[0] : `${fs.slice(0, -1).join(', ')} and ${fs[fs.length - 1]}`
+export function collectorFamiliesSentence(families, { whole = false } = {}) {
+  const plural = (f) => (f === 'linefill' ? 'fills between lines' : f === 'box' ? 'boxes' : `${f}s`)
+  const join = (fs) => (fs.length === 1 ? fs[0] : `${fs.slice(0, -1).join(', ')} and ${fs[fs.length - 1]}`)
+  const list = join((families || []).map(plural))
+  if (whole) {
+    return `No ${list} are shown on this chart: the script draws some that this chart can't follow, `
+      + "so it can't know which ones TradingView has already removed to stay within the script's limit."
+  }
   return `Older ${list} are held back on this chart: on some bars this chart can't tell whether the `
     + "script drew one, so it can't know which older ones TradingView has already removed to "
-    + "stay within the script's limit. Only the ones TradingView certainly still shows are drawn."
+    + "stay within the script's limit. The newest ones are drawn."
 }
 
 /**

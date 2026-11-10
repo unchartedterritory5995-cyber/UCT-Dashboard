@@ -388,11 +388,12 @@ export function beginObjects(program, ctx) {
    *  whose live count TradingView's collector may therefore have cut — its count
    *  is ours plus up to that many, so past the collector's trigger which objects
    *  it still holds is unknown. ⭐ W-C22-DEL r3 — of such a family, an object is
-   *  withheld (`finish`) unless it is CERTAINLY among the newest `cap` TradingView
-   *  made: its rank from the newest there is at most 1 + (this run's creates of the
-   *  family after it) + (creates Pine MAY have made after it), and the collector
-   *  always leaves the newest `cap`. ⚰️ It was the family WHOLE, which on vdubus SPY
-   *  (DIV-1 replay) hid hundreds of lines TradingView certainly shows. A getter on
+   *  withheld (`finish`) unless TradingView certainly still keeps it: its rank from
+   *  the newest there is at most 1 + (this run's creates of the family after it) +
+   *  (creates Pine MAY have made after it), and the collector leaves `cap` objects
+   *  less the ones variables hold (r4: P, one per register of the family). ⚰️ It was
+   *  the family WHOLE, which on vdubus SPY (DIV-1 replay) hid lines TradingView
+   *  shows. A getter on
    *  a LIVE object of the family is unknown from then on (an empty handle is still
    *  `na` whatever the collector did). */
   const unknownCreates = Object.fromEntries(OBJECT_FAMILIES.map((f) => [f, 0]))
@@ -2093,13 +2094,22 @@ export function beginObjects(program, ctx) {
     if (collectedBy[fam] > 0 && (lost.has(fam) || lost.has('*'))) withheldFams.add(fam)
   }
   // ⭐⭐ W-C22-DEL — the lost-create rule above withholds a family WHOLE (how many
-  // creates it lost is not counted, so no object's rank is bounded); the C33 rule
-  // below withholds per object. Both are told to the member by family
-  // (`withheldBy['objects:collector']`, the binder's drawing note).
-  const collectorFams = new Set(withheldFams)
-  // ⭐ C33 (W-C22-DEL r3) — of a family whose count TradingView's collector may
-  // have cut, the objects NOT certainly among its newest `cap` (see
-  // `noteUnknownCreate`): 1 + later + maybe-later > cap.
+  // creates it lost is not counted, so no object's rank is bounded:
+  // `withheldBy['objects:collector-all']`); the C33 rule below withholds per object
+  // (`withheldBy['objects:collector']`). Both reach the member's drawing note.
+  const collectorWhole = new Set(withheldFams)
+  const collectorFams = new Set()
+  // ⭐ C33 (W-C22-DEL r3/r4) — of a family whose count TradingView's collector may
+  // have cut, the objects NOT certainly among what it keeps (see
+  // `noteUnknownCreate`). The collector leaves `cap` objects, but an object a
+  // drawing VARIABLE holds is skipped and still COUNTS (`objectPool.js` C7,
+  // capture-witnessed), so up to one slot per register of the family (P) can be
+  // taken by an OLDER object the bound below never sees. ⛔ P counts every register
+  // that may hold the family (an unnamed one included) — whatever it holds, whenever
+  // — never only the ones holding an older object at the end of this run.
+  // ⚰️ r3 left P out: cap 5, var-held A, L1..L15, one maybe-create M ⇒ TradingView
+  // keeps A, L13, L14, M, L15 and r3 drew L12 (bound 5).
+  // Held when 1 + later + maybe-later + P > cap.
   const collectorHeld = new Set()
   {
     const marksAbove = (marks, seq) => {
@@ -2108,10 +2118,17 @@ export function beginObjects(program, ctx) {
       while (lo < hi) { const mid = (lo + hi) >> 1; if (marks[mid] > seq) hi = mid; else lo = mid + 1 }
       return marks.length - lo
     }
+    const varSlots = new Map()
+    const slotsOf = (fam) => {
+      if (!varSlots.has(fam)) {
+        varSlots.set(fam, (program.regs || []).filter((r) => r.family === fam || !r.family || r.family === '*').length)
+      }
+      return varSlots.get(fam)
+    }
     for (const o of live.values()) {
       if (!collectorUnknown.has(o.family) || withheldFams.has(o.family)) continue
       const later = familySeq[o.family] - o.seq - 1
-      if (1 + later + marksAbove(unknownMarks[o.family], o.seq) > limits[o.family]) collectorHeld.add(o.id)
+      if (1 + later + marksAbove(unknownMarks[o.family], o.seq) + slotsOf(o.family) > limits[o.family]) collectorHeld.add(o.id)
     }
     // a fill spans two lines: a fill on a held line goes with it
     for (const o of live.values()) {
@@ -2138,7 +2155,7 @@ export function beginObjects(program, ctx) {
   }
   for (const fam of offListingFams) withheldFams.add(fam)
   if (withheldFams.has('line')) withheldFams.add('linefill')
-  if (collectorFams.has('line')) collectorFams.add('linefill')
+  if (collectorWhole.has('line')) collectorWhole.add('linefill')
   const withheld = {}
   for (const o of live.values()) {
     if (withheldFams.has(o.family)) withheld[o.family] = (withheld[o.family] || 0) + 1
@@ -2151,7 +2168,8 @@ export function beginObjects(program, ctx) {
     heldCounts[o.family] -= 1
     collectorFams.add(o.family)
   }
-  const collectorShown = [...collectorFams].filter((f) => withheld[f] > 0).sort()
+  const collectorShown = [...collectorFams].filter((f) => withheld[f] > 0 && !collectorWhole.has(f)).sort()
+  const collectorAllShown = [...collectorWhole].filter((f) => withheld[f] > 0).sort()
   // ⭐⭐ C17 — AN OBJECT STILL CARRYING A TAINTED PROPERTY IS NOT DRAWN. Its
   // text, a coordinate, or its very existence reads what a withheld op wrote,
   // so drawing it would show a value TradingView may not hold. It is counted as
@@ -2197,10 +2215,11 @@ export function beginObjects(program, ctx) {
     status,
     reason,
     ...(withheldFams.size || taintHeld.size || collectorHeld.size ? { withheld } : {}),
-    ...(offListingFams.size || (collectorShown.length && !stopped) ? { withheldBy: {
+    ...(offListingFams.size || ((collectorShown.length || collectorAllShown.length) && !stopped) ? { withheldBy: {
       ...(offListingFams.size ? { 'objects:off-listing': [...offListingFams] } : {}),
       // ⛔ only a family that held something here: an empty one hides nothing
       ...(collectorShown.length && !stopped ? { 'objects:collector': collectorShown } : {}),
+      ...(collectorAllShown.length && !stopped ? { 'objects:collector-all': collectorAllShown } : {}),
     } } : {}),
     // ⭐ F1 — what the off-listing withholding kept back, for DIAGNOSTICS only (the
     // vendor harness's window analysis); never drawn — the binder reads `live`.
