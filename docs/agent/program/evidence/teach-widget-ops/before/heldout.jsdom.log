@@ -1,0 +1,156 @@
+
+ RUN  v4.0.18 C:/w/pl-teach-wops/app
+
+ ❯ src/agent/agentGuideHeldOutWidgetOps.test.js (14 tests | 9 failed) 51ms
+     ✓ "how do I rerun the scan in my scanner widget" → Refresh scan 3ms
+     ✓ "show me how to refresh the scanner results" → Refresh scan 1ms
+     × "how do I refresh the period sort widget" → Refresh 18ms
+     × "how do I get fresh results in period sort" → Refresh 8ms
+     ✓ "how do I make a watchlist column wider" → Drag to resize column 0ms
+     ✓ "show me how to resize the columns in my watchlist" → Drag to resize column 0ms
+     ✓ "how do I rename my flagged list" → Rename 0ms
+     × "show me how to give the flagged list a different name" → Rename 7ms
+     × "how do I show only calls in options flow" → Calls 2ms
+     × "how do I filter the options flow to puts" → Puts 1ms
+     × "show me how to see just sweeps in the flow widget" → Sweep 0ms
+     × "how do I show only block trades in options flow" → Block 0ms
+     × "how do I see only bullish flow" → Bull 0ms
+     × "how do I filter options flow to bearish prints" → Bear 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 9 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/agent/agentGuideHeldOutWidgetOps.test.js > a widget op ask walks to its control > "how do I refresh the period sort widget" → Refresh
+ FAIL  src/agent/agentGuideHeldOutWidgetOps.test.js > a widget op ask walks to its control > "how do I get fresh results in period sort" → Refresh
+AssertionError: expected 'Custom-period sort | "workspace.tools…' to contain 'Refresh'
+
+Expected: "Refresh"
+Received: "Custom-period sort | "workspace.tools.periodSort""
+
+ ❯ src/agent/agentGuideHeldOutWidgetOps.test.js:44:21
+     42| describe('a widget op ask walks to its control', () => {
+     43|   it.each(WIDGET_OPS_HELD_OUT)('"%s" → %s', (q, needle) => {
+     44|     expect(seen(q)).toContain(needle)
+       |                     ^
+     45|   })
+     46| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/9]⎯
+
+ FAIL  src/agent/agentGuideHeldOutWidgetOps.test.js > a widget op ask walks to its control > "show me how to give the flagged list a different name" → Rename
+AssertionError: expected 'null' to contain 'Rename'
+
+Expected: "Rename"
+Received: "null"
+
+ ❯ src/agent/agentGuideHeldOutWidgetOps.test.js:44:21
+     42| describe('a widget op ask walks to its control', () => {
+     43|   it.each(WIDGET_OPS_HELD_OUT)('"%s" → %s', (q, needle) => {
+     44|     expect(seen(q)).toContain(needle)
+       |                     ^
+     45|   })
+     46| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/9]⎯
+
+ FAIL  src/agent/agentGuideHeldOutWidgetOps.test.js > a widget op ask walks to its control > "how do I show only calls in options flow" → Calls
+AssertionError: expected 'Options Flow widget settings | {"widg…' to contain 'Calls'
+
+Expected: "Calls"
+Received: "Options Flow widget settings | {"widgetType":"optionsflow","guide":"widget.settings"}"
+
+ ❯ src/agent/agentGuideHeldOutWidgetOps.test.js:44:21
+     42| describe('a widget op ask walks to its control', () => {
+     43|   it.each(WIDGET_OPS_HELD_OUT)('"%s" → %s', (q, needle) => {
+     44|     expect(seen(q)).toContain(needle)
+       |                     ^
+     45|   })
+     46| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/9]⎯
+
+ FAIL  src/agent/agentGuideHeldOutWidgetOps.test.js > a widget op ask walks to its control > "how do I filter the options flow to puts" → Puts
+AssertionError: expected 'Options Flow: calls or puts | {"widge…' to contain 'Puts'
+
+Expected: "Puts"
+Received: "Options Flow: calls or puts | {"widgetType":"optionsflow","guide":"flow.filter.cp"}"
+
+ ❯ src/agent/agentGuideHeldOutWidgetOps.test.js:44:21
+     42| describe('a widget op ask walks to its control', () => {
+     43|   it.each(WIDGET_OPS_HELD_OUT)('"%s" → %s', (q, needle) => {
+     44|     expect(seen(q)).toContain(needle)
+       |                     ^
+     45|   })
+     46| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/9]⎯
+
+ FAIL  src/agent/agentGuideHeldOutWidgetOps.test.js > a widget op ask walks to its control > "show me how to see just sweeps in the flow widget" → Sweep
+AssertionError: expected 'Options Flow: sweeps or blocks | {"wi…' to contain 'Sweep'
+
+Expected: "Sweep"
+Received: "Options Flow: sweeps or blocks | {"widgetType":"optionsflow","guide":"flow.filter.type"}"
+
+ ❯ src/agent/agentGuideHeldOutWidgetOps.test.js:44:21
+     42| describe('a widget op ask walks to its control', () => {
+     43|   it.each(WIDGET_OPS_HELD_OUT)('"%s" → %s', (q, needle) => {
+     44|     expect(seen(q)).toContain(needle)
+       |                     ^
+     45|   })
+     46| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/9]⎯
+
+ FAIL  src/agent/agentGuideHeldOutWidgetOps.test.js > a widget op ask walks to its control > "how do I show only block trades in options flow" → Block
+AssertionError: expected 'Options Flow: sweeps or blocks | {"wi…' to contain 'Block'
+
+Expected: "Block"
+Received: "Options Flow: sweeps or blocks | {"widgetType":"optionsflow","guide":"flow.filter.type"}"
+
+ ❯ src/agent/agentGuideHeldOutWidgetOps.test.js:44:21
+     42| describe('a widget op ask walks to its control', () => {
+     43|   it.each(WIDGET_OPS_HELD_OUT)('"%s" → %s', (q, needle) => {
+     44|     expect(seen(q)).toContain(needle)
+       |                     ^
+     45|   })
+     46| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/9]⎯
+
+ FAIL  src/agent/agentGuideHeldOutWidgetOps.test.js > a widget op ask walks to its control > "how do I see only bullish flow" → Bull
+AssertionError: expected 'Options Flow: bullish or bearish | {"…' to contain 'Bull'
+
+Expected: "Bull"
+Received: "Options Flow: bullish or bearish | {"widgetType":"optionsflow","guide":"flow.filter.dir"}"
+
+ ❯ src/agent/agentGuideHeldOutWidgetOps.test.js:44:21
+     42| describe('a widget op ask walks to its control', () => {
+     43|   it.each(WIDGET_OPS_HELD_OUT)('"%s" → %s', (q, needle) => {
+     44|     expect(seen(q)).toContain(needle)
+       |                     ^
+     45|   })
+     46| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/9]⎯
+
+ FAIL  src/agent/agentGuideHeldOutWidgetOps.test.js > a widget op ask walks to its control > "how do I filter options flow to bearish prints" → Bear
+AssertionError: expected 'Options Flow: bullish or bearish | {"…' to contain 'Bear'
+
+Expected: "Bear"
+Received: "Options Flow: bullish or bearish | {"widgetType":"optionsflow","guide":"flow.filter.dir"}"
+
+ ❯ src/agent/agentGuideHeldOutWidgetOps.test.js:44:21
+     42| describe('a widget op ask walks to its control', () => {
+     43|   it.each(WIDGET_OPS_HELD_OUT)('"%s" → %s', (q, needle) => {
+     44|     expect(seen(q)).toContain(needle)
+       |                     ^
+     45|   })
+     46| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/9]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  9 failed | 5 passed (14)
+   Start at  13:50:11
+   Duration  7.18s (transform 4.94s, setup 305ms, import 6.22s, tests 51ms, environment 458ms)
+
