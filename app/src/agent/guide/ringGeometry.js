@@ -18,6 +18,7 @@ export const RING = Object.freeze({
   handlePad: 6,    // room around a drag handle's own box, px (the circle's radius = half its longer side + this)
   handleMax: 24,   // a control no bigger than this on both sides, that is dragged, is a handle
 })
+const TRANSITIONS = ['transitionrun', 'transitionstart', 'transitionend', 'transitioncancel']
 /** Frames with no change before the loop stops (and an event starts it again). */
 export const STILL_FRAMES = 6
 
@@ -114,15 +115,25 @@ export function trackRing(el, onRing, { holder = null } = {}) {
     if (!sameRing(r, last)) { last = r; onRing(r); return true }
     return false
   }
+  // ⭐ the board animates a cell's move (react-grid-layout: a 200 ms transition on transform / width / height), so the control
+  // keeps moving with no mutation, no resize of its own and possibly a still frame between steps: while the control or any box
+  // it sits in (up to the board) has a running animation, the loop keeps going, and stops once it is done (pl-auto round 3)
+  const boxes = []
+  for (let n = el; n && n !== document.body && boxes.length < 12; n = n.parentElement) boxes.push(n)
+  const animating = () => boxes.some(n => { try { return (n.getAnimations?.() || []).some(a => a.playState === 'running') } catch { return false } })
   const loop = () => {
     frame = null
     if (stopped) return
     const moved = measure()
     still = moved ? 0 : still + 1
     if (last === null && el.isConnected === false) return   // gone: no more frames for it
-    if (dragging || still < STILL_FRAMES) frame = raf(loop)
+    if (dragging || still < STILL_FRAMES || animating()) frame = raf(loop)
   }
   const kick = () => { if (stopped) return; still = 0; if (frame == null) frame = raf(loop) }
+  // the window's own resize lays the board out again: measure at once (same frame), then follow
+  const onResize = () => { if (stopped) return; measure(); kick() }
+  // a transition beginning or ending anywhere above the control: follow it
+  const onTransition = (e) => { if (!stopped && e.target?.contains?.(el)) kick() }
   const onDown = () => { dragging = true; kick() }
   const onUp = () => { dragging = false; kick() }
   let ro = null
@@ -150,7 +161,8 @@ export function trackRing(el, onRing, { holder = null } = {}) {
   const opts = { capture: true, passive: true }
   if (typeof window !== 'undefined') {
     window.addEventListener('scroll', kick, opts)
-    window.addEventListener('resize', kick, opts)
+    window.addEventListener('resize', onResize, opts)
+    for (const t of TRANSITIONS) window.addEventListener(t, onTransition, opts)
     window.addEventListener('pointerdown', onDown, opts)
     window.addEventListener('pointermove', onMove, opts)
     window.addEventListener('pointerup', onUp, opts)
@@ -168,7 +180,8 @@ export function trackRing(el, onRing, { holder = null } = {}) {
       mo?.disconnect()
       if (typeof window !== 'undefined') {
         window.removeEventListener('scroll', kick, opts)
-        window.removeEventListener('resize', kick, opts)
+        window.removeEventListener('resize', onResize, opts)
+        for (const t of TRANSITIONS) window.removeEventListener(t, onTransition, opts)
         window.removeEventListener('pointerdown', onDown, opts)
         window.removeEventListener('pointermove', onMove, opts)
         window.removeEventListener('pointerup', onUp, opts)
