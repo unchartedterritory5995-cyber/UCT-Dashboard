@@ -9,7 +9,9 @@ import { fileURLToPath } from 'node:url'
 import { ownControls } from '../widgets/widgetControls'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
-const PY = readFileSync(resolve(ROOT, 'api/services/uct_agent/turn.py'), 'utf8')
+// line endings normalised: a CRLF checkout (core.autocrlf=true) must read the same table (AUDIT #1029 mutation run: the
+// table regex found nothing on a fresh CRLF worktree, so the whole file failed to load)
+const PY = readFileSync(resolve(ROOT, 'api/services/uct_agent/turn.py'), 'utf8').replace(/\r\n/g, '\n')
 const table = (() => {
   const body = /\n_FLOW_CHIPS = (\{[\s\S]*?\n\})\n/.exec(PY)[1]
   return JSON.parse(body.replace(/\s+/g, ' ').replace(/,\s*\}/g, '}'))
