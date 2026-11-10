@@ -1069,3 +1069,92 @@ passages with their tickers and section authors, the owner's verdicts), all Bulk
 code summaries of `flat_base.py`, the two flat-top scanners, `base_catalog.py`, Chart IQ v3, the Model Book card, the
 journal tags and the course plan. The 2026-10-18 Sunday Scans is confirmed subscriber-only; the sitemap lists 103
 posts.
+
+---
+
+## 12. Examples (from our data)
+
+**The scan's rule (one paragraph).** Daily bars from the local sandbox, 1984 to 2026-11-06, every ticker with 320 or
+more sessions (3,874 names; the scan completed, nothing was cut for time). A hit is the first session whose high trades
+above the pivot, where the pivot is the highest intraday high of a base that satisfies section 8: 25 to 325 sessions
+long (5 to 65 weeks), the longest qualifying length taken; the left-side high was the highest high of the 100 sessions
+before it and at least 30% above the lowest low of the 65 sessions before it; the base's first week came within 3% of
+the pivot; depth (pivot to lowest low) 15% or less; the least-squares line through the closes drifts no more than 10%
+of the mean close; tight at the end (the last 10 sessions' range at most half the base's depth, or an inside day in
+the last 3 sessions); two or more separate touches of the pivot within 0.5 ATR(14); at least 80% of the base's closes
+at or above the 50-day; on the trigger day close > 50-day > 200-day (B26) with the 200-day not below its value 20
+sessions earlier; close $10 or more and 50-day average dollar volume $20 million or more (B23); the market-order fill
+is the pivot plus a cent, or the open when the open gapped above the pivot, and no fill more than 4% over the pivot
+(C28) or more than 10% over the 10-day average (C29); no trigger in the 3 sessions before a report where report dates
+exist (B22); stop 5 cents under the lower of the trigger day's low and the prior day's low, falling back to the
+trigger day's low alone, and the trade skipped if that is still more than 3% under the fill (A13). Breakout volume,
+volume dry-up, taps, close position and the ADR are recorded as grade cues, not gates. Not coded: base count (first or
+second base), the RS rating and group, the market reading, and the trims. One hit per name per 20 sessions.
+Outcome: from the day after the trigger, 60 sessions forward, the first of stop / 3R / 5R; same day, the stop wins.
+
+**Base rate.** 3,849 hits (3,671 on stocks, 178 on ETFs; 3,644 of the stock hits are on names in the house liquid
+universe). Of the stock hits, **28.9% reached 3R and 20.0% reached 5R before the stop**; 86.5% were eventually stopped
+at the original stop within the 60-session window (that includes winners, since the stop never moves here), and 46%
+never reached 1R before the stop. Among the winners the median time to 3R was 5 sessions. The window is the whole
+database, 1994-01-31 to 2026-11-04. **Caveat:** this is a fixed stop with no trims, no breakeven move, no trail and no
+time stop, so it measures how often the structure delivers 3R and 5R, not what the house trade earns. Cuts worth
+teaching (same scan, stocks only): breakout volume 1.4x the 50-day average or more, 788 hits, 39.2% to 3R and 30.1% to
+5R, against 26.0% and 17.3% below 1.4x (IBD's volume rule earns its grade); a gap open above the pivot (582 hits) did
+better, 37.8% / 27.7%, not worse; depth 10% or less (1,207 hits) was NOT better, 27.1% / 18.5% against 29.7% / 20.8%
+for 10-15%, which sides with Bulkowski's "Tall patterns perform better" over the shallow-is-better proposal in 8.1;
+three or more taps (1,621 hits) made no difference, 28.9% / 20.5%; volume drying up in the second half (2,859 hits)
+made no difference, 29.0% / 20.1%. Triggers that were themselves earnings-reaction days (102) did better, 43.1% /
+35.3%, but they are a different setup (question 9) and were excluded from the examples.
+
+**The 10 examples** (all stocks, one per name, ten different years, none an earnings-reaction day; every one reached
+5R and was above 1R by the tenth session, so the house time stop (C33) would not have cut it; prices are
+split-adjusted as the database holds them). Files: `scratchpad/setups/01-flat-base/final/NN_TICKER_DATE.png` and the
+phone sheets `sheet_1-4.png`, `sheet_5-7.png`, `sheet_8-10.png` (not in the repo).
+
+| # | Ticker | Trigger | Base (weeks / depth / taps / prior run) | Breakout vol | Buy | Stop (risk) | Best R (3R on day) | Why it is textbook |
+|---|---|---|---|---|---|---|---|---|
+| 1 | NUS | 2013-09-09 | 6.0 wk / 10.3% / 3 / +82% | 1.85x | 90.01 | 88.22 (2.0%) | 23.5R (1) | A six-week shelf riding the rising 10- and 21-day after the stock nearly doubled; three clean taps of 90; broke out on 1.9x volume and reached 3R the next session. |
+| 2 | FIX | 2025-09-10 | 6.4 wk / 11.6% / 3 / +115% | 1.57x | 733.26 | 721.82 (1.6%) | 25.1R (1) | The shelf sat above a steep 50-day after a run from about 300; three taps near 733; 3R the next session, and the lowest low of the next 30 sessions (751.85) never came near the pivot. |
+| 3 | ALLY | 2019-06-27 | 11.2 wk / 5.5% / 4 / +31% | 1.80x | 30.28 | 29.79 (1.6%) | 8.1R (10) | The shallowest base of the ten (5.5%), four taps of 30 and inside days into the breakout: the "tight at the end" rule in one picture. Slower, 3R on day 10. |
+| 4 | LNG | 2014-05-29 | 8.6 wk / 14.3% / 4 / +47% | 3.34x | 59.40 | 57.96 (2.4%) | 11.8R (1) | At the depth limit (14.3%), but four taps, volume drying up on the right side, and a 3.3x volume breakout that reached 3R the next session: depth matters less than the ceiling and the volume. |
+| 5 | WSM | 2023-09-25 | 8.0 wk / 14.6% / 4 / +30% | 4.99x | 73.16 | 72.24 (1.2%) | 10.0R (1) | The heaviest breakout volume of the ten (5x); 5R by day 10, then a throwback to 71.56 in late October, through the pivot and the original stop, after both trims were due: Bulkowski's two-in-three throwback in person, before the run to 99. |
+| 6 | CMG | 2020-07-06 | 6.6 wk / 11.3% / 3 / +155% | 1.36x | 21.75 | 21.18 (2.6%) | 10.3R (11) | A flat shelf after the March-2020 rebound; three taps; the 50-day crossed back above the 200-day inside the base. Volume only 1.36x and 3R took 11 sessions, a B+ version that still worked. |
+| 7 | BAC | 2017-02-14 | 9.8 wk / 10.7% / 5 / +57% | 1.33x | 23.56 | 23.12 (1.9%) | 5.1R (5) | Five taps of a 23.5 ceiling after a vertical run; 5R in about three weeks, then it fell back into the base (low 22.16 within 30 sessions). The case for taking the 3R and 5R trims (B19) and trailing the rest. |
+| 8 | LII | 2016-07-01 | 12.6 wk / 7.9% / 4 / +33% | 0.82x | 143.20 | 141.89 (0.9%) | 15.9R (4) | A long, shallow shelf; the breakout came on light volume (0.82x) and still ran to 15.9R, the case for volume as a grade cue, not a gate. The stop was tested to the cent (low 141.90) before it went. |
+| 9 | APH | 2026-01-12 | 10.8 wk / 13.2% / 4 / +49% | 1.30x | 72.20 | 70.70 (2.1%) | 7.6R (3) | Four taps of 70-72 over eleven weeks on a rising 50-day; 3R on day 3 and 5R by day 10, then a failure back through the base (low 63.10 within 30 sessions): the trims and the trail are what keep this a win. |
+| 10 | C | 2012-12-17 | 8.8 wk / 12.1% / 2 / +54% | 1.30x | 38.73 | 37.71 (2.6%) | 9.0R (12) | The minimum two taps and modest volume: a B-grade version. It paused just under the pivot for two weeks (low 38.50, above the stop) before running; 3R on day 12. Shows that the minimum structure can still pay when the stop holds. |
+
+Replaced in the visual review: ZION 2003-07-18 (two taps on a base that read as a shallow pullback, not a shelf, and an
+RS proxy of 55), AAPL 2010-12-06 (a clean shelf, but only 0.6R by the tenth session, so the house time stop C33 would
+have sold it before the 6.5R move) and GOOG 2021-06-07 (a clean, slow 12.8R climb, but an RS proxy of 75, under the
+C31 line). None failed the scan; they failed the "obvious to a learner" and the house-rules tests.
+
+**Relative strength (a proxy, not IBD's rating).** The scan cannot read an RS Rating, so `rs_proxy.py` ranks each
+example's weighted 12-month price change (the latest quarter counted twice, quarters of 63 sessions) from 1 to 99
+against every name in the database with a year of history on that date (1,500 to 3,800 names, survivors only, so it
+is NOT the IBD number and will run a little high). Ranks on the trigger day: NUS 96, LNG 96, FIX 94, CMG 89, C 90,
+BAC 88, APH 86, WSM 83, LII 82, ALLY 80. All ten are at or above the house line of 80 (C31) on this proxy; ALLY sits
+exactly on it.
+
+**Notable failures (from the same scan).**
+- **AMZN 2024-03-21.** A 6.4-week, 8%-deep shelf with four taps of 180, inside days at the end, volume drying up: the
+  structure was as good as any example above. The breakout day traded to 181.41 on 0.72x volume and closed at
+  178.15, the low of the day, back inside the base; the next session's low (176.75) took the 2.05 stop. It closed
+  3% under the fill 20 sessions later. The lesson is the close: a breakout that finishes at the day's low has not
+  broken out (the "close in the upper half" cue from `flat_base.py`, section 5.1).
+- **META 2020-06-23.** A 5-week, 12.5%-deep base with four taps after a 73% run. It gapped open above the pivot
+  (241.28), made 245.19, closed mid-range on average volume (1.0x), and the next day's low (232.68) hit the stop; two
+  sessions later it closed at 216.08, 10% under the fill. The stop did its job: the alternative, "give it room", was a
+  14% hole in three sessions. It recovered to the pivot only after about six weeks.
+- **XOM 2026-03-20.** A 6-week, 10.4%-deep base, two taps, breakout on 2.5x volume, but a close at 159.67 in the
+  bottom fifth of the day's range, and the stop was 0.88% under the fill while the stock's 20-day average range was
+  2.5%. A 2% gap-down the next morning (low 155.02) stopped it; it then closed back above the pivot the same day and
+  ran to 176 within six sessions. A stop set inside the stock's normal daily range gets shaken out by noise; the
+  rule in 8.3 (skip or wait for a tighter entry, never pull the stop in) is written for this, and so is a second
+  entry on the reclaim.
+
+**Limits of this check.** Base count, the real RS rating and the group, the market reading and the owner's discretionary grade
+are not in the scan, so the base rate mixes A+ and C setups. The database has no delisted names, so the base rate
+leans toward survivors. ETFs were scanned but excluded from the examples. The scan predates the 2026-11-09 `C.scan`
+helper; the same rules were run over every ticker to completion, so coverage is full. Everything here is from bars;
+nothing is a published statistic, and none of it should be quoted as one.

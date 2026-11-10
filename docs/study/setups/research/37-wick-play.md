@@ -1,6 +1,9 @@
 # Setup 37: Wick Play (long)
 
-Research dossier for the owner's setup-by-setup review. Written 2026-11-09. Every quote below was copied from the page,
+Research dossier for the owner's setup-by-setup review. Written 2026-11-09; cold-checked the same day by a second
+agent, and cold-checked a second time the same evening by a third agent (every quote re-opened at its source, every
+bar number re-read from the store, the measurement script re-run; corrections from both checks are listed in
+"Removed in checking" at the end, the second check's under 12.B). Every quote below was copied from the page,
 post or file named next to it and is 40 words or fewer. Nothing here is a ruling. Where I could not read a source, I say
 so and give no wording from it. Numbers marked [my computation] come from my own script run on the app's daily bar
 store (method and limits in 4.3). Bar prices quoted for single examples come from the same store.
@@ -15,10 +18,11 @@ of day 1's open and close.
 
 **Read this first (the short version).**
 1. **It is Oliver Kell's term, and it is a continuation setup on the upper wick.** Kell (2020 U.S. Investing Champion)
-   used it in public by March 2021: "Everyone ask about wick play....great example today is APPS...open in the
-   wick, pulled back some,based intra and now holding in the wick...sign of strength." A strong stock closes off its
-   high, leaving an upper wick. The next day opens inside that wick and holds there, never trading back into day 1's
-   body. You buy when it breaks out.
+   described it in public by December 2020, in a reply on X: "When price opens up inside the wick of the previous
+   days bar. If it can hold positive, staying in the wick, its a sign of strength." (2020-12-11.) And in March 2021:
+   "Everyone ask about wick play....great example today is APPS...open in the wick, pulled back some,based intra and
+   now holding in the wick...sign of strength." A strong stock closes off its high, leaving an upper wick. The next
+   day opens inside that wick and holds there, never trading back into day 1's body. You buy when it breaks out.
 2. **There are two published forms.** Deepvue's dictionary (the screener tied to TraderLion, where Kell teaches) defines
    both, with no numbers needed. "Wick Play": day 2's whole range sits inside day 1's upper wick (low above day 1's
    body, high below day 1's high). "In the Wick": day 2 opens below day 1's high and its low never goes under day 1's
@@ -36,7 +40,7 @@ of day 1's open and close.
    upper wick. Section 5.
 5. **No one has published statistics for it.** Nearby measured work: Bulkowski's inside days (the strict form is
    always an inside day) and his shooting star (a long upper wick in an uptrend, a 59% bearish reversal in his tests).
-   My own run on the app's bars (4.3): strict wick plays are rare (about 54 a year across 4,208 stocks) and did not
+   My own run on the app's bars (4.3): strict wick plays are rare (about 54 a year across some 4,200 stocks) and did not
    beat an ordinary inside day in the same leaders. The owner's same-day push did modestly better than an ordinary
    break of the prior day's high, but its natural stop cannot be tested without intraday bars.
 6. **Rulebook fit.** The strict form fits the house stop exactly: buy over day 2's high, stop a few cents under day 2's
@@ -54,8 +58,9 @@ of day 1's open and close.
 wick), then trades the next session inside that wick without falling back into the prior candle's body. You buy when
 price breaks above that holding range, with a stop just under it.
 
-**The originator's one-line test.** Kell: "open in the wick, pulled back some,based intra and now holding in the
-wick...sign of strength." (X, 2021-03-11; section 3.1.)
+**The originator's one-line test.** Kell: "If it can hold positive, staying in the wick, its a sign of strength." (X,
+2020-12-11.) And: "open in the wick, pulled back some,based intra and now holding in the wick...sign of strength." (X,
+2021-03-11; section 3.1.)
 
 **Why it can work (reasoning from the sources, not a measured fact).**
 - **What the wick says.** StockCharts ChartSchool: "Candlesticks with a long upper shadow and short lower shadow
@@ -87,6 +92,11 @@ wick...sign of strength." (X, 2021-03-11; section 3.1.)
 
 **Who named it.** Oliver Kell, as far as I can trace. I could not confirm that he coined the phrase; he is the earliest
 dated user I found, and every source that names a person ties it to him.
+- **Kell on X, 2020-12-11** (found in checking; verified through X's own oEmbed endpoint, author "Oliver Kell
+  (@OliverKell_)"): "When price opens up inside the wick of the previous days bar. If it can hold positive, staying in
+  the wick, its a sign of strength." (https://x.com/OliverKell_/status/1337196991051337728). It is a reply to another
+  user; the reply itself does not contain the words "wick play", so the question it answers (which I could not read)
+  presumably named it. This is the earliest dated description of the setup in his own words that I found.
 - **Kell on X, 2021-03-11** (verified through X's own oEmbed endpoint, author "Oliver Kell (@OliverKell_)"): "Everyone
   ask about wick play....great example today is APPS...open in the wick, pulled back some,based intra and now holding
   in the wick...sign of strength." (https://x.com/OliverKell_/status/1370036572654071809). "Everyone ask about" means
@@ -102,15 +112,25 @@ dated user I found, and every source that names a person ties it to him.
 - **TraderLion.** Its paid course "Swing Trading MasterClass with Oliver Kell" lists, under "Advanced Trading
   Techniques", the topics "Wick Play" and "In the Wick" (course outline, read from a Wayback Machine copy of
   https://traderlion.com/courses/swing-trading-masterclass-with-oliver-kell/ dated 2025-02-14 that an earlier step of
-  this workflow saved; the live page returns HTTP 403 to my client and the lessons are behind the $797 course). I did
-  not read the lessons.
+  this workflow saved, and re-read from the Wayback Machine in checking; the live page returns HTTP 403 to my client
+  and the lessons are behind the $797 course). I did not read the lessons. In checking, a web search surfaced the two
+  lesson pages by title, "The Wick Play | Trading Lesson" (https://traderlion.com/?p=418838) and "In the Wick | Trading
+  Lesson" (https://traderlion.com/?p=418840), and the Wayback Machine lists a capture of
+  https://traderlion.com/lesson/wick-play/ dated 2025-08-27. Both live pages return HTTP 403, and the lesson is paid
+  course content, so the checker did not read the archived copy either. A search engine's summary of the lesson said it
+  describes an inside bar trading within the wick on low volume, a breakout over the wick high as the trigger, and a
+  bearish mirror (a downside wick, then an inside bar, then a break of the wick low). **That is a search engine's
+  paraphrase, unverified; no wording from it is used here.** If the owner wants it, the lesson is the thing to buy and read.
 - **TraderLion's 2021 masterclass slides**, "Session 3" (https://traderlion.com/wp-content/uploads/sites/2/2021/11/Oliver-Masterclass-Slides-Session-3-FINAL-Pres-11-13.pdf).
   HTTP 403 to both my fetch tool and curl. **I did not read them.** A web-search result summary said they describe the
   setup and a volume dry-up; that is a search engine's paraphrase, unverified, and I use no wording from it.
 - **TaPlot, TradingView script "TAPLOT Wick Play"** (published 2021-12-17): "Wick play is a candle stick long setup
   popularized by 2020 US Investing Champion Oliver Kell" (https://www.tradingview.com/script/TGp7b78L-TAPLOT-Wick-Play/).
-- **Kell's ebook**, *Victory in Stock Trading: Strategy and Tactics of the 2020 U.S. Investing Champion* (Goodreads
-  lists it as a 2021 ebook; that page was read for dossier 14). **Not read.** I do not know whether it covers the wick play.
+- **Kell's ebook**, *Victory in Stock Trading: Strategy and Tactics of the 2020 U.S. Investing Champion* (Goodreads,
+  re-read in checking: "80 pages, ebook", "Published January 1, 2021", author Oliver Kell). **Not read.** A web search
+  in checking returned an unofficial PDF upload of the book whose search summary says it describes the wick play; the
+  checker did not open that copy (it is not the publisher's), so whether and how the book covers the setup stays
+  unverified. If the owner wants the book's wording, buy the ebook.
 
 **Who Kell is.** TraderLion: "Oliver Kell is a champion trader who achieved an impressive 941% return by winning the
 2020 U.S. Investing Championship." (MU trade review, 2024-09-13; read from the Wayback copy saved earlier in this
@@ -138,6 +158,9 @@ prior range, a wick play only above the prior body.
 ## 3. Every definition I could find, source by source
 
 ### 3.1 Oliver Kell on X (originator)
+- **The definition (2020-12-11, a reply):** "When price opens up inside the wick of the previous days bar. If it can
+  hold positive, staying in the wick, its a sign of strength." Two conditions: the open is inside the prior day's
+  wick, and the day holds "positive" (which reads as up on the day) while "staying in the wick". No trigger, no stop.
 - **The hold (2021-03-11, APPS):** "Everyone ask about wick play....great example today is APPS...open in the wick,
   pulled back some,based intra and now holding in the wick...sign of strength."
   - What the bars show (app bar store): day 1, 2021-03-10: open 74.00, high 83.30, low 74.00, close 75.89, so the
@@ -151,7 +174,8 @@ prior range, a wick play only above the prior body.
   and then continuation." And: "To simplify cause KISS....an EXPLOSION, a CONTRACTION, then...a CONTINUATION. Find
   explosions...then execute on the contraction." Also: "Every scenario has volume cause volume=price, cause=effect AND
   best if MONTHLY is set up."
-- **What he does not say on X:** no stop, no target, no minimum wick, no volume number.
+- **What he does not say on X:** no stop, no target, no minimum wick, no volume number, and (in these posts) no
+  "strong stock" wording: the leader context comes from his explosion-contraction-continuation frame and from TaPlot.
 
 ### 3.2 Oliver Kell, The Weeklies Watch (originator; his Substack)
 - 2023-05-13: "GOOG-Huge breakout this past week. Traded a little inside the Thursday body but looks like a wick play to
@@ -166,7 +190,12 @@ prior range, a wick play only above the prior body.
 - **Course outline** (read from the Wayback copy described in section 2): topics "Wick Play" and "In the Wick", next to
   "Outside Reversal", "Inside Bars" and "Failures, Traps, Shakeout". Topic names only; no definitions read.
 - **"Anatomy Of A Trade: MU +20% Wedge Pop"** (2024-09-13, under Kell's TraderLion profile; read from a Wayback copy
-  dated 2025-02-11 saved earlier in this workflow; https://traderlion.com/profile/oliver-kell/mu-wedge-pop/):
+  dated 2025-02-11 saved earlier in this workflow and re-read from the Wayback Machine in checking;
+  https://traderlion.com/profile/oliver-kell/mu-wedge-pop/). The page's author field reads "Oliver Kell", but the text
+  speaks of him in the third person ("Oliver staggered his stops"), so I treat the wording as TraderLion's write-up of
+  his trade, not his own words. The page does not use the word "leader"; its context sentences are "MU made Oliver
+  Kell’s focus after it gapped up 18% in reaction to its first positive earnings report in over a year." and "This
+  strong action pushed MU into new all-time highs." (second check):
   - Day 2 (2024-05-02): "After a failed breakdown, the price is now sitting inside the wick of the previous candle."
   - Entry the next day: "MU gapped up in the form of a Wedge Pop through the moving averages over the previous flag
     formation."
@@ -203,8 +232,11 @@ Breakout Trader Since 2006"). The four rules, as written:
   And: "This is to be used in the context of strong stocks like True Market Leaders and with buying momentum behind
   them."
 - **The script has no numbers.** I read its published settings through TradingView's own script service: the only
-  inputs are "Bar Color", "Wick Play Indicator Color", "Paint Bar?" and "Show Wick Play?". The code itself is compiled,
-  so I could not read the exact test; the description implies Deepvue's strict form plus the day-3 trigger.
+  inputs are "Bar Color", "Wick Play Indicator Color", "Paint Bar?" and "Show Wick Play?". The page labels it an
+  "OPEN-SOURCE SCRIPT", so its Pine source is viewable on TradingView's "Source code" tab; the script service returned
+  only the compiled form and the fetch tools do not render that tab, so the exact test was not read here (second
+  check: the earlier wording "the code itself is compiled" was corrected). The description implies Deepvue's strict
+  form plus the day-3 trigger.
 - Not given: stop, target, volume.
 
 ### 3.6 UCT (house; full quotes in section 6)
@@ -226,18 +258,20 @@ Breakout Trader Since 2006"). The four rules, as written:
 - TraderLion's lesson pages and the 2021 slides: HTTP 403 (and paid). Not used.
 - Thread Reader App's copy of Kell's 2021 thread: used only to find the post IDs; every quote was then checked on X's
   own oEmbed endpoint.
-- **My web search budget ran out after one search.** I therefore could not look for other writers who use the term,
-  for a Kell video on it, or for any study. I found no other originator and no statistics, but that search was not
-  exhaustive.
+- The writer's web search budget ran out after one search. **The checker ran three more** ("wick play" with Kell's
+  name; Kell with "wick play" or "in the wick"; TraderLion with "wick play"). They surfaced Kell's 2020-12-11 reply
+  (section 3.1, verified on X), the titles and URLs of TraderLion's two lesson pages and the 2021 slides (section 2;
+  HTTP 403, not read), and an unofficial copy of Kell's ebook (not opened). No other originator, no other trader's
+  definition and no statistics turned up. Still not exhaustive: no video search was done.
 
 ### 3.9 Comparison table
 
 | Item | Kell (X, Substack) | TaPlot | Deepvue "Wick Play" | Deepvue "In the Wick" | TraderLion MU review | UCT (owner, Manrav) |
 |---|---|---|---|---|---|---|
-| Stock | strong, after an "explosion" (gaps, volume) | "Strong stock with momentum"; "True Market Leaders" | none | none | a leader after an 18% earnings gap | leaders and themes |
+| Stock | after an "explosion" (gaps, volume), on the contraction (his thread; he does not say "strong stock") | "Strong stock with momentum"; "True Market Leaders" | none | none | "strong action" into "new all-time highs" after an 18% earnings gap (the page does not say "leader") | leaders and themes |
 | Day 1 | closes off the high (implied) | "closes off the highs" | any candle with room above its body | any | a red day with a wick | not stated |
-| Day 2 open | "open in the wick" | "opens in the candle \"wick\"" | implied (whole day in the wick) | below day 1's high, above the body | in the wick | "gap up" (owner) |
-| Day 2 low | holds in the wick; "a little" into the body allowed (GOOG) | never into the body | above the body top | never under the body top | dipped under the body top | not stated |
+| Day 2 open | "opens up inside the wick of the previous days bar" (2020); "open in the wick" (2021) | "opens in the candle \"wick\"" | implied (whole day in the wick) | below day 1's high, above the body | in the wick | "gap up" (owner) |
+| Day 2 low | "hold positive, staying in the wick"; "a little" into the body allowed (GOOG) | never into the body | above the body top | never under the body top | dipped under the body top | not stated |
 | Day 2 high | may break out the same day (APPS) | stays inside ("wick inside day") | under day 1's high | free | under day 1's high | "immediate push" (owner) |
 | Trigger | not stated | day 3, over day 2's high | none | none | next day's gap above both | push over day 1's high (owner); over 7.66, or a pullback to the 21 EMA (Manrav) |
 | Stop | not stated | not stated | none | none | "staggered his stops with the 10 and 20" EMAs "under the day’s low" (as worded) | not stated |
@@ -267,7 +301,8 @@ What exists is measured work on its parts.
 ### 4.1 Bulkowski, ThePatternSite (stocks; read through the fetch tool; AI notice flagged in 3.7)
 - **Shooting star** (https://thepatternsite.com/ShootingStar.html): a candle with "little or no lower shadow and a tall
   upper shadow at least twice the height of the body" after an upward trend. "Tested performance: Bearish reversal 59% of
-  the time". Overall performance rank 55 (his candle ranking; I did not read how many candles were ranked). What it
+  the time". "Overall performance rank: 55", and the page says "All ranks are out of 103 candlestick patterns with the
+  top performer ranking 1." (checked). What it
   means here: a long upper wick after a rise leans bearish on its own. The wick play is the subset where the next day
   refuses that reading. Limits: as I understand his method (not re-read here), a "reversal" counts which way price closes
   outside the candle first; it is not a trade with a stop. The fetch tool returns extracts.
@@ -284,9 +319,16 @@ None found. Kell, TaPlot, Deepvue and TraderLion give no success rate, average m
 This is my own check, not a published study and not peer reviewed. The script lives in my scratch folder, not in
 the repo.
 
-**Data.** A sandbox copy of the app's daily bar store: 4,208 tickers. **It holds only stocks that still trade** (for
-example SIVB, TWTR and CELG are absent), so failed companies are missing and every number below leans optimistic.
-Signals from 2000-01-01 to 2026-09-30.
+**Data.** A sandbox copy of the app's daily bar store: 4,208 tickers when the writer ran the script (the loop's own
+count). **It holds only stocks that still trade** (for example SIVB, TWTR and CELG are absent), so failed companies are
+missing and every number below leans optimistic. Signals from 2000-01-01 to 2026-09-30. Second check (the same
+evening): the store then held 4,284 tickers with daily bars (3,944 with the 300 bars the script needs), so the store
+grew between the runs; the first checker's re-run log stops at ticker 4,000 and left no output file, so that re-run
+did not finish. The second checker started a fresh run on the 4,284-ticker store (scratch folder
+`setups/37-wick-play/check2/`); it had reached ticker 3,400 when the check closed, so no re-run figures exist yet.
+The table below is the writer's run, and every number in it and in items 1 to 10 was re-derived by the second checker
+from the writer's own output files (`out/analysis.txt`, `out/explosion.txt`): all matched, including the optimistic
+column, which is the trade-weighted combination of the "amb dropped" rows.
 
 **Context (the house rules as filters), read at day 1's close.** Price $10 or more and a 20-day average of $20 million
 traded (B23). Close above the 200-day and the 50-day above the 200-day (B26). Close at most 10% over the 10-day
@@ -374,15 +416,17 @@ evidence: they were picked by the people who named them.
 |---|---|---|---|---|
 | APPS 2021-03-11 | Kell (X) | day 1 wick 80% of the range; day 2 opened in the wick, held above the body, broke 83.30, closed +14.6% | bought over 83.30: a stop under the body top (8.9% away) or under day 2's low (5.7%) was hit within 4 sessions | A13 fails (stop 5.7% to 8.9%) |
 | GOOG 2023-05-12 | Kell (Substack) | opened in the wick, stayed under day 1's high, dipped 0.35 into the body | high of 129.55 within 20 sessions, +9.9% over day 2's close; low 116.48 | fits; 7.8% over the 10-day |
-| MU 2024-05-02 | TraderLion, on Kell's trade | opened in the wick, dipped under the body top, closed in the wick; bought on 05-03's gap | high of 133.30 within 20 sessions, +18.7% | fits |
+| MU 2024-05-02 | TraderLion, on Kell's trade | opened in the wick, dipped under the body top, closed in the wick; bought on 05-03's gap | high of 133.30 within 20 sessions, +18.7% over day 2's close (+15.9% over the 05-03 open of 115.03) | fits |
 | OPEN 2025-10-06 | the owner's scenario (Sunday Scans) | opened in the wick, 6 cents into the body, broke 8.83, closed +14.4% | bought over 8.83: stopped by 10-10 (any of the three stops) | B23 fails (about $8 to $9) |
 | FIG 2025-10-07 | the owner (desk log, paraphrased) | opened in the wick, held above the body, broke 61.75, closed back at 60.84 | with a stop under day 2's low (4.8%): 3R the next day. Under the body top (7.8%) or day 1's low (17.3%): stopped later in October | no 200-day (listed 2025-07-31) |
 | FIG 2025-10-08 | (the next day; bars only) | opened in 10-07's wick, held above its body, closed +16.8% | stop under day 2's low (2.6%): 3R the next session; under the body top: stopped 10-10 | 12.5% over the 10-day: C29 fails |
-| MXL 2026-04-29 | the owner (KB summary) | opened in the wick, held above the body, broke 56.07, closed +29.8% | 3R within 1 to 2 sessions under any of the three stops; high of 106.28 within 20 sessions | about 41% over the 10-day: C29 fails |
-| UMC, weekly, October 2025 | Manrav | the 7.66 trigger is the 2025-10-13 daily high; I could not reproduce "inside the wick" exactly on the store's weekly bars | not checked | B23 fails (about $7.50) |
+| MXL 2026-04-29 | the owner (KB summary) | opened in the wick, held above the body, broke 56.07, closed +29.8% | on daily bars 3R printed on the entry day itself with a stop under day 2's low (2.9%) or under the body top (7.3%), and on 05-01 with a stop under day 1's low (11.6%); high of 106.28 within 20 sessions | about 41% over the 10-day: C29 fails |
+| UMC, weekly, October 2025 | Manrav | the 7.66 trigger is the 2025-10-13 daily high; on weekly bars built from the store's daily bars (the store holds no weekly UMC bars) I could not reproduce "inside the wick" exactly | not checked | B23 fails (about $7.50) |
 
 What the examples teach: in the five same-day cases (APPS, OPEN, FIG twice, MXL) the long wick makes a stop under day
-1's body top or low wide: 4.0% to 17.3% from a buy at the top of the wick. A stop under day 2's own low was 2.6% to 9.0%
+1's body top or low wide: 4.0% to 17.3% from a buy at the top of the wick (second check, re-read from the bars:
+body-top stops 4.0% (FIG 10-08, whose day 1 was red, so the body top is the 61.60 open), 7.3%, 7.8%, 8.4% and 8.9%;
+day-1-low stops 8.4% to 17.3%). A stop under day 2's own low was 2.6% to 9.0%
 (within 5% in three of the five), and it assumes the day's low printed before the break, which is Kell's "pulled back
 some,based intra" sequence. Daily bars cannot confirm that order.
 
@@ -406,8 +450,9 @@ some,based intra" sequence. Daily bars cannot confirm that order.
 - **No Model Book card.** `app/src/pages/modelbook/setupCatalog.js` has no "Wick Play" entry.
 - **Journal tag.** `app/src/constants/setupGroups.js` lists 'Wick Play' in the **Swing** group. `app/src/pages/
   journal-2-0/lib/setupTagMap.js` files it under `TAXONOMY_ONLY_FAMILY['Wick Play'] = 'Reversals & Reclaims'`.
-  **Disagrees with every source:** Kell, TaPlot and the owner use it as a continuation in a strong uptrend ("Strong
-  stock with momentum to the upside"), which belongs with "Momentum & Trend". No direction is stored.
+  **Disagrees with every source:** Kell, TaPlot and the owner use it as a continuation in a strong uptrend (TaPlot:
+  "Strong stock with momentum to the upside"; Kell: "an EXPLOSION, a CONTRACTION, then...a CONTINUATION"), which belongs
+  with "Momentum & Trend". No direction is stored.
 - `docs/wisdom/vocabulary/setup-vocabulary-v1.json`: no vocabulary entry ("the authors did not name it in the Session 0
   samples").
 - `docs/study/UNITS-method.md`: no Study unit ("no unit; owner may add later").
@@ -420,9 +465,10 @@ some,based intra" sequence. Daily bars cannot confirm that order.
   TraderLion). The hammer statistic quoted there belongs to a different setup. Recommend replacing the entry.
 - **`app/src/constants/quotes.json`, a Quote of the Day line attributed to "Oliver Kell", source "UCT Knowledge Base":**
   "The wick play: a candlestick wick at a key support or resistance level is not a failed move", followed (after a
-  dash) by "it is a precise rejection with a built-in stop." I found this wording in no Kell post, Substack post,
-  TraderLion page or Deepvue page, and nowhere else in the repo. It describes a rejection at a level (closer to a hammer), not Kell's hold inside an
-  upper wick. It was added in commit `367bbcf292` (2026-08-22). **Unverified; recommend removing it or replacing it with
+  dash) by "it is a precise rejection with a built-in stop. That tight stop enables oversized position size." I found
+  this wording in no Kell post, Substack post, TraderLion page or Deepvue page, and nowhere else in the repo's source
+  files (only the built bundle under `app/dist/` repeats it). It describes a rejection at a level (closer to a hammer),
+  not Kell's hold inside an upper wick. It was added in commit `367bbcf292` (2026-08-22; checked in `git log`). **Unverified; recommend removing it or replacing it with
   a verified Kell line** (for example the 2021-03-11 post), since members see it as Kell's words.
 - **`app/src/components/chart/engine/ast/starterScans.json` and `api/services/starter_library.py`:** the Chart builder
   refuses a Wick Play starter, saying it "is a single-bar discretionary read on where the wick sits relative to the
@@ -447,14 +493,16 @@ choices are the owner's (section 10): which form, which trigger, which stop.
 ## 6. UCT's own words
 
 **Who wrote what.** The Substack sitemap lists 103 posts (2026-11-09). I read 101 in full through Substack's post API;
-one is a placeholder page and one (sunday-scans-bf1) is for paid subscribers only, so I could not read it. "Wick"
+one is a placeholder page and one (sunday-scans-bf1, 2026-10-18) is marked subscribers-only, with a 370-character
+preview as its only public text, so I could not read it. "Wick"
 appears 65 times: lower wick or lower wicks 39 times, upper wick or upper wicks 13 times, and the exact phrase "wick play" twice: once in
 TSDR's section (TSDR is the owner, as the earlier dossiers establish) and once in Manrav's. Dates are the post's
 publish time in US Eastern.
 
 ### 6.1 The owner in public
-- OPEN, Sunday Scans of 2025-10-05, under the heading "TSDR’s Weekly Outlook & Watchlist", subheading "Some great
-  charts below that I am watching.": "OPEN (Daily) Tried Friday, didn’t get the strong close and follow through I was
+- OPEN, Sunday Scans of 2025-10-05, under the heading "TSDR’s Weekly Outlook & Watchlist", then "Some great charts
+  below that I am watching.", then the subheading "Charts Covered - CRWV POET AAOI CRCL OPEN SLDP SNOW" (the heading
+  order as the post's own HTML has it, checked): "OPEN (Daily) Tried Friday, didn’t get the strong close and follow through I was
   looking for." Then: "The scenarios I am interested in next week early on are either a shakeout below 20EMA into the
   bullish gap that acts as an undercut. Or a gap up wick play with immediate push. Both would be tradable imo."
   ([sunday-scans-6ef](https://unchartedterritoryy.substack.com/p/sunday-scans-6ef))
@@ -492,10 +540,11 @@ paraphrases with the KB number. Read the file for the wording. None was re-check
   (United Microelectronics) Wick play on weekly. Trading inside the wick from the week of 10/10 with a launch pad on
   daily. Watch for the push above 7.66 or a pullback to 21 EMA to mange the risk." Then: "Earnings on 10/29."
   ([the-rest-of-the-week-481](https://unchartedterritoryy.substack.com/p/the-rest-of-the-week-481))
-  - Bars: the week ending 2025-10-10 opened 7.26, reached 7.57 and closed 7.18 (a red week with a wick from 7.26 to
-    7.57). The 7.66 trigger is the 2025-10-13 daily high. On the store's daily bars the following weeks did not stay
-    strictly inside that wick (the week of 10-13 reached 7.66), so I cannot reproduce his weekly reading exactly; his
-    data vendor's weekly bars may differ. UMC traded near $7.50, under B23's $10 floor.
+  - Bars (weekly bars built from the store's daily bars; the store holds no weekly UMC bars): the week ending
+    2025-10-10 opened 7.26, reached 7.57 and closed 7.18 (a red week with a wick from 7.26 to 7.57). The 7.66 trigger
+    is the 2025-10-13 daily high. The following weeks did not stay strictly inside that wick (the week of 10-13
+    reached 7.66; the week of 10-20 reached 7.61), so I cannot reproduce his weekly reading exactly; his data
+    vendor's weekly bars may differ. UMC traded near $7.50, under B23's $10 floor.
 - **Bracco**, KB 12666 (trader archive, 2026-06-10; summary): in a market note he called VIX a wick play (so a bullish
   VIX setup, a bearish market read). No trade rule given.
 
@@ -517,7 +566,7 @@ use "lower wick" often (for buyers stepping in at support), which is a different
 | C29 skip if more than 10% over the 10-day | **conflict** | wick plays often come right after an "explosion" (Kell); the owner's MXL example was about 41% over its 10-day, FIG's 10-08 day about 12.5% |
 | B26 no longs under the 200-day | fits | every source wants a strong uptrend; new listings (FIG) have no 200-day and E53 sets no IPO rule |
 | B23 $10 and $20M a day | applies | two UCT examples fail it (OPEN about $8, UMC about $7.50) |
-| C31 RS 80+ leaders | fits | TaPlot's "True Market Leaders" and Kell's "strong stock" say the same |
+| C31 RS 80+ leaders | fits | TaPlot's "Strong stock with momentum" and "True Market Leaders", and Kell's "Find explosions...then execute on the contraction", point the same way |
 | B22 no new buys 3 days before earnings | applies | Manrav's UMC note named earnings eight calendar days out |
 | B19, E51, E52 trims and trail | house defaults | no source gives a wick-play exit |
 | B20 gap through the stop | applies | first 30-minute low becomes the stop; out past 2R |
@@ -532,8 +581,11 @@ Each line is measurable on daily bars, except the order of events inside day 2 f
 intraday bars. Where sources disagree, I give the options and a recommendation.
 
 ### 8.1 What it is
-- **Stock:** a leader: RS rating 80 or more, in a strong group [house rule C31]; Kell's "strong stock" and TaPlot's
-  "True Market Leaders" [originator; source consensus].
+- **Stock:** a leader: RS rating 80 or more, in a strong group [house rule C31]. The strong-stock context is TaPlot's
+  ("Strong stock with momentum to the upside"; "True Market Leaders"), TraderLion's MU review ("This strong action
+  pushed MU into new all-time highs." after an 18% earnings gap; the page does not use the word "leader") and Kell's
+  own frame, an "explosion" first [source consensus on a strong stock in an uptrend: TaPlot, TraderLion, Kell's
+  thread; the word "leader" is TaPlot's alone]. The RS 80 number is the house's, not any source's.
 - **Trend:** close above the 50-day and the 200-day, with the 50-day above the 200-day [house rule B26; my proposal for
   the 50-day].
 - **Prior move:** best within a few weeks of an "explosion": a gap or a big-volume breakout [originator, Kell's thread].
@@ -558,11 +610,13 @@ intraday bars. Where sources disagree, I give the options and a recommendation.
 
 ### 8.2 The buy
 Two options; the sources split (3.10).
-- **Option A, strict (TaPlot):** on day 3, buy at market as soon as price trades a cent over day 2's high [originator
-  via TaPlot; house rule E57]. If day 3 opens more than 4% over the trigger, skip [C28].
-- **Option B, same-day push (Kell APPS; the owner's "gap up wick play with immediate push"):** on day 2, buy at market
-  as soon as price trades over day 1's high, provided day 2 opened inside the wick and has not traded into day 1's
-  body [originator; UCT].
+- **Option A, strict (TaPlot):** on day 3, buy at market as soon as price trades a cent over day 2's high [TaPlot, who
+  credits Kell but whose day-3 trigger is his own wording; house rule E57]. If day 3 opens more than 4% over the
+  trigger, skip [C28].
+- **Option B, same-day push (Kell APPS; Kell 2020: "hold positive, staying in the wick"; the owner's "gap up wick play
+  with immediate push"):** on day 2, buy at market as soon as price trades over day 1's high, provided day 2 opened
+  inside the wick and has not traded into day 1's body [originator; UCT]. The trigger (day 1's high) is the owner's
+  "push" and the bars of Kell's APPS example; Kell did not state a trigger in words.
 - **Recommendation [my proposal]: one setup, two entries, in this order.** Day 2 opens inside day 1's upper wick. If
   it breaks day 1's high while it has held above day 1's body, buy then (Option B): this is how the owner and Kell use
   it, and on the daily bars the same-day push did better than an ordinary break of the prior day's high with the same
@@ -596,7 +650,9 @@ Two options; the sources split (3.10).
 - After the buy, the stop is the exit [A4].
 
 ### 8.6 The short mirror
-No source defines a bearish wick play. By D47 ("Shorts are the same just reversed for almost all our setupstuff") the
+No source I could read defines a bearish wick play. (A search engine's summary of TraderLion's paid Wick Play lesson
+says the pattern "also works in reverse"; the lesson itself is HTTP 403 and was not read, so that stays unverified;
+section 2.) By D47 ("Shorts are the same just reversed for almost all our setupstuff") the
 mirror would be [my proposal]: a weak stock under its 200-day (B26) with RS 20 or less (C31's mirror) closes a red day
 off its low, leaving a **lower** wick; day 2 stays inside that lower wick (high under day 1's body bottom, low above day
 1's low); sell short a cent under day 2's low on day 3; stop a few cents over day 2's high; skip hard-to-borrow names
@@ -623,15 +679,15 @@ low, outcome = 3R or the stop first. Winners and losers are both listed on purpo
 
 | # | Stock, day 2 | Form | Entry, stop, risk | Outcome | Teaching point |
 |---|---|---|---|---|---|
-| 1 | NVDA 2021-10-28 | strict | 25.00 (day 3 opened over the 24.96 trigger), 24.51, 1.95% | 3R on 2021-11-02; 20-session high 19.8R | a leader in the wick, tight stop (split-adjusted prices) |
+| 1 | NVDA 2021-10-28 | strict | 25.00 (day 3 opened over the 24.96 trigger), 24.51, 1.96% | 3R on 2021-11-02; 20-session high 34.65, about 19.6R | a leader in the wick, tight stop (split-adjusted prices) |
 | 2 | SBUX 2019-03-14 | strict | 70.90, 70.18, 1.02% | 3R on 2019-03-26 | a quiet, tight wick day |
 | 3 | APPS 2020-10-05 | strict | 35.98, 34.74, 3.45% | 3R on 2020-10-13 | the stock Kell later used in his 2021 post |
 | 4 | MRNA 2020-10-05 | strict | 72.03, 69.04, 4.15% | 3R on 2020-10-13 | works with a wider stop; size down (A5) |
-| 5 | XPEV 2025-07-14 | strict | 18.00 (opened 1.5% over the trigger), 17.41, 3.25% | 3R on 2025-08-08 | a small gap over the trigger is still inside C28 |
+| 5 | XPEV 2025-07-14 | strict | 18.00 (opened 1.5% over the 17.74 trigger), 17.41, 3.3% | 3R on 2025-08-08 | a small gap over the trigger is still inside C28 |
 | 6 | SHOP 2024-02-09 | strict | 91.40, 88.91, 2.72% | gapped through the stop on earnings, 2024-02-13 | why B22 matters: no new buys in the 3 days before a report |
 | 7 | AXON 2023-01-31 | strict | 197.16 (opened 0.8% over), 191.79, 2.72% | stopped 2023-02-07, then rose to 4.5R within 20 sessions | a stop is a stop (A4); a re-entry needs a new setup (B21) |
 | 8 | APPS 2021-03-11 | same-day (Kell) | 83.31, under day 2's low 78.59, 5.7% | stopped 2021-03-16 | on this stop rule, Kell's own example failed within a week (his post gives no stop) |
-| 9 | MXL 2026-04-29 | same-day (owner) | 56.08, 54.43, 2.9% | 3R on 2026-04-30 | the owner's "wick play and blast"; fails C29 today |
+| 9 | MXL 2026-04-29 | same-day (owner) | 56.08, 54.43, 2.9% | 3R on 2026-04-29 itself (the day's high was 71.28; daily bars cannot order the low and the break) | the owner's "wick play and blast"; fails C29 today |
 | 10 | FIG 2025-10-07 | same-day (owner's desk log) | 61.76, 58.77, 4.8% | 3R on 2025-10-08; then fell to 43.80 within 20 sessions | take the trims (B19); no 200-day yet |
 | 11 | GOOG 2023-05-12 | loose (Kell) | not a strict or same-day trigger | high 9.9% over day 2's close within 20 sessions | Kell's tolerance for "a little" inside the body |
 
@@ -693,23 +749,128 @@ educator or data provider; **secondary** = a third party's description; **house*
 
 | Source | URL | Publisher, author, date | Read how | Reliability |
 |---|---|---|---|---|
+| Kell, X reply defining the hold (added in checking) | https://x.com/OliverKell_/status/1337196991051337728 | X; Oliver Kell; 2020-12-11 | X oEmbed endpoint | originator |
 | Kell, X post on APPS | https://x.com/OliverKell_/status/1370036572654071809 | X; Oliver Kell; 2021-03-11 | X oEmbed endpoint | originator |
 | Kell, X thread on favourite setups (4 posts quoted) | https://x.com/OliverKell_/status/1401517950771867648 (and 1401519363111411713, 1401519844906909700, 1401522073353297921) | X; Oliver Kell; 2021-06-06 | X oEmbed endpoint | originator |
 | Thread Reader App copy of the same thread | https://threadreaderapp.com/thread/1401517596751585285.html | Thread Reader App | curl; used only to find post IDs | secondary (not quoted) |
-| Kell, "Some Things for Next Week...." | https://weeklieswatch.substack.com/p/some-things-for-next-week | The Weeklies Watch (Substack); Oliver Kell; 2023-05-13 | Substack post API; all 33 posts in the sitemap (all public) checked for "wick"; the about page names Kell as the author | originator |
+| Kell, "Some Things for Next Week...." | https://weeklieswatch.substack.com/p/some-things-for-next-week | The Weeklies Watch (Substack); Oliver Kell; 2023-05-13 | Substack post API; all 33 posts in the sitemap (all public) checked for "wick", by the writer and again by the checker (one hit, this one); the post's byline and the about page name Kell as the author | originator |
 | TraderLion, Kell masterclass outline | https://traderlion.com/courses/swing-trading-masterclass-with-oliver-kell/ | TraderLion; page as of the 2025-02-14 snapshot | Wayback copy (2025-02-14) saved earlier in this workflow; live page HTTP 403 | educator (topic names only) |
 | TraderLion, "Anatomy Of A Trade: MU +20% Wedge Pop" | https://traderlion.com/profile/oliver-kell/mu-wedge-pop/ | TraderLion; under Oliver Kell's profile; 2024-09-13 | Wayback copy (2025-02-11) saved earlier in this workflow | educator |
-| TraderLion, Kell masterclass slides, Session 3 | https://traderlion.com/wp-content/uploads/sites/2/2021/11/Oliver-Masterclass-Slides-Session-3-FINAL-Pres-11-13.pdf | TraderLion; Oliver Kell; 2021 | **not read** (HTTP 403) | n/a |
+| TraderLion, Kell masterclass slides, Session 3 | https://traderlion.com/wp-content/uploads/sites/2/2021/11/Oliver-Masterclass-Slides-Session-3-FINAL-Pres-11-13.pdf | TraderLion; Oliver Kell; 2021 | **not read** (HTTP 403; no Wayback capture) | n/a |
+| TraderLion, "The Wick Play" and "In the Wick" lesson pages (found in checking) | https://traderlion.com/?p=418838 ; https://traderlion.com/?p=418840 ; https://traderlion.com/lesson/wick-play/ | TraderLion; paid course lessons | **not read** (HTTP 403; the 2025-08-27 Wayback capture of the lesson is paid content and was left unread); titles only, from search results. The Wayback-capture claims here and for the slides are the first checker's; the second checker's tools were not permitted to query the archive index, so they were not re-checked | n/a |
 | Deepvue Knowledge Base, "Technicals" | https://docs.deepvue.com/articles/technical | Deepvue; published 2024-09-03, modified 2026-06-19 | curl | data provider (definitions only) |
-| TaPlot, "TAPLOT Wick Play" | https://www.tradingview.com/script/TGp7b78L-TAPLOT-Wick-Play/ | TradingView; user TaPlot; 2021-12-17 | curl; script settings through TradingView's script service | secondary (credits Kell) |
+| TaPlot, "TAPLOT Wick Play" | https://www.tradingview.com/script/TGp7b78L-TAPLOT-Wick-Play/ | TradingView; user TaPlot; 2021-12-17 | curl; script settings through TradingView's script service (an open-source script; its Pine source was not rendered by the tools, so not read) | secondary (credits Kell) |
 | StockCharts ChartSchool, "Introduction to Candlesticks" | https://chartschool.stockcharts.com/table-of-contents/chart-analysis/candlestick-charts/introduction-to-candlesticks | StockCharts; no author shown | fetch tool and curl | educator |
 | Bulkowski, "Shooting Star" | https://thepatternsite.com/ShootingStar.html | ThePatternSite; Thomas Bulkowski | fetch tool (AI notice on the site) | measured statistics |
 | Bulkowski, "Inside Days" | https://thepatternsite.com/InsideDays.html | ThePatternSite; Thomas Bulkowski | fetch tool (AI notice on the site) | measured statistics |
-| Goodreads, Kell's ebook page | https://www.goodreads.com/book/show/58295305-victory-in-stock-trading | Goodreads | via an earlier dossier's saved copy | listing only; book not read |
+| Goodreads, Kell's ebook page | https://www.goodreads.com/book/show/58295305-victory-in-stock-trading | Goodreads | via an earlier dossier's saved copy; re-read live in checking ("80 pages, ebook", "Published January 1, 2021") | listing only; book not read |
 | UCT, Sunday Scans (OPEN, TSDR section) | https://unchartedterritoryy.substack.com/p/sunday-scans-6ef | Uncharted Territory; 2025-10-05 | Substack post API; 101 of the 103 sitemap posts read in full and searched (one placeholder, one paid-only) | house |
 | UCT, The Rest of the Week (UMC, Manrav) | https://unchartedterritoryy.substack.com/p/the-rest-of-the-week-481 | Uncharted Territory; 2025-10-21 ET | Substack post API | house |
 | UCT, Sunday Scans (Kell's cycle credit) | https://unchartedterritoryy.substack.com/p/sunday-scans-d70 | Uncharted Territory; 2025-06-29 | Substack post API | house |
 | Repo KB extracts (desk logs; paraphrased) | `docs/study/levels/brain_kb_2026-11-06.json`, `brain_kb_rules_2026-11-06.json`, `brain_kb_cycle_2026-11-06.json` | UCT brain, snapshot 2026-11-06 | local file | house (summaries, not re-checked in Discord) |
 | House code and texts | `app/src/constants/setupGroups.js`, `app/src/pages/journal-2-0/lib/setupTagMap.js`, `app/src/pages/modelbook/setupCatalog.js`, `docs/study/research/definitions.json`, `app/src/constants/quotes.json`, `app/src/components/chart/engine/ast/starterScans.json`, `api/services/starter_library.py`, `docs/superpowers/research/setups/setup_criteria.json`, `api/services/pattern_engine/detectors/uct/uct_inside_day.py`, `.../candlestick/hammer.py`, `docs/study/UNITS-method.md` | this repo | local files | house |
-| App daily bar store | sandbox copy of `bars.db` (4,208 tickers, daily, 1984 to 2026-11-09) | UCT app data | read-only SQLite | data (survivorship limits in 4.3) |
+| App daily bar store | sandbox copy of `bars.db` (4,208 tickers at the writer's run, 4,284 at the second check; daily, 1984 to 2026-11-09) | UCT app data | read-only SQLite | data (survivorship limits in 4.3) |
 | Account rulebook | `docs/study/sizing_rule.md` section 9; `docs/study/audits/2026-10-24/owner_verdicts.jsonl` | the owner, 2026-11-09 | local files | house rules |
+
+---
+
+## 12. Removed in checking
+
+Cold check, 2026-11-09, by a second agent. Method: every quote re-opened at its source (X's oEmbed endpoint for the
+six Kell posts; Substack's post API for Kell's 33 posts and UCT's 103; curl for Deepvue, TradingView, StockCharts,
+Bulkowski, Goodreads; the Wayback Machine for the two TraderLion pages); every bar number re-read from the sandbox
+store; the measurement script re-run from scratch into a separate folder; every rulebook ID read in
+`sizing_rule.md` section 9; every house file opened. Nothing was removed outright; these were corrected or added:
+
+1. **Added the originator's earliest definition.** Kell's X reply of 2020-12-11 ("When price opens up inside the wick of
+   the previous days bar. If it can hold positive, staying in the wick, its a sign of strength."). The dossier had
+   dated his first public use to March 2021.
+2. **Misattribution fixed.** "Strong stock" was credited to Kell in 3.9, 7 and 8.1. It is TaPlot's wording; Kell's posts
+   say "explosion", "contraction", "continuation", "sign of strength". The [source consensus] tag on the leader rule now
+   rests on TaPlot and TraderLion's MU review, with Kell by implication.
+3. **Basis tag fixed.** 8.2 Option A carried "[originator via TaPlot]". The day-3 trigger is TaPlot's wording, not Kell's;
+   the tag now reads [TaPlot; house rule E57].
+4. **Bulkowski's rank denominator added.** "Overall performance rank: 55" is out of 103 candlestick patterns, which the
+   page states; the dossier said the writer had not read it.
+5. **Bar-number corrections.** MXL 2026-04-29: 3R printed on the entry day on daily bars (not 2026-04-30; and under the
+   day-1-low stop on 05-01, not "within 1 to 2 sessions"). NVDA: stop 1.96% and about 19.6R (not 1.95% and 19.8R).
+   XPEV: 3.3% (not 3.25%). Same-day cases: the wide stops ran 5.2% to 17.3%, not 4.0% to 17.3% **(this one was itself
+   wrong; the second check restored the writer's 4.0%, see 12.B item 1)**. UMC: the store holds no
+   weekly UMC bars; the weekly figures are built from its daily bars (said so now).
+6. **Heading order fixed** for the OPEN quote (6.1): it sits under "Charts Covered - CRWV POET AAOI CRCL OPEN SLDP
+   SNOW", below "Some great charts below that I am watching.", under TSDR's heading.
+7. **The quotes.json line** is quoted in full now (a third sentence, "That tight stop enables oversized position size.",
+   was left off), and "nowhere else in the repo" narrowed to the source files (the built bundle repeats it).
+8. **Search gap closed in part** (3.8): the writer's single search is now three; they found the 2020 post, the titles of
+   TraderLion's two lesson pages, and an unofficial copy of Kell's ebook (not opened). The lessons are still unread.
+9. **Measurement run** (4.3): see the note added there on the re-run and the ticker count.
+
+Verified unchanged (a sample of what was checked): all five 2021 Kell posts word for word; Kell's GOOG line and that it
+is the only "wick" in his 33 posts; both Deepvue definitions and the page dates; TaPlot's four rules, context lines,
+date (2021-12-17), signature and the four input names; StockCharts' shadow sentence; Bulkowski's shooting-star and
+inside-day figures and his AI notice; the TraderLion course topics, the MU review quotes and the 941% line; the three
+UCT quotes and their dates; the UCT counts (103 posts, one paid, 65 "wick", 39 lower, 13 upper, 2 "wick play"); the
+KB summaries 10208, 10213, 12545 and 12666; the APPS, GOOG, MU, OPEN, FIG and MXL bars; the seven strict examples in
+8.9 (all strict on the bars, entries, stops and outcomes as stated); the rulebook IDs A3, A4, A5, A13, B18 to B23,
+B26, C28, C29, C31, C33, D42, D47, D48, E50 to E53, E57, F62, F63, F65; `uct_inside_day.py` (stack rule, 0.7 ATR,
+entry high, stop low, admin-only), `hammer.py` (lower wick at least twice the body, reversal gate), `uct_go_signal.py`
+(open under the prior close, sweep, 40% lower wick), `setupGroups.js`, `setupTagMap.js`, `definitions.json`,
+`quotes.json` and its commit, `starterScans.json`, `starter_library.py`, `setup_criteria.json`, `UNITS-method.md`,
+`setup-vocabulary-v1.json`.
+
+### 12.B Second cold check (2026-11-09, evening, a third agent)
+
+Method: every quote re-opened at its source by this checker's own tools (X's oEmbed endpoint for the six Kell posts;
+Substack's post API for Kell's GOOG post and for the three UCT posts; curl for Deepvue (page text and its
+`datePublished` / `dateModified` metadata), TradingView, the two Wayback copies of TraderLion's course page and MU
+review, and the Thread Reader copy; the fetch tool for StockCharts, both Bulkowski pages and Goodreads); every bar
+number in sections 3, 4.4, 6 and 8.9 re-read from the sandbox store with a fresh script; every rulebook ID re-read in
+`sizing_rule.md` section 9; the owner-verdict file searched (no wick ruling in it); every house file and detector
+re-opened; the KB entries 10208, 10213, 12545 and 12666 re-read. Corrected:
+
+1. **The first check's stop-range "correction" was wrong.** 4.4 said the same-day cases' wide stops ran "5.2% to 17.3%"
+   and the body-top stops "5.2% to 8.9%". On the bars the FIG 2025-10-08 case's day 1 (10-07) was a red candle, so its
+   body top is the 61.60 open, the stop 61.59 and the distance from a 64.18 buy 4.0%; the 5.2% used the 60.84 close
+   instead, the very error 5.3 flags in `setup_criteria.json`. Restored to 4.0% to 17.3% (body-top stops 4.0%, 7.3%,
+   7.8%, 8.4%, 8.9%).
+2. **TaPlot's script is open-source, not "compiled".** TradingView labels it "OPEN-SOURCE SCRIPT"; what the script
+   service returned to the writer was the compiled form. The source is viewable on TradingView's "Source code" tab,
+   which these tools do not render, so the exact test is still unread. Wording fixed in 3.5 and the sources table.
+3. **TraderLion's MU review never says "leader".** Its context lines are "MU made Oliver Kell’s focus after it gapped
+   up 18% ..." and "This strong action pushed MU into new all-time highs." The [source consensus] tag on the 8.1 Stock
+   rule now rests on "a strong stock in an uptrend" (TaPlot, TraderLion, Kell's thread) and says the word "leader" is
+   TaPlot's alone; 3.3 and 3.9 carry the exact lines.
+4. **MU's "+18.7%"** is over day 2's close (112.33); over the 05-03 open it is +15.9%. Said so in 4.4.
+5. **Ticker count.** The store held 4,284 tickers with daily bars at this check (3,944 with the 300 bars the script
+   needs); 4,208 was the writer's count. The first checker's "re-run" log stops at ticker 4,000 with no output file,
+   so the header's "measurement script re-run" was not substantiated; this checker's own run was still in progress
+   (ticker 3,400 of 4,284) when the step closed. Noted in 4.3 and the sources table.
+6. **sunday-scans-bf1** is marked `only_subscribers` with a 370-character public preview (post date 2026-10-18); 6 said
+   "paid subscribers only". Reworded.
+
+Verified unchanged by this checker: all six Kell posts word for word, with author "Oliver Kell (@OliverKell_)" and
+dates 2020-12-11, 2021-03-11 and 2021-06-06; the 2020 reply has no "wick play" in it; Thread Reader's copy shows
+@1charts6; Kell's GOOG line, the post date 2023-05-13, the "Oliver Kell" byline, the about page's "from the 2020 US
+Investing Champion", the 33-post sitemap, and one "wick" across the 33 posts (counted on the first checker's cached
+copies; the live refetch of all 33 was rate-limited); Deepvue's three definitions including the doubled "the", and
+the page metadata 2024-09-03 / 2026-06-19; TaPlot's four rules, both context lines, "Dec 17, 2021", the signature and
+the four input names; StockCharts' shadow sentence (no author named); Bulkowski's shooting-star configuration line,
+"Bearish reversal 59% of the time", "Overall performance rank: 55", "out of 103 candlestick patterns", the inside-day
+figures (1,260 stocks, December 1989 to January 2013, 62%, 32%, 10%, 10/23) and the AI notice on both pages;
+Goodreads ("80 pages, ebook", "Published January 1, 2021"); TraderLion's course topics in order, the $797 price, the
+MU quotes, "September 13, 2024", the author field "Oliver Kell" and the 941% line; the three UCT quotes (OPEN,
+UMC with "mange", Kell's cycle credit), their heading order and dates (2025-10-05 16:51 ET; 2025-10-21 21:00 ET;
+2025-06-29); the UCT counts 103 / 65 / 39 / 13 / 2 on the writer's 103 cached API copies (a live refetch reached 58
+posts before Substack rate-limited it; the two "wick play" posts were re-read live); the KB entries and their dates;
+the APPS, GOOG, MU, OPEN, FIG (both days), MXL and UMC bars and every derived figure (wick shares 80%, 44%, 79%,
+45%, 48%, 63%; stretches 7.8%, 12.5%, 40.9%; the 20-session highs and lows; the stop hits and dates); the seven strict
+examples in 8.9 (all strict on the bars; entries, stops, risks and outcomes as stated; SHOP's 02-13 open 77.80 under
+the 88.91 stop); the measurement table and items 1 to 10 against the writer's output files; the rulebook IDs A3 to
+A5, A13, B18 to B23, B26, C28, C29, C31, C33, D42, D47, D48, E50 to E53, E57, F62, F63, F65 and their quoted owner
+words; `uct_inside_day.py`, `hammer.py`, `uct_go_signal.py`, `setupGroups.js` (Swing group), `setupTagMap.js`,
+`definitions.json` (both quoted sentences and the hammer source), `quotes.json` and commit `367bbcf292` (2026-08-22;
+the phrase appears elsewhere only in `app/dist/`), `starterScans.json`, `starter_library.py`, `setup_criteria.json`
+(formula and the "LOCATION play" note), `UNITS-method.md`, `setup-vocabulary-v1.json`, `TRADE_PLANS.md` (Go
+Signal's 40% lower wick). Not re-checked: the Wayback capture dates for TraderLion's lesson and slides (archive
+index queries were not permitted to this checker). Two further web searches found no new primary source: the
+Stockbsessed Kell interview (2023-04-01, a write-up) does not mention the wick.

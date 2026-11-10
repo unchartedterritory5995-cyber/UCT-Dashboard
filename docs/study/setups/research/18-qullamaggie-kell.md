@@ -1284,3 +1284,67 @@ test.
 2023-04-01); the section 4.4 numbers were checked against the writer's output and script, not re-run from scratch; of
 the 4.5 bars, AMD 2023-11-01 and TSLA 2023-03-21 were checked against a second saved Yahoo-style data set, not an
 independent vendor (Yahoo's API answered 429 and Stooq required a browser).
+
+## 13. Examples (from our data)
+
+(Numbered 13 because section 12 above is the cold check. This section covers Part A, the Qullamaggie Breakout, which is
+the tradeable core of the setup; the Kell phases of Part B are context and exits, and their buy phases are charted in
+dossiers 14 (EMA Crossback) and 15 (Wedge Pop).)
+
+**The scan's rule (section 8.1-8.3 made measurable, plus the house rules).** On daily bars, a breakout day is one where
+the high trades above the highest high of a consolidation of 10 to 40 sessions (the longest length that qualifies is
+kept). The consolidation is 25% deep or less from its high to its low and gives back no more than half of the prior
+move; the prior move is a rise of 30% or more from the lowest low of the 20 sessions before the base into the base's
+first three sessions; the base makes higher lows (its last third's low above its first third's low, the middle third
+not below the first); it tightens (the average daily range of the last 5 sessions below the base's average); 80% or
+more of its closes hold within 2% of the 20-day EMA and no low undercuts the 50-day SMA by more than 2%. On the
+breakout day the 10-day EMA is above the 20-day EMA, both rising, and the close is above the 50-day and 200-day SMA with
+the 50 above the 200 (B26). Liquidity: close of $10 or more and $20 million or more traded a day over 50 days (B23).
+The entry is a market order one cent through the consolidation high, or the open if it gaps over it (E57); no entry
+more than 4% past the high (C28) or more than 10% above the prior day's 10-day average (C29). The stop is five cents
+under the breakout day's low; the trade is skipped if that is wider than the stock's 20-day ADR (originator) or 8%
+(hard cap; the dossier's option (b) in 8.3, so stops of 3-8% inside the ADR are taken). A new hit is allowed 30
+sessions after the last. No RS rating exists in the sandbox; the 30% prior move stands in for C31.
+
+**Base rate.** 5,038 hits on 1,969 of the 2,630 liquid names (the 420-second budget ran out at 1,969; the base rate
+covers the scanned part), breakout days from 2000-01-03 to 2026-11-05, outcome measured over the 60 sessions after the
+entry day. 28.9% reached 3R and 20.0% reached 5R before the stop; 92% were eventually stopped within the 60 sessions.
+Caveat: a fixed stop under the breakout day's low with no trims, no breakeven move and no trail, so these are raw rates,
+not the account's results; the owner's 3R/5R trims and the 10/21-day trail (B19, E51, E52) change them. Many hits had a
+stop tighter than 2%, which inflates both the R multiples and the stop-out count; the ten examples below were chosen
+with stops of 1.6% to 4.9%.
+
+**The ten examples** (charts: `_study-resume/scratchpad/setups/18-qullamaggie-kell/final/NN_<ticker>_<date>.png`, and
+three phone sheets `sheet_1-4.png`, `sheet_5-7.png`, `sheet_8-10.png`; numbers from `final/examples.json`). Run = the
+prior move; base = sessions sideways and depth; stop = under the breakout day's low (as % of entry); ADR = 20-day; vol =
+breakout-day volume over the 50-day average; best R = the best excursion before the stop within 60 sessions.
+
+| # | Ticker | Breakout | Run | Base | Buy (high) | Entry | Stop | Stop % / ADR | Vol | Best R | Why it is textbook |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | AMD | 2000-01-06 | 71% | 37 sessions, 22% | 15.97 | 15.98 | 15.20 | 4.9% / 5.4% | 1.9x | 19.2R (3R in 4 days) | A long, orderly shelf after a 71% run; closes surf the rising 10/20-day the whole base; volume 1.9x on the break. The stop is wider than 3% but inside the ADR, the 8.3 option (b) case. |
+| 2 | BB | 2004-01-12 | 67% | 12 sessions, 24% | 12.75 | 12.81 | 12.50 | 2.4% / 4.2% | 1.4x | 18.5R (3R in 4 days) | An earnings gap (reaction day 2003-12-23 in our data) followed by 12 tight sessions holding the gap, then the break: the "shoot up, then consolidate" shape from the originator's post. |
+| 3 | ISRG | 2007-08-29 | 40% | 12 sessions, 13% | 23.71 | 23.72 | 22.87 | 3.6% / 4.0% | 0.7x | 16.5R (3R in 23 days) | A 13%-deep flag on light volume after a 40% run; the breakout came on 0.7x volume and still worked, which is why the dossier makes volume a grade, not a rule. The slow start (23 days to 3R) is a lesson in sitting. |
+| 4 | BKNG | 2010-09-08 | 65% | 24 sessions, 14% | 12.72 | 12.73 | 12.51 | 1.7% / 3.2% | 1.1x | 20.0R (3R in 4 days) | After an earnings gap (2010-08-04) the stock went sideways 24 sessions in a 14% band, higher lows, 10 over 20; the break ran for months. (Prices are split-adjusted in the sandbox.) |
+| 5 | CRSP | 2019-11-12 | 47% | 10 sessions, 14% | 52.28 | 52.35 | 51.21 | 2.2% / 5.6% | 3.1x | 19.0R (3R in 1 day) | The shortest allowed base (10 sessions) after a 47% run that began on an earnings reaction (2019-10-28); 3.1x volume on the break and 3R the next day: the "few days to a few weeks" flag. |
+| 6 | CPRI | 2020-12-03 | 59% | 11 sessions, 21% | 38.00 | 38.01 | 37.37 | 1.7% / 5.6% | 0.8x | 17.3R (3R in 5 days) | A 59% run in a month, an 11-session pause with higher lows, then the break on quiet volume; the 10/20-day never let go. No earnings in the window: a pure continuation flag. |
+| 7 | PBF | 2022-04-04 | 53% | 15 sessions, 24% | 25.14 | 25.15 | 24.18 | 3.9% / 8.5% | 0.5x | 19.6R (3R in 9 days) | A high-ADR energy name (8.5%): the 3.9% stop looks wide but is less than half the ADR. 15 sessions of higher lows riding the 10-day, then the break on 0.5x volume into a 70% run. |
+| 8 | MSTR | 2023-11-08 | 46% | 10 sessions, 16% | 47.49 | 47.50 | 45.80 | 3.6% / 5.9% | 1.2x | 14.9R (3R in 1 day) | A 46% run off the 50-day, a 10-session flag, 3R the next day. Shows the 30-session rule: the next flag in December would be a new trade, not an add (A5). |
+| 9 | POWL | 2024-10-03 | 50% | 10 sessions, 21% | 77.67 | 77.68 | 75.06 | 3.4% / 4.9% | 1.0x | 16.8R (3R in 4 days) | A 50% run out of a long base, 10 sessions sideways holding the 10-day, average volume on the break; a clean first flag that ran about 50% in six weeks. |
+| 10 | HWM | 2025-05-15 | 43% | 12 sessions, 17% | 161.58 | 161.59 | 158.95 | 1.6% / 2.9% | 1.5x | 12.0R (3R in 7 days) | A large, steady name (ADR 2.9%): earnings gap (2025-05-01), 12 tight sessions, 1.5x volume break, then a smooth ride up the 10-day. The 1.6% stop fits A13 with room to spare. |
+
+Earnings tags are from `earnings_reaction_days` (Yahoo plus SEC 8-K Item 2.02); AMD 2000 and ISRG 2007 show no report
+in the window, but the data are thin before 2005, so those two are "not classed", not "no earnings".
+
+**Notable failures (from the same scan).** (1) NVDA 2024-11-06: a 23-session, 16%-deep base after a 32% run, broke
+out on 0.9x volume, reached 2.1R and was stopped; the prior move was near the smallest the rule allows and the stock
+was already far along its yearly advance, Kell's "late in the cycle" case. (2) AMZN 2020-04-30: a 14-session flag after
+a 41% run broke out on 1.5x volume on the day of its earnings report after the close, gapped down and never traded
+above the entry (best 0.0R); the lesson is to check the report date before buying a breakout. (3) AMD 2024-02-15: a
+9.7%-deep, 13-session flag after a 34% run broke out on 0.7x volume and was stopped at once with 0.0R; the pattern was
+textbook, the leader simply failed, which is what the stop is for. (4) QQQ 2020-05-21 was a hit too: the rule does
+not exclude ETFs, so ETF hits should be ignored when reading the base rate for stocks.
+
+**Limits.** The scan covers 1,969 of 2,630 names (time budget) and breakouts from 2000 on; the intraday opening-range
+trigger of 8.2 was not tested (5-minute bars exist only for the last 60 trading days), so every example uses the
+daily-chart trigger; there is no RS rating in the sandbox; the 25% depth cap was applied as written, so the owner's MRAM
+caution in 8.1 is still open.

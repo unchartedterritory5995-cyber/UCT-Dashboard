@@ -13,6 +13,15 @@ Every quote in the first draft was found on its page. What was wrong or unsuppor
 checking", "Removed in checking"); sources the first pass missed are added (TraderLion's own 2024 definition, Bonde's
 own stop and exit words, the Gervais-Kaniel-Mingelgrin working paper).
 
+**Second cold check, 2026-11-09 (a third reader).** Every outside page was downloaded again (23 pages, Bulkowski's through
+a fetch tool, the X posts through X's public oEmbed, the Wharton PDF converted to text), all 36 Substack posts were
+re-fetched and each quote, post date and section heading re-read, the 18 brain-KB rows were re-read from the repo's JSON
+files, the detector, the common helpers, the finder, the deep-scan guard, the playbook, the catalog, the plain rules, the
+trade plan and the rulebook were re-read, and the kept-vs-cut table, the entry tables, the universe tables, the subset,
+extension and climax figures, the PLTR bars and the post-event dollar volumes were recomputed from the saved gallery and
+scan records and the bars database. Every quote was found word for word on its page. Four small things were loose and
+are fixed in place (listed as items 30-34 under "Corrected in checking"); nothing had to be removed.
+
 This file goes deeper than the earlier levels dossier (`docs/study/levels/dossiers/hve.md`, entry and stop only), the
 outside notes (`docs/study/levels/external_research.md` section 4) and the 2026-10-25 analysis
 (`docs/study/analysis/2026-10-25-setup-differentiation.md`). Where they overlap, this file adds sources that the earlier
@@ -187,7 +196,8 @@ lesson "Entering The High Volume Edge Setup", the article "3 Early Entry Techniq
 - **The volume labels**, "TraderLion's Enhanced Volume", TradingView, 7 Feb 2021, updated to 7 Apr 2022
   ([script page](https://www.tradingview.com/script/yzjhAo0E-TraderLion-s-Enhanced-Volume/)). HVE: "Look for HVE
   letters on top of the volume bar to identify this powerful characteristic (this is really the highest volume in the past
-  10 years due to TradingView's lookback limitation." HV1: "Another powerful characteristic we look for at TL showing new
+  10 years due to TradingView's lookback limitation. However, this is a good spot to check to see if this volume is in
+  fact the highest volume ever)." (The script's own authors say "ever" means ten years on their tool.) HV1: "Another powerful characteristic we look for at TL showing new
   information and interest in a particular stock." HVIPO: "A very important characteristic for young stocks that might
   turn into big winners."
 - **The day-2 trade**, X, 6 Feb 2024 ([post](https://twitter.com/TraderLion/status/1754980182694277617), read through
@@ -209,6 +219,9 @@ Two primary posts, both read in full:
 [Upside Unlimited, "Trading The High Volume Close Setup", 2 Dec 2023](https://upsideunlimitednewsletter.com/p/trading-the-high-volume-close-setup)
 and [feather.blog, "3 Trading Setups Every Trader Must Know", 27 Jan 2023](https://gregduncan.feather.blog/3-best-trading-setups).
 
+Unless marked "(blog)", the quotes below are from the newsletter; the blog repeats the ranks and the examples but not
+these sentences.
+
 - **Volume:** "Our focus in the HVC setup is not just on any high volume but on the highest volume." The ranks: HVE,
   HV1, HVIPO and HVQ (newsletter) or HVLE (blog).
 - **Prior event:** "This pattern occurs after a stock gaps up on huge volume due to earnings or another major news event."
@@ -216,17 +229,19 @@ and [feather.blog, "3 Trading Setups Every Trader Must Know", 27 Jan 2023](https
 - **Price move:** "Anything over 10% is notable, but the higher the percent change on the day, the better."
 - **Close:** "We ideally want to see the stock closing at 75% or higher of its daily range on the gap day. 50% is usually
   the lowest end DCR that I’ll trade."
-- **Location:** "A gap to new highs is preferable, but a gap within 20% of prior highs is also significant." He adds that
-  trades out of bottoms can also work well.
+- **Location:** "A gap to new highs is preferable, but a gap within 20% of prior highs is also significant." He adds:
+  "There are also instances in which trades coming out of bottoms perform incredibly well, as sentiment undergoes massive
+  changes — quickly."
 - **Entry:** "The closing price of the gap-up day serves as our primary entry point."
 - **Stop:** "I typically set a hard stop-loss at 3-5% below the HVC." Also: "An additional exit criterion is an
-  end-of-day close below the HVC." (He says it depends on the market.)
+  end-of-day close below the HVC. This tactic depends on market conditions and overall sentiment."
 - **Exits** (newsletter): a third at 1R ("usually 5%"), a third at 2R ("usually 10%"), "Let the rest run vs. the 10EMA…"
 - **Market:** "If a stock is showing the above characteristics, and the market is favorable, there is a massive chance you
   have found a huge winner." (blog)
 - **A down-gap variant:** "BROS is an example of an HVE gap down that resolved to the upside." (blog)
-- Risk per trade 0.25% to 0.75% is recorded in the house's 2026 research file; I did not find it in these two posts, so I
-  do not repeat it as his.
+- A risk per trade of "0.25-0.5% of the account, up to 0.75% when performing well" is recorded against him in the house's
+  research file (`docs/superpowers/research/setups/setup_criteria.json`, entry `hvc.risk`, no quote attached); neither
+  number appears in these two posts, so I do not repeat it as his.
 
 ### 3.4 Ameet Rai (trader; claims to have classified the variants)
 
@@ -276,8 +291,9 @@ This is the closest originator match for the house's "ten times normal and above
 [“How to master a setup: Episodic Pivots”, 2 Nov 2021](https://qullamaggie.com/how-to-master-a-setup-episodic-pivots/):
 "My definition (this may differ from Pradeeps) is a gap up of 10% or more. There has to be massive volume near the open,
 ideally the stock should trade the average daily volume the first 15-20 minutes or even quicker." Entry at the
-opening-range high; "Stop is always at the lows of the day." He caps the stop at 1 to 1.5 times the average daily range.
-"Volume is the #1 thing to focus on." No level at the close; his trade is the gap day itself.
+opening-range high ("I rarely trade in extended hours but prefer to wait for the opening range highs"); "Stop is always
+at the lows of the day." The cap: "Make sure your stop is no more than 1x, or maximum 1.5x the average daily range or the
+average true range." "Volume is the #1 thing to focus on." No level at the close; his trade is the gap day itself.
 
 ### 3.7 UCT's other traders (house; Discord via the repo's KB, and Substack)
 
@@ -377,8 +393,9 @@ No published test of the HVE or HVC setup as a trade was found. What exists:
   [PDF](https://rodneywhitecenter.wharton.upenn.edu/wp-content/uploads/2014/04/9901.pdf); the published version I did
   not see): NYSE stocks from CRSP, August 1963 to December 1996, cut into 50-day intervals; a stock is "high volume" when
   the last day's dollar volume is "among the top (bottom) 10% daily volumes over the whole trading interval"; returns are
-  measured over the next 20 trading days. Stocks under $5, with under a year of NYSE history, or with a merger, delisting
-  or secondary offering nearby were dropped. Limits: the top 10% of 50 days is far milder than a 10x record; a monthly
+  measured over the next 1, 10 and 20 trading days. Stocks whose price fell under $5 in the interval's first 49 days,
+  with under a year of NYSE history, or whose firm had "a merger, a delisting, partial liquidation, or a seasoned equity
+  offerings during, or within one year prior to, that trading interval" were dropped. Limits: the top 10% of 50 days is far milder than a 10x record; a monthly
   return, not a level; no stops; seasoned NYSE stocks only, the opposite of a young, little-known name.
 - **Kaniel, Ozoguz and Starks (2012)**, *Journal of Financial Economics* 103(2), 255-279
   ([abstract](https://ideas.repec.org/a/eee/jfinec/v103y2012i2p255-279.html)): "We examine the high volume return premium
@@ -433,8 +450,9 @@ side (section 5.4).
 
 Scripts and outputs are in the session scratchpad (`setups/24-high-volume-edge/tools/`). The bars are the workbench copy
 of the app's bars database (`bars.db`, daily, 3,897 tickers, to 6 Nov 2026 at the time of the runs; split-adjusted; the
-database has since been refreshed and now reaches 9 Nov 2026, and the cold check re-measured the gallery on bars to
-6 Nov and got the same numbers). Same replay rules as the
+database has since been refreshed and now reaches 9 Nov 2026 with 4,284 tickers carrying daily bars; the cold check
+re-measured the gallery on bars to 6 Nov and got the same numbers, and the second cold check recomputed every table in
+this section from the saved gallery and scan records, with the same results). Same replay rules as the
 launchpad dossier: the stop is not checked on the fill day; a day that opens under the stop exits at the open; stops sit
 5 cents under the named low (F62). **The house plan** (simplified from the rulebook): breakeven once 2R trades (B19), a
 third at 3R and a third at 5R, at the open if it gaps past (B19, E51, F63), after the first trim the rest sold on a close
@@ -1153,8 +1171,10 @@ or loose, and what replaced them.
 3. **HOND's signer** (6.4, 2): the post signs it "AMT", not Dark Oblivion.
 4. **"Two writers" use weekly and monthly HVE candles** (6.4, question 14): both MDB and LASR are ChartMaster's.
 5. **"His nuclear group note"** (8.7): the "Week Ahead" post of 2025-06-02 is unsigned. Now attributed as unsigned.
-6. **The WULF note's heading** (5.4 #13): it sits under "Charts Covered" (filed by the house manifest under TSDR's
-   section), not under a heading "TSDR's Weekly Outlook & Watchlist" in that post; KB 7057's date is also a week early.
+6. **The WULF note's heading** (5.4 #13): it sits under "Charts Covered", which in that post follows the heading
+   "TSDR's Weekly Outlook & Watchlist" (the house manifest files both under TSDR); Bracco's section ends before it. KB
+   7057's date is also a week early. (The first cold check wrote that the TSDR heading was not in the post; the second
+   check found it there, above "Charts Covered".)
 7. **"HVC is used for big closes that are not records"** (6.2): OSCR (1.68x) and ZETA (1.04x) were records; only QBTS
    was not. Reworded, and the ZETA post (2025-08-24) added as its source.
 8. **LIFE "a young listing"** (7, 4.3): its local bars start in January 2021 at about $4 and break off from December 2021
@@ -1194,6 +1214,31 @@ or loose, and what replaced them.
 28. **COMP's grade "good"** (3.1, 9) is the analyst's ("grade good assumed"). Noted.
 29. **Section 1, Bracco's OKLO**: the late-run day was his second-highest volume ever, a near-record, not a record.
 
+Second cold check (a third reader, 2026-11-09):
+
+30. **The Gervais-Kaniel-Mingelgrin exclusions** (4.1): the working paper drops firms with "a merger, a delisting,
+    partial liquidation, or a seasoned equity offerings", not a "secondary offering"; the $5 test is on the interval's
+    first 49 days; returns are shown over 1, 10 and 20 trading days. Reworded with the paper's words.
+31. **Correction 6 itself** (the WULF heading): the 2025-09-14 post does carry the heading "TSDR's Weekly Outlook &
+    Watchlist", and "Charts Covered" sits inside it; the first check said the heading was absent. Reworded.
+32. **Duncan's risk per trade** (3.3): "the house's 2026 research file" is `docs/superpowers/research/setups/
+    setup_criteria.json`, whose `hvc.risk` entry reads "0.25-0.5% of the account, up to 0.75% when performing well";
+    the file and its wording are now named. Neither number is in his two posts (re-checked).
+33. **TraderLion's HVE sentence** (3.2) was cut mid-sentence; the rest ("However, this is a good spot to check to see if
+    this volume is in fact the highest volume ever") is now quoted, and three paraphrases are replaced by the sources'
+    own words: Duncan on bottoms and on the close-under-HVC exit, Kullamagi on the 1x-1.5x stop cap.
+34. **The bars database** (4.3): the refreshed copy holds 4,284 tickers with daily bars (3,897 at the time of the runs);
+    stated.
+
+Checked and found right in the second pass, so nothing was changed: the TradingView release notes (7 Feb 2021 "HV" only;
+9 Feb 2022 adds HVE, "changed syntax from HV to HV1", adds HVIPO); Bonde's comment dates (22 Feb 2010 8:52 AM, 30 Sep
+2010 3:36 PM); the TikTok id's date (2022-12-12 UTC); the detector's 53.5 floor arithmetic (volume and context scores
+floor at 40, history 50); `S["v50"]` including the day; the kept-chart stop of 19.9% (2.6% to 36.7%) as a share of the
+close (the saved gallery's `stop_pct_low` column is the same distance as a share of the stop, 24.9% median, and is not
+what the table uses); the PLTR bars (6 Feb 2024 close $21.87, record, 8.1x; 7 Feb open $21.60, low $21.38, close
+$23.60); the post-event dollar volume of the 19 kept charts (only INOD under $20M); and every number in sections 4.3 (a)
+to (e).
+
 **Added in checking:** TraderLion's own 28 Oct 2024 definition (four volume ranks, a huge gap with a strong closing
 range, "if the market holds up"); Bonde's own stop, exit and stock-selection words, including that earnings breakouts
 on widely covered companies "do not do as well"; the design of the Gervais-Kaniel-Mingelgrin study from its working
@@ -1211,3 +1256,81 @@ check of TraderLion's unverified levels.
 - The [source consensus] tag on the day-2 trigger, and [originator] on Duncan's rules (see corrections 23-24).
 - LIFE as a young listing; LIFE as a "new high first" case (see corrections 8-9).
 - "The HVE is usually just after earnings" (see correction 22).
+- Second cold check: nothing removed; every quote, attribution and statistic was confirmed against its source, and the
+  four loose claims (corrections 30-34) were fixed rather than cut.
+
+## 12. Examples (from our data)
+
+**The scan's rule** (section 8 as code, with the house rules; `_study-resume/scratchpad/setups/24-high-volume-edge/scan_hve.py`).
+The HVE day: volume above every session of the prior 252 (a one-year record at least; an all-history record is recorded
+as a flag), and either 10x or more the 50-day average volume (the 50 sessions before the day) or 2.5x or more the old
+record (option (a)); an up close, up at least 8% over the prior close; not a climax (the close before the HVE under 60%
+over the lowest low of the prior 60 sessions); not the monthly OPEX (third Friday), not the last session of a month, not
+the last Friday of June. The close position in the range (DCR), the gap, the 50-day dollar volume before the day and the
+distance from the 52-week high are recorded, not filtered. The trade, entry C: on day 2 the stock opens at or under the
+HVC (the HVE close) and trades back over it; a market buy at the HVC plus one cent (E57; that order cannot breach the
+chase limit C28); the stop two cents under the day-2 low, skipped if wider than 8% (the dossier's question 4; A13's
+"about 3%" is reported, not enforced); the entry above the 200-day SMA (B26); price at least $10 and at least $20M a day
+traded over the 20 sessions after the HVE (B23 measured after, as section 8.1 proposes). A supplement scanned the 136
+liquid names with under 322 sessions of history (IPO-year names) with the record measured since listing (at least 60
+sessions) and, because no 200-day exists yet, without the B26 test: 14 hits, among them NAVN 2026-03-26 (see the
+failures). Earnings days are from `earnings_reaction_days` (Yahoo and SEC 8-K Item 2.02).
+
+**Base rate.** 2,630 of 2,630 liquid names scanned (complete, 183 seconds) plus the 136-name IPO supplement: **193 hits**
+(179 + 14) from 1999 to 2026 (2 in the 1990s, 34 in the 2000s, 72 in the 2010s, 85 in the 2020s). **48.2% reached 3R and
+37.3% reached 5R** before the stop, within 60 sessions of the buy (the main scan alone: 179 hits, 49.7% and 38.5%).
+Caveat: this is a fixed stop with no trims and no trail, so a trade that reached 5R and later fell back to the stop still
+counts as stopped (78.8% of all hits were stopped at some point in the 60 sessions); the house plan would have trimmed at
+3R and 5R, moved to breakeven and trailed the rest. The median stop is 2.2% of the entry and the median best excursion
+2.8R. Because the stop is small, 3R is often only 3-7% over the buy and was reached the next session in most winners:
+the R numbers run large, so a learner should read the percentage moves too. Subsets: stop within 3% (118 hits) 55.1% to
+3R and 44.9% to 5R; an all-history record at 10x+ (85) 49.4% and 38.8%; DCR 0.5+ and up 20%+ (86) 47.7% and 39.5%;
+50-day dollar volume under $100M before (168) 49.4% and 37.5%. None of these cues moved the rate much on this sample; the
+tight stop did.
+
+**The ten examples** (charts and the three phone sheets in `_study-resume/scratchpad/setups/24-high-volume-edge/final/`;
+`examples.json` holds the numbers). "Report" says whether an earnings report is on file for the HVE day; where none is,
+the day was a news day whose news is not in our data (the owner knows the stories; nothing here names them unverified).
+"Before" is the close before the HVE against the 200-day SMA.
+
+| # | ticker | HVE day | buy (day 2) | day / gap | vol x50 / x old record / all-history | DCR | $ vol before | buy (HVC) | stop | best R | why it is textbook |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | VRTX | 2012-05-07 | 2012-05-08 | +55% / +39% | 18.5x / 3.3x / yes | 0.91 | $86M | 58.12 | 57.54 (1.0%) | 13.5R | No report on file (its report was 2012-04-26). Before: 5% under the 200-day after a 13% slide. A 39% gap to an all-time volume record, a close at 0.91 of the range; day 2 dipped under the HVC and reclaimed. 5R in two sessions, the peak (+14%) on day 5, back under the HVC on day 14: the trade worked, and it teaches why the last third is trailed under the 10-day. |
+| 2 | TVTX | 2015-03-18 | 2015-03-19 | +37% / +34% | 17.2x / 1.6x / yes | 0.98 | $4M | 20.17 | 19.89 (1.4%) | 48.4R | No report on file. The cleanest in the set: a $4M-a-day name in a quiet uptrend (25% over its 200-day), record volume, a close at 0.98 of the range, a one-day dip under the HVC and reclaim, then a stair-step to +70% (day 54) with the HVC never traded again. |
+| 3 | AMRN | 2018-09-24 | 2018-09-25 | +315% / +249% | 45.1x / 12.7x / yes | 0.98 | $11M | 248.00 | 239.18 (3.6%) | 24.8R | No report on file. The extreme form: 45x the 50-day, 12.7x the old record, a 3.6% stop under the day-2 low; +88% at the peak on day 30, and the HVC never traded again in the window. Our bars show it at about $60 before the day and $248 after; check that price scale against the owner's charting platform before it is shown (a uniform adjustment leaves the multiples, DCR and R unchanged). |
+| 4 | DOCU | 2019-09-06 | 2019-09-09 | +22% / +20% | 12.9x / 1.2x / yes | 0.68 | $98M | 56.27 | 55.53 (1.3%) | 22.6R | Earnings (report 2019-09-05 after the close) on extreme volume, an all-time record: the "earnings so big the volume is extreme" case that is an HVE, not a PEG. Before: 7% under the 200-day. Day 3 dipped 0.8% under the HVC and held above the stop; the HVC was never traded again, and the stock rose 30% by day 55. |
+| 5 | NTLA | 2021-06-28 | 2021-06-29 | +50% / +58% | 17.2x / 6.6x / yes | 0.52 | $95M | 133.43 | 129.64 (2.8%) | 18.2R | No report on file. An all-time record at 6.6x the old one, from a stock already 59% over its 200-day. The close was only mid-range (0.52, the floor); the chart shows it as a long upper wick and a choppy flag. The day after the buy spiked 52% over the HVC (the 18R), then the stock sat on the HVC for two months and the fixed stop was hit inside the window. A B-plus close on an A-plus volume day: the trims, not the hold, paid. |
+| 6 | MDGL | 2022-12-19 | 2022-12-20 | +268% / +218% | 26.8x / 7.2x / yes | 0.97 | $22M | 234.83 | 226.98 (3.3%) | 10.3R | No report on file. Before: 13% under the 200-day after a 23% slide. A 218% gap on a biotech that had done nothing for six months; day 2 opened under the HVC, reclaimed and closed strong. 5R in two sessions (the +34% peak on day 2), then a flag over the HVC that held into March (first trade under it on day 58, above the stop). A monster day whose follow-through was flat in percentage terms. |
+| 7 | FCNCA | 2023-03-27 | 2023-03-28 | +54% / +49% | 12.2x / 3.6x / yes | 0.83 | $93M | 895.61 | 884.02 (1.3%) | 38.8R | No report on file. A lesser-known bank 24% under its 200-day after a 31% fall gaps 49% on an all-time record; day 2 dipped under the HVC and reclaimed. An orderly trend followed, +50% at day 36, with the HVC never traded again. A high price that passes every house rule. |
+| 8 | INSM | 2024-05-28 | 2024-05-29 | +118% / +126% | 18.3x / 3.5x / yes | 0.64 | $47M | 48.06 | 45.83 (4.7%) | 14.5R | No report on file (its report was 2024-05-09). The textbook "neglected stock, fresh story" chart: a flat line for six months, 16% under its 200-day, then a 126% gap on 18x volume, an all-time record; the day-2 dip and reclaim gave a 4.7% stop; the HVC was never traded again and the stock added 68% by day 59. |
+| 9 | GRPN | 2025-03-12 | 2025-03-13 | +43% / +25% | 12.2x / 1.1x / no | 0.92 | $10M | 13.98 | 13.40 (4.2%) | 33.1R | Earnings (report 2025-03-11 after the close): a 25% gap that kept running to +43% with a close at 0.92 of the range, in a $10M-a-day name 20% under its 200-day and 29% off its high. Only a one-year record at 1.1x the old one (the one example that fails the A+ cue), yet 5R in a week and +140% by day 60. |
+| 10 | INOD | 2026-05-08 | 2026-05-11 | +86% / +60% | 18.7x / 2.3x / yes | 0.63 | $44M | 84.89 | 83.38 (1.8%) | 26.5R | Earnings (report 2026-05-07 after the close) on extreme volume, an all-time record; INOD is one of the names the owner's posts cite for later entries at an HVC (section 8.2; whether that post concerns this level is not checked here). Day 2 dipped 1.8% under the HVC and reclaimed; 5R in two sessions, +47% at the peak on day 17, then a full round trip under the HVC (day 30) and through the fixed stop: the clearest picture in the set of why the last third is trailed. |
+
+Other hits that would also serve: ALNY 2024-06-24 (+34%, 15.7x, stop 1.1%, 26.6R, no report on file), COLM 2015-02-13
+(earnings, +18%, 12.7x, stop 1.7%, 15.6R), SGRY 2026-10-26 (+48%, 25.5x, 5.5x the record, 26.4R; too recent to show the
+follow-through on a chart), FSLY 2023-02-13 (+28%, 11.5x, 11.6R; no report on file for that day, the report came two
+sessions later on 2023-02-15 and gapped the stock again). The same stock appears twice in the hits as FB and META
+2013-07-25 (one event, two ticker records; a mega-cap at $899M a day, so not an example either way).
+
+**Notable failures (in words).**
+- **NAVN 2026-03-26, the owner's "perfect" HVE (section 9, example 1).** It did give the day-2 trigger (opened at 12.80
+  under the 13.11 HVC and traded through it), but the day-2 low was 7.2% under the HVC, so the honest stop was 7.5%
+  wide, past A13's "about 3%". Taken as the scan takes it, the stop was hit (the 8.8% undercut on day 4 that the owner's
+  own note records) before the stock made a new high and ran 87%. The lesson is the dossier's own: when the day-2 stop
+  is too wide, skip entry C and wait for a D entry at the level, which on NAVN came within days.
+- **MBX 2025-09-22 (+100%, 62x the 50-day, 10x the old record, a close at 0.26 of the range).** A day-2 reclaim with a
+  7.4% stop that never saw a cent of profit afterwards. A record day that closes in the bottom quarter of its range is a
+  supply day dressed as an HVE; this is why section 8.1 keeps the DCR as a grade cue and section 9 cuts TVTX-2026 and DYN
+  for the same thing.
+- **KOD 2026-09-28 (+178%, 57x, all-time record, close 0.83) and PRTA 2022-09-28 (+88%, 27x, 6.3x the record, close
+  0.90).** Both triggered, both reached 2.2-2.4R and then came back through the stop (7.0% and 4.3% wide). Two of the
+  biggest days in the sample, with strong closes, failed in a way no cue in section 8 predicts: a reminder that the base
+  rate is roughly a coin flip to 3R, that the breakeven move at 2R (B19) turns these into scratches, and that the trims,
+  not the pick, make the setup pay.
+
+**Data limits.** Daily bars only, so the day-2 "low before the reclaim" is the day-2 low (an intraday stop would be
+tighter where the low came first and wrong where it came after the reclaim; the 5-minute bars cover only 2026-08-17 to
+2026-11-06 and none of the ten). Prices are split-adjusted and the volume multiples are measured on the same adjusted
+series, so a split inside the 252-session window would distort the record multiple (none of the ten had one). Earnings
+dates are complete from about 2005, so all ten are classed with confidence; news days are marked "no report on file" and
+the news itself is not identified from bars. The time budget was not exhausted: the scan completed.

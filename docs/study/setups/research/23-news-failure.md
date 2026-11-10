@@ -12,7 +12,11 @@ recommendation; **[my computation]** my own scripts on the bar store.
 
 Checked cold on 2026-11-09 by a second agent who re-opened every quoted page, re-read the app code and re-ran the bar
 numbers with an independent script. Corrections made in that pass are listed at the end, under "Removed or corrected in
-checking".
+checking". Checked cold a second time later the same day by a third agent, who fetched every web page again (all 323
+Crowded Market Report posts and all 103 UCT posts through Substack's public post API, plus every other cited page),
+matched all 283 distinct quoted strings against those fresh copies, re-read the code and the repo files, and rewrote
+the bar study from scratch (4,284 tickers). Every quote and every bar number held; the small wording fixes it made
+are listed in "Second cold check" at the very end.
 
 **The short version.**
 - "News Failure" comes from Jason Shapiro's method (he names it as half of his process, and the owner credits it to
@@ -169,8 +173,9 @@ written.
 ### 3.2 Jason Shapiro, Crowded Market Report Substack (originator; his own posts)
 All 323 posts in the newsletter's sitemap (2023-12-24 to 2026-11-09; 298 public, 25 for paid subscribers, which return
 little more than a title) were pulled through Substack's public post API on 2026-11-09 and searched for "news failure";
-22 public posts use it. Every one carries the byline Jason Shapiro; the two January 2024 posts say "Published by The
-CMR Team on behalf of Jason Shapiro". The ones that define or apply a rule:
+22 public posts use it (21 in the body text; the 2024-07-21 post only in its title and subtitle). Every one carries the
+byline Jason Shapiro; five posts from January 2024 (2024-01-01, 01-08, 01-15, 01-22 and 01-29), among them the two
+quoted next, end with "Published by The CMR Team on behalf of Jason Shapiro". The ones that define or apply a rule:
 - **The definition** ("Weekly CMR COT Charts Review _ Equities", 2024-01-01,
   https://crowdedmarketreport.substack.com/p/weekly-cmr-cot-charts-review-_-equities): "trader positioning is not enough
   to execute the trade; you also need market confirmation." "So when a market reaches max crowdedness (Speculators are
@@ -289,7 +294,7 @@ https://stockbee.blogspot.com/2006/11/gaps-and-traps.html
   the grandma in Timbuktu gets excited about it, it is exhaustion gap."
 - He gives no entry or stop for shorting a failed gap there.
 
-### 3.7 StockCharts ChartSchool, "Gaps and Gap Analysis" (educator; no author shown; "Last updated 2 years ago" when read)
+### 3.7 StockCharts ChartSchool, "Gaps and Gap Analysis" (educator; no author shown; "Last updated 2 years ago" when read; the page's stored timestamp is 2024-09-25)
 https://chartschool.stockcharts.com/table-of-contents/chart-analysis/gaps-and-gap-analysis
 - "Exhaustion gaps happen near the end of a good up or downtrend." "They're identified by high volume and a large price
   difference between the previous day's close and the new opening price." "Exhaustion gaps are quickly filled as prices
@@ -391,7 +396,10 @@ Scripts are in my scratch folder, not in the repo.
   stop median 11.9%, 17% reached 2R first, E -0.01R; above the 200-day 909 events, -1.8%, 56% lower, E +0.04R; below it
   971, +1.0%, E -0.05R. Bad-news failures 1,727 events, -0.2%, 49% higher, stop median 10.6%, E +0.01R; above the
   200-day 669, -2.2%, 43% higher, E -0.09R; below it 1,058, +1.5%, 53% higher, E +0.08R. The counts differ only because
-  the store gained tickers; every conclusion below holds on the re-run.
+  the store gained tickers; every conclusion below holds on the re-run. A third script, written from scratch for the
+  second cold check on the same 4,284-ticker store, returned these same numbers to the digit (counts, medians, shares,
+  E), the same index table, the same earnings-day rows (442 and 354 events), the same 80% / 74% figures in 5.1 and the
+  same 8.9 lists.
 - The "Stopped" column counts every stop-out inside the 20 sessions, including trades that had already reached 2R, so
   "Reached 2R first" and "Stopped" can overlap. E counts a trade that reached 2R first as +2R.
 
@@ -423,7 +431,9 @@ More checks [my computation]:
   (above the 200-day -0.10R, below it +0.09R). The close stop changes nothing: still no edge without the crowding filter.
 - A confirmation entry (Bulkowski's idea): short only if the next session trades under the failure day's low. It
   triggered 64% of the time; the stop was then a median 15.6% away; 10% reached 2R first; E -0.06R. For the long (next
-  session over the failure day's high): triggered 63%; E -0.05R; above the 200-day, -0.13R.
+  session over the failure day's high): triggered 63%; E -0.05R; above the 200-day, -0.13R. (The second cold check's
+  script, which fills at the level or at the open when the open gaps through it, got 64% / 15.5% / 10% / -0.05R and
+  63% / -0.03R / -0.10R: the same picture, within a few hundredths of an R.)
 - Even entering at the prior close intraday (the earliest "green to red" or "red to green" moment), the stop beyond the
   day's extreme sat a median 7.4% away for the short and 7.1% for the long. Not one event had it within 3%, but that is
   built into the test, not found by it: a 4% gap puts the open, and so the day's extreme, at least 4% from the prior
@@ -699,7 +709,7 @@ measurable version for each direction.
 | Scanner stand-in (no news column) | open 4% or more under the prior close on 2x or more the prior 50-day volume (stocks); 1% or more on 1.2x (index ETFs) | open 4% or more over the prior close, same volume | [my proposal] (the app's Chart IQ uses 5%) |
 | The failure | closes **above the prior close** that day; or closes back above the pre-news close within 3 sessions | closes **below the prior close** that day | [originator] (same day) + [UCT] (Bracco's SOXX and SPCX, multi-day; the "3" is [my proposal]) |
 | Grade-up shape | closes in the top 25% of the range; the low undercut the prior low (an Oops) | closes in the bottom 25%; closes under the prior day's low (bearish Oops, key reversal) | [my proposal], from Bulkowski's key reversal and the house Oops |
-| Prior trend / crowding | a fall of 25% or more over 60 sessions, or crowded shorts (index COT, Bracco's IWM) | a run of 50% or more over 60 sessions, or 4+ ATRs over the 50-day, or crowded longs | [originator] (crowded positioning) + [my proposal] for the numbers, guided by [my computation] (the tilt grew with the prior run: 60-day runs of +50% to +100% and of +100% or more, and closes 4+ ATR over the 50-day, all leaned lower; the -25% fall is a tested bucket) |
+| Prior trend / crowding | a fall of 25% or more over 60 sessions, or crowded shorts (index COT, Bracco's IWM) | a run of 50% or more over 60 sessions, or 4+ ATRs over the 50-day, or crowded longs | [originator] (crowded positioning) + [my proposal] for the numbers, guided by [my computation] (the tilt grew with the prior run: 60-day runs of +50% to +100% and of +100% or more, and closes 4+ ATR over the 50-day, all leaned lower; the -25% fall is a tested bucket). The price numbers are measurable; "crowded" is not yet: none of the sources read gives a numeric COT threshold for "max crowded" (Shapiro's posts name only the neutral exit, "an indexed score of around 50"). Question 7. |
 | Location (B26) | above the 200-day, unless it is a parabolic long | below the 200-day, unless it is a parabolic short by Bracco's checklist | [house rule] |
 | Liquidity | $10+ and $20M a day | same | [house rule] B23 |
 | Strength | RS 80+ for a stock long (C31) | RS 20 or less (C31 mirror), unless the owner rules it mean reversion | [house rule], question 4 |
@@ -867,7 +877,7 @@ chart review, not proof.
 |---|---|---|---|---|
 | 1 | "Winning Wall Street: Jason Shapiro's Trading Triumphs", https://wealthion.com/news/winning-wall-street-jason-shapiros-trading-triumphs | Wealthion Team; host James Connor; guest Jason Shapiro | page 2025-11-20 (recorded in 2024) | Originator's spoken words; machine-style transcript with small errors. Performance claims are the publisher's. |
 | 2 | Crowded Market Report home page, https://www.crowdedmarketreport.com/ | Jason Shapiro / CMR | current page | Originator; marketing page. Bio sentences quoted. |
-| 3 | Crowded Market Report Substack, all 323 posts in https://crowdedmarketreport.substack.com/sitemap.xml (via the public post API; 298 public); quoted: weekly-cmr-cot-charts-review-_-equities, weekly-cmr-cot-charts-review-_-equities-829, 1st-big-winning-trade-of-the-year, pour-some-sugar-on-me, cmr-chart-of-the-week-copper, the-nasdaq-short, real-feedback-on-trading-from-a-cmr, anatomy-of-a-cmr-trade-a-winner-and, why-i-dont-chase-trades, market-news-failure; titles also from nvidia-failed, bullish-nvida-earnigns-bearish-stock, stock-market-rallies-on-bad-newsis, stocks-up-on-bearish-news-is-it-time, cpi-beat-but-stocks-fell, fed-shocker-why-the-market-rallied, nvidia-closes-down-and-the-nasdaq, bullish-news-no-longer-enough (all at https://crowdedmarketreport.substack.com/p/...) | Jason Shapiro (byline on every post; two say "Published by The CMR Team on behalf of Jason Shapiro") | 2023-12-24 to 2026-11-09 | Originator, primary. Many posts are videos with a line of text; I read text and titles only, not the videos. The 2025-01-23 checklist is a member's words that he republished. |
+| 3 | Crowded Market Report Substack, all 323 posts in https://crowdedmarketreport.substack.com/sitemap.xml (via the public post API; 298 public); quoted: weekly-cmr-cot-charts-review-_-equities, weekly-cmr-cot-charts-review-_-equities-829, 1st-big-winning-trade-of-the-year, pour-some-sugar-on-me, cmr-chart-of-the-week-copper, the-nasdaq-short, real-feedback-on-trading-from-a-cmr, anatomy-of-a-cmr-trade-a-winner-and, why-i-dont-chase-trades, market-news-failure; titles also from nvidia-failed, bullish-nvida-earnigns-bearish-stock, stock-market-rallies-on-bad-newsis, stocks-up-on-bearish-news-is-it-time, cpi-beat-but-stocks-fell, fed-shocker-why-the-market-rallied, nvidia-closes-down-and-the-nasdaq, bullish-news-no-longer-enough (all at https://crowdedmarketreport.substack.com/p/...) | Jason Shapiro (byline on every post; five January 2024 posts end "Published by The CMR Team on behalf of Jason Shapiro") | 2023-12-24 to 2026-11-09 | Originator, primary. Many posts are videos with a line of text; I read text and titles only, not the videos. The 2025-01-23 checklist is a member's words that he republished. |
 | 4 | Chat With Traders ep. 286 page, https://chatwithtraders.com/episode/286-jason-shapiro-overcrowded-trades-what-everyone-else-is-not-seeing | Chat With Traders | 2024-08-28 | Show notes only; no transcript; nothing quoted. |
 | 5 | Stansberry Investor Hour ep. 480 page, https://stansberryresearch.com/stansberry-investor-hour/episode-480-jason-shapiro-most-traders-are-focused-on-the-wrong-thing | Stansberry Research | 2026-09-01 | "The transcript is coming soon."; nothing quoted. Its guest bio repeats the CMR line (he "combines Commitment of Traders data with news failure analysis"); publisher text. |
 | 6 | The Wall Street Coach ep. 76, https://thewallstreetcoach.com/blog/the-contrarian-trading-style-of-unknown-market-wizard-jason-shapiro/ | Kim Ann Curtin | 2023-04-21 | Audio only; nothing quoted. |
@@ -878,7 +888,7 @@ chart review, not proof.
 | 11 | "How to master a setup: Episodic Pivots", https://qullamaggie.com/how-to-master-a-setup-episodic-pivots/ | Kristjan Kullamägi | 2021-11-02 | Primary. |
 | 12 | "Gaps and traps", https://stockbee.blogspot.com/2006/11/gaps-and-traps.html | Pradeep Bonde (Stockbee) | 2006-11-22 | Primary (his answers in the thread). Old; general, not a rule set. |
 | 13 | "Earnings and Bulkowski", https://stockbee.blogspot.com/2007/04/earnings-and-bulkowski.html | Pradeep Bonde | 2007-04-04 | Read for context; not quoted. |
-| 14 | "Gaps and Gap Analysis", https://chartschool.stockcharts.com/table-of-contents/chart-analysis/gaps-and-gap-analysis | StockCharts ChartSchool | no date shown | Established educator; no author shown. |
+| 14 | "Gaps and Gap Analysis", https://chartschool.stockcharts.com/table-of-contents/chart-analysis/gaps-and-gap-analysis | StockCharts ChartSchool | no date shown on the page; its stored timestamp is 2024-09-25 ("Last updated 2 years ago") | Established educator; no author shown. |
 | 15 | Edwin Lefèvre, *Reminiscences of a Stock Operator* (1923), Project Gutenberg eBook #60979, https://www.gutenberg.org/ebooks/60979 (found through https://en.wikipedia.org/wiki/Reminiscences_of_a_Stock_Operator) | Edwin Lefèvre | 1923 | Public domain; a novel narrated by a character widely read as Jesse Livermore. Chapter X quoted. |
 | 16 | Richard Wyckoff (as Rollo Tape), *Studies in Tape Reading* (1910), Internet Archive text, https://archive.org/details/studiesintapere00wyckgoog (linked from https://en.wikipedia.org/wiki/Richard_Wyckoff) | Richard D. Wyckoff | 1910 | Public domain; OCR text with scanning errors; quotes corrected only for obvious OCR characters ("Considerable" was scanned with a stray symbol). |
 | 17 | Linda Raschke article PDFs listed at https://lindaraschke.net/articles/ (11 files) | Linda Bradford Raschke | 1997 to 2006 | Searched for news-reaction rules; none found; nothing quoted. Three files are scans with no text layer. |
@@ -968,3 +978,116 @@ quote (word for word, in context), the starterScans, Oops docstring, Model Book,
 quotes, the brain-file t0774 pairing of Jason Shapiro with News Failure, all 14 house examples' bar facts in 4.5, the
 index table in 4.4 (reproduced exactly), and the single-stock table (on the grown store the main rows came back within half a point; the small 60-day-run
 subgroups within about 2 points, same direction).
+
+## Second cold check (2026-11-09, later the same day, by a third agent)
+
+**Method.** Every web page cited above was fetched again on 2026-11-09 (all 323 Crowded Market Report posts and all 103 UCT
+posts through Substack's public post API, both sitemaps, the Wealthion transcript, the CMR home page, both Qullamaggie
+pages, the Stockbee thread, the ChartSchool page, the Gutenberg Lefèvre text, the Internet Archive Wyckoff OCR, the
+elearnmarkets, Stansberry, Chat With Traders, Wall Street Coach and AlphaMind pages; Bulkowski's six pages through a
+fetch tool, since direct requests still return HTTP 406, and TraderLion still returns 403). All 283 distinct quoted
+strings in this file were matched by script against those fresh copies and against the repo files named, then the
+misses were read by hand. The Chart IQ code (`v3.py`, `v3_levels.py`, `v2_setups.py`, `v4_compose.py`, `pipeline.py`,
+`routers/chart_iq.py`), the Oops detector, the setup lists, the Model Book catalogs, the rulebook rules cited in section
+7 and every other repo file in the sources table were re-read. The bar study was rewritten from scratch (no code shared
+with either earlier script) and run on the same read-only store, 4,284 tickers, bars capped at 2026-11-06.
+
+**Confirmed, nothing to change.** Every quote (Shapiro's transcript and posts, UCT's posts, Bulkowski, Qullamaggie,
+Stockbee, ChartSchool, Lefèvre chapter X, Wyckoff chapters I and VI with the U.S. Steel example of Friday, February 19,
+1909 and the tape of February 20) is on its page word for word, in context, and says what this file says it says. Every
+post date, section heading and byline in sections 2, 3 and 6 is right; the 10 UCT uses split 1 (owner) / 6 (Bracco) / 3
+(unsigned "Index & ETF" section, the 2026-09-20 one under that section's "QQQ SPY IWM SMH IGV MAGS" sub-heading); the
+one paywalled UCT post is 2026-10-18. The 14 house examples in 4.5, the QQQ bars of 2026-10-22 and 10-28, and the SPCX
+sessions of 2026-08-04 to 08-07 reproduce exactly. The 4.4 re-run numbers, the index table, the earnings-day rows, the
+Shapiro close-stop test, the 80% / 74% figures in 5.1 and both 8.9 lists came back identical from the new script; the
+confirmation-entry and intraday-stop figures came back within rounding (noted in 4.4). The 5.2 description of the Chart
+IQ rule, including the two "climax" branches and the admin-only `raw` field, matches the code line by line. The brain-file
+paraphrases carry the right authors and dates (Manrav 2024-10-29, Bracco 2025-04-02 / 2025-12-18 / 2026-07-07, the
+owner's desk log of 2025-07-15, whose UPST line does say he bought it off bad news and the 20-day EMA, and the owner's
+2024-11-23 mapping; all paraphrased, as elsewhere in this file, because they are member-only Discord summaries).
+
+**Corrected (wording, no finding changed).**
+1. 3.2 and the sources table said "the two January 2024 posts" carry "Published by The CMR Team on behalf of Jason
+   Shapiro". Five January 2024 posts do (01-01, 01-08, 01-15, 01-22, 01-29); the two quoted here are among them.
+2. 3.2's "22 public posts use it" is now exact: 21 in the body text, plus the 2024-07-21 post whose title and subtitle
+   alone carry the term.
+3. 3.7 and the sources table now give ChartSchool's stored page timestamp (2024-09-25) behind "Last updated 2 years ago".
+4. 8.1's crowding line now says that its price numbers are measurable but "crowded" is not: no source read gives a
+   numeric COT threshold (Shapiro names only the neutral exit near an indexed score of 50). It was already question 7.
+
+**Removed in checking:** nothing. No quote, attribution, statistic or criterion failed the second check.
+
+---
+
+## 12. Examples (from our data)
+
+**The scan's rule (the proposed stand-alone version of 8.1 to 8.3 plus the house rules), in one paragraph.** On the
+sandbox's daily bars (2,630 names that ever met B23, scanned in full; events from 2000 on), a **long** News Failure is a
+day that opens 4% or more under the prior close on 2x or more the prior 50-day average volume and then **closes above
+the prior close**, with the close above the 200-day SMA (B26), the prior close $10 or more and the prior 50-day dollar
+volume $20M or more (B23). The entry is a market order as price trades back over the prior close (prior close + $0.01,
+E57); the stop is $0.03 under the news day's low (F62, 8.3); 3R and 5R are measured from that entry and stop. The
+**short** is the mirror (gap up 4%+ on 2x, close under the prior close, close under the 200-day, entry prior close -
+$0.01, stop $0.03 over the day's high). The prior-trend line of 8.1 (a 25%+ fall or a 50%+ run over 60 sessions) and the
+strong-close grade-up (top or bottom quarter of the range) were recorded, not required, and are reported as sub-groups.
+Each event is classed as "earnings" when `earnings_reaction_days` has a report for that day, "news" when the name has
+report dates on file and none that day, and "unknown" when the name has no report dates at all. Scripts and the hit
+file: `_study-resume/scratchpad/setups/23-news-failure/` (`scan_nf.py`, `pick_nf.py`, `final/hits.json`). [my computation]
+
+**Base rate (fixed stop, no trims, no breakeven move, 60 sessions forward; the first touch of the stop ends the trade):**
+1,534 events; **33.4% reached 3R and 17.9% reached 5R** before the stop; 2,630 of 2,630 liquid names scanned (the 420s
+budget was not needed). By side: long 603 events, 32.0% to 3R, 18.1% to 5R, 66.8% stopped, median stop 6.8%; short 931
+events, 34.4% to 3R, 17.7% to 5R, 68.7% stopped, median stop 7.3%. Sub-groups: longs after a 25%+ 60-session fall, 74
+events, 43% to 3R, 22% to 5R; shorts after a 50%+ 60-session run, 111 events, 32% to 3R, 15% to 5R; longs closing in the
+top quarter of the range, 500 events, 31% to 3R; shorts closing in the bottom quarter, 751 events, 32% to 3R. Earnings
+versus news: long earnings gaps 248 events, 30.6% / 15.3%; long news gaps 275, 37.5% / 22.5%; short earnings gaps 311,
+27.7% / 11.3%; short news gaps 423, 38.3% / 21.0% (the rest are "unknown"). Caveats: the stop is fixed at the day's
+extreme and about two-thirds of events hit it, so the house's trims and trail (B19, E51, E52) would change the realised
+R; a market order at the prior close assumes a fill there; no news column exists, so the volume-and-gap stand-in may
+count ordinary volatile days. These numbers are better than section 4's test of the natural stop over a wider shape,
+and still mean about two losses for every 3R winner. [my computation]
+
+**The ten examples** (one per ticker; seven longs, three shorts, matching the house's lean; 2025 and 2026 appear twice
+each because the best shorts and the two strongest longs fall there). "Structure" = gap, volume multiple, close as a
+position in the day's range (1.00 = the high), and the 60-session fall (long) or run (short) into the news day. Charts:
+`final/01_AAOI_2026-04-02.png` to `final/10_OKLO_2026-04-24.png` and the sheets `sheet_1-4.png`, `sheet_5-7.png`,
+`sheet_8-10.png` in the folder above.
+
+| # | Ticker | Date | Side | News class | Structure | Buy (trigger) | Stop | Stop % | Best R (days to 3R) | Why it is textbook |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | AAOI | 2026-04-02 | long | news (no report that day) | gap -5.5%, 2.1x vol, closed at 0.93 of range, +20.3% over the prior close; 60-day fall -33% | 86.36 | 81.48 | 5.7% | 30.2R (1) | A 33% shakeout inside a leader's run, a gap under the 50-day bought back to a close 20% up; the low undercut the prior day's low (an Oops shape), and the stock then doubled. |
+| 2 | SEDG | 2025-11-05 | long | earnings 2025-11-05 | gap -4.1%, 3.8x vol, 0.95 of range, +28.9%; fall -24% | 31.83 | 30.23 | 5.0% | 10.5R (1) | An earnings gap down into the 50-day, reversed to a 29% up-close in the top 5% of the range; 3R the next day. The 24% fall before it is the 8.1 prior-trend line almost exactly. |
+| 3 | HIMS | 2025-05-06 | long | earnings 2025-05-05 (after the close) | gap -8.5%, 5.2x vol, 0.91 of range, +18.1%; fall -43% | 41.89 | 38.18 | 8.9% | 7.7R (2) | The best example of "crowded shorts meet bad news": a 43% fall, an 8.5% gap down, then a close 18% up. The 8.9% stop shows 8.3's warning: wide, so size down or skip (A3). |
+| 4 | CELH | 2024-02-29 | long | earnings 2024-02-29 | gap -5.7%, 7.4x vol, 0.94 of range, +20.4%; fall -1% | 67.78 | 63.62 | 6.1% | 7.7R (1) | No prior fall: a leader above all its averages gaps down on earnings, is bought on 7x volume and closes 20% up. Shows the shape without the crowding; 5R within two weeks. |
+| 5 | ZS | 2023-11-28 | long | earnings 2023-11-27 (after the close) | gap -4.3%, 6.5x vol, 0.98 of range, +1.0%; fall -2% | 191.92 | 182.57 | 4.9% | 7.2R (12) | The quiet version: the failure is only a 1% up-close, but in the top 2% of the range on 6.5x volume in a clean uptrend; a steady trend trade, 3R in 12 sessions. |
+| 6 | KSS | 2017-11-09 | long | earnings 2017-11-09 | gap -6.2%, 6.6x vol, 0.86 of range, +0.9%; fall -14% | 40.80 | 37.94 | 7.0% | 9.9R (14) | A 6% earnings gap under the 200-day bought back to a close above both the prior close and the 200-day; the stock then ran about 60% in two months. Slow (3R in 14 days). |
+| 7 | COF | 2009-07-24 | long | earnings 2009-07-23 (after the close) | gap -4.6%, 2.0x vol, 0.88 of range, +8.0%; fall -12.5% | 27.84 | 26.37 | 5.3% | 8.1R (9) | The 2009 recovery version: a bank gaps down on earnings just above a flattening 200-day and closes 8% up; volume only 2x (the rule's floor). Did not undercut the prior low. |
+| 8 | STNG | 2020-05-06 | short | unknown (no report dates on file for STNG) | gap +5.6%, 2.6x vol, closed at 0.01 of range, -10.4% under the prior close; 60-day run +72% | 21.24 | 22.47 | 5.8% | 7.5R (4) | The mirror: a 72% run into good news, a 5.6% gap up sold to a close 10% down at the low of the day, under the 200-day, 50-day and 21-day. Whether the news was the Q1 report cannot be confirmed from our data. |
+| 9 | SKIN | 2022-08-09 | short | earnings 2022-08-09 | gap +4.8%, 3.7x vol, 0.01 of range, -16.2%; run +54% | 15.26 | 16.05 | 5.2% | 6.6R (6) | An earnings gap up after a 54% run, sold to a close 16% down at the day's low, under the 200-day; a key-reversal bar (the high took out the prior high). |
+| 10 | OKLO | 2026-04-24 | short | news (no report that day) | gap +6.3%, 2.4x vol, 0.01 of range, -7.1%; run +70% | 76.45 | 81.53 | 6.6% | 7.3R (16) | A 70% bounce into the falling 200-day meets a 6% news gap up that closes 7% down at the low; the mean-reversion short of 8.1 ("RS 20 or less unless the owner rules it mean reversion"), slower (3R in 16 days). |
+
+Rejected after viewing: DDD 2021-01-11 (a 28R hit, but the news day is a small bar inside a near-vertical run, hard to
+read), AIG 2008-09-24 (reverse-split adjustment puts the 2008 bars on a 1,000-point scale; the chart is unreadable),
+LVS 2006-02-15 (clean but 34 sessions to 3R). ETFs (SVXY, ZSL, NAIL, KORU, SOXL, UVXY) were excluded by hand.
+
+**Notable failures (strong shape, stopped at under 1R).** [my computation from `final/hits.json`]
+- **MRVL 2026-06-04, long:** a 6.2% gap down on 2.7x volume closed in the top 12% of the range above the 200-day, with
+  no report that day; the stop (8% away) was hit before any gain. A strong-looking failure after only a 7% pullback: no
+  crowding behind it, the 8.5 and 8.8 warning.
+- **NBIS 2026-10-15, long:** a 5.7% gap down closed in the top 4% of the range after a 34% fall, the crowded case the
+  rule likes, yet the 12.2% stop was taken with nothing gained. Even the best shape loses often; the stop size alone
+  (far above the A13 norm) should have made it a skip or a small size. (NBIS has no report dates on file, so the gap
+  cannot be classed.)
+- **AMAT and DAL 2025-04-08, shorts:** both gapped up 4.2% on 2.2x and closed in the bottom 11% of the range under the
+  200-day, the day before the 2025-04-09 market rally; both stops were hit the next day with 0R. A reminder of 8.7 and
+  8.8 item 4: the bearish read in a washed-out market is a poor sell signal, and a same-day cluster (many names showing
+  one shape on one day) means the "news" was the market, not the stock.
+- **ZTS 2025-08-05, short (earnings):** gap up 5.4%, closed in the bottom 10% of the range, reached 0.9R and then
+  reversed through the day's high. The "failure itself failed" case in 8.5.
+
+**Limits of this data for this setup.** There is no news feed, so a gap-and-volume stand-in defines "news"; the
+earnings file tells an earnings gap from a non-earnings gap only from about 2005 and only for names with report dates
+(STNG and NBIS have none). Entries and stops are tested on daily bars (a touch of the low ends the trade; the house's
+30-minute gap rule B20 is not modelled). Intraday bars exist only for the last 60 trading days (5-minute) or since
+2023-12 (hourly) for 1,000 names, so the intraday red-to-green entry of 8.2 could not be back-tested across the ten; the
+examples' triggers are the daily prior close. The full 2,630-name universe was scanned, so no coverage caveat applies.

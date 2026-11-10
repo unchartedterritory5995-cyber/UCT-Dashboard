@@ -12,6 +12,17 @@ every app claim was re-read in the code; the example table (6.4) and the study (
 downloads with independently written code and match. Corrections are made in place; what could not be confirmed is
 listed under "Removed in checking" at the end, and the checker's additions are marked "(added in checking)".
 
+**Cold check, finished (2026-11-09, resumed by a third reader).** The earlier check had no "Removed in checking"
+section; it is now at the end. This pass fetched every outside page and all 103 Substack posts again with its own
+client, and a fresh script matched all 330 quoted strings in this file (every quote of three words or more) against
+those copies and the repo files word for word. Every post quoted in section 6 was traced to its Substack date and to
+the signed section it sits under (Bracco's, TSDR's, "Bracco - ..." in The Rest of the Week, or an unsigned intro or
+index note), and the attributions hold. The detector summary (5.1) was re-read against `uct_capitulation.py`,
+`uct_setups_common.py`, `liquidity.py`, `tag_textbook.py`, `setup_tags.py`, `registry.py` and `docs/feature_flags.json`;
+the AAPL fixture levels (181.99 / 181.92 / 182.13 / 182.20) were re-run from the fixture file; the 4.5 study and the
+6.4 table were recomputed from the saved bars and reproduce every number; and the detector was re-run on each UCT
+example in 5.3 item 1 (C1 false on every one). Corrections from this pass are small and are listed at the end.
+
 **Who is who in UCT quotes.** The owner is Patrick (TSDR). He writes the "TSDR’s Weekly Outlook & Watchlist" section of
 the Sunday Scans (later titled "Patrick (TSDR)’s Weekly Outlook & Watchlist") and the "TSDR Trading" part of "The Rest
 of the Week". Bracco writes "Bracco’s Breakdown & Top Ideas", "Bracco’s Market Health Tracker", his signed part of "The
@@ -208,9 +219,13 @@ embed service); Chat With Traders episodes 228 (2022-02-09) and 236 (2022-06-27)
 - **Capitulation.** Episode 228's notes list "the emotional edge in trading capitulations". Episode 236's notes list
   "The Broken Slot Machine, The Right Side of the V, and Channel Fundamentals."
 - **What I could not read.** His own criteria list for a capitulation trade. Web pages that claim to list "his" checklist
-  are community or AI-written summaries; I did not use them.
+  are community or AI-written summaries; I did not use them. (Added in checking:) a web search in the finishing pass
+  found the same: no page in Breitstein's own words lists his capitulation criteria. TraderLion's "Lance Breitstein's
+  Simple Setup That Made Millions" still returned 403; the rest were third-party sheets and video summaries, not used.
 - **A secondary account (his mentee).** Austin Mitchum, an equities day trader, "Trading The Frontside vs The Backside"
-  (Baytrading Substack, 2025-04-22): "This concept was made notorious by my mentor, Lance Breitstein". His own checklist
+  (Baytrading Substack, 2025-04-22): "This concept was made notorious by my mentor, Lance Breitstein". (Added in
+  checking:) the sentence goes on: Breitstein, he says, "coined this change in character as the “right side of the V”",
+  so the claim that Breitstein coined the phrase is Mitchum's, not confirmed from Breitstein himself. His own checklist
   for a capitulation day: "Has there been a price flush and volume capitulation in my stocks? This is a sign that the
   stops have gone off, which is step 1 for a reversal." Then: "Step 2 for a reversal is a retest of the open price and
   holding new highs." And: "Price has to be back above VWAP." These are Mitchum's words, not Breitstein's.
@@ -292,7 +307,9 @@ nearby. Every number below names who measured it.
 Source: "Dead-Cat Bounce", thepatternsite.com/dcb.html, Thomas Bulkowski, "Updated and added 10 examples on 7/29/25".
 **The site states a notice against AI use:** "This website, in whole or in part, shall not be used to train artificial
 intelligence (AI) systems, technologies," I read it for research and cite it with a link and short quotes. Direct
-requests were refused (HTTP 406), so the quotes are as a fetch tool returned them.
+requests were refused (HTTP 406), so the quotes are as a fetch tool returned them. (Added in checking:) the finishing
+pass re-read both Bulkowski pages through the fetch tool and through a request that named itself as a research check
+(a bare request still got 406); the quotes below match the page text word for word.
 - **Event.** "Price usually gaps downward, closing 15% to 70% lower than the prior day."
 - **Next day.** "Forty-six percent make a lower low the next day, 17% continue lower the next day, then 9%, and then 3%,
   respectively." "From the event day to the trend low averages 7 days."
@@ -305,7 +322,7 @@ requests were refused (HTTP 406), so the quotes are as a fetch tool returned the
   it peaks in the bounce phase." And: "Only try this if the event day decline is a large one, say over 30%." The page
   says nothing about stops.
 - **Limits.** One-day news collapses, not multi-day cascades. "The numbers cited in this article are based on hundreds of
-  _perfect_ trades." No date range is given. It measures from the event low, which no trader buys exactly. It supports
+  perfect trades." (The page italicises "perfect"; an earlier copy here carried that as underscores.) No date range is given. It measures from the event low, which no trader buys exactly. It supports
   two points: buying the first close is early (nearly half make a lower low the next day), and the bounce is a trade, not
   a bottom (most fall to new lows later).
 
@@ -315,7 +332,7 @@ Source: his page on the four stages of price movement, thepatternsite.com/Stages
 "As of 11/09/2026" when checked, so it does not date the study). Same AI notice; same fetch-tool caveat.
 - Method: "I logged 440 buys and 444 sales from April 1987 until February 2010."
 - Result: "For example, 69.3% of the stage 1 buys were profitable while just 24.41% of those stocks bought in stage 4 made
-  money." His table (as returned by the fetch tool): Stage 4 buys averaged -8.3% over 127 trades.
+  money." His table: Stage 4 buys averaged -8.3% over 127 trades, 24.4% of them profitable.
 - Limits: one trader's discretionary trades, stages assigned by him, no split for capitulation buys, ends 2010. It is the
   measured reason behind the house rule against longs below the 200-day (B26), which a capitulation long often breaks.
 
@@ -381,8 +398,8 @@ QQQ, SMH, TQQQ, SOXL). Fires on the same ticker within a few sessions were count
   dips under and comes back was not tested, although 8.2 proposes it. (2) The stop was the whole entry session's low and
   the path started the next day, but daily bars cannot show whether that low came before or after the reclaim. In 45% of
   the 67 cases the entry session closed back under the flush low (the entry price), so some of those trades may have
-  been stopped the same day under a real "few cents under the low so far" stop. This flatters Entry C; read its +0.35R
-  as optimistic.
+  been stopped the same day under a real stop set a few cents under the low so far. This flatters Entry C; read its
+  +0.35R as optimistic. (Finishing pass: the study was run a third time from the saved bars and gives the same numbers.)
 
 ---
 
@@ -434,7 +451,8 @@ rows.
   that a parabolic long is the mirror of Bracco's burst (rulebook B26). Dossier 18 already flagged this card.
 - **Model Book Bottoms view** (`bottomsCatalog.js`): "Capitulation" is signpost 1 of a market bottom: "Climactic,
   high-volume selling" and "Capitulation is the market running out of sellers, not the market finding buyers." It is about
-  the index, not a stock trade. Its dated examples (1974 to 2020) are market days.
+  the index, not a stock trade. Its dated examples (nine market bottoms, from "The 1974 Secular Low" to "The 2022 Rate
+  Bear") are market days.
 - **Journal tags** (`app/src/constants/setupGroups.js`): Swing has "Parabolic Long"; Intraday has "Mean Reversion L/S".
   There is no "Capitulation" tag.
 - **Study bank:** the scanner's examples drill skill `scan.volume_climax`; the chip reads "VOLUME CLIMAX" while the
@@ -680,8 +698,10 @@ also passes the parabolic-long gate. Every number marked [my proposal] is a star
   the decline or of the year [UCT: IGV, ETHU; app C4]. A decline on falling volume does not qualify [app veto; Stockbee:
   "Low intensity selling is more in line with correction"].
 - **The stretch.** One of: (A) a fall of at least 15% (stocks) or 30% (3x ETFs) from the highest close of the last 10
-  sessions [my proposal, from UCT's examples: SOXL -36% in 2 days, KORU -50%, IGV -20% in 15 sessions; Kullamägi's
-  50-60% is for small caps after a parabolic run]; (B) for an index, a close at least 3 ATR under the 50-day SMA [UCT:
+  sessions [my proposal, from UCT's examples: SOXL -36% in 2 days (Bracco's figure; -35% close to close on Yahoo bars),
+  KORU -50% (Bracco's figure; -49%), IGV -19% from its highest close of the prior 15 sessions but only -14% from the
+  prior 10, so a sector ETF may need the longer window; Kullamägi's 50-60% is for small caps after a parabolic run];
+  (B) for an index, a close at least 3 ATR under the 50-day SMA [UCT:
   Bracco's "-3 ATR's" for intermediate corrections, -5 in crashes].
 - **Location.** Into a level that matters: a prior all-time high or breakout level, a round number, the 200-day or
   50-week average, an anchored VWAP from a major low, or an old gap [UCT: FIGR, SNDK, IGV, ETHA; Kell: "Extensions on a
@@ -733,8 +753,9 @@ also passes the parabolic-long gate. Every number marked [my proposal] is a star
 
 ### 8.5 What invalidates it
 
-- A trade below the low of the entry session (the stop) [source consensus: Wyckoff "new lows or prolonged consolidation";
-  the CMT; the app's narrative].
+- A trade below the low of the entry session (the stop) [originator: Kell, "Stops are placed just below the low of the
+  Reversal Extension bar"; Wyckoff school: a test below the climax low means "new lows or prolonged consolidation"; the
+  app's narrative. The CMT page gives no stop, so it is not counted].
 - The bounce stalls on the first day and closes in its lower third [app narrative: "A bounce that stalls immediately and
   closes weak is the early warning"].
 - The index makes a new low on rising volume while you hold [my proposal].
@@ -750,7 +771,9 @@ is needed. Note that both live on the "wrong" side of the 200-day rule and are c
 ### 8.7 Best market conditions
 
 - Fear is high and rising fast: a VIX spike toward 30 or more [UCT: Bracco 2026-03-08; academic: Nagel].
-- Breadth washed out: T2108 near or under 15-20% [UCT: Bracco 2026-03-22; originator: Stockbee's Market Monitor].
+- Breadth washed out: T2108 near or under 15-20% [UCT: Bracco 2026-03-22, his "15% floor" and a 16.74% close; Stockbee
+  agrees that breadth extremes mark seller capitulation but uses his own count (stocks up 25% in 65 days under 200),
+  not T2108].
 - Several straight down days into a Friday, then a gap down on Monday [UCT: Bracco's "Monday Effect"].
 - For the leader flush: the index holding up or itself stretched [UCT: Bracco 2025-10-26, leaders flushing while "the
   Nasdaq contracting and building higher lows"].
@@ -854,13 +877,14 @@ All read on 2026-11-09.
 | 8 | Chat With Traders 228, https://chatwithtraders.com/228 ; 236, https://chatwithtraders.com/236 | Chat With Traders; guest Lance Breitstein | 2022-02-09; 2022-06-27 | Show notes only; I did not hear the episodes. |
 | 9 | "Trading The Frontside vs The Backside", https://baytrading.substack.com/p/trading-the-frontside-vs-the-backside | Baytrading; Austin Mitchum | 2025-04-22 | Secondary (Breitstein's mentee); free part only. |
 | 10 | Stockbee blog search "capitulation", https://stockbee.blogspot.com/search?q=capitulation (posts of 2006-07-13, 2007-08-16, 2011-09-23, 2012-05-31) | Pradeep Bonde | as listed | Originator of his breadth tools; market-level only. |
-| 11 | "Dead-Cat Bounce", https://www.thepatternsite.com/dcb.html | Thomas Bulkowski | updated 2025-07-29 | Measured. **States a notice against AI training.** Direct requests refused (406); read through a fetch tool. |
-| 12 | Four stages of price movement (stages page), https://www.thepatternsite.com/Stages.html | Thomas Bulkowski | page shows "As of 11/06/2026" | Measured (his own trades). **Same AI notice.** Read through a fetch tool. |
+| 11 | "Dead-Cat Bounce", https://www.thepatternsite.com/dcb.html | Thomas Bulkowski | updated 2025-07-29 | Measured. **States a notice against AI training.** Bare requests refused (406); read through a fetch tool and, in the finishing check, a self-identified research request. |
+| 12 | Four stages of price movement (stages page), https://www.thepatternsite.com/Stages.html | Thomas Bulkowski | the "As of" line is the site's live date (11/09/2026 when checked); the study ends February 2010 | Measured (his own trades). **Same AI notice.** Read the same way as 11. |
 | 13 | "Fads, Martingales, and Market Efficiency", https://www.nber.org/papers/w2533 | NBER; Bruce N. Lehmann | 1988 | Peer-reviewed line of work; abstract only. |
 | 14 | "Trading Volume and Serial Correlation in Stock Returns", https://www.nber.org/papers/w4193 | NBER; John Y. Campbell, Sanford J. Grossman, Jiang Wang | 1992 | As 13; abstract only. |
 | 15 | "Dynamic Volume-Return Relation of Individual Stocks", https://www.nber.org/papers/w8312 | NBER; Guillermo Llorente, Roni Michaely, Gideon Saar, Jiang Wang | 2001 | As 13; abstract only. |
 | 16 | "Evaporating Liquidity", https://www.nber.org/papers/w17653 | NBER; Stefan Nagel | 2011 | As 13; abstract only. |
-| 17 | UCT Substack, Sunday Scans and The Rest of the Week (sitemap: https://unchartedterritoryy.substack.com/sitemap.xml; all 103 posts read and searched; posts quoted are linked in section 6) | Uncharted Territory; Bracco and the owner (TSDR) by section | 2025-06-13 to 2026-11-08 | UCT's own words. Section authorship as explained at the top. |
+| 17 | UCT Substack, Sunday Scans and The Rest of the Week (sitemap: https://unchartedterritoryy.substack.com/sitemap.xml; all 103 posts read and searched; posts quoted are linked in section 6) | Uncharted Territory; Bracco and the owner (TSDR) by section | 2025-06-01 to 2026-11-08 (the sitemap's 103 posts, re-fetched in the finishing check) | UCT's own words. Section authorship as explained at the top. |
+| 22 | "Reversal Bar Patterns Part 3: Buying and Selling Climaxes" on TradingView (CMT_Association account), found by search in the finishing check; the same text as 3 | CMT Association | 2023 | Confirms the "(also on TradingView)" note in 3.2; not read separately. |
 | 18 | "The Parabolic Short", https://unchartedterritoryy.substack.com/p/the-parabolic-short | Uncharted Territory; Bracco | 2025-06-13 | UCT; the owner's B26 reference. |
 | 19 | Brain KB extract, `docs/study/levels/brain_kb_cycle_2026-11-06.json` and `brain_kb_rules_2026-11-06.json` | this repo | 2026-11-06 | Chat words where marked; other text is tool-written summary. From a private archive (question 11). |
 | 20 | App code: `uct_capitulation.py`, `uct_setups_common.py`, `primitives/liquidity.py`, `registry.py`, `setup_tags.py`, `tag_textbook.py`; `setupCatalog.js`, `bottomsCatalog.js`, `setupGroups.js`; `docs/study/audits/2026-10-21/auditC_verdicts.jsonl`; `docs/study/RESUME.md`; `docs/study/sizing_rule.md` section 9; `docs/study/TRADE_PLANS.md`; `docs/study/audits/2026-10-24/owner_verdicts.jsonl` | this repo | as of 2026-11-09 | Primary for what the app does. TRADE_PLANS.md has no capitulation row; the owner's verdicts have no capitulation ruling beyond B26 and C31. |
@@ -870,3 +894,31 @@ All read on 2026-11-09.
 anchoring VWAP to capitulation lows; Linda Raschke; Larry Connors' oversold studies (the repo file
 `docs/superpowers/research/setups/setup_criteria.json` quotes Connors, but I did not verify those quotes); Investopedia
 (could not be fetched); TraderLion's article on Breitstein (403); Breitstein's own capitulation checklist.
+
+---
+
+## 12. Removed in checking
+
+Nothing was removed outright: every quote (330 strings of three words or more), every attribution, every statistic
+and every app claim was confirmed at its source in the finishing check. What was corrected in place:
+
+- Bulkowski's "hundreds of _perfect_ trades" is "hundreds of perfect trades" on the page (the word is italicised; the
+  underscores were a fetch-tool artefact). Fixed in 4.1.
+- Source 12's "As of 11/06/2026" was the site's live date on the day the writer read it, not a date for the study; the
+  table now says so (the study itself ends February 2010).
+- The Model Book Bottoms view's dated examples run from the 1974 low to the 2022 bear (`bottomsCatalog.js`), not "1974
+  to 2020". Fixed in 5.2.
+- Source 17's date range: the sitemap's earliest post is 2025-06-01, not 2025-06-13.
+- 8.1 "IGV -20% in 15 sessions": on the saved Yahoo bars IGV's 2026-02-03 close was 19% under its highest close of the
+  prior 15 sessions and 14% under the prior 10; the line now gives both so the proposed 10-session window is tested
+  honestly against it. SOXL and KORU figures are marked as Bracco's own, with the Yahoo check beside them.
+- 8.5 first bullet carried a [source consensus] tag resting on Wyckoff, "the CMT" and the app; the CMT page gives no
+  stop, so the tag now names Kell (who does), the Wyckoff school and the app narrative.
+- 8.7 breadth bullet cited "Stockbee's Market Monitor" as an originator for a T2108 threshold; Stockbee's published
+  number is his own count (stocks up 25% in 65 days, "Readings below 200"), so the tag now says what each source
+  actually gives.
+- A checker's paraphrase in 4.5 ("few cents under the low so far") was in quotation marks although it is nobody's
+  quote; the marks are gone.
+- Added: Mitchum's claim that Breitstein "coined" the right side of the V (3.6); confirmation that the CMT article is
+  also published on TradingView (3.2, source 22); the result of the finishing pass's search for Breitstein's own
+  capitulation criteria (none found in his words, 3.6).

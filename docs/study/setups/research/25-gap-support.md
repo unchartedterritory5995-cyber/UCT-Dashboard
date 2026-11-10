@@ -13,6 +13,13 @@ UCT's Substack (every post re-downloaded from the sitemap; each quote's section 
 was re-read against the code; my own re-run of the real scanner matched section 4.8 on all 23 rows and the fire file of
 section 4.7 on five tickers (355 of 355 fires), and an independent replay of the house-managed R matched 300 of 300
 sampled trades. What was wrong is fixed in place and listed under "Removed or corrected in checking" at the end.
+**Second check (2026-11-09, later the same day, a third reader).** The 16 FAQ answers were downloaded again as plain
+pages and every FAQ quote matched word for word; the 2013 preview was re-extracted with a different tool (the first
+check's saved text held none of the book passages) and all six book quotes were found on pages xxi to xxiv; the five
+Bulkowski pages, the Tradingsim page and the Wiley contents page were re-read; the scanner, finder, Study files, verdict
+log and rulebook were re-read against every claim; the 4.7 main row, every split and the side figures, the 4.8 table
+(the real scanner, 26 charts) and the Substack counts were re-computed and matched. Three rows of section 4.9 were
+corrected (NOW, BE, HUT); the count of 20 of 25 stands. Items 24 to 27 at the end.
 
 Tags used in section 8: **[source consensus]** several outside sources agree; **[originator]** the named trader's own
 words; **[UCT]** UCT's own writers, the owner's verdict log or UCT's own code; **[house rule]** the account rulebook,
@@ -39,7 +46,8 @@ risk on a trade, entry minus stop. **Post-gap high**: the highest price traded f
   owner's own section (the first count said 42 and 31; this is the checker's recount of the post bodies). I checked 25
   prices UCT named as gap support or a gap up low (22 in the owner's section) against daily bars: **20 sit within 1.5%
   of a gap-up day's low** (17 of his 22). His public writing and his rulings agree on the line. Five of those 20 gaps
-  were small (2.2% to 3.0%), so the word is used more widely than the 4% rule.
+  were small (2.2% to 3.0%), and a sixth (NOW) sits nearer a 3.7% gap on ordinary volume than the big gap behind it,
+  so the word is used more widely than the 4% rule.
 - **Measured evidence is thin and not flattering.** Bulkowski: gaps in an uptrend "show underlying support 20% of the
   time in a bull market". His test of the Kacher-Morales rules (557 stocks, 2001-2010) had a win/loss ratio of 28% to
   32% and an average gain of 1.2% to 3.1%: "I don't recommend this setup". My own replay of our scanner with his
@@ -127,8 +135,10 @@ Bracco's exhaustion pattern (section 6.3), not support.
 Read: the Introduction of *In the Trading Cockpit with the O'Neil Disciples* (Wiley, 2013), pages xxi to xxiv, through
 the free 43-page preview of the ebook (the PDF's creator field says Rakuten Kobo; served from
 https://api.pageplace.de/preview/DT0400.9781118287293_A23567645/preview-9781118287293_A23567645.pdf, re-downloaded in
-checking); Morales' glossary on his current site TheOWLTrader.com; and 22 of the 69 answers in the "Pocket Pivot Review /
-Buyable Gap Ups" section of their site's FAQ (virtueofselfishinvesting.com). These are their own words.
+checking); Morales' glossary on his current site TheOWLTrader.com; and 16 of the 69 answers in the "Pocket Pivot Review /
+Buyable Gap Ups" section of their site's FAQ (virtueofselfishinvesting.com; the writer says 22 were read, the 16 quoted
+here are listed in section 11, and the second check matched every quote against a fresh plain download of each page).
+These are their own words.
 
 - **Prior trend.** "Buyable gap-ups should occur within an uptrend or constructive consolidation, not while a stock is
   in a downtrend." (glossary) Also: "buyable gap-ups can also occur within uptrends that are well formed and coherent."
@@ -153,6 +163,9 @@ Buyable Gap Ups" section of their site's FAQ (virtueofselfishinvesting.com). The
     whether to sell on an intraday move below the gap-up day's intraday low." And: "Also watch for pullbacks just under
     the intraday low of the gap-up day that are close to and hence might find support at the 10-day, 50-day, or 200-day
     moving averages." The FAQ adds: "A 1-2% undercut can be permitted in some cases." (FAQ, 2010-10-24)
+  - Their general sell-stop answer (FAQ, 2010-10-03; added in the second check): "Generally, after buying the gap up,
+    if the stock trades under the low of the gap up day over subsequent trading days, we will sell at least half the
+    position." A half, not all, on the first trade under the line.
   - The **6-day rule**: after five days, porosity "should be minimal to zero". "Normally, porosity for a stock that has
     gapped up is 1-2%, though contextual to the volatility of the stock." (FAQ, 2013-05-13)
   - The 2013 book: "allowing for some porosity to occur around the intraday low." And: "it can be prudent to use the
@@ -317,7 +330,9 @@ book *Trading Basics*, the section on gaps showing support and resistance (O'Rei
 TraderPlanet again returned HTTP 500. Also searched in checking: TraderLion, Brian Shannon and Mark Minervini on a later
 test of the gap-up low (no primary page found; the search turned up only secondary and script pages, not used), and a
 *Technical Analysis of Stocks & Commodities* page on buyable gap-ups (technical.traders.com, `art=7236`; HTTP 403, so
-its author, date and wording are unknown). Nothing from any of these is quoted or used as a rule.
+its author, date and wording are unknown). In the second check a search for Brian Shannon's own anchored-VWAP writing
+turned up one alphatrends.net address ("Anchoring the VWAP for better timing"), which returned HTTP 404, so nothing of
+his is quoted. Nothing from any of these is quoted or used as a rule.
 
 ### 3.11 Comparison table
 
@@ -607,10 +622,10 @@ looser there.)
 | FROG 2026-05-17 (owner) | "gap support at $62.50" | 62.50 | gap-up low 62.51 (2026-05-08) |
 | AEHR 2026-05-17 (owner) | "the $80 gap support" | 80 | gap-up low 80.61 (2026-04-16) |
 | QCOM 2026-05-17 (owner) | "bull gap support" | 190 | gap-up low 188.22 (2026-05-06); fill spot 187.22 |
-| NOW 2026-09-13 (owner) | "$130 bull gap support" | 130 | gap-up low 131.61 (2026-06-01), 1.2% |
+| NOW 2026-09-13 (owner) | "$130 bull gap support" | 130 | gap-up low 130.25 (2026-08-27, a 3.7% gap on 1.3x volume), 0.2%; the 2026-06-01 gap (9.2%, 2.6x) has its low at 131.61, 1.2% (corrected in the second check: the first table gave only the June line) |
 | SERV 2025-09-01 (owner) | "$10.50 bullish open gap" | 10.50 | gap-up low 10.51 (2025-08-27) |
 | CGNX 2026-02-22 (owner) | "earnings gap up low" | 55 | gap-up low 55.00 (2026-02-12) |
-| BE 2026-04-19 (owner) | "the gap support" | 200 | gap-up low 197.40 (2026-04-14), 1.3% |
+| BE 2026-04-19 (owner) | "the gap support" | 200 | gap-up low 197.40 (2026-04-14, a 14.8% gap on 2.3x), 1.3%; a nearer line, 200.23 (0.1%), is the low of 2026-04-17, a session that opened 2.7% up above the prior high and closed back under it the same day (added in the second check) |
 | CRDO 2026-04-19 (owner) | "gap support" | 150 | gap-up low 149.00 (2026-04-14) |
 | MRVL 2026-06-14 (owner) | "$250 bull gap" | 250 | gap-up low 252.43 (2026-06-02) |
 | MU 2026-04-26 (owner) | "$458 gap up lows" | 458 | gap-up low 458.56 (2026-04-22) |
@@ -621,18 +636,20 @@ looser there.)
 | DELL 2026-04-05 (owner) | "gap support at $140" | 140 | gap-up low 136.11 (2026-02-27), 2.9% |
 | TE 2026-05-24 (owner) | "$7 at that gap support" | 7 | gap-day close 7.00 (2026-05-18), or fill spot 6.97 (2026-05-20) |
 | GLW 2026-05-17 (owner) | "previous highs and bull gap" | 180 | gap-day close 181.57 (2026-05-06); also the prior highs |
-| HUT 2026-06-28 (owner) | "$107 bull gap support" | 107 | no gap-up low near it; the 2026-05-26 fill spot is 108.53 |
+| HUT 2026-06-28 (owner) | "$107 bull gap support" | 107 | no open gap's low near it: the nearest gap-day low is 107.32 (0.3%) from 2026-06-09, a session that opened 2.8% up above the prior high and closed back under it the same day (not an open bull gap); the 2026-05-26 fill spot is 108.53 (corrected in the second check: this said "no gap-up low near it") |
 | VELO 2026-05-24 (owner) | "gap support just below $16" | 16 | inside the 2026-05-13 gap (fill 14.72, gap-up low 16.61) |
 | INOD 2025-06-22 (owner) | "$41 is the gap up low from Monday" | 41 | low 40.80 of Monday 2025-06-16, a **partial** gap (open 4.6% over the prior close but under the prior day's high of 41.82), 0.5% (corrected in checking: this said "no gap on that Monday") |
 
 **20 of 25** named prices (17 of the owner's 22) sit within 1.5% of a gap-up day's low, counting INOD's partial gap;
-one more (DELL) within 3%. The rest are a gap-day close (TE, GLW), inside the gap (VELO), or a fill spot (HUT). The
+one more (DELL) within 3%. The rest are a gap-day close (TE, GLW), inside the gap (VELO), or a fill spot (HUT; it would
+be a 21st match if the low of a gap that failed the same day counted, which it should not). The
 bars are the app's vendor data; his chart may differ by cents.
 
-**The gaps behind those 20 matches** (checked on the bars, volume against the 50 sessions before the gap): 14 are big
+**The gaps behind those 20 matches** (checked on the bars, volume against the 50 sessions before the gap): 13 are big
 gaps, 4.6% to 45.5% at the open, on 1.9x to 8.6x volume (all 2x or more except CRCL's 106.90 gap at 1.9x). Five are
 small: MU 458.56 (3.0%, 1.1x), TSLA 467.66 (2.3%, 1.4x), SMH 288.62 (2.2%, 1.0x), SMH 312.60 (2.7%, 2.2x) and ARKK 63.72
-(2.8%, 1.0x); INOD's was 4.6% on 1.7x but not a true gap. So in his everyday writing "gap support" and "gap up low"
+(2.8%, 1.0x); NOW's $130 is nearer a 3.7% gap on 1.3x (130.25) than the 9.2% gap on 2.6x behind it (131.61), so it is
+either; INOD's was 4.6% on 1.7x but not a true gap. So in his everyday writing "gap support" and "gap up low"
 also cover small gaps on ordinary volume, which the scanner's 4% and 2x would never mark. Whether the lesson should
 (section 10, Q13) is his call.
 
@@ -921,7 +938,8 @@ From UCT posts; the line was checked on bars in section 4.9; the outcomes were n
 ULTA 2025-12-05 gap (575.00), DDOG 2025-11-06 (177.57), DOCN 2025-11-05 (42.50), FROG 2026-05-08 (62.51), AEHR
 2026-04-16 (80.61), CGNX 2026-02-12 (55.00), CRDO 2026-04-14 (149.00), MRVL 2026-06-02 (252.43), AAON 2026-05-07
 (125.23), CRCL 2026-05-04 (106.90), MU 2026-04-22 (458.56; a 3.0% gap on 1.1x volume, so it would fail a 4%/2x rule),
-NOW 2026-06-01 (131.61), BE 2026-04-14 (197.40), and the NBIS 2025 and 2026 undercuts. From his own ruled set (section
+NOW 2026-06-01 (131.61; or its 2026-08-27 gap, 130.25, a 3.7% gap on ordinary volume), BE 2026-04-14 (197.40), and
+the NBIS 2025 and 2026 undercuts. From his own ruled set (section
 4.8): NVDA 2023-03-02 and AAPL 2024-05-08 are the cleanest by his grades (great and good, both menu picks; held or barely
 breached, closed back above, above the 200-day); AFRM, MU and META are "great" but closed under the line on the test day.
 
@@ -1148,9 +1166,9 @@ for this setup's longs. Whether to build the retest short is his call (section 1
 
 | # | Source | Publisher / author | URL or location | Reliability note |
 |---|---|---|---|---|
-| 1 | *In the Trading Cockpit with the O'Neil Disciples* (2013), Introduction, "Buyable Gap-Ups" (pages xxi to xxiv) | John Wiley & Sons; Gil Morales and Chris Kacher | Free 43-page preview of the ebook (PDF creator field: Rakuten Kobo): https://api.pageplace.de/preview/DT0400.9781118287293_A23567645/preview-9781118287293_A23567645.pdf (re-downloaded and re-extracted in checking) | High: the originators' own book. |
+| 1 | *In the Trading Cockpit with the O'Neil Disciples* (2013), Introduction, "Buyable Gap-Ups" (pages xxi to xxiv) | John Wiley & Sons; Gil Morales and Chris Kacher | Free 43-page preview of the ebook (PDF creator field: Rakuten Kobo): https://api.pageplace.de/preview/DT0400.9781118287293_A23567645/preview-9781118287293_A23567645.pdf (re-downloaded and re-extracted in checking; re-extracted again with pdftotext in the second check, which is where the six quoted passages were confirmed) | High: the originators' own book. |
 | 2 | "Glossary & Trading Methods" and "About" | TheOWLTrader.com; Gil Morales | https://theowltrader.com/glossary-trading-methods/ ; https://theowltrader.com/about/ | High: the originator's own site (the about page is signed "Gil Morales"). Undated. |
-| 3 | FAQ, "Pocket Pivot Review / Buyable Gap Ups" (22 answers read, dated 2010-09-19 to 2025-07-03) | Virtue of Selfish Investing (MoKa Investors, LLC); Kacher and Morales | https://www.virtueofselfishinvesting.com/faqs/category/pocket-pivot-review-buyable-gap-ups ; answers under https://www.virtueofselfishinvesting.com/faqs/answer/ : `how-best-to-handle-a-bgu`, `stocks-that-undercut-the-low-of-the-gap-up`, `what-is-the-6-day-sell-rule-for-bgus`, `what-if-a-stock-gaps-up-then-some-days-later-gaps-up-again`, `should-i-buy-a-buyable-gap-up-at-the-open-or-wait-until-later-in-the-trading-day-what-about-buying-in-subsequent-days-on-pullbacks-stop-loss`, `when-a-stock-has-the-wild-action-nvta-is-having-today-11-8-18-should-it-be-dropped-from-our-buy-watch-list-or-should-it-be-kept-for-a-new-pp-or-bgu-signal-much-later-obviously`, `should-a-stock-that-has-a-buyable-gap-up-have-at-least-doubled-in-price-from-its-lows-to-its-highs-before-the-bgu-day-for-the-bgu-to-work`, `when-applying-the-7-week-rule-do-you-start-counting-the-weeks-only-after-the-stock-has-broken-out-of-a-base-or-is-it-from-the-first-time-it-closes-above-the-moving-average`, `under-which-scenarios-would-the-7-week-clock-be-reset-for-a-stock-would-it-be-reset-on-each-continuation-pocket-pivot-or-buy-able-gap-up`, `do-you-have-performance-results-over-the-years-of-the-pocket-pivot-review-and-the-buyable-gap-ups`, `did-you-use-the-7-week-rule-or-something-similar-during-your-period-of-super-performance-when-you-were-profiled-in-the-best`, `if-you-buy-a-stock-on-a-gap-up-day-and-the-low-of-the-day-is-greater-than-7-8-from-where-you-bought-it-do-you-still-set-your-stop-at-the-gap-up-days-low`, `when-should-i-buy-a-stock-that-gaps-higher-lite-mho-and-rng-gapped-higher-then-fell-8-10-17`, `could-you-briefly-explain-for-the-sake-of-education-if-there-is-a-significant-difference-in-the-gap-up-of-ffiv-and-the-gap-up-of-lvs-as-of-october-28-2010`, `how-do-you-determine-if-a-stock-gapping-up-is-buyable-if-it-is-buyable-how-do-you-time-your-entry` | High: the originators answering members; each answer dated on the page. The 2010-10-24 answer quotes page 171 of their 2010 book. Added in checking: `how-do-you-set-your-sell-stops` (2010-10-03, the 10-day "violation"). The 2014-09-06 answer is addressed to "Dr. K" (Kacher). |
+| 3 | FAQ, "Pocket Pivot Review / Buyable Gap Ups" (16 answers cited, dated 2010-09-19 to 2025-07-03; the writer read 22; the category page lists 69) | Virtue of Selfish Investing (MoKa Investors, LLC); Kacher and Morales | https://www.virtueofselfishinvesting.com/faqs/category/pocket-pivot-review-buyable-gap-ups ; answers under https://www.virtueofselfishinvesting.com/faqs/answer/ : `how-best-to-handle-a-bgu`, `stocks-that-undercut-the-low-of-the-gap-up`, `what-is-the-6-day-sell-rule-for-bgus`, `what-if-a-stock-gaps-up-then-some-days-later-gaps-up-again`, `should-i-buy-a-buyable-gap-up-at-the-open-or-wait-until-later-in-the-trading-day-what-about-buying-in-subsequent-days-on-pullbacks-stop-loss`, `when-a-stock-has-the-wild-action-nvta-is-having-today-11-8-18-should-it-be-dropped-from-our-buy-watch-list-or-should-it-be-kept-for-a-new-pp-or-bgu-signal-much-later-obviously`, `should-a-stock-that-has-a-buyable-gap-up-have-at-least-doubled-in-price-from-its-lows-to-its-highs-before-the-bgu-day-for-the-bgu-to-work`, `when-applying-the-7-week-rule-do-you-start-counting-the-weeks-only-after-the-stock-has-broken-out-of-a-base-or-is-it-from-the-first-time-it-closes-above-the-moving-average`, `under-which-scenarios-would-the-7-week-clock-be-reset-for-a-stock-would-it-be-reset-on-each-continuation-pocket-pivot-or-buy-able-gap-up`, `do-you-have-performance-results-over-the-years-of-the-pocket-pivot-review-and-the-buyable-gap-ups`, `did-you-use-the-7-week-rule-or-something-similar-during-your-period-of-super-performance-when-you-were-profiled-in-the-best`, `if-you-buy-a-stock-on-a-gap-up-day-and-the-low-of-the-day-is-greater-than-7-8-from-where-you-bought-it-do-you-still-set-your-stop-at-the-gap-up-days-low`, `when-should-i-buy-a-stock-that-gaps-higher-lite-mho-and-rng-gapped-higher-then-fell-8-10-17`, `could-you-briefly-explain-for-the-sake-of-education-if-there-is-a-significant-difference-in-the-gap-up-of-ffiv-and-the-gap-up-of-lvs-as-of-october-28-2010`, `how-do-you-determine-if-a-stock-gapping-up-is-buyable-if-it-is-buyable-how-do-you-time-your-entry` | High: the originators answering members; each answer dated on the page. The 2010-10-24 answer quotes page 171 of their 2010 book. Added in checking: `how-do-you-set-your-sell-stops` (2010-10-03, the 10-day "violation"). The 2014-09-06 answer is addressed to "Dr. K" (Kacher). |
 | 4 | *Trade Like an O'Neil Disciple* (2010), table of contents | Wiley-VCH product page | https://wiley-vch.de/en/areas-interest/finance-economics-law/trade-like-an-o-39-neil-disciple-978-0-470-61653-6 | Used only to locate the chapter; the chapter itself was not read. |
 | 5 | *Kacher-Morales Setup* (re-read 2026-11-09) | thepatternsite.com; Thomas Bulkowski | https://www.thepatternsite.com/KacherMorales.html | Medium-high: a stated test (557 stocks, 2001-2010). Fetch tool only (plain requests got HTTP 406). **The site states it "shall not be used to train artificial intelligence (AI) systems"**; cited with a link and short quotes for research. |
 | 6 | His page on price gaps (updated 2025-08-08; re-read 2026-11-09) | thepatternsite.com; Thomas Bulkowski | https://www.thepatternsite.com/gaps.html | Medium-high: his own counts. Fetch tool. Same AI notice. |
@@ -1246,3 +1264,95 @@ outside page quote were found word for word. What was wrong was attribution, met
 **Added:** K-M's bottom-fishing buyable gap-up, their 10-day "violation" definition (FAQ 2010-10-03), the 9-10% risk
 exception, Bulkowski's 50-day exception and Insteel figure, ChartSchool's partial-gap definition, the scanner's
 confidence rewarding test-day volume (section 5.2, item 12), question 13 (gap size), and the searches in section 3.10.
+
+**Second check (2026-11-09, later the same day).** Re-verified without change: every FAQ quote (16 pages downloaded
+as plain HTML and matched word for word, dates as printed), the five Bulkowski pages, the Tradingsim "3-4%" sentence,
+the Wiley contents page (Chapter 5, "Dr. K's Laboratory: Buying Gap-Ups in Leading Stocks"), Bulkowski's Active
+Trader title and his Insteel sentence ("the average gain drops from 3.1% to 2.6%"), all 52 Substack quotes and their
+section headers (the SEI line sits under a plain "Jersace - SEI INTC ARM" label, so Jersace is right), the Substack
+counts (41/22/30; 94/57; 16/12; 4), the verdict-log words, the rulebook text, the scanner summary (section 5.1, every
+constant and formula), the finder's thresholds, the 4.7 main row, all 24 splits and the side figures (34% next-session
+stops, 60% within five, 11% past -1.05R, worst -16R, post-gap high median 3.7R, 41% under 3R, C29 median 0.7% and
+7%), and the 4.8 table (the real scanner on 26 charts). Corrected or added:
+24. Section 4.9, NOW: the nearest gap-up low to his $130 is 130.25 (2026-08-27, a 3.7% gap on 1.3x), 0.2%, not the
+    June line alone; the 2026-06-01 gap's low 131.61 is 1.2% away. BE: a nearer line (200.23) is the low of a session
+    that gapped up and closed back under the prior high the same day. HUT: the same shape exists at 107.32 (2026-06-09);
+    "no gap-up low near it" was too strong, though the count stays 20 of 25 because a same-day-failed gap is not an open
+    gap. The "gaps behind the matches" count reads 13 big and five small, with NOW either.
+25. The first check's saved text of the 2013 preview contained none of the six book passages (an extraction fault,
+    not a missing source); re-extracted with pdftotext, all six are on pages xxi to xxiv as cited.
+26. Section 3.1 said 22 FAQ answers were read; 16 are cited and listed, and that is what both checks verified.
+27. Added K-M's general sell-stop answer on gap-ups (FAQ 2010-10-03): sell at least half on a trade under the gap-up
+    day's low. Nothing was removed in the second check.
+
+---
+
+## 12. Examples (from our data)
+
+**The scan's rule (daily bars, 2026-11-09).** A gap day: the open at least 4% over the prior close, the whole day above
+the prior day's high (a true gap), volume at least 2x the 50-day average, the close above the prior day's high and
+above a flat-or-rising 50-day SMA (not below its value ten sessions earlier), the gap 30% or less close to close, the
+stock $10 or more and $20 million or more traded a day. The gap-up low is the line and the prior day's high is the
+gap-fill spot. The test day is the first session 2 to 60 sessions later whose low reaches the gap-up low (within 0.25
+ATR above it) or undercuts it by up to 5%, closes at or above it (or within 1% under), closes in the upper half of its
+range, sits at least 1 ATR below the post-gap high, and closes above the 200-day SMA (house rule B26); any close at
+or under the gap-fill spot, any trade through it, a deeper undercut, or a close more than 1% under the line ends the
+setup instead. Entry is a market order at the test day's close (section 8.2, option A; the buy point is the close, so
+the chase limit C28 cannot be breached); the stop is a few cents (0.1% of the price, at least 3 cents) under the test
+day's low, and a stop more than 5% away is skipped (A13). One test per gap. The outcome is walked forward 60 sessions
+from the next day: the first of the stop, 3R or 5R. RS rating (C31) was not available to the scan and is not tested.
+
+**Base rate.** 2,630 of 2,630 liquid names scanned (the whole universe that ever met rule B23), tests from 1996-06-04
+to 2026-11-09: **2,783 hits; 28.9% reached 3R and 20.4% reached 5R** before the stop; 2,377 (85%) eventually traded
+the stop within the 60-day window (a fixed stop with no trims, no breakeven move and no trail, so this is the raw
+hold-or-stop rate, not the account's trade). The median stop was 2.1% away and 76% of stops were within 3%. Timing did
+not change the rate much: tests 2 to 5 sessions after the gap reached 3R 28% of the time (1,589 hits), 6 to 20 sessions
+30% (779), 21 to 60 sessions 29% (415); tests on the second session alone, 27% (810). Gap size mattered a little: gaps
+opening under 8% reached 3R 30% of the time (1,749), gaps of 15% or more 26% (218). Tests closing in the top quarter of
+their range reached 3R 29.7% of the time against 28.1% for the third quarter. 21% of all hits reached 3R within ten
+sessions. Files: `_study-resume/scratchpad/setups/25-gap-support/final/hits.json` (every hit and its outcome),
+`examples.json`, `ex_01..10_*.png`, `sheet_1-4.png`, `sheet_5-7.png`, `sheet_8-10.png` (local scratch, not in the repo).
+
+**The 10 examples** (all reached 5R; one per ticker, ten different years; "earnings gap" means the gap day is an
+earnings reaction day in our Yahoo/SEC dates, "news gap" means it is not). Buy = the test day's close; stop = a few
+cents under the test day's low; best R = the furthest the trade went in 60 sessions before the stop traded.
+
+| # | Ticker | Gap day → test day | Structure | Buy | Stop | Best R | Why it is textbook |
+|---|---|---|---|---|---|---|---|
+| 1 | ADSK | earnings gap 2004-02-27 → test 2004-03-17 | +10.1% open on 11.9x volume; test 13 sessions later, 2.0 ATR off the 14.72 post-gap high; low 0.3% above the gap-up low 13.88; close at 90% of the range | 14.23 | 13.90 (2.4%) | 16.7R | A steady uptrend above all its averages, a two-week sideways drift back to the gap-up low, a hammer close, then a straight run |
+| 2 | AKAM | earnings gap 2006-02-09 → test 2006-02-14 | +13.6% open on 7.1x volume; test 3 sessions later, 2.5 ATR off the 27.59 high; low 0.1% under the gap-up low 24.76; close at 61% of the range | 25.10 | 24.71 (1.6%) | 30.4R | The quick test: two down days after a big earnings gap in a rising stock touch the line and hold, 1.6% risk |
+| 3 | MA | earnings gap 2009-07-30 → test 2009-08-19 | +9.2% open on 2.9x volume; test 14 sessions later, 3.1 ATR off the 20.93 high; low 0.8% above the gap-up low 19.39; close at 68% of the range | 19.73 | 19.50 (1.1%) | 19.8R | A large cap gapping out of a 2009 base above a rising 50-day; the pullback stops where the gap opened, 1.1% risk |
+| 4 | ILMN | earnings gap 2010-10-27 → test 2010-11-02 | +5.6% open on 3.6x volume; test 4 sessions later, 1.9 ATR off the 55.63 high; low 1.1% under the gap-up low 53.03; close at 94% of the range | 53.27 | 52.40 (1.6%) | 18.6R | The slight undercut that reclaims: the low breaks the line by 1% and the day closes near its high |
+| 5 | GPN | earnings gap 2013-10-02 → test 2013-10-09 | +7.0% open on 11.5x volume; test 5 sessions later, 2.5 ATR off the 28.71 high; low 0.3% under the gap-up low 27.00; close at 62% of the range | 27.15 | 26.89 (0.9%) | 24.9R | A quiet stock whose gap came on 11x volume; the first touch of the line a week later is the whole pullback, 0.9% risk |
+| 6 | XYZ (Square, then SQ) | earnings gap 2017-02-23 → test 2017-03-22 | +10.8% open on 10.3x volume; test 19 sessions later, 5.1 ATR off the 18.17 high; low 1.3% under the gap-up low 16.32; close at 66% of the range | 16.41 | 16.08 (2.0%) | 25.9R | Four weeks of sideways digestion inside the gap day's range, a one-day undercut and reclaim, then the trend resumes |
+| 7 | ONC (BeiGene, then BGNE) | news gap 2020-07-13 (not an earnings date in our data) → test 2020-07-30 | +4.8% open on 4.1x volume; test 13 sessions later, 3.8 ATR off the 256.01 high; low 0.5% under the gap-up low 205.26; close at 71% of the range | 207.34 | 203.96 (1.6%) | 34.2R | A gap near the 4% minimum but on 4x volume in a strong uptrend; a deep pullback from the post-gap high ends at the gap-up low |
+| 8 | LLY | news gap 2021-06-24 (not an earnings date in our data) → test 2021-07-01 | +8.2% open on 3.6x volume; test 5 sessions later, 2.1 ATR off the 239.37 high; low 0.8% under the gap-up low 230.42; close at 87% of the range | 231.13 | 228.43 (1.2%) | 16.6R | A mega cap news gap; the first dip a week later tags the line with a hammer close, 1.2% risk |
+| 9 | AXON | earnings gap 2022-11-09 → test 2022-12-30 | +8.0% open on 3.6x volume; test 35 sessions later, 6.4 ATR off the 193.85 high; low 0.4% above the gap-up low 161.70; close at 82% of the range | 165.93 | 162.22 (2.2%) | 16.2R | The late test (seven weeks, like his DOCS and KKR examples): a 15% slide from the post-gap high stops on the gap-up low with a hammer |
+| 10 | VIAV | earnings gap 2025-10-30 → test 2025-11-21 | +13.4% open on 6.8x volume; test 16 sessions later, 4.2 ATR off the 18.46 high; low 1.8% under the gap-up low 15.80; close at 87% of the range | 15.96 | 15.48 (3.0%) | 25.4R | A recent small cap: an undercut of 1.8% and a strong close back over the line, the stop right at the 3% limit (A13) |
+
+Tickers 6 and 7 are shown under their current symbols because that is how the sandbox stores them; the history is the
+same company's. None of the ten is an ETF, and none shows a split or ticker-reuse fault in the bars. The two news gaps
+are called that only because the gap day is not an earnings reaction day in our data; the catalyst itself was not
+researched here.
+
+**Notable failures (same rule, in words).**
+- **MSFT, test 2025-08-04.** An 8.2% earnings gap on 2.8x volume (2025-07-31); the test came only two sessions later,
+  the low 0.7% under the gap-up low, the close at 74% of the range, 1.5% risk. The stop traded before the trade ever
+  showed a gain (0.0R). Second-session tests are the largest group of hits (810) and the weakest (27% to 3R).
+- **AVGO, test 2025-09-24.** A 16.2% earnings gap on 4.3x volume (2025-09-05), tested 13 sessions later with a near
+  perfect hold (low 0.7% above the line, close at 88% of the range, 1.7% risk), yet the stop traded without any gain
+  (0.0R). A clean test day is not enough when the gap was very large: gaps of 15% or more reached 3R 26% of the time
+  against 30% for gaps under 8%.
+- **AMD, test 2020-09-17.** An 11.7% earnings gap on 2.2x volume (2020-07-29) tested 35 sessions later with a close at
+  97% of the range and 3.2% risk; the stop traded with no gain (0.0R). The stock had already fallen hard from its
+  post-gap high and the broad market was in its September 2020 pullback: the scan ignores the market reading (section
+  8.7), which is the missing filter here.
+- Also AMZN (2018-05-01 and 2023-08-08), GOOGL (2025-11-03), AAPL (2019-05-06) and NVDA (2026-08-31): second- or
+  third-session tests of large earnings gaps in mega caps that stopped at once.
+
+**Limits.** The scan ran to completion within its budget (2,630 of 2,630 names; no coverage caveat). It does not test
+RS rating, group strength or the market reading, so the base rate is for the chart pattern alone. It takes only the
+first qualifying test per gap and only daily bars, so the owner's intraday entries (section 8.2, option D) are not
+measured, and the 5% undercut allowance plus the 1% close allowance mean some hits are looser than his "slight
+breach". Earnings classification uses the sandbox's Yahoo and SEC 8-K dates, complete from about 2005; the 2004 ADSK
+gap matched a date in that set, but an unmatched gap before 2005 would be unclassifiable rather than "news".

@@ -9,25 +9,33 @@ read a source, I say so and give no wording from it.
   (ireallytrade.com), the Wiley front matter of *Long-Term Secrets to Short-Term Trading* (1999 edition) and the Wiley
   table of contents and Chapter 1 excerpt of the 2011 second edition, Deepvue's knowledge base, Unger Academy,
   StockCharts, Wikipedia, and our own code and docs.
-- **Could not read today** (the sites refused the download with HTTP 403): Nick Radge's two Oops posts on
+- **Could not read in the first pass** (the sites refused the download with HTTP 403): Nick Radge's two Oops posts on
   thechartist.com.au, both TraderLion pages by Richard Moglen, and the *Stocks & Commodities* article "Larry Williams And
-  The OOPS Signal" on traders.com. What our repo's earlier research (`docs/study/levels/external_research.md`) says they
-  contain is reported in sections 3 and 4, marked **not re-read today**, with no quote.
+  The OOPS Signal" on traders.com. **The cold check later the same day did get Radge's two posts** (HTTP 200, both read
+  in full and quoted below, sections 3.4 and 4.2); TraderLion and traders.com still refused (403), so what the repo's
+  earlier research (`docs/study/levels/external_research.md`) says Moglen's pages contain is reported in section 3.5,
+  marked **not re-read**, with no quote.
 - **Not read at all:** Williams' books themselves (only the publisher's front matter, contents and Chapter 1), Connors and
   Raschke's *Street Smarts*, Oliver Kell's book, UCT's private Discord and members' videos.
 - My web search allowance ran out early in this run (one search worked). Everything else came from pages I already knew
   or found by following links. Section 11 lists the gaps.
 
-**Cold check (2026-11-09, a second reader).** Every quote in this file was opened again from a fresh download: all 35
-Substack posts that use the word "oops" (103 posts in the sitemap; the one subscriber-only post, 2026-10-18, does not
-use it in its preview), the section heading above each quote, both X posts (oEmbed), Williams' site, the three Wiley PDFs,
-both Deepvue pages, Unger, StockCharts, Wikipedia, the public YouTube video, the owner's rulings and every code and doc
-path. All quotes were found word for word. Fixes made in checking are listed in "Removed or corrected in checking" at the
-end. New sources added: Deepvue's About page (Ameet Rai and Richard Moglen are Deepvue's co-founders, which matters for
-how independent Deepvue, Moglen and Rai are from each other) and Michael C. Thomsett's 2018 article (a second telling of
-the "Oops, we lost" story). Radge's posts, TraderLion and the *Stocks & Commodities* article still return HTTP 403.
-Archived copies of Radge's posts and the S&C article exist on the Wayback Machine, but this session's permission system
-refused reading them, so they stay unread.
+**Cold check (2026-11-09, a second reader; finished in a resumed session the same day).** Every quote in this file was
+opened again from a fresh download made during the check: all 35 Substack posts that use the word "oops" (103 posts in
+the sitemap; the one subscriber-only post, 2026-10-18, does not use it in its preview; a 36th hit is the word "loops" in
+Bracco's "The Parabolic Short"), the section heading above each quote (every quote attributed to the owner sits under
+"TSDR's Weekly Outlook & Watchlist", "Patrick (TSDR)'s Weekly Outlook & Watchlist" or "TSDR TRADING"), the post dates,
+both X posts (oEmbed), Williams' site, the three Wiley PDFs and Wiley's product page, both Deepvue pages and Deepvue's
+About Us page, both Unger articles, StockCharts, SteadyOptions, Wikipedia, the three YouTube pages (two are unlisted;
+their chapter lists come from `api/services/education_seed.py`), Radge's two posts, the owner's rulings, the rulebook,
+and every code and doc path. All quotes were found word for word; every number in sections 4.4 and 4.5 was re-derived
+from the saved measurement output and the owner-example table. Fixes made in checking are listed in "Removed or
+corrected in checking" at the end. Sources added in checking: Deepvue's About Us page (Ameet Rai, Richard Moglen and
+Ross Haber are Deepvue's three co-founders, which matters for how independent Deepvue, Moglen and Rai are from each
+other), Michael C. Thomsett's 2018 article (a second telling of the "Oops, we lost" story), Nick Radge's two posts
+(readable in the check), and Unger Academy's 2017 article on the setup. TraderLion and the *Stocks & Commodities*
+article still return HTTP 403 (direct and through a fetch tool). The Wayback Machine was tried for both and this
+session's permission system refused the download, so those stay unread.
 
 Tags used in section 8: **[source consensus]** several outside sources agree; **[originator]** Larry Williams (through
 his own pages, or through a named secondary source when that is all there is; the line says which); **[UCT]** the owner,
@@ -74,15 +82,21 @@ day's low.
   The *Stocks & Commodities* article that may be the origin of that story was blocked, so I could not read Williams'
   own account. Unger Academy gives a different reading: "“Oops!” could be the typical reaction of a trader who sees the
   market open with a gap in the direction of the prevailing trend, only to witness an unexpected and sudden price
-  reversal" (same Unger page). Neither is Williams' own wording that I could read.
+  reversal" (same Unger page). Andrea Unger's older article (Unger Academy, published 2017-06-23) tells it from the
+  market's side, on the short version: after a gap up, "if for some reason it starts to fall and then reaches the highest
+  level of yesterday, it’s as if it said, “Oops, I was wrong."
+  ([ungeracademy.com/blog/larry-williams-oops-setup](https://ungeracademy.com/blog/larry-williams-oops-setup)). None of
+  these is Williams' own wording that I could read.
 
 ## 2. Origin and naming
 
 **Short answer: Larry Williams named and published the "Oops!" pattern. His own site dates it to 1981; Deepvue says 1979.
 The written version I could verify is in *Long-Term Secrets to Short-Term Trading* (Wiley, copyright 1999), Chapter 7,
-"Oops! This Is Not a Mistake".** The swing-trading name "Oops Reversal" is used by Deepvue, TraderLion and UCT (Deepvue
-and TraderLion share people: Ameet Rai and Richard Moglen are Deepvue's co-founders, and Moglen writes for TraderLion).
-I could not find who first used "Oops Reversal" or when.
+"Oops! This Is Not a Mistake".** Nick Radge's 2015 backtest, which reproduces the book's results, also places it at
+"the famed Oops! pattern (page 113)". The swing-trading name "Oops Reversal" is used by Deepvue, TraderLion and UCT
+(Deepvue and TraderLion share people: Deepvue's About Us page names three co-founders, Ameet Rai, Richard Moglen and
+Ross Haber, and Moglen's Oops posts sit under his TraderLion profile). I could not find who first used "Oops Reversal"
+or when.
 
 | Name | Who | Where and when (verified) | What it covers |
 |---|---|---|---|
@@ -90,7 +104,7 @@ I could not find who first used "Oops Reversal" or when.
 | **Oops!** (date claim) | Deepvue | "In 1979, Larry Williams introduced the Oops Reversal trading method" ([docs.deepvue.com](https://docs.deepvue.com/articles/deepvue-custom-indicators-technical-patterns), page updated 2026-06-19) | Same; Deepvue gives no source for 1979 |
 | **Fakeout, Delayed and Hidden OOPS!** | Larry Williams | Named on his site's 1981 line (above); not described there | Variants I could not read about. Their rules are unknown to me |
 | **Oops Reversal** | Deepvue (a charting service) | Knowledge base, two pages (section 3.2) | The Williams pattern with a close condition |
-| **Oops Reversal** | Richard Moglen, TraderLion (also a Deepvue co-founder, per Deepvue's About page) | "The Oops Reversal Entry Setup/Tactic" and a BE case study (Nov 2025); **blocked today**; our repo's earlier research says he credits Williams | A swing pullback entry in stocks |
+| **Oops Reversal** | Richard Moglen, TraderLion (also a Deepvue co-founder, per Deepvue's About Us page) | "The Oops Reversal Entry Setup/Tactic" and a BE case study (Nov 2025); **blocked today (HTTP 403, also in the cold check)**; our repo's earlier research says he credits Williams. A search listing also shows further Moglen Oops posts on TraderLion ("Oops Reversals to End a Volatile Week", "Gap Down, Strong Close. Oops Reversals", HIMS and SQQQ case studies, 2025); titles only, none opened | A swing pullback entry in stocks |
 | **"OOPS signal"** | Michael C. Thomsett, SteadyOptions (an options-education site), 2018-10-06 | [The "OOPS signal" trade](https://steadyoptions.com/articles/the-oops-signal-trade-r415/); credits Williams and repeats "Oops, we lost"; no source given | His rule is looser than everyone else's: "When the market opens lower than the previous day’s close, a trader places a buy-stop order above the previous day’s low price." Not used for any rule here |
 | **Oops Reversal, Williams Oops, Super Oops** | UCT (the owner, Manrav, Bracco, the Substack) | Substack from 2025-06-08; owner's three-version ruling 2026-10-23 (`docs/study/corrections/spot.fixtures.jsonl`, ruling 6) | The owner's scanner version is the main one (section 6) |
 | **Weekly / monthly Oops** | UCT | Substack, many posts (section 6) | The same bar logic on weekly or monthly candles |
@@ -127,20 +141,30 @@ I could not read the Oops chapter itself. What is verified:
   intermediate-term trend is up." And on time frames (said of his market-structure buy signal, not of the Oops): "Keep
   in mind these could be five-minute, daily, monthly, or weekly bars: The same rules apply to each."
 
-Williams' Oops rules as reported by others (not verified against the book):
-- **Open**: below the prior day's LOW (a gap down beyond the whole prior range). Unger: "the current session opens with a
-  gap down. This means the open must be lower than the previous session’s low". Deepvue: "the opening gap down is being
-  bought up and passes the prior day’s low."
+Williams' Oops rules as reported by others (not verified against the book; three independent readers of the book agree
+on the bar rule: Radge, Unger and Deepvue):
+- **Open**: below the prior day's LOW (a gap down beyond the whole prior range). Radge, reproducing the book: "This is
+  where the S&P 500 futures opens below the prior days low. If prices rally from that weak open and penetrate the low of
+  the prior day, a long position is initiated" ([thechartist.com.au, 2015-04-02](https://www.thechartist.com.au/the-oops-pattern-in-sample-out-of-sample/)).
+  Unger: "the current session opens with a gap down. This means the open must be lower than the previous session’s low".
+  Deepvue: "the opening gap down is being bought up and passes the prior day’s low."
 - **Trigger and entry**: intraday, as price rallies back to the prior low. Unger: "Once prices recover after the negative
   open and rise to reach the previous day’s low, the conditions for a long entry are met". So it is a buy stop at (or a
   tick above) the prior low, the same day only.
-- **No close condition** in Unger or in Deepvue's "Technical Patterns" description (Deepvue's column definition in 3.2
-  does add one: a close above the prior low). **No trend filter and no volume rule** in either.
-- **Stop**: a money stop. Unger: "a classic monetary stop loss of €2,000" (their test setting; Radge, as recorded in section 3.4, also reports a dollar stop).
-- **Exit**: Unger: "This rule closes the trade as soon as there’s an opening where the position is in profit, without
-  staying in the market any longer." They call it "also well-known and often referenced by Larry Williams himself."
-- **Market**: index futures in the book's "S&P Oops! Trading" section (title only verified).
-- **Short side**: the mirror (open above the prior high, sell as it falls back to it). Unger tests both.
+- **No close condition** in Radge, Unger or Deepvue's "Technical Patterns" description (Deepvue's column definition in
+  3.2 does add one: a close above the prior low). **No trend filter and no volume rule** in any of them. Radge on the
+  book's one filter: "any signal generated on a Wednesday or Thursday is ignored", which he calls data mining.
+- **Stop**: a money stop. Radge, listing the book's exits (page 157): "Always use a dollar stop." Unger: "a classic
+  monetary stop loss of €2,000" (their test setting; Radge's stock test used $2,000 "as per the book").
+- **Exit**: the "bailout", the first profitable open. Radge (page 157): "Use the ‘bailout’ profit taking technique. The
+  basic premise is to exit on the first profitable open, even if that profit is 1c." and "Exit and reverse if you get an
+  opposite signal." Unger (2025): "This rule closes the trade as soon as there’s an opening where the position is in
+  profit, without staying in the market any longer." They call it "also well-known and often referenced by Larry Williams
+  himself." Unger (2017): "Williams proposed a bailout exit he called first profitable open."
+- **Market**: index futures in the book's "S&P Oops! Trading" section (title verified; Radge's reproduction is on S&P 500
+  futures, long side, "as per the book").
+- **Short side**: the mirror (open above the prior high, sell as it falls back to it). Radge: "the opposite is true for a
+  short setup". Unger tests both.
 
 ### 3.2 Deepvue knowledge base (educator / charting service)
 
@@ -173,14 +197,29 @@ published 2025-06-04, updated 2026-07-17 ([link](https://ungeracademy.com/blog/w
   and the next session’s open." My reading, not Unger's: US stocks still close overnight between regular sessions
   (extended-hours trading narrows that), while 23-hour futures barely do.
 - Results: section 4.3.
+- **Unger's earlier article** (added in checking): "How to Trade Larry Williams’ Oops Setup", a transcript of Andrea
+  Unger, published 2017-06-23, updated 2026-07-17 ([link](https://ungeracademy.com/blog/larry-williams-oops-setup)).
+  Same bar rule: "a gap down occurs when the open is lower than the lowest traded point of the previous day." Same exit:
+  "Williams proposed a bailout exit he called first profitable open." On why it is rare now: "many markets trade for 23
+  hours a day now." Filter: "It works even better if you set a minimum size for this gap – maybe 15-20 ticks." No stop
+  size, no statistics.
 
-### 3.4 Nick Radge, The Chartist (backtests citing the book) **not re-read today**
+### 3.4 Nick Radge, The Chartist (backtests citing the book) **read in the cold check**
 
-Both posts returned HTTP 403 today. Our earlier research file (`docs/study/levels/external_research.md`, section 2,
-sources S2 and S3) recorded: Williams' entry is S&P 500 futures opening below the prior low and rallying back through it;
-the book skipped Wednesday and Thursday signals (Radge treats that as data mining); the stop is always a dollar stop
-(book p. 157, per Radge); the exit is the first profitable open, and a reverse on an opposite signal. I give no quote
-because I could not see the pages.
+Both posts refused the first pass (HTTP 403) and loaded in the cold check (HTTP 200). "The Oops! Pattern – In Sample /
+Out of Sample" (2015-04-02, Systematic Trading) and "How To Create A High Winning Percentage Strategy" (2015-04-09,
+Better Trading Series), both by Nick Radge. What they say, in his words:
+- The book and page: "the famed Oops! pattern (page 113)"; the book "referenced trades between September 1987 and August
+  1998".
+- The rule: "This is where the S&P 500 futures opens below the prior days low. If prices rally from that weak open and
+  penetrate the low of the prior day, a long position is initiated".
+- The day filter: "any signal generated on a Wednesday or Thursday is ignored. Why? Because they were probably losing
+  days and that’s what data mining is".
+- The exits (page 157): "Always use a dollar stop." / "Use the ‘bailout’ profit taking technique. The basic premise is to
+  exit on the first profitable open, even if that profit is 1c." / "Exit and reverse if you get an opposite signal."
+- His reproduction: "I’ve managed to match the performance reasonably well to that shown in the book (mine is slightly
+  better)".
+Everything the earlier research file recorded from these two posts checks out against the pages. Numbers: section 4.2.
 
 ### 3.5 Richard Moglen, TraderLion (a swing-trading educator) **not re-read today**
 
@@ -189,9 +228,10 @@ Moglen credits Williams; he defines the Oops Reversal as a gap below the prior d
 short-term pullback setup; the textbook entry is as it pushes through the prior day's low; the stop is the day's low,
 often under 2% of risk; after a push of about 3% above the pivot he raises the stop to just under the pivot; his BE case
 (Nov 2025) was an Oops at the 50-day line with about 4.3% risk. I cannot confirm any of it today. Note for weighing
-him: Deepvue's About page lists "Richard Moglen Co-Founder" beside "Ameet Rai Co-Founder", so Moglen, Rai (3.7) and the
-Deepvue knowledge base (3.2) are one group, not three independent voices. Deepvue is also a UCT partner (the Substack's
-2026 headers: "ALL Uncharted Territory Members will get One FREE month of Deepvue Access!").
+him: Deepvue's About Us page ([deepvue.com/about-us](https://deepvue.com/about-us/)) lists three co-founders, "Ameet
+Rai", "Richard Moglen" and "Ross Haber", each labelled "Co-Founder", so Moglen, Rai (3.7) and the Deepvue knowledge
+base (3.2) are one group, not three independent voices. Deepvue is also a UCT partner (the Substack's headers from
+2026-03-15 to 2026-06-14: "ALL Uncharted Territory Members will get One FREE month of Deepvue Access!").
 
 ### 3.6 Connors and Raschke, Turtle Soup (a related failed-low setup), through StockCharts
 
@@ -237,12 +277,12 @@ know his full entry rule beyond "I take that reversal quickly or…".
 
 | Source | Open | Undercut | Close condition | Trend / location | Volume | Entry | Stop | Exit / target | Time frame |
 |---|---|---|---|---|---|---|---|---|---|
-| Williams (via Unger, Deepvue; book unread) | below prior LOW | by the open itself | none | none stated | none | buy stop at the prior low, same day | money stop (dollar amount) | first profitable open | daily; futures |
+| Williams (via Radge, Unger, Deepvue; book unread) | below prior LOW | by the open itself | none | none stated (the book skips Wed/Thu signals) | none | buy stop at the prior low, same day | money stop (dollar amount) | first profitable open ("bailout"); reverse on an opposite signal | daily; futures |
 | Deepvue "Oops Reversal" | below prior low | by the open | close above prior LOW | none | none | not given | not given | not given | daily |
 | Deepvue "Key Reversal Bar" | below prior low | by the open | close above prior HIGH | none | none | not given | not given | not given | daily |
 | Deepvue "Bullish Reversal Bar" | any | low below prior low | close above prior CLOSE | none | none | not given | not given | not given | daily |
 | Unger Academy | below prior low (optional 15-point gap) | by the open | none | none | none | at the prior low | €2,000 | first profitable open | daily DAX futures |
-| Radge (not re-read) | below prior low | by the open | none | none | none | back through the prior low | dollar stop | first profitable open; reverse | daily S&P futures |
+| Radge (read) | below prior low | by the open | none | none | none | back through the prior low | dollar stop ($2,000 in his stock test) | first profitable open; reverse | daily S&P futures; one bank stock |
 | Moglen, TraderLion (not re-read) | gap below prior low | by the open | not recorded | a pullback, e.g. to the 50-day | not recorded | as it pushes through the prior low | day's low; raised after ~3% | not recorded | daily stocks |
 | Thomsett, SteadyOptions (2018) | below prior CLOSE | not stated | none | none | none | buy stop "above the previous day’s low" | not given | not given | not stated |
 | Turtle Soup (relative) | any | new 20-day low | none | none | none | buy stop just above the old 20-day low | just under today's low | trailing stop | daily |
@@ -253,8 +293,8 @@ know his full entry rule beyond "I take that reversal quickly or…".
 
 ### 3.10 Where the sources disagree
 
-1. **How weak the open must be.** Williams (as reported), Deepvue, Unger, Radge and Moglen (the last two as recorded,
-   not re-read): below the prior LOW. Thomsett (SteadyOptions, 2018) writes "below the previous day’s close", but gives
+1. **How weak the open must be.** Williams (as reported by Radge, Unger and Deepvue), and Moglen (as recorded, not
+   re-read): below the prior LOW. Thomsett (SteadyOptions, 2018) writes "below the previous day’s close", but gives
    no source and his rule does not hang together (it buys "above the previous day’s low" without saying the low was
    broken), so it does not count as support for the owner's version. The owner's scanner: below the prior CLOSE only,
    with the undercut coming later in the day. The owner's version fires on
@@ -266,42 +306,52 @@ know his full entry rule beyond "I take that reversal quickly or…".
 4. **Exit.** Williams: out at the first profitable open, a one-to-few-day trade. UCT: a swing trade, held days to weeks
    ("I look for minimum 3-7 day burst swing trades", owner, 2026-11-01). No outside source gives a swing trim or trail
    rule for the Oops; the earlier research file found none either.
-5. **Stop.** Williams: a dollar stop. Everyone else who names one uses the day's low: Turtle Soup (a related setup, "just
-   below today's low"), UCT's playbook, and Moglen as recorded in the earlier file (not re-read). No outside source I
-   could read today names a day-low stop for the Oops itself.
+5. **Stop.** Williams: a dollar stop ("Always use a dollar stop.", the book's page 157 as Radge lists it). Everyone else
+   who names one uses the day's low: Turtle Soup (a related setup, "just below today's low"), UCT's playbook, and Moglen
+   as recorded in the earlier file (not re-read). No outside source I could read names a day-low stop for the Oops
+   itself.
 6. **Location.** Only the swing users care (Moglen's 50-day pullback as recorded, Rai's "support", the owner's "location
    matters big time"). Moglen and Rai are both Deepvue co-founders, so they are one voice, not two. The futures tests
    filter nothing.
 7. **Date of origin.** Williams' site says 1981; Deepvue says 1979. Williams' own site is the better source.
 8. **Origin of the name.** "Oops, we lost" (Deepvue; Thomsett, 2018, the same words, also unsourced) versus a trader's
-   reaction to the failed gap (Unger). Williams' own explanation was not readable.
+   reaction to the failed gap (Unger, 2025) versus the market itself saying "Oops, I was wrong" (Unger, 2017). Williams'
+   own explanation was not readable.
 
 ## 4. Measured evidence
 
 ### 4.1 Williams' own numbers
 
 Not read. The book's "S&P Oops! Trading" section probably has his results; I could not open it. Secondary sites quote
-win rates for it; I could not verify any of them against the book, so I use none.
+win rates for it; I could not verify any of them against the book, so I use none. The nearest thing is Radge's
+reproduction (4.2), which he says matched the book "reasonably well" and ran "slightly better".
 
-### 4.2 Nick Radge, The Chartist (2015) **not re-read today**
+### 4.2 Nick Radge, The Chartist (2015) **read in the cold check**
 
-Our repo's earlier research (`docs/study/levels/external_research.md`, Oops section, sources S2 and S3) recorded these
-from Radge's two posts. I could not open them today (HTTP 403), so treat every number as unverified until someone
-re-reads the pages:
-- S&P 500 futures, long only. The book's period (Sep 1987 to Aug 1998, in-sample): an 88% win rate with Wednesday and
-  Thursday signals removed, 80% with all days. The 17 years after the book (out-of-sample, to 2015): 58.9% winners with
-  the day filter. Fewer than 200 trades since 1987, about 7 a year.
-- One stock (Commonwealth Bank, from 1998, the same rules): 354 trades, 85.8% winners. Without the reverse rule: 98.6%
-  winners but a win/loss ratio of 0.05, and losing trades lasted 59 days on average. Exiting at the same day's close
-  instead: 50.5% winners, which the earlier file reports Radge called close to random. His point, as recorded: the high
-  win rate comes from the first-profitable-open exit, not from the pattern.
-- **Limits.** Futures and one bank stock; an exit no swing trader uses; small samples.
+Both posts (links in section 11, source 10) were read in full in the cold check; every number the earlier research
+file recorded from them is on the pages.
+- **S&P 500 futures, long only** ("The Oops! Pattern – In Sample / Out of Sample", 2015-04-02). The book's period
+  (September 1987 to August 1998, which he treats as in-sample): "an 88% win rate and an average trade of $585 per
+  contract" with Wednesday and Thursday signals removed; "80% win rate with an average trade of $286" with all days. The
+  17 years after the book (out-of-sample, to 2015): "a 58.9% win rate with an average trade of $395" with the day filter;
+  all days "the average trade is $258, or just 10% lower than the in-sample." Sample: "there’s less than 200 trades
+  since 1987, which is about 7 trades a year." His reading: the filtered version is data-mined and "the more robust
+  method has held itself together a lot better than the data mined method".
+- **One stock** ("How To Create A High Winning Percentage Strategy", 2015-04-09): Commonwealth Bank shares back to 1998,
+  $10,000 a trade, the book's three exits with a $2,000 dollar stop: "354 trades with a win rate of 85.8% with net profit
+  a little over $16,000." Dropping the reverse rule: 284 trades, "the win rate has moved to an astounding 98.6%", but
+  "the win/loss ratio is 0.05" and "the average losing trade is actually 59 days in length." Exiting at the same day's
+  close instead: 437 trades, win/loss 1.36, net profit $4,875, "and the win rate? 50.5% – basically random." His point:
+  "The answer lies within the ‘bailout’ exit." He adds that "the small edge from the reversal follow through" is what
+  keeps the equity curve rising, and "To properly validate the pattern we’d need to view it across a portfolio of
+  shares".
+- **Limits.** Futures and one bank stock; an exit no swing trader uses; small samples; he did not test a stock portfolio.
 
 ### 4.3 Unger Academy, DAX futures, 2010 to 2025 (read today)
 
 Source: [ungeracademy.com](https://ungeracademy.com/blog/we-tested-larry-williams-oops-pattern-the-results-might-surprise-you),
 published 2025-06-04. Williams' rules (open beyond the prior extreme, entry back at it, €2,000 stop, first profitable
-open), one DAX futures contract, the 8:00 to 22:00 session.
+open), one DAX futures contract, "the classic trading session from 8:00 AM to 10:00 PM, Exchange time."
 - **Base version:** net profit "around €163,000, with a maximum drawdown of approximately €45,000"; average trade €230;
   "the long side appears to be clearly more effective."
 - **With a 15-point minimum gap:** net profit "slightly lower at €146,000", maximum drawdown €38,000, average trade €400.
@@ -764,7 +814,7 @@ Each line is measurable on a daily chart unless it says otherwise. c1, l1, h1 = 
 
 **What it is**
 1. **The Oops day (Scanner Oops, the main version):** open < c1; low < l1; close > c1. [UCT ruling 2026-10-23]
-2. **Williams Oops:** open < l1, then price trades back above l1 during the day. Taught as the original and the deeper-trap form. [originator, through Unger and Deepvue; UCT ruling] For a buy in our course it must also meet rule 1's
+2. **Williams Oops:** open < l1, then price trades back above l1 during the day. Taught as the original and the deeper-trap form. [originator, through Radge, Unger and Deepvue, three readers of the book who agree; UCT ruling] For a buy in our course it must also meet rule 1's
    close (> c1), so every Oops we buy is a Scanner Oops; the Williams open is a quality mark (rule 31). [my proposal;
    measured: Williams-open Oops did a little better, +0.09R against +0.04R at the close]
 3. **Super Oops:** any Oops that closes > h1 (the whole prior day engulfed). [UCT ruling] Fix the app's stage 6, which
@@ -814,8 +864,9 @@ Each line is measurable on a daily chart unless it says otherwise. c1, l1, h1 = 
 19. **No chasing:** no buy more than 4% above c1. [house rule C28]
 
 **The stop**
-20. A few cents under the Oops-day low, a real stop order with the broker. [house rules A3, F62, D41; source consensus:
-    Moglen as recorded, Turtle Soup, UCT playbook]
+20. A few cents under the Oops-day low, a real stop order with the broker. [house rules A3, F62, D41; UCT playbook. Outside
+    support is thinner than a consensus: Turtle Soup's "just below today's low" is a related setup, and Moglen's day-low
+    stop is only as recorded in the earlier file, not re-read. Williams himself used a dollar stop.]
 21. If the stop from the actual fill is more than 3% below it, skip the trade (or, for an A+, take it at smaller size so
     the account risk still fits). [house rules A3, A13; my proposal for the A+ exception, question 4]
 22. **A failed reclaim:** if the day closes back below c1 after the entry, the trade is wrong as an Oops. Options: sell
@@ -963,13 +1014,15 @@ All read on 2026-11-09 unless marked otherwise.
 |---|---|---|---|---|
 | 5 | "Technical Patterns" (Oops Reversal entry) | Deepvue knowledge base | https://docs.deepvue.com/articles/deepvue-custom-indicators-technical-patterns | A charting service's docs; updated 2026-06-19. Gives 1979 and the "Oops, we lost" story without a source. |
 | 6 | "Technicals" (column definitions: Oops Reversal, Key Reversal Bar, Bullish Reversal Bar, Upside Reversal) | Deepvue knowledge base | https://docs.deepvue.com/articles/technical | Precise one-line definitions; no rules beyond the bar. |
-| 7 | "We Tested Larry Williams' Oops Pattern: The Results Might Surprise You" (title dash replaced) | Unger Academy (video transcript) | https://ungeracademy.com/blog/we-tested-larry-williams-oops-pattern-the-results-might-surprise-you | A systematic futures educator; published 2025-06-04, updated 2026-07-17. A real test with stated rules, but no trade count or win rate; DAX futures only; the firm sells courses. |
+| 7 | "We Tested Larry Williams' Oops Pattern: The Results Might Surprise You" (title dash replaced) | Unger Academy (video transcript) | https://ungeracademy.com/blog/we-tested-larry-williams-oops-pattern-the-results-might-surprise-you | A systematic futures educator; published 2025-06-04, updated 2026-07-17 (page metadata). A real test with stated rules, but no trade count or win rate; DAX futures only; the firm sells courses. |
+| 7b | "How to Trade Larry Williams' Oops Setup" (added in checking) | Unger Academy (Andrea Unger, video transcript) | https://ungeracademy.com/blog/larry-williams-oops-setup | Published 2017-06-23, updated 2026-07-17 (page metadata). The same bar rule and exit as source 7, said eight years earlier; a third telling of the name; no numbers. |
 | 8 | "Combining Relative Rotation Graphs and the 'Turtle Soup' setup" | StockCharts; Julius de Kempenaer, 2018-06-02 | https://articles.stockcharts.com/article/articles-rrg-2018-06-combining-relative-rotation-graphs-and-the-turtle-soup-setup/ | An established educator restating Connors and Raschke's Turtle Soup rules (a relative, not the Oops). The book itself not read. |
 | 9 | X post on Williams Oops reversals | Ameet Rai (@AmeetRai), 2026-10-09 | https://x.com/AmeetRai/status/2108618678950404120 | A practitioner; read through X's public oEmbed service; the post is truncated there and the chart not seen. |
-| 10 | "The Oops! Pattern - In Sample / Out of Sample" (2015-04-02) and "How To Create A High Winning Percentage Strategy" (2015-04-09) | The Chartist; Nick Radge | https://www.thechartist.com.au/the-oops-pattern-in-sample-out-of-sample/ and https://www.thechartist.com.au/how-to-create-a-high-winning-percentage-strategy/ | **Not readable today (HTTP 403).** Reported only through our repo's earlier research file. Re-read before any number goes into a lesson. |
-| 11 | "The Oops Reversal Entry Setup/Tactic" and "Trade Opportunity Case Study of the Week: BE Oops Reversal, 50 SMA Pullback" (Nov 2025) | TraderLion; Richard Moglen | https://traderlion.com/profile/richard-moglen/the-oops-reversal-entry-setup-tactic/ and https://traderlion.com/profile/richard-moglen/trade-opportunity-case-study-of-the-week-be-oops-reversal-50-sma-pullback-nov-2025/ | **Not readable today (HTTP 403).** The earlier file read them as excerpts only. Probably the closest outside match to the UCT swing use. |
-| 12 | "Larry Williams And The OOPS Signal" | *Technical Analysis of Stocks & Commodities* (traders.com), art. 2471 | https://technical.traders.com/tradersonline/display.asp?art=2471 | **Not readable (HTTP 403 / Cloudflare check).** Probably the source of the 1979 date and the "Oops, we lost" story. Author and issue unknown to me. |
-| 13 | "Unraveling Larry Williams' Timeless 'Oops Pattern'! Building Winning Strategies Today!" (description only; emoji dropped) | StatOasis (YouTube) | https://www.youtube.com/watch?v=7Pv_eDxXWxI | A course seller's marketing text; it only says the pattern comes from Williams' book. Not used. |
+| 10 | "The Oops! Pattern – In Sample / Out of Sample" (2015-04-02) and "How To Create A High Winning Percentage Strategy" (2015-04-09) | The Chartist; Nick Radge | https://www.thechartist.com.au/the-oops-pattern-in-sample-out-of-sample/ and https://www.thechartist.com.au/how-to-create-a-high-winning-percentage-strategy/ | **Read in the cold check (HTTP 200; the first pass got 403).** A systematic trader's reproduction of the book's test plus one stock test; the only outside source here that names the book's pages (113, 157). Small samples; the firm sells courses. |
+| 11 | "The Oops Reversal Entry Setup/Tactic" and "Trade Opportunity Case Study of the Week: BE Oops Reversal, 50 SMA Pullback" (Nov 2025) | TraderLion; Richard Moglen | https://traderlion.com/profile/richard-moglen/the-oops-reversal-entry-setup-tactic/ and https://traderlion.com/profile/richard-moglen/trade-opportunity-case-study-of-the-week-be-oops-reversal-50-sma-pullback-nov-2025/ | **Not readable (HTTP 403 in both passes, direct and through a fetch tool; the "quick-reads" copy of the first article is 403 too; the Wayback Machine was refused by this session's permissions).** The earlier file read them as excerpts only. Probably the closest outside match to the UCT swing use. |
+| 12 | "Larry Williams And The OOPS Signal" | *Technical Analysis of Stocks & Commodities* (traders.com), art. 2471 | https://technical.traders.com/tradersonline/display.asp?art=2471 | **Not readable (HTTP 403 / Cloudflare check in both passes).** Probably the source of the 1979 date and the "Oops, we lost" story. Author and issue unknown to me; two searches of traders.com listings did not surface it. Traders.com's open 1997 Williams interview (Thom Hartle, "Contextual Trader Larry Williams") does not mention the Oops. |
+| 13 | "Unraveling Larry Williams' Timeless 'Oops Pattern'! Building Winning Strategies Today!" (description only; emoji dropped) | StatOasis (YouTube; oEmbed author "Ali Casey \| StatOasis") | https://www.youtube.com/watch?v=7Pv_eDxXWxI | A course seller's marketing text; it only says the pattern comes from Williams' book. Not used. |
+| 13b | Deepvue "About Us" (added in checking) | Deepvue | https://deepvue.com/about-us/ | Names three co-founders, "Ameet Rai", "Richard Moglen" and "Ross Haber". Used only to weigh how independent sources 5, 6, 9 and 11 are from each other. |
 
 **UCT's own material**
 
@@ -996,10 +1049,141 @@ ThePatternSite, which does carry one, was not used for this setup (I found no Oo
 
 **Gaps (what a later pass should read)**
 - The Oops section of Williams' book itself (pp. 113 to 120 in 1999; pp. 145 to 152 in 2011), for his exact entry, stop,
-  exit, filters and statistics, and his "Fakeout", "Delayed" and "Hidden" Oops variants.
-- The *Stocks & Commodities* article, Radge's two posts and Moglen's two TraderLion pages (all blocked today).
+  exit, filters and statistics, and his "Fakeout", "Delayed" and "Hidden" Oops variants. (Radge's posts now confirm the
+  page, the bar rule, the Wednesday/Thursday filter and the three exits, but not the statistics as printed in the book.)
+- The *Stocks & Commodities* article and Moglen's TraderLion pages (blocked in both passes). Radge's two posts were read
+  in the cold check and are no longer a gap.
 - Connors and Raschke, *Street Smarts*, and Connors' other books, which may discuss the Oops directly. I did not check.
 - Oliver Kell's book, for whatever Oops-like entry it contains.
 - The owner's Oops videos (one public, three members-only).
 - My web search allowance ran out after one search, so I could not look for further sources (for example IBD,
-  MarketSmith, Bulkowski, or older trader interviews). I do not know whether any of them covers the Oops.
+  MarketSmith, Bulkowski, or older trader interviews). I do not know whether any of them covers the Oops. (The cold
+  check ran five searches: they surfaced the two Unger articles, Radge, Thomsett, more Moglen titles and several
+  TradingView and forum pages that do not count as sources; nothing from IBD, MarketSmith or Bulkowski on the Oops.)
+
+## Removed or corrected in checking
+
+Cold check, 2026-11-09, by a second reader working from fresh downloads (saved under the session scratch folder
+`setups/30-oops-reversal/cold2/`). Every quote in the file was found word for word on its page; the fixes below are the
+only changes of substance.
+
+**Corrected**
+1. **Deepvue's co-founders.** The header, section 2 and section 3.5 said Ameet Rai and Richard Moglen are Deepvue's
+   co-founders. The About Us page names three: Ameet Rai, Richard Moglen and Ross Haber. Fixed in all three places, and
+   the page's URL (https://deepvue.com/about-us/) added to the sources (13b); the first pass cited the page without a link.
+2. **Nick Radge's two posts** were marked "not re-read today" (HTTP 403) in the header, sections 3.4, 3.9, 3.10 and 4.2
+   and in source 10. They loaded in the cold check and were read in full. Every number and rule the earlier research
+   file had recorded from them is on the pages, so nothing was removed; the sections now quote the pages directly, the
+   "not re-read" marks are gone, and the Williams rows in sections 3.1 and 3.9 now rest on three readers of the book
+   (Radge, Unger, Deepvue) instead of two.
+3. **Unger's test session** was written as "the 8:00 to 22:00 session"; the page says "8:00 AM to 10:00 PM, Exchange
+   time". Same hours; the wording in 4.3 now follows the page.
+4. **Rule 20's basis tag** said "[source consensus: Moglen as recorded, Turtle Soup, UCT playbook]". That is not a
+   consensus of two verified outside sources on the Oops itself: Turtle Soup is a related setup and Moglen's page was
+   never read. The tag now says so, and notes that Williams used a dollar stop.
+5. **Section 1, "Why the name"** and section 3.10 item 8 gain Unger's 2017 reading ("Oops, I was wrong", said by the
+   market), so the three tellings sit side by side; none is Williams' own.
+
+**Added sources** (none replace anything): Radge's two posts (now read); Unger Academy's 2017 article (7b); Deepvue's
+About Us page (13b); the titles of further Moglen Oops posts on TraderLion, from a search listing, unread.
+
+**Checked and left as written** (so the next reader need not redo it): all 59 Substack quotes, their dates and the
+section each sits under; the About page line; the Deepvue partner header (14 posts, 2026-03-15 to 2026-06-14); both X
+posts; the 1999 and 2011 Wiley contents (every page number in section 2 and 3.1), the 2011 Chapter 1 excerpt (three
+quotes), Wiley's product page (December 2011, ISBN); Williams' 1981 timeline line; both Deepvue knowledge-base pages and
+their 2026-06-19 update dates; Unger 2025 (every quote and figure); StockCharts' Turtle Soup rules and 1996 date;
+Thomsett's two quotes, his byline and the 2018-10-06 date, and that he cites no source; Wikipedia's 1942, 1987 and
+"Wiley 1998"; the three YouTube pages (channel names, the 2026-05-13 date and description of the public video, the
+unlisted status of the other two, whose chapter lists come from `api/services/education_seed.py`); the curriculum ids
+47, 95 and 145; every owner quote in sections 6.5 and 9 against `owner_verdicts.jsonl` and the three rulings in
+`spot.fixtures.jsonl`; the 37 / 26 / 10 / 1 chart counts; every rule cited from `sizing_rule.md` section 9 and its
+"this section wins" line; the scanner, liquidity floor, scoring constants (HIST_SCORE 50 gives the 7.5; volume and
+context scores floor at 40), `make_levels` (2R, 3R), `MAX_TRIGGER_AGE` 3, the member tag text and TEXTBOOK filter,
+`tag_textbook.oops` and its 2.93, `study_hard.williams_oops`, `study_trade`, chart_iq v2/v3, the catalog text in
+`patterns.py`, the Model Book card, playbook, journal tags and grades, TRADE_PLANS.md, the levels dossier, the glossary
+and the course V.05 lesson text; and every figure in Tables A to D, the short mirror, the period split, the 5-minute
+check (111 / 23 / 3 of 137) and section 4.5's medians and counts, re-derived from the saved measurement output.
+
+**Still unverifiable** (kept, clearly marked): Moglen's rules (section 3.5, "as recorded"); the *Stocks & Commodities*
+article; Williams' own statistics and the "Fakeout", "Delayed" and "Hidden" variants; the content of the three videos.
+
+## 12. Examples (from our data)
+
+Added 2026-11-09 (a second pass, after section 8 was written). Everything here comes from the local sandbox's daily
+bars (`bars.db`, read-only; the 2,630 names that ever met the house liquidity rule, 1984 to 2026-11-06), scanned with
+`setups/30-oops-reversal/oops_scan.py` and charted with `pick_chart.py` (session scratch folder, not the repo). The
+charts and the three phone sheets are in that folder's `final/` (`01_ACN_2006-10-23.png` to `10_DELL_2026-03-19.png`,
+`sheet_1-4.png`, `sheet_5-7.png`, `sheet_8-10.png`, `examples.json`, `hits.json`, `hits_attempt.json`).
+
+**The rule the scan used (section 8 plus the house rules, in one paragraph).** A Scanner Oops day (rule 1: open under
+the prior close c1, low under the prior low l1, close over c1) in a stock whose Oops-day close and prior close are both
+over the 200-day SMA (rule 5, B26); the prior close 3% to 12% under the highest high of the 20 sessions ending with the
+prior day (rule 7); an orderly pullback (rule 9: the prior day's range under 2 ATRs and its close no more than 4% down,
+no bar in the 5 sessions before with a drop over 4% or a range over 2.5 ATRs, the prior day opened within 3% of the close
+before it); an Oops-day range under 3 ATRs (rule 10); price $10 or more and a 50-day average of $20 million a day or more
+(rule 14, B23); no report within the next 3 trading days (rule 15, B22; Yahoo and SEC 8-K dates, so thin before 2005);
+and, as a stand-in for RS 80+ (rule 6, C31; the sandbox has no RS rating), the stock's 6-month return above SPY's. Entry
+A: a market order at the prior close as it is reclaimed, modelled as c1 plus 1 cent (rules 16, 17; E57; the 4% chase
+limit cannot bind because the fill is at c1). Stop 5 cents under the Oops-day low (rule 20; A3, F62), and the trade is
+skipped when that stop is more than 3% away (rule 21; A13). The outcome is a fixed stop with no trims, no breakeven move,
+no time stop and no trail: the first of the stop, 3R or 5R to be touched in the next 60 sessions, a same-day tie going to
+the stop. The 200-day's slope, the prior day's colour, the Williams open, the Super close and the distance of the low to
+the 21-day EMA and 50-day SMA were recorded as marks, not gates.
+
+**Base rate.** 61,476 hits, all 2,630 names scanned (183 seconds; the budget did not run out). **48.2% reached 3R and
+34.9% reached 5R before the stop**; 84.5% touched the stop at some point inside the 60 sessions (most after a target);
+the median stop was 1.26%, the median best excursion 2.8R. **Caveats, in order of size.** (1) It is the look-ahead
+version section 4.4 warned about: requiring a close over c1 keeps only the reclaims that held. The same rule with the
+close condition replaced by "the high reached c1" (every attempt a reclaim buyer would have filled; `hits_attempt.json`)
+gives 132,675 attempts, **31.4% to 3R and 22.3% to 5R**; 53.7% of those attempts closed back under c1, and of those only
+16.8% went on to 3R. The truth for a rule-follower sits between the two scans, nearer the lower one (section 4.4's
+5-minute check: most failed reclaims are real fills). (2) 3R on a 1.3% stop is about 4% of price, so "reached 3R" here
+is a small move; it says nothing about the house plan's trail or a full position's result. (3) Survivor universe, no
+costs, no slippage, no market filter (B18), an RS proxy rather than RS. (4) The order of prices inside the day is unknown
+on daily bars: some "reclaims" touched c1 before the undercut. Marks inside the scanned set, for the owner's questions
+in section 10: a Williams open 50.1% to 3R against 46.3% without; a Super close 62.5% against 48.2% overall; a red prior
+day 49.4% against 44.4% for a green one; stops of 1.5% or less 52.0% against 41.5% for stops of 1.5% to 3%; an
+earnings-day Oops (443 cases) 52.1%. These are differences inside a look-ahead sample: direction, not size.
+
+**The 10 examples.** All ten are Williams opens (under the prior low) with a Super Oops close (over the prior high) and a
+red prior day, picked from the hits with a 1% to 3% stop, a strong close (DCR 0.8 or more), a rising 200-day, a 4% to 12%
+pullback, the Oops-day low within 0.6 ATR of the 21-day EMA or the 50-day SMA, $50 million a day or more, no earnings
+reaction that day, one per ticker, spread across years. "d21 / d50" = the Oops-day low's distance from the 21-day EMA and
+the 50-day SMA in ATRs (negative = under it). Buy = c1 + 0.01. Best R = the highest excursion before the stop within 60
+sessions (a fixed stop, so most of it is never banked under the house plan).
+
+| # | Ticker | Oops day | Pullback off 20-day high | Undercut of l1 | Day's range (ATR) | Close in range | d21 / d50 | Buy | Stop (%) | 3R hit in | Best R | Why it is textbook |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | ACN | 2006-10-23 | 5.0% | 0.73% | 1.41 | 0.99 | -0.06 / +2.02 | 31.51 | 31.12 (1.24%) | 3 days | 16.6 | A three-week drift to the 21-day EMA after a fresh high; opens under the low, closes at the day's high over the prior high; never looks back. |
+| 2 | ICE | 2007-06-04 | 6.8% | 0.80% | 1.54 | 1.00 | -0.06 / +1.61 | 28.60 | 28.31 (1.01%) | 1 day | 13.4 | A pullback onto a rising 21-day inside a longer base; the undercut tags the EMA almost exactly, the close is at the high; 3R the next day. |
+| 3 | APTV | 2013-01-15 | 4.1% | 0.27% | 1.50 | 0.93 | 0.00 / +3.11 | 31.54 | 31.17 (1.20%) | 2 days | 16.5 | A quiet two-week flag after a gap-up run; the shallow undercut sits exactly on the 21-day; a steady trend above a rising 200-day. |
+| 4 | HCA | 2014-11-20 | 8.0% | 0.69% | 0.71 | 0.97 | -0.50 / -1.42 | 67.05 | 66.29 (1.13%) | 2 days | 12.0 | An 8% pullback through the 50-day with shrinking ranges; a tiny-range Oops day closes at its high and the 50-day is reclaimed within days. The one example under the 50-day: the location is the swing low, not an average. |
+| 5 | EW | 2016-03-24 | 4.5% | 0.63% | 1.53 | 0.88 | -0.50 / +1.29 | 28.64 | 28.33 (1.09%) | 2 days | 28.0 | A month-long tight range on the 21-day; the Oops day undercuts the range low and closes over the prior high. The big gap a week later is a separate news or earnings move, not part of the setup. |
+| 6 | ADBE | 2018-05-03 | 5.2% | 0.82% | 1.56 | 0.85 | -0.70 / -0.15 | 221.11 | 218.69 (1.09%) | 1 day | 17.6 | A clean leader; a three-week drift onto a converging 21-day EMA and 50-day SMA (the Launchpad spot in rule 31); the undercut tags both, the close is over the prior high. |
+| 7 | AEO | 2021-01-05 | 4.0% | 0.71% | 1.59 | 0.95 | +0.32 / +3.30 | 19.88 | 19.65 (1.16%) | 1 day | 48.3 | A steady uptrend, a two-week flag just above the 21-day; opens under the low, closes over the prior high; trends for two months. |
+| 8 | APO | 2023-08-18 | 9.8% | 0.43% | 1.57 | 0.92 | -1.44 / -0.28 | 79.21 | 78.34 (1.10%) | 1 day | 16.1 | A 10% pullback that drifts to the 50-day on light volume; the Oops day undercuts the 50 and closes over the prior high. |
+| 9 | GLW | 2024-11-19 | 9.0% | 0.39% | 1.57 | 0.94 | -1.39 / -0.14 | 46.45 | 45.78 (1.44%) | 3 days | 13.3 | A three-week orderly pullback to a rising 50-day; the undercut tags it and the close is a Super Oops; stair-steps higher from there. |
+| 10 | DELL | 2026-03-19 | 5.4% | 1.58% | 1.29 | 0.97 | +0.43 / +2.30 | 149.22 | 146.52 (1.81%) | 1 day | 118.6 | A two-week drift to the 21-day after a 200-day reclaim; a deeper undercut (1.6%) but a close at the high over the prior high; the start of a very large run. The widest stop of the ten. |
+
+Every chart was looked at. None is an ETF, none shows an unadjusted split or a reused ticker, and the 10/21-day EMAs and
+50/200-day SMAs on the charts agree with the numbers above. Volume on the Oops day was between 0.67x and 1.19x the
+50-day average on all ten, which supports rule 12 (no volume requirement).
+
+**Notable failures** (clean-looking setups that lost, from the same scan by the same marks; there are 210 of them).
+- **ADBE 2014-03-12.** Red prior day, opened under the low, closed strong (close in range 0.97) with a 1.16% stop, a
+  5.1% pullback, the low on the 21-day. The next day opened 0.6% higher and sold straight through the Oops-day low; best
+  excursion 0.0R. The lesson: a perfect-looking day gives no warning, and the stop is the whole plan.
+- **AMAT 2022-01-14.** A Super Oops (close 167.00, over the prior high) with a 1.04% stop after a 5.6% pullback. Three
+  straight down days followed (closes 152.36, 143.07, 139.15): the January 2022 market break, which no single-stock rule
+  sees. Rule 30 (market condition) was the filter that mattered, and the scan had none.
+- **ADI 2022-12-16.** Opened under the low, closed over the prior close (166.82) with a 1.25% stop and the low 0.6 ATR from
+  the 21-day. It drifted sideways for two days, then broke the Oops-day low without reaching 1R; a December 2022 Oops in a
+  market that was not Green.
+
+In the scanned set 84.5% of all hits touched the stop within 60 sessions, in line with rule 28's note (the low "never
+breaks" only on the best examples).
+
+**Data limits for this section.** Daily bars only: the sandbox's intraday bars cover the last 60 trading days for 1,000
+names and hourly bars since 2023-12, too thin to check the reclaim order on these ten; earnings dates are thin before
+2005, so rule 15 was only partly applied to examples 1 and 2; no RS rating (a 6-month return against SPY stood in);
+survivor universe; a fixed stop with no trims, so the base rate is not the house plan's result.

@@ -22,6 +22,14 @@ read a source, I say so and give no wording from it.
   knowledge-base entry (3.9b, a 5-day EMA), Chris Moody's 2014 script of the same name (section 2), a 20 Oct 2015
   Slingshot post, Scot1and's Stockbee membership and his own Fishhook claim. Everything changed or dropped is listed
   under "Removed in checking" at the end.
+- **Cold check 2 (2026-11-09, a third reader).** Every page was downloaded again with a plain client (no browser
+  disguise; only Bulkowski's site refuses that, HTTP 406, and was read through the fetch tool), the 103 Substack posts
+  were re-downloaded, and a script looked for each of the 118 quoted passages of four words or more in those pages, the
+  repo files and the test outputs: all 118 were found word for word. The scanner summary was re-read against the code,
+  the test's tables against its raw output (identical), and the owner's rulings against the log. New in this pass:
+  Scot1and's own Substack (four posts and a reply that give his volume rule), the one published backtest of the
+  setup (Analyzing Alpha, 2021-2023, read from the Internet Archive because the page is now gone), and the exact
+  wording of Bulkowski's notice. Listed under "Cold check 2" at the end.
 
 Tags used in section 8: **[source consensus]** at least two outside sources agree (the sources are named in the row); **[originator]** Scot1and, who named
 the setup (his blog 2015-2018, his write-up as quoted by TaPlot, his TraderLion talks); **[UCT]** the owner's rulings,
@@ -57,7 +65,11 @@ measurements.
   of the, you know, the highest price of the last four days. And that seemed to align very, very well with the
   resumption of the trend." ([Podscan](https://podscan.fm/podcasts/the-traderlion-podcast/episodes/the-8-pivot-lessons-that-will-change-how-you-see-charts-forever-from-pro-trader-scot1and)).
 - **The pause shows the sellers are spent.** Scot1and (via TaPlot): tight ranges before the trigger signal "that the
-  selling pressure is waning and perhaps, more importantly, it permits very tight stops."
+  selling pressure is waning and perhaps, more importantly, it permits very tight stops." In his own words, on volume
+  (a reply on his Substack, 7 Mar 2023): "Volume is less important on a slingshot because it is not a breakout
+  setup.— basically it’s a signal that sellers have been exhausted."
+  ([Lessons from TASR's initial IPO run](https://scot1and.substack.com/p/lessons-from-tasrs-initial-ipo-run), comment
+  thread; the dash and apostrophe are the page's).
 - **Who is buying, who is trapped.** My reasoning, not a source: after a drive (often an earnings gap), buyers who
   missed it wait for a pullback; holders who bought late are shaken out by the first red days; short-term shorts lean on
   the pullback. The first close back above the average of highs is the day the dip buyers win, so the shorts and the
@@ -70,9 +82,10 @@ measurements.
 
 **Short answer: the Slingshot was named and published by the trader Scot1and (on X as @Scot1andT), on his blog
 "Education of A Speculator", on 17 August 2015.** He says he worked it out with "a couple of my trader friends", so it
-was a small-group invention that he wrote up. Two months later he switched the line from a plain 4-day EMA to a 4-day
-EMA of the highs, which is the version his later posts, the TaPlot copy of his write-up, the BigGuava script and UCT use
-(Deepvue's knowledge base describes a 5-day EMA instead, 3.9b). The earliest UCT record found is Manrav's scan of July
+was a small-group invention that he wrote up. Two months later he named the line as a 4-day EMA of the HIGHS (the
+August post said only "EMA 4", of what it did not say; 3.1), and that is the version his later posts, the TaPlot copy
+of his write-up, the BigGuava script, Analyzing Alpha's backtest and UCT use (Deepvue's knowledge base describes a
+5-day EMA instead, 3.9b). He still uses the name on his Substack (2022-2025) and on X. The earliest UCT record found is Manrav's scan of July
 2025, and the Sunday Scans writer says he adopted Manrav's setups, the Slingshot among them (section 6).
 
 | Date | Who | Where | What it adds |
@@ -86,8 +99,12 @@ EMA of the highs, which is the version his later posts, the TaPlot copy of his w
 | 11 Oct 2016 | Scot1and | ["Slingshot Refresher."](http://educsos.blogspot.com/2016/10/slingshot-refresher.html) | Theory, "power" scans, trigger "the break of the 4EMA of the HIGHS"; exits in a comment reply |
 | 10 May 2017 | Scot1and | ["Setups"](http://educsos.blogspot.com/2017/05/setups.html) | A half-hour or hourly Slingshot as an early trigger for his Fishhook setup |
 | 29 Nov 2021 | TaPlot (TradingView script author) | ["TAPLOT SlingShot"](https://www.tradingview.com/script/JJtDhJFF-TAPLOT-SlingShot/) | "Slingshot concept was created by Scot1andT", then his full write-up: momentum first, consolidation, stop |
-| 1 Nov 2022 | Scot1and at the TraderLion 2022 conference | [YouTube, TraderLion](https://www.youtube.com/watch?v=hqIIzNgbIEY), "The Fishhook and Slingshot Trading Setup \| How to Build an Edge" | A full talk (Slingshot at 49:31); YouTube lists an auto-generated caption track but refused to serve it (HTTP 404), so I have no wording from it |
+| 30 Dec 2021 (updated 13 Oct 2023) | Leo Smigel, Analyzing Alpha | "Slingshot Trading Strategy: Explained & Backtested" (page now 404; [Internet Archive copy of 16 Dec 2025](http://web.archive.org/web/20251216142943/https://analyzingalpha.com/slingshot-trading-strategy)) | The one published backtest found: hourly bars, QQQ members, 2016-2021, fixed reward-to-risk exits (3.9c). Rules as he lists them: a cross, "A pullback in a strong stock (required)", "A range break (required)", "Consolidation (recommended)" |
+| 27 Feb 2022, reply 7 Mar 2023 | Scot1and, his Substack | ["Lessons from TASR's initial IPO run"](https://scot1and.substack.com/p/lessons-from-tasrs-initial-ipo-run) | Slingshots inside an IPO's first run; in the comments his volume rule: "Volume is less important on a slingshot because it is not a breakout setup." (3.7b) |
+| 1 Nov 2022 | Scot1and at the TraderLion 2022 conference | [YouTube, TraderLion](https://www.youtube.com/watch?v=hqIIzNgbIEY), "The Fishhook and Slingshot Trading Setup \| How to Build an Edge" | A full talk (Slingshot at 49:31); YouTube lists an auto-generated caption track but did not serve it (HTTP 404 on the first check; HTTP 200 with an empty body on the second), so I have no wording from it |
 | 3 Sep 2024 (updated 19 Jun 2026) | Deepvue Knowledge Base | ["Technical Patterns"](https://deepvue.com/knowledge-base/deepvue-custom-indicators-technical-patterns/) | Credits the setup to Scot1and but describes "the 5-day Exponential Moving Average"; adds a range break and a consolidation (3.9b) |
+| 23 Sep 2024 | Scot1and, his Substack | ["50"](https://scot1and.substack.com/p/50) | Applies the cross to a breadth index: the NASI "had a bullish hook and Slingshot crossover" |
+| 1 Feb 2025 | Scot1and, his Substack | ["Mining for Gold"](https://scot1and.substack.com/p/mining-for-gold) | Still his: "I have a setup for this entry called the Slingshot that I’ll teach you later" (a pullback after a breakout, once "the selling pressure is finished") |
 | 2 Nov 2025 | BigGuavaTrading (TradingView) | ["Launchpad & Slingshot"](https://www.tradingview.com/script/fXVC2e6a-Launchpad-Slingshot/) | Credits "Scot1and's bullish pattern"; adds a bearish mirror on a 4-day EMA of the lows |
 | 2 Nov 2025 | UCT Sunday Scans | [sunday-scans-b99](https://unchartedterritoryy.substack.com/p/sunday-scans-b99) | Names the Slingshot among Manrav's daily setups |
 | 2 May 2026 | Scot1and, TraderLion podcast (2025 conference session) | [Podscan episode page](https://podscan.fm/podcasts/the-traderlion-podcast/episodes/the-8-pivot-lessons-that-will-change-how-you-see-charts-forever-from-pro-trader-scot1and) | Restates the 4-EMA-of-highs crossover; says he has since moved toward price pivots |
@@ -98,13 +115,15 @@ EMA of the highs, which is the version his later posts, the TaPlot copy of his w
 - UCT uses only "Slingshot" (the journal tag, the Model Book card, the scanner).
 - **Not the same setup, and older**: Chris Moody's "CM Sling Shot System" on TradingView is dated 8 Oct 2014, ten
   months before Scot1and's post, so the name was already in use for something else. Moody's page says he coded a
-  system sold elsewhere and gives it away: "a system that consists of a couple of EMA's and a few Rules"
-  ([TradingView, 2014](https://www.tradingview.com/script/GE7tSQK1-CM-Sling-Shot-System/)). It is a
-  two-moving-average pullback system (fast MA over slow MA, a close back over the fast MA). EltAlt's page: "This
+  system sold elsewhere and gives it away: "a system that consists of a couple of EMA’s and a few Rules"
+  ([TradingView, 2014](https://www.tradingview.com/script/GE7tSQK1-CM-Sling-Shot-System/); the apostrophe is the
+  page's). Moody's page does not state the rules; EltAlt's adaptation describes them as a two-moving-average pullback
+  entry ("Fast MA above Slow MA, and previous bar close below Fast MA, and current price above Fast MA") and says "This
   indicator modifies the SlingShot System by Chris Moody"
   ([TradingView, 2022](https://www.tradingview.com/script/b6xaJlaf-AMASling-All-Moving-Average-Sling-Shot/)). Nothing
-  I found says Scot1and took the name from it. Several forex pages also use "slingshot" for unrelated rules. A lesson
-  should say which Slingshot it means.
+  I found says Scot1and took the name from it. The name is also used by MarketGauge's "Slingshot Setups" video course
+  (ten setups, no 4-EMA of highs; no author or date on the page) and by several forex pages for unrelated rules. A
+  lesson should say which Slingshot it means.
 
 **Sister setup.** Scot1and pairs the Slingshot with his **Fishhook**, his setup for the first week after a big
 high-volume move. In his words: "The Fishhook was designed for Week 1 moves.   Power move rest two days and boom!" and
@@ -112,7 +131,9 @@ high-volume move. In his words: "The Fishhook was designed for Week 1 moves.   P
 reclaimed." ([17 Aug 2015](http://educsos.blogspot.com/2015/08/introducing-slingshot.html)). The Fishhook is his own:
 "Last year I worked out a setup I call the fishhook, which is designed to catch the power moves off a significant
 event." (["Review of Muathe .com"](http://educsos.blogspot.com/2018/01/review-of-muathe-com.html), dated 1 May 2017 on
-the page). He ties it to earnings: "Then the fishhook, great for earnings plays."
+the page). His "last year" does not fit his own archive: the blog has "The Fishhook Set up" and "Fishhook Update" in
+September 2014, so the Fishhook dates to 2014 at the latest (the Muathe post's address says 2018/01 while its page date
+says 2017, so its dating is loose too). He ties it to earnings: "Then the fishhook, great for earnings plays."
 ([10 May 2017](http://educsos.blogspot.com/2017/05/setups.html)); and, in the 2026 podcast's machine transcript, "Fish
 Hook is my, really my gap setup". This matters for UCT, because the owner uses the Slingshot mostly to enter power
 earnings gaps (section 6.2), which is the Fishhook's ground in Scot1and's system. See 3.12.
@@ -220,7 +241,9 @@ and its language mirrors), so it is a secondary copy of the originator's words.
 - **2022.** TraderLion's YouTube description: "In this presentation, Scot shares his Fishhook and Slingshot trading
   setups and how he developed these trading edges and entry tactics." Timestamp "49:31 Slingshot Setup". Published
   2022-11-01, 1 hour 26 minutes. The page lists an English auto-generated caption track, but the track's address
-  answered HTTP 404 to a plain download, so I have no rule from the talk.
+  answered HTTP 404 to a plain download (and an empty HTTP 200 body on the second check), so I have no rule from the
+  talk. The talk is also listed as a podcast episode (23 Feb 2023, 88 minutes, on podwise.ai and everand.com; neither
+  carries a transcript).
 - **2026 podcast (2025 conference session).** The episode description (written by TraderLion) lists "entering pullbacks
   with low risk before the breakout" and "12:23 - The Slingshot formula". The machine transcript's opening, in his
   voice: "So the slingshot, the way I defined it was I was essentially looking for a crossover, the 4EM of the highs."
@@ -230,6 +253,28 @@ and its language mirrors), so it is a secondary copy of the originator's words.
   and "22:32 - The Fishhook setup — trading EPs without buying the top".
 - URLs: https://www.youtube.com/watch?v=hqIIzNgbIEY ;
   https://podscan.fm/podcasts/the-traderlion-podcast/episodes/the-8-pivot-lessons-that-will-change-how-you-see-charts-forever-from-pro-trader-scot1and
+
+### 3.7b Scot1and's Substack, "The Speculator's Journal" (scot1and.substack.com, 2022-2025)
+
+Found in the cold check 2. His sitemap lists 33 posts (read 2026-11-09, all downloaded); four mention the Slingshot,
+none defines it in full, but one reply gives a rule no other source has.
+- **Volume** (his reply of 7 Mar 2023 to a reader asking how much the volume on a slingshot matters, under
+  ["Lessons from TASR's initial IPO run"](https://scot1and.substack.com/p/lessons-from-tasrs-initial-ipo-run), post
+  dated 27 Feb 2022): "Volume is less important on a slingshot because it is not a breakout setup.— basically it’s a
+  signal that sellers have been exhausted." This is the only statement by the originator on volume; it agrees with the
+  owner's taste for ordinary-volume triggers (6.3) and with our scanner, which has no volume condition on the trigger.
+- **Where he uses it** (same post): on a young IPO after an earnings sell-off, "it quickly got tight off the 20ema and
+  then made a big move off the slingshot"; and "The slingshot held over the next few days and then it gapped, and
+  gapped again on big volume." So a tight pause first, then the cross, is how he reads it in 2022 too.
+- **On an index** (["50"](https://scot1and.substack.com/p/50), 23 Sep 2024): the McClellan Summation Index "had a
+  bullish hook and Slingshot crossover. As a result, I’m long biased here." He applies the same cross to breadth.
+- **Still his** (["Mining for Gold"](https://scot1and.substack.com/p/mining-for-gold), 1 Feb 2025, a lesson written as
+  a dialogue): after a breakout's pullback, "we need to be confident that the selling pressure is finished. So we would
+  want to see it move higher through the areas where it is getting sold. I have a setup for this entry called the
+  Slingshot that I’ll teach you later". The promised lesson is not among the 33 posts.
+- Also on X: the search listing shows a post titled "Slingshot watch" at https://x.com/Scot1andT/status/1839335740708409559
+  (not opened; X cannot be read here).
+- Reliability: the originator's own words, so first rank; short posts, no statistics.
 
 ### 3.8 BigGuavaTrading, "Launchpad & Slingshot" (TradingView, 2 Nov 2025): script level
 
@@ -267,6 +312,40 @@ did not have it.
   back" (3.2). I give it as a second reading that disagrees on the period; the originator's posts and scan outrank it.
 - URL: https://deepvue.com/knowledge-base/deepvue-custom-indicators-technical-patterns/
 
+### 3.9c Analyzing Alpha (Leo Smigel), "Slingshot Trading Strategy: Explained & Backtested" (30 Dec 2021, updated 13 Oct 2023)
+
+Found in the cold check 2. A named educator's blog (Leo Smigel, analyzingalpha.com); the page now answers 404 and was
+read from the Internet Archive's copy of 16 Dec 2025. Its companion video, "Backtesting Scot1and’s Slingshot Trading
+Strategy in Python" (YouTube, Analyzing Alpha, 31 Dec 2021, 43 minutes), is still up; its description says "We backtest
+@scot1andT's slingshot strategy". A secondary source: it credits Scot1and, paraphrases the TaPlot write-up, and adds
+the only backtest anyone has published.
+- **Credit and definition**: "Scot1and developed the slingshot setup to get into a powerful stock after a pullback just
+  as the downward momentum stops and the stock begins to go back up." and "The slingshot indicator, which is a
+  component of the slingshot setup, fires when the current bar’s close crosses the 4-ema of the highs."
+- **His rule list**: "A slingshot indicator cross (duh)", "A pullback in a strong stock (required)", "A range break
+  (required)", "Consolidation (recommended)". The "range break" is the same extra condition Deepvue lists (3.9b), so
+  two outside readers put a range break in the setup; Scot1and's own 8 Nov 2015 line "a range breakout following a
+  pullback" (3.3) is the likely root.
+- **Stop**: "The stop loss is at the low of the slingshot indicator trigger bar, so we want consolidation as it lowers
+  the amount of risk on the trade."
+- **The backtest, as he states it**: "Period: Hourly", "Universe: QQQ", "Filter: Stocks above 50-day SMA (strong
+  stocks)", "Filter: Stocks below their 10-day EMA (pullback)", "Entry: Slingshot (Close above hourly 4-period EMA)",
+  "Exit: RR ratio or stop loss hit"; three two-year windows. His tables (read from the archived page's HTML) give, for
+  a 1:1, 2:1 and 3:1 reward-to-risk exit: 2020-21, 3,800 trades, win rate 54.6% at 1R (edge +0.09R a trade), 43.2% at
+  2R (+0.30R), 36.5% at 3R (+0.46R); 2018-19, 2,183 trades at 1R, 52.8% (+0.06R), 40.0% (+0.20R), 33.2% (+0.33R);
+  2016-17, 2,214 trades at 1R, 56.7% (+0.13R), 43.4% (+0.30R), 37.3% (+0.49R). "Edge" in his table is the win rate
+  times the reward minus the loss rate, in R, before costs. His own reading: "The daily and the hourly results are
+  roughly similar from a risk-reward perspective, with the hourly slingshot providing many more trading
+  opportunities." and "This is a simple vectorized backtest using basic parameters and logic."
+- **Limits he does not state**: hourly bars, not daily; today's QQQ members (survivorship); no costs; a fixed
+  target, so no trailing; no three-closes condition in the stated filters (the pullback is "below their 10-day EMA");
+  the daily version is mentioned but not tabulated. The positive edges come from the fixed reward-to-risk exits on a
+  universe of large winners, so they say little about our daily rule traded the house way (4.3 found about break-even).
+- URL: http://web.archive.org/web/20251216142943/https://analyzingalpha.com/slingshot-trading-strategy ; the video
+  https://www.youtube.com/watch?v=6-bpMHsIt3I . Smigel's profile of Scot1and ("Scot1and: Slinging Serious Trading
+  Profits", same dates, archived 18 Jan 2026) repeats the rules and claims returns for him ("302% annual returns") that
+  I cannot verify and do not use.
+
 ### 3.10 Pradeep Bonde (Stockbee): not a Slingshot source, but the likely model for two of our numbers
 
 Our scanner's "strength day" (S3) and UCT's "trim into the next 3-5 day burst" look like Stockbee ideas. I found no
@@ -292,7 +371,7 @@ record with the setup, says stocks move in 3-5 day bursts (KB 10985, per the lev
 | Pullback length | - (Oct: "more that 4 pull back bars", unclear) | scan: the 3 prior closes under the line | - | 3 bars (default, adjustable) | - | three or more days | 3 to 7 sessions | the 3 prior closes under the line; no maximum |
 | Depth | "not too far"; "The EMA 9 should be the limit" (Aug); "a shallow pull back" (Oct) | - | - | - | "a significant pullback" | - | about 5-12% (lesson) or 5-9% (rule record) | none |
 | Shape | - | ROC +/- 2 on the bar before (compression) | "Tight trading ranges before the trigger are ideal" | - | "a period of consolidation" before entry | a tight pullback | tight and orderly, no outsized red bar, no volume spike | none (a "tight" label only) |
-| Volume | - | liquidity: 3-day minimum volume 55,000+ | - | none | - | - | ordinary on the trigger (0.9-1.4x on his greats) | liquidity: 3-day minimum volume >100,000 |
+| Volume | - | liquidity: 3-day minimum volume 55,000+; (Substack reply, 2023) "Volume is less important on a slingshot because it is not a breakout setup" | - | none | - | - | ordinary on the trigger (0.9-1.4x on his greats) | liquidity: 3-day minimum volume >100,000 |
 | Trigger | price "pulled back through the green side of the EMA 4"; hourly channel break | scan: the close; prose: "the break" of the line; "a range breakout" | - | the close | "price crossing above"; then a "Range Break" | the close back above the line | the first close back above the line, decisive, near the high, no gap | the close above the line |
 | Entry | hourly, as it comes back through | intraday "break" or on the scan's close | - | the close | - | often intraday on the trigger day | not ruled | the trigger close |
 | Stop | tighter than a breakout | - | "the low of the slingshot day. Or at most, the bottom of the consolidation period" | suggests testing "stops below recent lows" | - | prior-day low, low of day, or the bottom of the consolidation | not ruled | the trigger day's low (prior-day low as the alternative) |
@@ -303,14 +382,15 @@ record with the setup, says stocks move in 3-5 day bursts (KB 10985, per the lev
 ### 3.12 Where they disagree
 
 1. **The line itself.** Scot1and's first post (Aug 2015) used an "EMA 4" with the "EMA 9" as the depth limit. From Oct
-   2015 on, Scot1and's own posts, scan and podcast, the TaPlot copy, the BigGuava script and UCT all use the 4-period
-   EMA of the HIGHS. Two outside pages differ: Trade The System's friend used a "4 EMA" (of what, not said), and
-   Deepvue's knowledge base describes a 5-day EMA (3.9b). The originator's 4-period EMA of the highs is the one to
-   teach.
+   2015 on, Scot1and's own posts, scan and podcast, the TaPlot copy, the BigGuava script, Analyzing Alpha's backtest
+   and UCT all use the 4-period EMA of the HIGHS. Two outside pages differ: Trade The System's friend used a "4 EMA"
+   (of what, not said), and Deepvue's knowledge base describes a 5-day EMA (3.9b). The originator's 4-period EMA of the
+   highs is the one to teach.
 2. **Close or intraday break.** Scot1and's own scan uses the close (c > xavgh4); his prose says "break" and "range
    breakout", and he entered on hourly bars. UCT's team playbook says it is often entered intraday on the trigger day;
-   Manrav's summary slide (per the levels dossier) wants a range break after the cross, and Deepvue lists a "Range
-   Break" among its conditions. The owner's definition and our scanner use the close.
+   Manrav's summary slide (per the levels dossier) wants a range break after the cross, Deepvue lists a "Range
+   Break" among its conditions and Analyzing Alpha lists "A range break (required)" (3.9c). The owner's definition and
+   our scanner use the close.
 3. **How long the pullback is.** The scan needs at least three closes under the line and sets no maximum. The owner's
    best charts had 3 to 8 by a strict count (VRT 8); his rule says 3 to 7. Scot1and's October 2015 line on "4 pull back bars" is unclear.
 4. **How deep.** Scot1and 2015: no deeper than the 9-day EMA, "a shallow pull back". Deepvue: "a significant
@@ -329,23 +409,36 @@ record with the setup, says stocks move in 3-5 day bursts (KB 10985, per the lev
    under the 10-day or 21-day. These are different holding periods.
 9. **Liquidity.** Scot1and 55,000 shares (2015, "personal preference"); our scanner 100,000 shares and $5; the house
    rule $10 and $20 million a day (B23).
+10. **Volume on the trigger day.** Scot1and (2023): "less important on a slingshot because it is not a breakout
+    setup"; the owner graded quiet triggers highest and news-like ones lower (6.3); our scanner and every script have no
+    volume condition on the trigger (only liquidity floors). The sources agree that no volume surge is required; the
+    test (4.3, Table 7 in the scratch output) found higher-volume triggers did a little better on average, inside the
+    noise.
 
 ## 4. Measured evidence
 
-### 4.1 Published statistics: none found
+### 4.1 Published statistics: one secondary backtest, nothing from the originator or the data houses
 
 - **The originator published no statistics.** His posts give anecdotes: EFOI "Only about 40% in the next 2 days" and
   TREE "+20pt move and counting" (17 Aug 2015). These are chosen winners, not a test.
 - **The script pages publish none.** TaPlot and BigGuavaTrading describe the rule only. BigGuava suggests the reader
   "backtest entries with stops below recent lows" and reports no result.
-- **No educator or data source I could reach has measured the "Slingshot".** The cold check searched: a search for
-  thepatternsite.com and "slingshot" returned no page from that site, and Bulkowski's home page lists no Slingshot
-  (its footer carries a notice against using the site to train AI systems; it was read through a fetch tool only,
-  because the site refuses plain downloads, so I do not quote the notice word for word); a
-  search restricted to investors.com and StockCharts ChartSchool returned nothing from either; no TraderLion written
-  article on the setup turned up. Deepvue's knowledge base describes it but gives no numbers (3.9b). MarketSmith was
-  not searched. An earlier house sweep reached the same answer: Slingshot is listed among "Setups with no published
-  number at all" (`docs/superpowers/research/setups/g1-setup-research-report.md`).
+- **One educator has measured it** (found in the cold check 2): Leo Smigel's Analyzing Alpha backtest (3.9c), hourly
+  bars on QQQ members, 2016-2021, with fixed reward-to-risk exits: win rates of 53-57% at 1:1, 40-43% at 2:1 and
+  33-37% at 3:1 across three two-year windows, which he reads as a positive edge. It is a secondary test on a
+  different timeframe and universe, with survivorship and no costs, and it does not test the three-closes rule; it
+  does not carry over to our daily rule traded the house way (4.3). It is the only published number on this setup.
+- **No data house has measured it.** The cold checks searched: a search for thepatternsite.com and "slingshot"
+  returned no page from that site, and Bulkowski's home page lists no Slingshot. His site refuses plain downloads
+  (HTTP 406); read through the fetch tool, its footer carries this notice, which this dossier flags as the brief
+  requires: "This website, in whole or in part, shall not be used to train artificial intelligence (AI) systems,
+  technologies, large language models, or similar systems" (https://thepatternsite.com/privacy.html, footer; the
+  sentence continues). A search restricted to StockCharts ChartSchool and TraderLion returned nothing on this setup
+  (investors.com cannot be searched from here); no TraderLion written article on the setup turned up. Deepvue's
+  knowledge base describes it but gives no numbers (3.9b). MarketSmith was not searched. An earlier house sweep said
+  Slingshot is among the "Setups with no published number at all"
+  (`docs/superpowers/research/setups/g1-setup-research-report.md`); with the Analyzing Alpha find that line is now
+  out of date.
 - **The nearest published number is not about this setup**: Stockbee's momentum bursts, "In 3 to 5 days they can go up
   8 to 40%" ([21 May 2015](https://stockbee.blogspot.com/2015/05/how-do-stock-move-on-3-to-5-day-time.html)), describes
   momentum bursts that start with a range expansion, the move his 4% breakout scan is built to catch. It is a range,
@@ -720,7 +813,7 @@ disagree I give the options and recommend one; every recommendation is for the o
 
 | # | Rule | Basis |
 |---|---|---|
-| 1 | **The line** is the 4-period EMA of the daily HIGHS, drawn on the chart. Not an EMA of closes, not a simple average. | [originator] (Oct 2015 post, Nov 2015 scan, Oct 2016 post, TaPlot copy) [source consensus] (the BigGuava script agrees; Deepvue's 5-day EMA dissents, 3.9b) [UCT] |
+| 1 | **The line** is the 4-period EMA of the daily HIGHS, drawn on the chart. Not an EMA of closes, not a simple average. | [originator] (Oct 2015 post, Nov 2015 scan, Oct 2016 post, TaPlot copy) [source consensus] (the BigGuava script and Analyzing Alpha agree; Deepvue's 5-day EMA dissents, 3.9b) [UCT] |
 | 2 | **The drive comes first**: within the 25 sessions before the trigger, and before the pullback began, at least one of: (a) an earnings gap, the open 5% or more over the prior close on the report day or the session after, closing in the upper half of its range on volume above its 50-day average (a PEG); (b) a close more than 4% over the prior close on volume above its 50-day average; (c) a gain of more than 20% in five sessions. (a) is the main case; (b) and (c) are allowed. | [UCT] the owner: "mostly" PEGs, "not exclusively"; (b) is the scanner's S3 (Manrav's scan, KB 11544, and the UCT team playbook, KB 15877); (c) is S3b (the playbook's "fast 20%+ run"); the 5% gap floor is [my proposal] (5 of his 6 pass-2 greats had an earnings-style gap drive, days of +11% to +29%, per `2026-10-25-setup-differentiation.md`) |
 | 3 | **The drive day is never the trigger.** If the only qualifying drive day is the trigger day itself, it is not a Slingshot. | [UCT] the owner: "And no an earnings gap does not count btw" |
 | 4 | **The pullback**: at least 3 consecutive daily closes under the line, and at most 7. | 3 = [originator] (his 2015 scan) [source consensus] (the BigGuava script's default; UCT's playbook says "three or more"); 7 = [UCT] the lesson text's "three to seven sessions" (from his rulings). VRT, his "Perfect" chart, had 8 by this count (section 6.3): see question 4 |
@@ -735,8 +828,8 @@ disagree I give the options and recommend one; every recommendation is for the o
 
 | # | Rule | Basis |
 |---|---|---|
-| 11 | **The trigger** is the first daily close above the line after the pullback in 8.1. | [originator] (his scan: c > xavgh4) [UCT] [source consensus] (the scan and the BigGuava script use the close; his prose says "break" and Deepvue "crossing above", see 3.12 point 2) |
-| 12 | **A decisive trigger day**: it closes in the top 30% of its range (DCR 0.7 or more) and opens less than 2% over the prior close. | [UCT] the lesson text (from his rulings): "a decisive day that closes near its high and needs no gap"; playbook mistake: "Buying a trigger day that gaps up 2 or 3 percent". The 0.7 is [my proposal]; his greats were 0.78-0.99, except QCOM at 0.65 |
+| 11 | **The trigger** is the first daily close above the line after the pullback in 8.1. | [originator] (his scan: c > xavgh4) [UCT] [source consensus] (the scan, the BigGuava script and Analyzing Alpha's entry use the close; his prose says "break", Deepvue "crossing above" plus a "Range Break", Analyzing Alpha "A range break (required)", see 3.12 point 2) |
+| 12 | **A decisive trigger day**: it closes in the top 30% of its range (DCR 0.7 or more) and opens less than 2% over the prior close. No volume surge is needed on the trigger day. | [UCT] the lesson text (from his rulings): "a decisive day that closes near its high and needs no gap"; playbook mistake: "Buying a trigger day that gaps up 2 or 3 percent". The 0.7 is [my proposal]; his greats were 0.78-0.99, except QCOM at 0.65. No volume surge: [originator] "Volume is less important on a slingshot because it is not a breakout setup" (2023, 3.7b) [UCT] his greats were on 0.9-1.4x volume |
 | 13 | **The order**, three options. **A** (recommended): a market order in the last minutes of the trigger day, once the close above the line is clear (E57). **B**: in the next 1-3 sessions, a market order as price trades a cent over the trigger day's high; skip if the first price is more than 4% over that high (C28). **C**: intraday on the trigger day as price crosses the line (the line moves with the day's own high, so this cannot be checked on daily bars). | A = the owner's definition and the scanner [UCT]; B = Manrav's range break after the cross, Scot1and's "range breakout" and Deepvue's "Range Break" [UCT] [originator]; C = the UCT team playbook and Scot1and's hourly entries [UCT] [originator]. I recommend A: it is the definition, it keeps the stop smallest (median 3.2% against 4.0% for B, Table B), and in the test the two ended about the same (+0.02R against +0.04R, inside the noise). The levels dossier recommended B, to match the Kicker ruling: his call (question 3) |
 | 14 | **No chasing**: never more than 4% over the buy point; skip if more than 10% over the 10-day average. | C28, C29 [house rule] |
 
@@ -817,7 +910,7 @@ from the originator, offered as a guide, not a checklist.
 | The drive | an earnings gap, a +11% to +29% day (5 of the 6 pass-2 greats) [UCT] | an earnings gap or a strong rally | a rally only (COIN, cut), or no earnings drive and no follow-through (BBWI, CBZ) |
 | The stock | a leader, RS 80+ [house rule, C31; not measured on his charts], over a rising 50-day and 200-day (all six pass-2 greats) | over both averages | under the 200-day (TEAM, HAS, FIGS: cut); under $10 (FIGS); thin (CBZ, INTA) |
 | The pullback | 3-7 closes under the line (VRT 8), 5-12% deep, range 1.0-1.6 ATR, small red bodies, quiet volume [UCT]; tight ranges [originator] | the same, a little looser | choppy (TCOM, 1.85 ATR, cut); a long base (RTX, 10 closes, cut) |
-| The trigger day | +3% to +6%, closes at 78-99% of its range, no gap (under about 1.2%), ordinary volume (0.9-1.4x on the six) [UCT] | a bigger, news-like day (APP +13% on 2.4x volume, "good") | a gap of 2% or more (TCOM, COIN), a weak close (COIN and INTA at 0.72), a tiny day (PANW +1.5%, "B-") |
+| The trigger day | +3% to +6%, closes at 78-99% of its range, no gap (under about 1.2%), ordinary volume (0.9-1.4x on the six) [UCT]; volume "less important ... not a breakout setup" [originator, 2023] | a bigger, news-like day (APP +13% on 2.4x volume, "good") | a gap of 2% or more (TCOM, COIN), a weak close (COIN and INTA at 0.72), a tiny day (PANW +1.5%, "B-") |
 | The stop | the trigger low about 3.5-6% away | up to about 11% (APP 10.7%) | - |
 | What came next (his "must work") | never near the trigger low; +6% to +21% in five days [UCT] | a solid move | flat by day 20 (DUOL), or under the trigger low (TCOM) |
 | The market | a Green reading [house rule] | Green or Yellow | Orange: A+ setups only; Red: mostly cash and shorts (F65) |
@@ -890,6 +983,14 @@ All read on 2026-11-09. "Saved" = downloaded and checked by a script.
 - Reliability: the personal blog of the person who named the setup. Short posts, mostly charts, no statistics. The
   highest-ranking outside source for this setup.
 
+**Scot1and's Substack, "The Speculator's Journal" (scot1and.substack.com), saved (cold check 2)**
+- All 33 posts in https://scot1and.substack.com/sitemap.xml , read 2026-11-09. The four that mention the Slingshot:
+  "Lessons from TASR's initial IPO run", 27 Feb 2022, https://scot1and.substack.com/p/lessons-from-tasrs-initial-ipo-run ,
+  with his reply of 7 Mar 2023 in its comment thread (read through the site's public comments feed for post 49437297);
+  "Fed Day", 16 Mar 2022, https://scot1and.substack.com/p/fed-day ("the start of a slingshot" on the NQ); "50",
+  23 Sep 2024, https://scot1and.substack.com/p/50 ; "Mining for Gold", 1 Feb 2025, https://scot1and.substack.com/p/mining-for-gold .
+- Reliability: the originator's own words; first rank with his blog.
+
 **Scot1and at TraderLion**
 - TraderLion (YouTube), "The Fishhook and Slingshot Trading Setup | How to Build an Edge", published 2022-11-01,
   https://www.youtube.com/watch?v=hqIIzNgbIEY . Saved page; the description and timestamps only (the listed
@@ -913,6 +1014,14 @@ All read on 2026-11-09. "Saved" = downloaded and checked by a script.
   A different, older system with the same name (two EMAs). Found in the cold check.
 
 **Other outside pages, saved**
+- Leo Smigel, Analyzing Alpha, "Slingshot Trading Strategy: Explained & Backtested", published 30 Dec 2021, updated
+  13 Oct 2023; the live page answers 404; read from the Internet Archive's copy of 16 Dec 2025,
+  http://web.archive.org/web/20251216142943/https://analyzingalpha.com/slingshot-trading-strategy . Companion video
+  "Backtesting Scot1and’s Slingshot Trading Strategy in Python", YouTube (Analyzing Alpha), 31 Dec 2021,
+  https://www.youtube.com/watch?v=6-bpMHsIt3I (page saved; description and timestamps only). Profile "Scot1and: Slinging
+  Serious Trading Profits", same dates, archived copy of 18 Jan 2026,
+  http://web.archive.org/web/20260118235107/https://analyzingalpha.com/scot1and . A named educator's blog; secondary;
+  the one published backtest (hourly). Found in the cold check 2.
 - Deepvue Knowledge Base, "Technical Patterns" ("Slingshot Pattern" entry), published 3 Sep 2024, updated 19 Jun
   2026, https://deepvue.com/knowledge-base/deepvue-custom-indicators-technical-patterns/ . A charting platform's own
   documentation: credits Scot1and, describes a 5-day EMA and a range break; no statistics. Found in the cold check.
@@ -951,15 +1060,20 @@ All read on 2026-11-09. "Saved" = downloaded and checked by a script.
 the time of the run; since refreshed) and `docs/study/setups/earnings_dates_cache.json` (992 tickers listed, 983 of the
 run's tickers covered; its source and report timing are not documented).
 
-**Tried and not read.** analyzingalpha.com/scot1and (404); thestocktails.com/the-slingshot (the site did not resolve);
+**Tried and not read.** analyzingalpha.com/scot1and and /slingshot-trading-strategy (both 404 live; both read from
+the Internet Archive in the cold check 2); thestocktails.com/the-slingshot (the site did not resolve);
 podtail.com's 2023 episode page (403); traderlion.com (403); the 2015 video (unavailable); the 2022 TraderLion talk's
-captions (none served to a plain download); the full Podscan transcript (needs an account); a Scribd document titled
-"The Slingshot Trading Method" (not opened; it may be a different method); thepatternsite.com (refuses plain
-downloads, HTTP 406; its home page was read through a fetch tool and lists no Slingshot). **Searched in the cold check,
-nothing found**: Bulkowski (thepatternsite.com), investors.com and StockCharts ChartSchool (one site-restricted search),
-TraderLion written articles, and where Scot1and first published the write-up TaPlot copies. **Found in the cold check**:
-an earlier use of the name, Chris Moody's 2014 script (section 2), and Deepvue's entry (3.9b). **Still not searched**:
-MarketSmith, Scot1and's posts on X.
+captions (HTTP 404 on the first check, an empty HTTP 200 body on the second); the full Podscan transcript (needs an
+account); a Scribd document titled "The Slingshot Trading Method" (not opened; it may be a different method);
+thepatternsite.com (refuses plain downloads, HTTP 406; its home and privacy pages were read through a fetch tool: no
+Slingshot, and the AI notice quoted in 4.1); the podcast listings of the 2022 talk on podwise.ai and everand.com (23 Feb
+2023, 88 minutes; no transcript on either); Scot1and's X post "Slingshot watch" (X cannot be read here); the
+TradingView script "Slingshot Trend" (404). **Searched in the cold checks, nothing found**: Bulkowski
+(thepatternsite.com), StockCharts ChartSchool and TraderLion (site-restricted searches; investors.com refuses the
+search tool), TraderLion written articles, and where Scot1and first published the write-up TaPlot copies (Analyzing
+Alpha paraphrases it in 2021 and credits TaPlot's code, so TaPlot's page is still the earliest copy found). **Found in
+the cold checks**: an earlier use of the name, Chris Moody's 2014 script (section 2); Deepvue's entry (3.9b); Scot1and's
+Substack and his volume rule (3.7b); Analyzing Alpha's backtest (3.9c). **Still not searched**: MarketSmith.
 
 ## Removed in checking
 
@@ -1035,3 +1149,121 @@ or missing, and what was done:
 - On our bars: HAE confirmed over its (falling) 200-day; TEAM under a still-rising 200-day.
 - Reproducibility: the measurement script re-run on its first 40 tickers gave 966 firings on 25 tickers, identical
   trade by trade to the original output.
+
+## Cold check 2 (2026-11-09, a third reader)
+
+**Method.** Every cited page was downloaded again with a plain client (no browser user agent), the 103 UCT Substack
+posts and Scot1and's 33 Substack posts included; a script searched the 118 quoted passages of four or more words
+against those pages, the 27 repo files the dossier cites and the test's outputs. **All 118 were found word for word**
+(curly and straight apostrophes treated as equal; the dossier keeps the source's where it says so). Checked against the
+code: S1-S5 and their windows, the labels, the confidence arithmetic (55.5), the liquidity floor ($2 and $10,000), the
+member tag's check (close over a rising 50-day that is over the 200-day, and a green close), the trade plan, the Model
+Book card and glyph (a 3-period EMA of closes; the candle format carries a gap only as a fourth number and none of the
+Slingshot candles has one), the playbook text, the journal tag's group, the finder's floors and must-work filter, the
+six positive fixtures' names. Checked against the raw test output: every number in Tables A and B, the other cuts, the
+exit shares (stop 48.5%, breakeven 14.6%, time 14.2%, trail 11.2%, gap 11.2%, cap 0.3%), 2,421 tickers with a firing or
+baseline day, 983 covered by the 992-ticker earnings cache. Checked against the log: lines 154-181 and the 2026-11-09
+rulebook lines; against `sizing_rule.md` §9: every rule quoted in section 7. Dates checked on the pages' own metadata:
+Deepvue (published 2024-09-03, modified 2026-06-19), Sunday Scans b99 (2025-11-02), the 2022 talk (2022-11-01, 5,190
+seconds), the Podscan episode (2 May 2026, 1 hr 35 min), the TradingView scripts, Trade The System (3 Jun 2016), the
+subscriber-only post sunday-scans-bf1 (2026-10-18, audience "only_subscribers").
+
+**Corrected**
+1. Section 2 said he "switched the line from a plain 4-day EMA" in October 2015. The August post says "EMA 4" and no
+   more (3.1 already said so); reworded.
+2. The Chris Moody quote carried a straight apostrophe; the page's is curly, and the two-average rules were stated as
+   Moody's when his page gives none: they are EltAlt's description of his modification. Both fixed.
+3. The Fishhook quote "Last year I worked out a setup I call the fishhook" (page dated 1 May 2017) contradicts his own
+   September 2014 Fishhook posts; the dossier now says so instead of letting the quote date the setup.
+4. The 2022 talk's caption track: "answered HTTP 404" is what the first check saw; on this check the address answered
+   HTTP 200 with an empty body. Stated as both.
+5. 4.1's heading "Published statistics: none found" is no longer true (Analyzing Alpha, below); the g1 report's "no
+   published number" line is marked out of date.
+6. 4.1 said the Bulkowski notice could not be quoted; it was read through the fetch tool and is now quoted exactly
+   (24 words) with its address, as the brief asks.
+
+**Added**
+- Scot1and's own volume rule, in his words (7 Mar 2023): the Slingshot "is not a breakout setup" and volume is "less
+  important"; the only originator statement on volume. Used in sections 1, 3.7b, 3.11, 3.12 (new point 10), rule 12
+  and the grading table.
+- Scot1and's Substack posts of 2022, 2024 and 2025 that use the setup (on an IPO, on a breadth index, in a lesson).
+- Analyzing Alpha's 2021-2023 backtest and rule list (3.9c, 4.1, section 2 table, rules 1 and 11), with its limits.
+- MarketGauge's unrelated "Slingshot Setups" course, as another name clash (section 2).
+- Section 11: the new sources, the podcast listings, and what was searched and not found.
+
+**Nothing removed.** No quote, attribution, statistic or criterion failed its check in this pass.
+
+## 12. Examples (from our data)
+
+**The scan's rule, in one paragraph** (scratch script `setups/31-slingshot/scan_ss.py`, not in the repo; the sandbox's
+daily bars, read only, data to 2026-11-09; the 2,630 names that ever met the house liquidity rule, all scanned, 179
+seconds). The line is the 4-period EMA of the daily highs (rule 1). A trigger day is the first close back over the line
+after 3 to 7 consecutive closes under it (rules 4 and 11), an up day that closes in the top 30% of its range (DCR 0.7+)
+and opens less than 2% over the prior close (rule 12). In the 25 sessions before the trigger, and before the pullback
+began, there must be a drive day (rule 2): a gap open 5%+ over the prior close that closes in its upper half on
+above-average volume (the PEG-style case), or a close more than 4% up on volume over its 50-day average, or a 20%+ gain
+in five sessions; the trigger day itself never counts (rule 3). The pullback runs 5% to 12% from the drive leg's highest
+high to its lowest low (rule 5), its high-to-low range is at most 1.6 ATR(14), no red body is bigger than 3.5% of price
+and no down day trades above its 50-day average volume (rule 6). The trigger closes over the 50-day and the 200-day SMA
+(rule 7, B26), at $10 or more with $20 million or more a day traded (rule 9, B23), and not more than 10% over its 10-day
+average (C29). The trade is order A: a market order at the trigger day's close (E57); the stop 3 cents under the trigger
+day's low (rule 15), skipped if wider than 6.5% (rule 17); 3R and 5R measured from that stop. Not in the scan, because
+the bars cannot tell it: RS rating 80+ and group strength (rule 8), the market reading (8.7) and the three-days-before-
+earnings rule (rule 10, checked by hand on the 10 picks: none has a report in the 3 sessions after its trigger).
+
+**Base rate** (fixed stop, no trims, no breakeven, no trail; a bar that touches the stop and a target on the same day
+counts as the stop; 60 sessions forward): **3,411 firings in 2,630 names, trigger dates 1995 to 2026** (the liquidity
+rule leaves almost nothing before 1995). **24.6% reached 3R** and **16.5% reached 5R** before the stop; 86.2% (2,940)
+touched the stop inside the 60 sessions (many after a gain: the median best excursion before the stop was 0.98R).
+Slices: triggers with a stop of 3% or less (1,715 firings) 25.3% to 3R and 16.7% to 5R; PEG-style gap drives (407
+firings) 26.3% to 3R and 18.2% to 5R. These are rates of a rule, not of the owner's judgement: the ten below were picked
+by eye from the winners, so they show what a clean one looks like, not how often one comes. The managed-trade test in
+4.3 (trims, breakeven, trail) is the better guide to expectancy; this section's numbers are the simpler "did 3R or 5R
+print before the stop" count the course uses for every setup.
+
+**The 10 examples** (charts and sheets in the scratch folder `setups/31-slingshot/final/`; the drive is classed with our
+earnings dates, `earnings_reaction_days`: "earnings" means the drive day was a report reaction day, "not earnings" means
+it was not one in our dates, so the move came from news or the market). Depth = drive leg's high to the pullback's low;
+closes = consecutive closes under the line before the trigger; ATR = the pullback's range in ATR(14); DCR = the trigger
+day's close in its range; buy = the trigger day's close; best R = the best excursion before the stop within 60 sessions.
+
+| # | Ticker | Trigger | Drive day | Pullback (closes / depth / ATR) | DCR | Buy | Stop (%) | Best R | Why it is textbook |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | UTHR | 2025-09-18 | 2025-09-02, +32.8% on a 37.7% gap (not earnings) | 3 / 9.3% / 0.45 | 0.92 | 409.87 | 402.47 (1.8%) | 11.7 | A huge news gap, three tiny red days hugging the line, a decisive close back over it; 3R in 3 sessions |
+| 2 | RELY | 2024-11-20 | 2024-10-31, +17.8% on a 24.4% gap (earnings) | 4 / 7.5% / 1.04 | 0.92 | 20.46 | 19.96 (2.4%) | 13.7 | The owner's main case: an earnings gap, a four-day rest, then a steady stair-step up the 10-day; also a 200-day reclaim |
+| 3 | FRO | 2023-01-27 | 2023-01-10, +25.7% on a 24.0% gap (not earnings) | 4 / 9.9% / 1.14 | 0.89 | 13.94 | 13.42 (3.7%) | 10.3 | A news gap, a drift back to the 50-day, the trigger closes near its high; 3R in 7 sessions |
+| 4 | LPLA | 2020-12-02 | 2020-11-09, +12.7% on a 7.6% gap (not earnings; a market-wide rally day) | 4 / 5.9% / 1.23 | 0.96 | 95.13 | 92.25 (3.0%) | 14.9 | A shallow, orderly pullback inside a fresh uptrend; the trigger day is the pullback's widest bar and closes at its top |
+| 5 | MELI | 2017-11-17 | 2017-11-03, +13.3% on an 8.6% gap (earnings) | 4 / 6.0% / 1.31 | 0.92 | 269.73 | 259.09 (3.9%) | 11.8 | Earnings gap out of a correction, pullback holds over the 50-day, the trigger closes over the line and the gap-day high |
+| 6 | URI | 2016-11-21 | 2016-11-09, +17.1% on a 9.3% gap (not earnings; the session after the US election) | 3 / 6.0% / 0.66 | 0.88 | 93.86 | 91.69 (2.3%) | 17.2 | A vertical drive, three small red candles, a 2.3% stop; 3R in 6 sessions and the trend ran for two months |
+| 7 | BIIB | 2015-02-18 | 2015-01-30, +10.2% on a 5.5% gap (earnings) | 6 / 5.3% / 1.30 | 0.86 | 401.12 | 396.49 (1.2%) | 17.1 | The long-pullback case allowed by rule 4 (6 closes), still only 5.3% deep; the smallest stop of the ten |
+| 8 | BC | 2012-11-27 | 2012-10-25, +11.3% (earnings) | 4 / 6.1% / 0.75 | 0.79 | 25.24 | 24.40 (3.3%) | 14.4 | An earnings-day drive, a quiet four-day dip to the 21-day EMA, then the trend resumes for two months |
+| 9 | RGA | 2010-12-01 | 2010-10-26, +5.7% (earnings) | 3 / 5.5% / 1.08 | 0.98 | 51.02 | 50.18 (1.6%) | 13.1 | The minimum drive (a 4%+ volume day, no gap) still works when the pullback is three tight closes and the trigger closes on its high |
+| 10 | GRMN | 2007-06-11 | 2007-05-30, +7.5% (not earnings) | 5 / 6.4% / 1.42 | 0.94 | 66.08 | 64.04 (3.1%) | 20.5 | A five-close rest in a rising leader, trigger volume 1.4x; the steadiest trend of the ten, 50% higher in two months |
+
+Five drives were earnings reactions (RELY, MELI, BIIB, BC, RGA) and five were not (UTHR, FRO, LPLA, URI, GRMN), which
+matches the owner's "mostly" PEGs, "not exclusively". Every pick is a common stock (no ETFs); FRO is a tanker company
+listed in New York (price $13.94, $72 million a day). None was within 3 sessions of a report after its trigger. What the
+picks do not show: RS ratings (not in the bars) and the market reading on the day.
+
+**Notable failures** (from the same scan; all passed every rule above):
+- **FSLR, 2013-05-06.** The drive was a 45.5% day on 2013-04-09 (not an earnings date in our data), the pullback 3
+  closes and 7.1% deep, the trigger closed at 0.94 of its range with a 3.3% stop. The next session opened lower and
+  traded through the stop (low 42.61 against a 46.62 open): out in one day, best excursion 0.0R. A giant drive does not
+  make the trigger safer; the stop is what keeps it small.
+- **BIIB, 2022-10-24.** A 39.9% news gap on 2022-09-28 (not a report day in our dates), a 6-close pullback 8.2% deep, a
+  2.4% stop. The day after the trigger opened at 278.60 and fell to 265.46, through the stop: 0.0R. A second warning
+  that the biggest gaps breed the most violent next-day reversals, even with a tight stop.
+- **PLTR, 2026-08-21 and 2026-08-27.** The same earnings drive (2026-08-04, +29.5%) gave two triggers six sessions
+  apart; both were stopped (the first the next day, the second after 4 days, best 0.31R). The re-entry rule (29) allows
+  the second try; the lesson is that a stock that fails its first Slingshot has said something about the pullback (it
+  was no longer orderly), and the second needs its own full check.
+- **PSX, 2020-12-10.** Same market-wide drive day as LPLA (2020-11-09, +22.2%), 3 closes, 5.5% deep, DCR 0.76, 3.9%
+  stop: stopped in 2 sessions, 0.0R. The bars cannot say whether PSX was a leader by RS on that day (RS is not in the
+  scan); it is the kind of case rule 8 exists for.
+
+**Limits of this section.** Fixed stop, no trims, no breakeven, 60 sessions forward; a gap through the stop exits at the
+stop price here (daily bars cannot apply B20's 30-minute rule), which flatters the failures slightly. The RS, group,
+market-reading and pre-earnings rules were not in the scan. The ten charts were chosen by eye from the 5R winners (one
+ticker each, ten different years) and each was looked at; GNRC 2021, HRB 2017 and TREX 2018 also qualified on the
+numbers but were left out because their pullbacks drifted for weeks before the 3-close count began, which a learner
+would not read as a Slingshot. The scan completed; no part of the universe was skipped for time.

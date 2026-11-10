@@ -979,3 +979,77 @@ Morpheus, Mish, Stockbsessed, Stockbee, Qullamaggie, Brooks, Beggs, Wikipedia, E
 found word for word in context; the app summary (sections 5.1 to 5.6, including the line numbers, the 53.5 confidence
 floor and the NR4 bonus bug) matches the code; the KB quotes match the repo files; the daily measurement table matches
 the writer's saved output; the remaining example rows match Yahoo bars.
+
+## 12. Examples (from our data)
+
+**The scan's rule (section 8 + the house rules, long side only), in one paragraph.** On the sandbox's daily bars
+(2,630 names that ever met the liquidity rule, trading days from 2000-01-03 to 2026-11-06): a strict inside day (high
+under the prior high and low over the prior low, rule 1); close at least $10 and 20-day average dollar volume at least
+$20 million (B23); close above the 200-day SMA with the 50-day above the 200-day (B26, rule 4); close above a rising
+21-day EMA (rule 4); close no more than 10% over the 10-day SMA (C29, rule 6); location (rule 5) either a 60-day
+closing high inside the last 10 sessions or the inside day's low within 1 ATR(14) of the 21 EMA; trigger one cent
+over the inside day's high, stop five cents under its low, that distance at most 1 ATR(14) and at most 3.5% of the
+trigger (rule 7, A13). The buy is a market order the first time price trades over the trigger in the next 3 sessions
+(rules 12 to 14), at the open if it gaps over by 4% or less and skipped if by more (C28, rule 15); if the inside day's
+low trades first the buy is cancelled (rule 16's scenario B is not in this scan). A double inside day that triggers
+both bars on one day counts once, from the more recent inside day (rule 12). Outcome: a fixed stop, no trims, no
+breakeven move, walked forward 60 trading days from the day after entry; "reached 3R" means price traded 3R above the
+entry before the stop was touched. Not tested, because the data cannot: RS rating (C31), the earnings blackout (B22;
+checked by hand for the 10 examples only), market colour (B18), and the close-in-the-upper-half cue (recorded, not
+required). Scripts: `_study-resume/scratchpad/setups/08-inside-day/scan_id.py` and `pick_id.py` (local scratch, not in
+the repo); hits in `final/hits.json`.
+
+**Base rate.** 101,129 qualifying buys across all 2,630 names (the scan completed; 121 seconds). 26.7% reached 3R and
+18.2% reached 5R before the fixed stop was hit; 88.2% were eventually stopped inside the 60-day window and the median
+best excursion was 0.94R. With a fixed stop and no trims that is a loser on average unless the winners are trailed, which
+matches the dossier's finding (8.8, mistake 27) that the bar alone is near random: the rule set above is a filter, not an
+edge by itself. Caveats: (1) the walk starts the day after entry, so the 24,410 buys whose entry day also traded under
+the stop are counted as if they survived day one; dropping them leaves 76,719 buys at 30.7% to 3R and 20.8% to 5R, the
+truth sits between the two figures; (2) no earnings blackout and no RS filter; (3) splits of the sample all land within
+about 2 points of each other (close in the upper half 26.8% vs lower half 26.7% to 3R; at-the-21-EMA location 28.1% vs
+post-breakout 26.0%; lighter volume than the mother bar 26.6% vs heavier 27.1%; stop 2% or tighter 27.1% vs wider
+25.9%; before 2015 28.1% vs since 2015 25.9%), so none of the grading cues in 8.1 changes the odds much on daily bars;
+the owner's edge has to come from stock selection, market colour and the trail, not from the bar's shape.
+
+**The 10 examples** (one per ticker, 2003 to 2025, all reached 5R; every one is above a rising 50 and 200-day, within
+10 sessions of a 60-day closing high, closed in the upper half of its range, had no earnings report inside the 3 days
+before the inside day or before the entry (not checkable for JBLU: our dates for it start 2003-10-23), and triggered the very next session; stop = inside low minus $0.05; R =
+entry minus stop). Charts: `_study-resume/scratchpad/setups/08-inside-day/final/01_...png` to `10_...png` and the
+three phone sheets `sheet_1-4.png`, `sheet_5-7.png`, `sheet_8-10.png` (M = mother bar, ID = inside day, B = buy day).
+
+| # | Ticker | Inside day | Bought | ID range / mother | Close in range | ID vol / mother | Over 10-day | Buy | Stop (R) | Best R | Why it is textbook |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | JBLU | 2003-08-07 | 2003-08-08 | 42% | 100% | 1.01x | +1.0% | 20.71 | 20.47 (1.15%, 0.43 ATR) | 44.7 | A tight inside day closing on its high in a smooth 10/21 EMA uptrend; 3R the next day. |
+| 2 | ATI | 2006-01-19 | 2006-01-20 | 41% | 62% | 0.68x | +0.9% | 41.09 | 40.45 (1.56%, 0.49 ATR) | 49.8 | Lighter-volume inside day right after a new high; the break ran about 25% within two weeks. |
+| 3 | MPC | 2013-01-14 | 2013-01-15 | 58% | 97% | 0.66x | +0.4% | 31.33 | 30.90 (1.37%, 0.58 ATR) | 35.0 | Inside day closing near its high at the 10-day after a two-week shelf; 3R the next day. |
+| 4 | ALGN | 2017-03-14 | 2017-03-15 | 44% | 70% | 0.74x | +2.6% | 107.85 | 106.57 (1.19%, 0.72 ATR) | 36.0 | Quiet inside day in a steady climb above the 21 EMA; the break opened the next leg. |
+| 5 | CDNS | 2019-02-05 | 2019-02-06 | 23% | 75% | 0.65x | +5.5% | 50.22 | 49.64 (1.15%, 0.61 ATR) | 35.0 | Very narrow inside day (23% of the mother bar) a week after a breakout over the 200-day. |
+| 6 | CVNA | 2020-06-30 | 2020-07-01 | 42% | 58% | 0.91x | -0.7% | 24.28 | 23.68 (2.47%, 0.42 ATR) | 37.9 | Inside day resting on the 10-day EMA after a pullback in a fast 2020 uptrend. |
+| 7 | FTNT | 2021-06-11 | 2021-06-14 | 42% | 79% | 0.85x | +3.1% | 45.89 | 45.39 (1.08%, 0.54 ATR) | 37.0 | Inside day at a new high, close in the top fifth, stop barely 1%; 3R in three sessions. |
+| 8 | VST | 2023-12-21 | 2023-12-22 | 66% | 52% | 0.67x | +0.7% | 38.00 | 37.53 (1.25%, 0.60 ATR) | 66.5 | A plain inside day at the 10-day in a slow, orderly trend; slow to 3R (10 days) then a 60R run. |
+| 9 | NVDA | 2024-01-12 | 2024-01-16 | 36% | 59% | 0.59x | +6.9% | 55.02 | 54.28 (1.34%, 0.51 ATR) | 57.3 | TraderLion's own example (dossier 8.9): small gap over the trigger (0.1%), light volume, 3R in two days. |
+| 10 | GOOGL | 2025-08-26 | 2025-08-27 | 41% | 67% | 0.95x | +1.8% | 207.86 | 205.65 (1.06%, 0.50 ATR) | 44.6 | Inside day at a fresh 60-day high after a four-day pause; broke out the next day and ran about 20% in three weeks. |
+
+Prices are the sandbox's split-adjusted bars (NVDA after its 2024 10-for-1 split). "Best R" is the highest excursion
+inside 60 trading days with the fixed stop, not a trade result: the house plan trims a third at 3R and 5R and trails the
+rest (B19, E51, E52), so the realised R would be far lower.
+
+**Notable failures (from the same scan, checked on the bars).**
+- **NVDA, inside day 2024-03-28, bought 2024-04-01 at 91.31, stop 89.14.** It qualified on every rule, but the stock
+  had already closed under its 10-day for a week after the March run (close 90.36 vs 10-day 91.00); the break lasted
+  one day and the stop went on 2024-04-02 (low 87.62). Lesson: an inside day inside a stall under the 10-day is a pause
+  in a range, not a continuation; prefer the ones that sit at or over a rising 10-day.
+- **TSLA, inside day 2021-01-13, bought 2021-01-14 at 286.83, stop 277.28.** Passed C29 by a hair (9.1% over the
+  10-day) but was 17% over the 21 EMA after a vertical January; stopped the next session (low 273.03 on 2021-01-15).
+  Lesson: near the 10% line, treat it as stretched (8.8, mistake 28).
+- **NVDA, inside day 2025-01-23, bought 2025-01-24 at 148.37 (gap over the 147.24 trigger), stop 143.67.** The inside day
+  closed at the top of its range, 6.4% over the 10-day; the entry day reversed to 141.88 and stopped the trade the same
+  day, and on 2025-01-27 the stock gapped down to 124.80 (a news gap, not earnings: the next report reacted on
+  2025-02-27). Lesson: a perfect-looking bar is still a coin flip; the stop is the plan, and B20 (first 30-minute low)
+  is what saves the account when the gap comes through it.
+
+**Data limits for this section.** Daily bars only (the intraday store starts 2026-08-17 and hourly 2023-12-12, so the
+30-minute stop rule B20 was not simulated); no RS rating or market-colour history; earnings dates thin before 2005
+(nine of the 10 examples were checked against the dates we have; JBLU 2003 predates its first stored date). The short mirror (8.6)
+was not scanned: the dossier already says it was not measured, and a short-side scan deserves its own pass with
+borrow data.

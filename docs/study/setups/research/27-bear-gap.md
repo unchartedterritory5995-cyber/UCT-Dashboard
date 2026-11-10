@@ -4,7 +4,10 @@ Research dossier for the owner's setup-by-setup review. Written 2026-11-09. Ever
 file or post named next to it and kept to 40 words or fewer; the UCT and outside quotes were checked word for word by a
 script against the saved page text. Cold-checked the same day by a second reader against fresh copies of every source
 (each Substack post through its public post API, the outside pages by plain download or, for Bulkowski, the fetch
-tool), the repo files and the bars; what changed is listed under "Removed in checking" at the end. Nothing here is a
+tool), the repo files and the bars; what changed is listed under "Removed in checking" at the end. A second cold check
+later the same day repeated all of that from scratch (fresh API copies of all 103 posts, fresh downloads of the outside
+pages, Bulkowski through the fetch tool, every bar fact recomputed from the sandbox `bars.db`, the test tables re-derived
+from the saved event files); its findings are the last subsection of "Removed in checking". Nothing here is a
 ruling. Where I could not read a source, I say so and give no wording from it. Numbers marked [my proposal] are mine,
 for the owner to accept or change.
 
@@ -93,8 +96,8 @@ fails on its first bounce back into the gap.
   downside and barely anything on the one day pops." (2026-11-08; in that week the pops were small, so the quote is
   about how it feels, not about squeezes.)
 - The natural stop is far away. A gap-down day has a wide range, so the stop over its high sat a median 4.2% over the
-  close in my test, and up to 25% (VRNS 2025-10-29: 25.1%, checked on the bars). TRADE_PLANS.md uses VRNS as the
-  reason no trade was defined.
+  close in my test, and up to 25% (VRNS 2025-10-29: 25.0%, the high 40.41 over the close 32.34, checked on the bars).
+  TRADE_PLANS.md uses VRNS as the reason no trade was defined.
 
 ---
 
@@ -196,7 +199,9 @@ URL: https://tradingmarkets.com/?p=667535. The most complete rule set found. Quo
   stop to exit a short position."
 - End of day: "Similarly, a short position would be signaled by a stock whose gap down fails support levels."
 - It is an intraday method with a one-hour opening range and no trend filter (it only advises checking the longer-term
-  chart for support and resistance).
+  chart for support and resistance). Its one volume rule belongs to the "Modified Trading Method" variant: "the stock
+  should be trading on at least twice the average volume for the last five days" (added in the second check; this is
+  the "2x for one variant" in the table).
 - Added in checking: the same page defines the weaker kind of gap that most of UCT's named bear gaps are (section 6.7):
   "A Partial Gap Down occurs when the opening price is below yesterday's close, but not below yesterday's low." Its
   "Full Gap Down" is an open under the prior day's low, a looser test than the gaps page's down gap (the whole day's
@@ -289,21 +294,31 @@ Not a gap-down setup. It is the parabolic short, cited here only for short mecha
 ### 3.10 IBD / William O'Neil (not readable; search excerpts only)
 
 - investors.com refused my reader and its syndicated copy (inkl) showed a bot check. Search-engine excerpts of an IBD
-  article ("This Trading Rule Helped Investors Avoid Big Declines In Netflix, Super Micro, Tesla"; the byline is not
-  confirmed) describe O'Neil's sell rule: after an extended advance, the stock's biggest one-day drop since the move
-  began, used with other signals; their example is Netflix in July 2023. I did not read the article, so I quote nothing from it. On
-  our bars the Netflix day is 2023-07-20: it opened 6.4% lower, closed 8.4% lower (its largest one-day point drop since
-  October 2022), and it is a true gap down that the app's bear gap rule fires on (top one session earlier, 3.3x volume,
-  above the 200-day). It is a sell rule for longs, not a short rule.
+  article ("This Trading Rule Helped Investors Avoid Big Declines In Netflix, Super Micro, Tesla"; inkl's listing names
+  Scott Lehtonen as the writer, not confirmed on investors.com) describe O'Neil's sell rule: after an extended advance,
+  the stock's biggest one-day drop since the move began, used with other signals; their example is Netflix in July 2023.
+  I did not read the article, so I quote nothing from it. On our split-adjusted bars the Netflix day is 2023-07-20: it
+  opened 6.4% lower and closed 8.4% lower, its largest one-day percentage drop since 2022-12-15 (which fell 8.6%; by
+  points, the largest since 2022-04-20), and it is a true gap down that the app's bear gap rule fires on (top one session
+  earlier, 3.3x volume, above the 200-day). It is a sell rule for longs, not a short rule.
 - Not read (O'Reilly refused the request; only catalogue listings were seen): William J. O'Neil with Gil Morales, "How
-  to Make Money Selling Stocks Short" (Wiley; Wiley lists December 2004); Gil Morales and Chris Kacher, "Trade Like an
-  O'Neil Disciple" (Wiley, 2010), which has a section titled "The Golden Rules of Short-Selling"; and their
-  "Short-Selling with the O'Neil Disciples" (Wiley, 2015). No rules from them are used.
+  to Make Money Selling Stocks Short" (Wiley; retail listings give December 2004 and January 2005); Gil Morales and
+  Chris Kacher, "Trade Like an O'Neil Disciple" (Wiley, 2010; the catalogue listings reached in the second check show
+  six chapters, the last "Riding the Bear Wave", and no section called "The Golden Rules of Short-Selling", which the
+  first check had reported from a listing, so that title is unconfirmed); and their "Short-Selling with the O'Neil
+  Disciples" (Wiley, 2015). No rules from them are used.
+- Not read either: Stan Weinstein, "Secrets for Profiting in Bull and Bear Markets" (1988). Added in the second check
+  as a lead, not a source: the owner's "Stage 3 topping action" and "stage 4 downtrend" (6.1) and the Index & ETF
+  section's "stage 3 ish failed base" (6.3) are Weinstein's stage vocabulary, and his short-selling chapter is the
+  natural outside reference for Version R (a short below a falling long-term average). Nothing from it is used.
 
 ### 3.11 Oliver Kell, Wedge Drop (TraderLion, under Kell's byline; read through archive copies)
 
 The live TraderLion pages refuse plain requests (HTTP 403); the Internet Archive copies read fine. The pages carry Kell's
-byline but are written in the third person ("Oliver Kell sees..."), so they are TraderLion's account of his method.
+byline (page metadata: author Oliver Kell, published 2024-07-11 and 2024-08-11) but are written in the third person
+(the Wedge Drop page: "Oliver Kell sees the Wedge Drop as a key signal that an uptrend is over."), so they are
+TraderLion's account of his method. The second check could not reach the archive (it refused the requests as bot
+traffic) or the live site, so the quotes below were re-checked against the first check's saved archive copies.
 - "Wedge Drop: How to Sell Short" (2024-07-11): "The Wedge Drop happens when the market trades back below the moving
   averages after a strong rally, known as an Exhaustion Extension." Short mechanics: "As the price breaks below moving
   averages with increased selling pressure, you can enter a short position with a stop just above the recent high."
@@ -531,6 +546,9 @@ gap"). Short day 2's close; stop over day 2's high; Bracco's target, the daily 9
   Above the 200-day only: +0.02R at the 9 EMA.
 - Conclusion: inconclusive. My daily proxy cannot see the opening range breakdown Bracco uses, and my burst filter is
   looser than his checklist.
+- Second check: the 306 events, 4.0%, 58%, +0.87, +0.49, 173 and 136, 0.00R and -0.40R, and +0.02R all re-derive from the
+  saved event file; the bootstrap ranges re-derive within a few hundredths (a different random seed gives -0.04 to
+  +1.83 and -0.55 to +1.50 for the two headline numbers).
 
 ---
 
@@ -577,7 +595,8 @@ The same hard conditions, plus:
   first close over the gap day's high.
 - `docs/study/TRADE_PLANS.md`: "no trade is defined in the app | the lesson shows the line a close must stay under: the
   gap day's high | the fall is measured, not traded". Its VRNS example (stop 25% over the close) checks out on the bars:
-  25.1%.
+  25.0% (high 40.41, close 32.34; the close sat 1% off the day's low of 32.02, so its "closed at the low" is near
+  enough).
 - `docs/study/courses/V/V.05.json` teaches: "Bear gap: the line is the gap day's high." and marks "Our app defines a full
   short trade for the Bear gap: entry, stop and targets." as False. A wrong-answer note says: "A gap down off the highs is
   the Bear gap lesson, and that one is measured, not traded."
@@ -1102,11 +1121,12 @@ than a run to new highs (my test: those drove almost all of the positive result)
 | 14 | "Should You Buy or Sell Stocks that Gap Down?", https://www.quantrocket.com/blog/buy-or-sell-down-gaps/ | QuantRocket, Brian Stanley | 2020-09-02 | Vendor backtest; intraday; optimistic (parameter search). |
 | 15 | "Learn Technical Trade Drivers: Bull Gaps and Bear Gaps", https://www.schaeffersresearch.com/education/expectational-analysis/technical-analysis/gaps | Schaeffer's Investment Research | not shown (footer 2021) | Established educator; level only. |
 | 16 | Chan, "Stock Price Reaction to News and No-News: Drift and Reversal after Headlines", abstract via Crossref (SSRN, doi 10.2139/ssrn.262452); JFE 70: 223-260, 2003, doi 10.1016/S0304-405X(03)00146-6 | Wesley S. Chan | 2001 (SSRN), 2003 | Peer-reviewed; abstract only. |
-| 17 | Savor, "Stock returns after major price shocks: The impact of information", abstract at https://repository.upenn.edu/fnce_papers/387; JFE 106(3): 635-659, 2012, doi 10.1016/j.jfineco.2012.06.011 | Pavel Savor | 2012 | Peer-reviewed; abstract only. |
+| 17 | Savor, "Stock returns after major price shocks: The impact of information", abstract at https://repository.upenn.edu/fnce_papers/387; JFE 106(3): 635-659, 2012, doi 10.1016/j.jfineco.2012.06.011 | Pavel Savor | 2012 | Peer-reviewed; abstract only. The UPenn page refused the second check (403); the quote was re-checked on the first check's saved copy, and the journal citation on Crossref. |
 | 18 | Bernard and Thomas, "Post-Earnings-Announcement Drift: Delayed Price Response or Risk Premium?", Journal of Accounting Research 27, 1989, doi 10.2307/2491062 | Crossref metadata | 1989 | Title only; not read. |
-| 19 | IBD, "This Trading Rule Helped Investors Avoid Big Declines In Netflix, Super Micro, Tesla" (inkl copy) | Investor's Business Daily (author name from search excerpts, not confirmed) | not confirmed | **Not read** (403 and a bot check, again in checking); described from search excerpts only; nothing quoted. The Netflix day was checked on our bars (3.10). |
-| 20 | TraderLion, "Wedge Drop: How to Sell Short" (https://web.archive.org/web/20250122064336/https://traderlion.com/technical-analysis/chart-patterns/wedge-drop-how-to-sell-short/) and "Downside Base n’ Break: A Guide to Short Selling" (https://web.archive.org/web/20250623153346/https://traderlion.com/technical-analysis/chart-patterns/downside-base-n-break-how-to-sell-short/) | TraderLion, Oliver Kell byline (third-person text) | 2024-07-11 and 2024-08-11 | Read in checking through Internet Archive copies (live pages refuse plain requests, 403). Quoted in 3.11. |
-| 21 | O'Neil with Morales, "How to Make Money Selling Stocks Short" (Wiley, listed December 2004); Morales and Kacher, "Trade Like an O'Neil Disciple" (Wiley, 2010; has a section "The Golden Rules of Short-Selling") and "Short-Selling with the O'Neil Disciples" (Wiley, 2015) | Wiley / O'Reilly | 2004, 2010, 2015 | **Not read** (O'Reilly 403; catalogue listings only). |
+| 19 | IBD, "This Trading Rule Helped Investors Avoid Big Declines In Netflix, Super Micro, Tesla" (inkl copy) | Investor's Business Daily (inkl's listing names Scott Lehtonen; not confirmed on investors.com) | not confirmed | **Not read** (403 and a bot check, again in both checks); described from search excerpts only; nothing quoted. The Netflix day was checked on our bars (3.10). |
+| 20 | TraderLion, "Wedge Drop: How to Sell Short" (https://web.archive.org/web/20250122064336/https://traderlion.com/technical-analysis/chart-patterns/wedge-drop-how-to-sell-short/) and "Downside Base n’ Break: A Guide to Short Selling" (https://web.archive.org/web/20250623153346/https://traderlion.com/technical-analysis/chart-patterns/downside-base-n-break-how-to-sell-short/) | TraderLion, Oliver Kell byline (third-person text) | 2024-07-11 and 2024-08-11 | Read in checking through Internet Archive copies (live pages refuse plain requests, 403). Quoted in 3.11. The second check could reach neither the archive nor the live site; it re-checked the quotes, byline and dates on the first check's saved archive copies (stamps 20250122064336 and 20250623153346). |
+| 21 | O'Neil with Morales, "How to Make Money Selling Stocks Short" (Wiley; listings give December 2004 and January 2005); Morales and Kacher, "Trade Like an O'Neil Disciple" (Wiley, 2010; a "Golden Rules of Short-Selling" section reported by the first check is unconfirmed, see 3.10) and "Short-Selling with the O'Neil Disciples" (Wiley, 2015) | Wiley / O'Reilly | 2004-05, 2010, 2015 | **Not read** (O'Reilly 403; catalogue listings only). |
+| 27 | Stan Weinstein, "Secrets for Profiting in Bull and Bear Markets" (1988) | Weinstein | 1988 | **Not read.** A lead added in the second check (3.10): the source of the "Stage 3 / Stage 4" vocabulary UCT's writers use when they talk about shorts. Nothing from it is used. |
 | 22 | UCT Substack, all 103 posts listed in https://unchartedterritoryy.substack.com/sitemap.xml (read through the public post API); quoted posts linked in section 6 | Uncharted Territory: the owner (TSDR), Bracco, Manrav, Viotti, unsigned sections | 2025-06-01 to 2026-11-08 | House source. Quotes checked by script, then re-checked in checking against fresh API copies of each linked post, including which writer's section each quote sits in. One subscriber-only post (sunday-scans-bf1) read as preview only. Post dates are the API's publish dates (UTC). |
 | 23 | Repo files: `api/services/study_hard.py`, `scripts/study/find_bear_gap_examples.py`, `docs/study/bank/spot.bear_gaps.json`, `app/src/pages/study/bearGapOverlay.js`, `app/src/pages/study/studyPlainRules.js`, `app/src/pages/study/challenges/hardMode.js`, `docs/study/TRADE_PLANS.md`, `docs/study/courses/V/V.05.json`, `app/src/pages/modelbook/setupCatalog.js`, `app/src/constants/setupGroups.js`, `app/src/pages/journal-2-0/lib/setupTagMap.js`, `docs/wisdom/vocabulary/setup-vocabulary-v1.json`, `api/services/pattern_engine/sr_levels.py`, `api/services/pattern_engine/detectors/uct/parabolic_short.py`, `docs/study/levels/dossiers/bear_gap.md`, `docs/study/levels/external_research.md`, `docs/study/levels/evidence.md`, `docs/study/levels/evidence_atlas.md`, `docs/study/levels/measure_rules.py`, `docs/study/bank_v2/ATLAS.md`, `scripts/study/bank_v2/scan_history.py`, `docs/study/UNITS-method.md`, `docs/study/RESUME-PROMPT.md`, `docs/study/audits/2026-11-08/retire_ruled_cuts.json`, `docs/study/sizing_rule.md`, `docs/study/audits/2026-10-24/owner_verdicts.jsonl` | this repo, branch feat/study-content | as of 2026-11-09 | Read directly. |
 | 24 | Price data: the sandbox `bars.db` (opened read-only) and `docs/study/setups/earnings_dates_cache.json` | the app's own data | bars to 2026-11-06 | Split-adjusted daily bars; survivorship bias (current names only). |
@@ -1188,3 +1208,127 @@ figures (9.2%, 43%) recomputed independently. All of those matched. What changed
 - The 4.3 and 4.4 trade results were re-derived from the writer's saved event files, not from a fresh run of the
   trade simulator; the event rule and the management code were read and match their descriptions.
 
+### Second cold check (2026-11-09, later the same day)
+
+**What was checked.** All 289 quoted strings in the file were matched word for word against fresh copies: the 33 linked
+Substack posts (and all 103 for the term count) through the public post API, with each UCT quote placed in the section of
+the writer it is credited to and its post date read from the API (all 59 placed quotes sit under the right writer's
+heading and carry the right date; "Trade Updates" opens "Bracco here", so the MSTR line is his); fresh downloads of the
+Fleckenstein, Connors, Stockbee, Qullamaggie, ChartSchool, QuantRocket and Schaeffer's pages (authors, dates, example
+dates and numbers confirmed: INTC Sept. 22 down 22% on "seven times" average volume, AAPL Sept. 29 down 52%, PCLN Sept.
+27; QuantRocket "Wed Sep 02 2020 by Brian Stanley"); the six Bulkowski pages through the fetch tool (every number and
+quote in 3.4 and 4.1 returned as written); Crossref records for the five papers (journals, volumes, pages, years, and the
+Chan and Skinner-Sloan abstracts); the owner log (lines 212, 216, 288-297); and the repo files named in row 23 against
+the code (`bear_gap_fires` thresholds and the first-crack loop, the finder's 400-bar and 260-session floors, its
+120-day liquidity window, its score terms and the 8 cut-off, `_gap_cands`'s 1-ATR window and prior-low edge,
+`replay()`'s fill-bar flaw, the hard-mode culmination rule, the four "both" Model Book cards, the 39 drafts all
+`review_status: draft`, 34 earnings days, 38 above both averages, 37 `gap_held`). Every bar fact in 1, 3.10, 5.3, 5.5,
+5.6, 6.7 and 8.11 was recomputed from the sandbox `bars.db` (all agree except the two fixed below), and the 4.3 counts
+and medians (5,664 and 1,733 events, 19 of 21 bank drafts found, 66% earnings, 61% above the 200-day, 90% above it the
+day before, medians -8.1%, -10.1%, 4.6x, 32%) and the 4.4 slices were re-derived from the saved event files.
+
+**Fixed**
+- 3.10 and row 19: Netflix 2023-07-20 was called "its largest one-day point drop since October 2022"; on our bars it is
+  the largest one-day percentage drop since 2022-12-15 (which fell 8.6%), and by split-adjusted points the largest since
+  2022-04-20. The IBD writer's name as shown on inkl is now given, still marked unconfirmed.
+- 1 and 5.3: the VRNS stop over the gap day's high is 25.0% of the close (40.41 over 32.34), not 25.1%; the close sat 1%
+  off the low.
+- 3.10 and row 21: the "Golden Rules of Short-Selling" section attributed to the 2010 Morales and Kacher book could not be
+  found in any catalogue listing reached (six chapters, the last "Riding the Bear Wave"); marked unconfirmed. The O'Neil
+  and Morales book's date is given as the listings give it (December 2004 and January 2005).
+- 3.11 and row 20: the TraderLion byline and dates now come from the archive copies' page metadata, and the third-person
+  example is quoted exactly; the second check's inability to refresh those copies (archive and live site both refused)
+  is stated.
+- Row 17: the UPenn abstract page refused the second check; the Savor quote stands on the saved copy and Crossref.
+
+**Added**
+- 3.3: ChartSchool's one volume rule ("at least twice the average volume for the last five days", Modified Trading
+  Method), which the comparison table had summarised as "2x for one variant".
+- 3.10 and row 27: Stan Weinstein's 1988 book as an unread lead for Version R, because UCT's own short notes use his
+  stage vocabulary.
+- 4.4: the re-derived bootstrap ranges.
+
+**Checked and left as written**
+- Every proposed rule in section 8 is stated in measurable terms (a session count, a percent, an ATR multiple, a close
+  relative to a line), and every [source consensus] tag names at least two agreeing sources that were re-read (8.7's
+  rests on ChartSchool and Schaeffer's, which does say gaps may resist being "filled"); the [one source] and
+  [originator] tags are honest as redefined.
+- The two "gap" definitions in 5.6 (2) and 8.1 (an overnight gap from the prior close versus a full daily window) match
+  the bars for SNDK: the 2026-06-26 gap closed back over the prior day's low on 2026-06-30 but never over the prior
+  close by 2026-07-10, which is why the owner could still call it open.
+- Nothing was removed in the second check.
+
+
+## 12. Examples (from our data)
+
+**The scan's rule (Version R of section 8, the bear gap retest short, plus the house rules).** Gap day: the stock's
+250-session closing high (the top) was set within the prior 80 sessions and the close before the gap was within 15% of
+it; the open was at least min(1 ATR14, 4%) under the prior close and the day's high stayed under the prior close (the
+gap was not filled that day); no earlier gap of this kind since the top (first crack); volume at least 1.5x the 50-day
+average; the day closed down at least 5% and in the lower half of its range; $10+ and $20M+ a day (B23). Gap zone: the
+gap day's high up to the prior close (the prior low marked too when it is a full window). Rejection day, within 25
+sessions: the high reached the zone, or the declining 20-day EMA or 50-day SMA, and the close was back under that level
+and in the lower half of the range; no close above the zone's top edge since the gap (a fill ends the setup); the close
+under the 200-day SMA (B26, hard); the bounce days averaged less volume than the gap day. Trigger, within 5 sessions:
+price traded two cents under the rejection day's low, market order (E57; the open if it gapped past the trigger), no
+chase more than 4% past the trigger (C28) nor more than 10% under the 10-day average (C29); stop two cents over the
+rejection day's high, up to 5% of the entry (the median stop was 2.7%; section 8.5 allows a wider one at the lower
+grade). Outcome: fixed stop, first of stop / 3R / 5R over the next 60 sessions, no trims and no trail. The scan covered
+all 2,630 names that ever met the liquidity rule, 1984-2026, in 159 seconds; scripts in
+`_study-resume/scratchpad/setups/27-bear-gap/` (scratch, not in the repo).
+
+**Base rate.** 359 hits (first trigger 1997-02-27, last 2026-10-19): **25.3% reached 3R** and **14.2% reached 5R**
+before the stop; 311 were stopped, 6 ran out of the 60-session window under 3R. Caveats: a fixed stop with no trims, no
+breakeven move and no trail; a survivorship-tilted universe (delisted names are thin in the sandbox); the earnings rule
+(B22 mirror, no new short within 3 days of a report), the RS filter (C31 mirror), the borrow rule (D48) and the market
+reading (8.9) were not applied by the scan. Slices worth his eye (small samples, not conclusions): the top set 15+
+sessions before the gap (a range, his MPWR shape) reached 3R 69/256 = 27% against 22/103 = 21% when the gap came
+straight off the top (the "earnings breakdown" shape he cut); a stop of 3% or less 61/216 = 28% against 30/143 = 21%
+wider; a falling 200-day 29/109 = 27% against 62/250 = 25% still rising; rejection at the 20-day EMA 61/244 = 25%, at
+the gap zone itself 26/106 = 25%, at the 50-day SMA 4/9. Earnings gaps (236 hits, 62 reached 3R = 26%) and news gaps
+(91 hits, 26 = 29%) did about the same; 32 gaps before 2005 or on names without report dates could not be classed.
+Against section 4's test (shorting the gap day's close: no edge), waiting for the bounce and the rejection is where the
+structure of a tradable short appears, though a 25% hit rate at 3R needs the trims and the trail to pay.
+
+**The ten examples** (one per ticker, ten different years; every chart looked at; the gap classed by the report dates in
+`earnings.db`, "news" = no report in the reaction window). Short = the entry (the rejection day's low less two cents,
+or the open when it gapped through); best R = the best price before the stop, within 60 sessions. None of the ten was
+triggered within 3 days of a report.
+
+| # | Stock | Gap (kind), short | Structure | Short | Stop | Best R | Why it is textbook |
+|---|---|---|---|---|---|---|---|
+| 1 | VRSN | 2008-07-07 (news), 2008-07-14 | top 2008-06-04, 22 sessions before, prior close 13% off; open -3.4%, day -9.5%, 6.1x vol, full window; zone 35.52-36.74; rejected at the zone's bottom edge on 2008-07-11, +4 sessions | 35.11 | 36.24 (3.2%) | 13.1R (5R) | the fastest form: a four-day pop back to the gap, a red rejection candle, then eight weeks down; 200-day still rising, price under it |
+| 2 | LDOS | 2010-03-31 (earnings), 2010-04-28 | top 2010-02-26, 23 sessions before, 3.7% off; open -5.9%, day -6.7%, 4.9x, full window; zone 44.69-46.86; rejected in the zone on 2010-04-27, +18 sessions | 44.40 | 44.98 (1.3%) | 6.9R (5R) | a range near the highs, the gap out of it, a 20-day grind back into the zone under a flat 200-day, and a 1.3% stop |
+| 3 | OI | 2011-06-15 (news), 2011-07-08 | top 2011-05-12, 23 sessions before, 10.5% off; open -7.9%, day -13.5%, 6.7x, full window; zone 27.45-29.54; rejected at the 20-day EMA (26.82) on 2011-07-07, +15 sessions | 26.39 | 27.09 (2.7%) | 17.7R (5R) | the bounce stalled under the declining 20-day and the zone, the trigger came the next day, and the stock lost a third in six weeks |
+| 4 | GRFS | 2014-07-31 (earnings), 2014-09-05 | top 2014-06-09, 37 sessions before, 9.1% off; open -9.1%, day -13.1%, 5.0x, full window; zone 19.18-21.11; rejected at the 50-day SMA (19.93) on 2014-09-04, +24 sessions | 19.50 | 20.04 (2.8%) | 9.0R (5R) | the 50-day version of the owner's "pop back up and rejection coinciding with the 50SMA or 20EMA": the bounce reached the zone and the 50-day together, a hair under the 200-day |
+| 5 | HWM | 2018-02-05 (earnings), 2018-03-14 | top 2018-01-12, 15 sessions before, 5.6% off; open -5.9%, day -8.9%, 3.3x, full window; zone 21.25-22.32; rejected at the 20-day EMA (19.28) on 2018-03-12, +24 sessions | 18.94 | 19.38 (2.3%) | 14.0R (5R) | a five-week shelf under the gap with the 20-day and 200-day both overhead, then a second gap down and a 25% fall |
+| 6 | DLTR | 2019-11-26 (earnings), 2020-01-03 | top 2019-10-22, 25 sessions before, 5.1% off; open -14.8%, day -15.2%, 15.1x, full window; zone 98.98-112.39; rejected at the 20-day EMA (94.25) on 2020-01-02, +24 sessions | 93.01 | 94.71 (1.8%) | 19.3R (5R) | the cleanest chart: a 15% gap on 15x volume, a flat five-week bounce to the 20-day under the 200-day, a 1.8% stop; the tail of the move was the 2020 market's |
+| 7 | MDT | 2021-10-18 (news), 2021-10-28 | top 2021-09-08, 28 sessions before, 5.5% off; open -3.7%, day -5.5%, 2.6x, full window; zone 123.26-127.75; rejected at the zone's bottom edge on 2021-10-27, +7 sessions | 122.03 | 124.71 (2.2%) | 8.8R (5R) | a small gap in a large-cap: the bounce tested the zone's bottom edge on quiet volume and failed, with the 200-day about 1% overhead |
+| 8 | EEFT | 2023-07-26 (earnings), 2023-08-31 | top 2023-05-22, 44 sessions before, 3.3% off; open -7.6%, day -20.0%, 12.3x, full window; zone 108.00-116.88; rejected at the 20-day EMA (88.04) on 2023-08-30, +25 sessions | 87.63 | 89.13 (1.7%) | 9.2R (5R) | a nine-week range at the highs, a 20% gap day, a slow 25-session bounce on light volume to the 20-day far under the 200-day |
+| 9 | ACGL | 2024-10-31 (earnings), 2024-12-03 | top 2024-10-04, 19 sessions before, 8.5% off; open -2.9%, day -6.3%, 2.2x, full window; zone 103.21-105.14; rejected at the 20-day EMA (100.41) on 2024-12-02, +21 sessions | 99.24 | 100.95 (1.7%) | 6.9R (5R) | the smallest gap of the ten (just over 1 ATR); the lesson is the rejection right under the 200-day and the 1.7% stop; the stock rolled 10% lower |
+| 10 | LPX | 2025-02-19 (earnings), 2025-03-27 | top 2024-12-06, 48 sessions before, 6.1% off; open -6.2%, day -10.1%, 3.9x, full window; zone 108.41-112.94; rejected at the 20-day EMA (95.52) on 2025-03-26, +25 sessions | 93.81 | 96.42 (2.8%) | 5.7R (5R) | a double top, the gap under the 200-day, the 25-session bounce capped by the 20-day; the move ran to 5R in two weeks and then reversed, the case for the trims |
+
+Charts: `_study-resume/scratchpad/setups/27-bear-gap/final/01_VRSN_2008-07-14.png` to `10_LPX_2025-03-27.png`, the
+sheets `sheet_1-4.png`, `sheet_5-7.png`, `sheet_8-10.png`, and `examples.json` with every number. Each chart draws the
+gap zone as a box from the gap day to the rejection day, and the short, the stop, 3R and 5R as lines.
+
+**Notable failures (in words).**
+
+- **DIS, 2015-08-05 gap (earnings), shorted 2015-09-10.** The gap came one session off the top on 10x volume, the kind
+  the owner cut as "just an earnings breakdown"; the bounce to the 20-day was rejected, but the trigger day was the low
+  of the move and the stock reversed up through the stop at once (best 0.0R). An earnings collapse straight off a top is
+  a different animal from a gap out of a range, and the first rejection after it is often a shakeout.
+- **BMRN, 2020-08-19 gap (news, a 35% day on 27x volume), shorted 2020-09-24.** The gap was textbook, the 20-day
+  rejection came after 24 sessions, the trade reached 1.3R, then the stock rallied through the stop. After a drop that
+  large the 20-day sits far under the gap zone and the short is into a stock already 40% off its high: the dossier's
+  warning about shorting late (8.10, item 3) and about big drops bouncing (Bulkowski's dead-cat sample).
+- **CIEN, 2017-08-31 gap (earnings), shorted 2017-09-29, and CHKP, 2017-11-01 gap (earnings), shorted 2017-12-07.**
+  Both rejected at the 20-day after 19 to 23 sessions with tight stops (1.3% and 2.4%), both stopped at once (best 0.0R)
+  while the general market was in a strong uptrend. The stock under its own 200-day satisfies B26, but section 8.9's
+  market condition (a Red or Orange reading) was not met; the scan did not check the market, and the course should
+  probably say that a bear gap short needs the market's help.
+
+Limits: the earnings database is complete only from about 2005, so VRSN (2008) and OI (2011) are classed as news gaps
+on the absence of a report in the reaction window; any pre-2005 hit would be a guess and none was picked. None of the
+ten is an ETF; none shows a split or a reused ticker in the bars. The ten are the scan's winners chosen for clarity and
+spread, not a random sample: the base rate above is the honest number.

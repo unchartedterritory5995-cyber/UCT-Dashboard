@@ -1077,3 +1077,87 @@ tags that claimed more agreement than the sources give.
    what the flags page does say.
 6. "the most aggressive of all" (the `bull_flag` target): removed. "This is the strictest and most textbook-faithful
    rule in the app" is kept only as a labelled judgment.
+
+---
+
+## 13. Examples (from our data)
+
+(Numbered 13 because section 12 is the cold check. Scan, charts and numbers: 2026-11-09 night, from the sandbox's
+daily bars; scripts `scan2.py`, `pick2.py`, `stats2.py` in the setups scratchpad, folder `02-bull-flag/final/`.)
+
+**The scan's rule in one paragraph.** On every one of the 2,630 names that ever met the liquidity rule (B23: $10 or
+more, $20 million or more a day, measured as the 50-day average dollar volume on the day before entry), a hit is the
+first session that trades above the prior day's high (trigger T2, 8.2) after a flag that holds every rule of 8.1 on
+every one of its sessions: close above the 200-day SMA and above a 50-day SMA that is higher than 10 sessions earlier
+and above the 200-day (rule 1, B26); a pole top that is the highest high of the pattern and of the 20 sessions before
+it, at least 20% above the lowest low of those 20 sessions (rule 3); a flag of 3 to 20 sessions after the pole top
+(rule 4; 3 to 15 is the rule, 16 to 20 kept as B-); a flag low no more than 15% under the pole top and giving back no
+more than half the pole (rule 5); a least-squares slope of the flag's highs at or below zero (rule 6); a mean daily
+range and a mean volume in the flag below the pole's (rules 7, 8); no red flag session on 1.5 times its 50-day
+average volume or more (rule 8); a rising 21-day EMA with at most one flag close under it, reclaimed the next
+session (rule 9); entry no more than 10% above the 10-day SMA (rule 11, C29). The entry is a market order at the
+prior day's high plus one cent, or at the open when the stock gaps over it, and no fill more than 4% above the
+trigger (E57, C28). The stop is 5 cents under the lower of the trigger day's and the prior day's lows; if that is more
+than 3% away, 5 cents under the trigger day's low; if still more than 5%, no trade (A13 and 8.3). B22 (no entry in
+the 3 sessions before a report) is applied to the examples. Not coded: RS 80+ and group rank (C31), which flag of
+the run it is, the market colour, and the intraday T1 reclaim, which daily bars cannot see.
+
+**Base rate (window 1996-02 to 2026-11; the first hit is in 1996 because the dollar-volume gate needs a 50-day
+history and a $20M tape).** All 2,630 names were scanned (175 seconds): 11,707 hits in all; 11,190 on stocks with a
+3-to-15-session flag. Of those, **30.5% reached 3R and 21.4% reached 5R** before the stop within 60 sessions, with a
+FIXED stop at the entry-day low and no trims, no breakeven move, no trail. 89% were eventually stopped inside the
+60-session window, because with a fixed 1-to-3% stop and no management almost every trade comes back to it sooner
+or later; the 3R and 5R figures are the ones that matter for the house plan (a third off at 3R, a third at 5R, B19).
+Splits from `final/buckets.txt`: a stop within 3% (A13) 32.5% / 22.9% against 20.4% / 13.5% for a 3-to-5% stop; the
+trigger day also clearing the flag's high (T3 on the same day) 41.7% / 30.9% against 26.1% / 17.6% when it did not;
+trigger-day volume of 1.5 times average or more 47.3% / 36.9% (only 582 hits) against 29.6% / 20.5%; a pole of 30%
+or more 31.7% / 22.4% against 29.8% / 20.8% for 20 to 30%; the 16-to-20-session band 29.2% / 18.3% (120 hits). The
+flag being 10 to 15% deep did slightly better (36.6% / 26.5%, 1,330 hits) than 10% or shallower (29.7% / 20.7%),
+which cuts against the A+ cue in 8.1 rule 5; one scan is not enough to drop the cue, but the owner should know.
+Caveats: a daily-bar scan with no RS, group or market filter; survivorship (the database leans to names that still
+trade); the fixed stop. The all-years base rate is close to the 2015-and-later one (29.6% / 20.5%).
+
+**The 10 examples** (one per ticker; `final/01_..10_*.png`, phone sheets `final/sheet_1-4.png`, `sheet_5-7.png`,
+`sheet_8-10.png`; numbers in `final/examples.json`). "Pole" is pole low to pole top; "flag" is sessions after the
+pole top; depth is the flag low under the pole top; best R is the highest high within 60 sessions over the fixed
+stop. Dates are the entry day.
+
+| # | Ticker | Entry | Pole | Flag | Depth (of pole) | Flag vol / pole vol | Buy | Stop (%) | Best R | Why it is textbook |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | UIS | 1997-09-09 | +34% in 20 d to 118.12 (1997-08-27) | 7 d, 110.62 to 116.88 | 6.3% (25%) | 0.51x | 112.51 | 110.58 (1.7%) | 27.2 | A seven-day drift on half the pole's volume riding the 10-day; the trigger day cleared the flag's high on 2.3x volume and ran for six weeks. |
+| 2 | QCOM | 1999-06-29 | +60% in 18 d to 17.19 (1999-06-22) | 4 d, 15.62 to 16.88 | 9.1% (24%) | 0.72x | 16.89 | 16.54 (2.0%) | 22.8 | The classic 1999 leader: steep pole, four quiet days to the 10-day EMA, a 2% stop, 3R the next session. |
+| 3 | ISRG | 2005-11-10 | +50% in 15 d to 10.65 (2005-11-03) | 4 d, 10.06 to 10.50 | 5.6% (17%) | 0.38x | 10.63 | 10.46 (1.7%) | 28.7 | An earnings-gap pole (report inside the pole), four sessions on a third of the pole's volume, a gap-open entry still inside the 4% chase limit; never looked back. |
+| 4 | BB | 2007-08-29 | +37% in 4 d to 84.10 (2007-08-22) | 4 d, 77.04 to 82.12 | 8.4% (31%) | 0.28x | 80.41 | 78.66 (2.2%) | 32.3 | A near-vertical four-day pole, then four days on a quarter of the volume; the prior-day-high buy came before the flag's high broke (T2 ahead of T3). |
+| 5 | NUS | 2013-07-18 | +39% in 12 d to 79.96 (2013-07-11) | 4 d, 76.39 to 79.90 | 4.5% (16%) | 0.75x | 78.01 | 76.81 (1.5%) | 18.3 | A tight four-day shelf 4.5% under the top; trigger day on 3.7x volume cleared the flag high; 3R the next day. Report inside the pole. |
+| 6 | RARE | 2015-05-27 | +53% in 13 d to 85.93 (2015-05-19) | 4 d, 80.25 to 85.79 | 6.6% (19%) | 0.59x | 83.26 | 81.18 (2.5%) | 25.9 | A staircase leader: pole, four-day rest at the 10-day EMA, prior-day-high buy, stop 2.5%, then a second leg of the same size. Report inside the pole. |
+| 7 | AMD | 2018-08-21 | +29% in 14 d to 20.28 (2018-08-14) | 4 d, 18.73 to 20.10 | 7.6% (34%) | 0.75x | 20.09 | 19.81 (1.4%) | 50.2 | The owner's kind of flag: a 1.4% stop under a four-day pause after an earnings-gap pole, then 20 to 34 in five weeks (50R on the fixed stop). |
+| 8 | SHOP | 2020-05-04 | +99% in 12 d to 66.57 (2020-04-21) | 8 d, 59.50 to 66.26 | 10.6% (21%) | 0.85x | 62.80 | 61.65 (1.8%) | 41.7 | A doubled pole off the 2020 low, an eight-day flag that held the 21-day EMA on every close, buy under the flag's high with a 1.8% stop. |
+| 9 | PANW | 2020-12-03 | +36% in 18 d to 49.75 (2020-11-25) | 4 d, 48.30 to 49.63 | 2.9% (11%) | 0.53x | 48.98 | 48.29 (1.4%) | 26.4 | The tightest of the ten: four sessions in a 2.9% range on half the pole's volume; the A+ cues (a third or less of the pole, 10% or less) both met. Report inside the pole. |
+| 10 | TSEM | 2025-09-17 | +49% in 19 d to 67.75 (2025-09-10) | 4 d, 64.59 to 67.67 | 4.7% (14%) | 0.81x | 66.62 | 64.78 (2.8%) | 34.2 | A recent one: a four-day flag on the 10-day EMA, trigger day cleared the flag high, nine sessions to 3R and then a run to 100+. |
+
+Two examples are from 2020 (SHOP, PANW): both were kept because they are the two cleanest shapes of the whole
+candidate list; every other year is distinct (1997, 1999, 2005, 2007, 2013, 2015, 2018, 2025). Five of the ten have
+a report inside the pole (ISRG, NUS, RARE, AMD, PANW), which fits Bulkowski's earnings-flag observation and the
+owner's NTRA: the best poles are often earnings gaps. UIS 1997 and QCOM 1999 are before the earnings file's
+coverage (about 2005 on), so their poles cannot be classed as earnings or news. None of the ten was entered in the 3
+sessions before a report (B22) and none of the trigger days is itself an earnings reaction day. RS 80+ was not
+measured; every one of the ten was at or near a 6-month high at the pole top.
+
+**Rejected while looking at the charts.** MGA 2014-02-25 ranked in the top 20 on the numbers (a "+171% pole") and is a
+data hole: the bars jump from 2010-05 straight to 2014-02, so the pole is a four-year gap, not a move. BIDU
+2007-10-02 (0.6% stop) and TEAM 2026-08-27 (0.8% stop, a 122% pole that dwarfs the flag) were valid but unreadable
+as teaching charts; AAPL 2026-07-24 and NVDA 2021-06-11 had a jagged run into the pole; VSAT 2025-06-25 is a valid
+116R winner whose R-lines sit on top of each other at $13. No ETFs were in the final set.
+
+**Notable failures (fixed stop, same rule; charts in `charts_fail2/`).**
+- QCOM 2019-05-10: a textbook-looking five-day flag (pole +62% in 14 days on an April 2019 gap, flag 8.9% deep on
+  0.44x the pole's volume, stop 1.8%). The trigger day was the high; the stock reversed and fell about 25% over the
+  next four weeks. The pole was a one-day gap rather than a trend, and the flag sat in the pole's third week: the
+  lessons are 8.5 (a parabolic pole is not a leader's pole) and the time stop.
+- STZ 2013-03-04: a four-day flag 3.1% deep on a quarter of the pole's volume, the kind of tightness the rules
+  reward. It broke out, failed within days (best 0.85R), hit the 1.8% stop, and then ran to 50 without us. A clean
+  shape still loses about seven times in ten before 3R under a fixed stop; the house answer is the small stop and
+  the next trigger, not a wider stop.
+- LLY 2024-08-30: a five-day flag at all-time highs after a +30% pole, stop 2.25%, best 0.56R. The breakout failed
+  the same week and the stock drifted under the 50-day for two months. A later flag in a long run (the "third or
+  fourth flag" of 8.8) in a stock already extended on the weekly chart.

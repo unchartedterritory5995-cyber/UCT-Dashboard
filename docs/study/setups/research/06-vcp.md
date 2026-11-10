@@ -950,6 +950,82 @@ checking: the Internet Archive holds scanned copies of both Minervini books, but
 search-inside refused an anonymous client, so the 2017 quotes stay unverified; the contest's 2022 press release on
 Business Wire refused the client (HTTP 403), so the contest's own archived standings page was used instead.
 
+## 12. Examples (from our data)
+
+Scan of 2026-11-09 over the sandbox's daily bars (2,630 names that ever met the house liquidity rule, 2000-01-03 to
+2026-11-04), scripts in `scratchpad/setups/06-vcp/` (`vcp_rule.py`, `chart.py`). **The rule, in one paragraph:** the
+base starts at a left-side high (a backward running maximum of the highs over the last 130 sessions, at least 15
+sessions before the buy); contraction T1 runs from that high to the lowest low after it, T2 from the highest high after
+T1's low to the lowest low after that, and so on; a T counts only if at least 2% deep and 3 bars long; the pivot is the
+final T's high and no bar after the final T's low may have traded above it (the buy day is the first through). On the
+close before the buy: Minervini's Trend Template (8.1 line 1), at least 30% above the 52-week low, prior advance of at
+least 30% (base high against the lowest low of the 126 sessions before it), 2 to 6 Ts, each T at most 0.75 times the
+previous, first T 10% to 40%, final T 10% or less, final T's low above the base low, final-T average volume below the
+first T's and below the 50-day average with one day at or under half the 50-day average, no down day in the right half
+of the base on 1.5 times average volume or more, close at least $10 and 50-day dollar volume at least $20 million (B23),
+close no more than 10% above the 10-day average (C29), and a 126-day return above SPY's (the sandbox has no RS ratings,
+so this stands in for C31). Buy: a market order the moment price trades through the pivot (pivot + $0.01, or the open
+if the stock opens above the pivot; E57), skipped if that is more than 4% above the pivot (C28). Stop: 5 cents under the
+lower of the buy day's low and the prior day's low, within 6% of the entry (if wider, the buy day's low alone; A13 says
+usually within about 3%, and the median here was 3.4%); no trade if the buy day's low is under the final T's low. One
+hit per name per 30 sessions. Outcome: the first of stop, 3R or 5R over the next 80 sessions.
+
+**Base rate (fixed stop, no trims, no breakeven move, no trail):** 2,989 hits; **29.0% reached 3R** and **18.5%
+reached 5R** before the stop. 84.6% touched the stop at some point in the 80 sessions, because the stop in this test
+never moves (a live trade would have taken thirds at 3R and 5R and moved the stop to breakeven, B19/E51). Breakdowns
+worth teaching: hits with 3 contractions did better than hits with 2 (35.5% to 3R against 28.1%; the twelve 4-T hits,
+50%, are too few to lean on); breakout-day volume of 1.4 times average or more did better (39.7% to 3R against 27.5%
+below that, which supports 8.2 line 4 as a grade factor); and a close above the pivot on the buy day did much better
+than a close back inside the base (36.9% against 18.9% to 3R; the "squat" of 8.4 line 5). The ratio gate of 0.75 is
+strict: 2,649 of the 2,989 hits had exactly two contractions. These figures are from one scanner's reading of the
+rules and are not a trading record.
+
+**The 10 examples** (sheets and PNGs in `scratchpad/setups/06-vcp/final/`; each chart was looked at). "Ts" lists the
+contractions deepest to shallowest; "buy" is the pivot (the fill was one cent higher unless noted); R uses that fill.
+
+| # | Ticker | Buy day | Ts (depth) | Base | Prior run | Buy | Stop | Vol | Best R | Why it is textbook |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | ON | 2017-08-30 | 19.4%, 7.8%, 5.8%, 3.5% | 11.4 wk | +50% | 16.47 | 15.85 (3.8%) | 1.7x | 9.0 (3R in 20 d) | Four contractions each about half the last, under a rising 50-day; the model footprint. |
+| 2 | PHM | 2003-10-01 | 19.5%, 8.7%, 5.0% | 14.8 wk | +60% | 17.37 | 16.59 (4.5%) | 2.0x | 9.3 (3R in 16 d) | Clean three-step tightening over 15 weeks, volume dries into the pivot, 2x volume through it. |
+| 3 | RNG | 2020-01-02 | 16.6%, 11.0%, 3.5% | 10.8 wk | +75% | 169.99 | 165.39 (2.7%) | 2.4x | 17.8 (3R in 5 d) | Final T under 4% riding the 10-day; final-T volume 0.46x the average; a 2.4x breakout; 5R in weeks. |
+| 4 | JOYY | 2014-01-02 | 18.4%, 10.7%, 3.7% | 6.0 wk | +146% | 51.22 | 49.27 (3.8%) | 1.9x | 20.3 (3R in 1 d) | Short base after a big run; the pivot sits below the left-side high (56.75), exactly as Minervini allows. |
+| 5 | REGN | 2012-08-23 | 26.0%, 6.8%, 4.2% | 16.6 wk | +193% | 139.56 | 133.96 (4.0%) | 1.6x | 8.8 (3R in 27 d) | A deep first leg then two tight ones; shows a leader's long base after a near-200% run. |
+| 6 | MOG-A | 2026-05-26 | 20.2%, 11.7%, 7.1% | 11.8 wk | +86% | 322.21 | 311.97 (4.0%) | 1.9x | 9.5 (3R in 4 d) | Recent; fill at the open (325.06) because it gapped over the pivot; shows the open-above-pivot fill. |
+| 7 | GXO | 2023-05-10 | 22.3%, 9.3%, 5.2% | 13.2 wk | +75% | 54.13 | 52.14 (3.7%) | 1.9x | 6.7 (3R in 9 d) | First base after a Stage 1 turn: the 200-day was still flattening at the base's start, rising by the buy. |
+| 8 | NKE | 2018-05-15 | 10.0%, 4.8%, 3.5% | 10.8 wk | +40% | 69.42 | 68.06 (2.0%) | 0.7x | 10.4 (3R in 13 d) | A shallow big-cap VCP: 10% first leg, 2% stop. Breakout volume was light (0.7x), so a B grade on volume that still worked. |
+| 9 | TRV | 2000-07-25 | 14.3%, 6.4%, 3.4% | 6.6 wk | +85% | 38.25 | 36.89 (3.6%) | 2.0x | 11.0 (3R in 1 d) | Oldest example; a 2x-volume breakout day that closed well above the pivot and never looked back. |
+| 10 | SHOP | 2021-06-14 | 21.2%, 7.7%, 4.3% | 6.4 wk | +49% | 125.22 | 122.75 (2.0%) | 1.1x | 16.0 (3R in 1 d) | Pivot well below the February high: a VCP inside a larger correction; the stop was only 2% because the buy day's range was tight. |
+
+All ten reached 5R. None of the ten pivots was above the base's left-side high (the scanner's `new_high` flag was false
+for all ten): in each, the final contraction's high, not the base's high, was the buy point.
+
+**Notable failures (same rules, stopped out):**
+
+- **ALGN, 2007-10-17.** Two contractions (27.5%, 7.1%), 59-session base, 2.3x volume through the 28.64 pivot, but the
+  day closed at 28.14, back inside the base (the squat). The next day's low, 27.64, took out the 27.70 stop. Best 0R. The
+  lesson is 8.4 line 5: a breakout that closes back in the base is the warning sign with the worst numbers in this scan.
+- **CMG, 2020-12-16.** Contractions 14.2% and 4.6%, 2.0x volume, closed above the pivot, so it looked like an A grade;
+  it reached only 0.87R and fell to the stop 11 sessions later (2021-01-04). A failure with nothing wrong in the setup:
+  the reason the stop, not an opinion, is the exit.
+- **META, 2024-07-05.** Contractions 22.0% and 5.7%, 61 sessions, 1.4x volume, closed above the pivot at 539.91 against
+  a 522.88 pivot; best 1.18R, then stopped 5 sessions later (2024-07-12, low 494.23). The stop was 3.2% under; the
+  breakeven move (B19) would not yet have applied at 1.18R.
+- **AXON, 2025-02-18** (a stop-placement lesson rather than a pattern failure). The stock opened above the pivot, so the
+  fill was 694.02; the buy day's low was 691.86, so the day-low stop sat 0.3% under the fill. The next day gapped to a
+  592.76 low, far through the stop, so B20 (the first 30-minute low becomes the stop; out past 2R) would have governed
+  the exit. It is the case ChartMill's ATR floor (8.8 line 10) is aimed at, and a question for the owner (section 10).
+- **CRWD, 2021-04-22.** First contraction 31.5%, closed back under the pivot (54.18 against 55.81), 5.1% stop; stopped
+  after 5 sessions with a best of 0.34R. A deep first leg plus a squat: two of 8.5's warnings at once.
+
+**Limits of this test.** Daily bars only, so "the moment price trades through the pivot" is modelled as pivot + $0.01 (or
+the open) with no intraday confirmation; the RS gate is a 126-day return against SPY, not an RS rating; no earnings
+filter (B22) was applied, and no market-condition filter (F65); the stop is fixed for 80 sessions, so the base rate
+understates what the house trims and breakeven move would produce and overstates how often a live trade would be stopped
+after a win. Splits are adjusted in the sandbox; MOG-A is Moog's class A share, a stock, not an ETF. The scan finished
+the whole universe (2,630 of 2,630 names) in 162 seconds.
+
+---
+
 ---
 
 ## Removed in checking

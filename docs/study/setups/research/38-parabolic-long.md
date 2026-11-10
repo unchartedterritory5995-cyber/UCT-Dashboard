@@ -11,15 +11,24 @@ a burst down, he answered "1, yes." (all in `docs/study/audits/2026-10-24/owner_
 dossier works from that ruling and tests it against everything else I could find.
 
 **How the quotes were checked.** Every quote is 40 words or fewer, copied from the source named next to it.
+- **Cold check (2026-11-09, a second reader).** Every source below was fetched again, independently of the writer's
+  copies (the 24 cited UCT posts through the public post API, qullamaggie.com, both ChartSchool pages, Wyckoff
+  Analytics, the two Internet Archive copies, the Motley Fool interview, the three RePEc abstracts and the EconPapers
+  page, Chat With Traders, the Stonks Capital post; Bulkowski's two pages through the fetch tool, since curl still gets
+  406), and all 311 quoted strings were matched word for word by script, wrapped quotes included. Each UCT quote was
+  also traced to the section header it sits under (Bracco's or the owner's). The scanner replay (5.2), the worked
+  examples (9.2) and the cluster and intraday numbers (4.7, 4.8) were recomputed from the same bars and the writer's
+  saved rows. What changed is listed under "Removed in checking" at the end.
 - **Checked word for word by a script against saved copies downloaded today:** Bracco's "The Parabolic Short" and all
   103 posts in UCT's Substack sitemap (read through the public post API), qullamaggie.com, StockCharts ChartSchool (the
   Wyckoff tutorial and the RSI(2) page), Wyckoff Analytics, the TraderLion "Reversal Extension" article (Internet
   Archive copy), Minervini's blog (Internet Archive copy), the Motley Fool interview with William O'Neil, the RePEc
   abstracts of three papers, the Chat With Traders episode page, and our own code and docs.
 - **Bulkowski's thepatternsite.com** refused plain curl (HTTP 406, its firewall). I did not disguise the client. I read
-  the two pages through the fetch tool, which returned the sentences quoted here as verbatim; two of them the tool cut
-  at 120 characters, marked "...". The site carries a notice: "This website, in whole or in part, shall not be used to
-  train artificial intelligence (AI) systems,". I read it and cite it only, with links and short quotes.
+  the two pages through the fetch tool, which returned the sentences quoted here as verbatim (the cold check re-read
+  both pages the same way, when they read "As of 11/09/2026", and completed the sentences the first read had cut at
+  120 characters). The site carries a notice: "This website, in whole or in part, shall not be used to train
+  artificial intelligence (AI) systems,". I read it and cite it only, with links and short quotes.
 - **Investopedia** could not be fetched today. I quote nothing from it (our `docs/study/research/definitions.json`
   quotes it from 2026-10-17).
 - **Images I read myself:** Bracco's extension table in "The Parabolic Short" (section 4.4) and Kullamägi's GBTC charts
@@ -39,7 +48,8 @@ same thing to the downside. **Climax day**: the day the burst ends; for the long
 **Stretch** or **ATR multiple**: (close minus the 50-day SMA) divided by the 20-day average true range, the measure Bracco
 credits to Jeff Sun; negative means below the 50-day. **V day**: a day that opens lower, flushes, and closes well up from
 its open. **Day-2 gap up**: the mirror of Bracco's "day 2 gap down" variant: the climax day closes weak, and the next
-day gaps up. **R**: the risk on the trade (entry minus stop). **RVOL**: volume divided by its 50-day average.
+day gaps up. **R**: the risk on the trade (entry minus stop). **RVOL**: volume divided by the average volume of the prior 50
+sessions (the day itself excluded; that is how the figures in 9.2 were computed).
 
 ---
 
@@ -156,7 +166,10 @@ His long-side criteria, gathered from many posts (quotes and links in section 6.
   entry on 6/11".
 - **A second, intraday kind.** His "ATR mean-reversion long" on FIGR (2026-01-12) and SNDK (2026-01-08) is a one-day
   intraday flush inside a leader's uptrend (FIGR: a -16% late-day drop after an IPO-base breakout), not a multi-day
-  burst. It belongs with Mean Reversion (setup 36). I note it so the two are not mixed up.
+  burst. It belongs with Mean Reversion (setup 36). I note it so the two are not mixed up. The same words cover a
+  third thing: on 2025-10-26 he called pullbacks in leaders to their 10-week averages "rubber band / mean reversion
+  longs on some short term oversold momentum leaders such as IREN CIFR NBIS LEU BE HOOD etc" that "staged MAU&R’s
+  (moving average undercut and rallies)" (section 6.2); that is a pullback setup, not a burst down.
 
 ### 3.3 Kristjan Kullamägi (originator of the name), qullamaggie.com, 2021
 
@@ -183,7 +196,8 @@ Source: <https://qullamaggie.com/my-3-timeless-setups-that-have-made-me-tens-of-
 ### 3.4 The Wyckoff school: selling climax, automatic rally, secondary test
 
 Sources: ["The Wyckoff Method: A Tutorial"](https://chartschool.stockcharts.com/table-of-contents/market-analysis/wyckoff-analysis-articles/the-wyckoff-method-a-tutorial)
-(StockCharts ChartSchool, written by Roman Bogomazov and Michael Lipsett, schematics edited by the late Hank Pruden) and
+(StockCharts ChartSchool; the page says it "was written by Roman Bogomazov and Michael Lipsett, and the schematics were
+created by Roman Bogomazov and edited by the late Dr. Henry O. (“Hank”) Pruden.") and
 the same text on [Wyckoff Analytics](https://www.wyckoffanalytics.com/wyckoff-method/).
 - **Climax:** see section 1. "Often price will close well off the low in a SC, reflecting the buying by these large
   interests." (that is the V day).
@@ -215,12 +229,18 @@ established educator presenting the originator's method.
 ### 3.6 Thomas Bulkowski: vertical run down and dead-cat bounce (thepatternsite.com)
 
 Read through the fetch tool (see the note at the top); the site forbids AI training.
-- **Vertical run down** ([VerticalRunDown.html](https://thepatternsite.com/VerticalRunDown.html), "As of 11/06/2026"):
-  "Price moves down in a steep drop for at least four sessions." Entry: "After bar 4 (meaning a vertical run down has
-  been established) place a buy stop a penny or two above the high of the pri..." (cut by the tool; the tool's summary
-  says he lowers it as lower highs form). Stop: "A stop loss should be a penny or two below B and raised as price
-  climbs." (B is a point on his chart; I could not see the chart, so I do not say which point.) Target: "I set the exit
-  target to be midway down the price run." Results in section 4.1.
+- **Vertical run down** ([VerticalRunDown.html](https://thepatternsite.com/VerticalRunDown.html), "As of 11/06/2026"
+  when first read, "As of 11/09/2026" on the check): "That's when price plunges in a straight line drop, day after
+  day, with little or no overlap between price bars." His identification guidelines: "Price moves down in a steep drop
+  for at least four sessions." "There is minimal overlap from price bar to bar." "Price can pause along the vertical
+  run, occasionally multiple times." No volume condition; gaps appear only in his trading tips ("Ignore any gap before
+  and including the third bar since a valid vertical run down takes four bars."). Entry: "After bar 4, that is, once
+  the vertical run down has been established, I would use a trailing buy stop." "I would place it a penny or two above
+  the prior bar and lower it as each lower high occurred." "Trail it lower by placing the stop a penny or two above the
+  high of the prior bar -- never raise the buy stop." Stop: "A stop loss should be a penny or two below B and raised as
+  price climbs." (B is the bar at the end of the run in his example; the figure runs "from A to B" and he lowers the
+  buy stop "to a penny or two above the high of bar B". I could not see the chart.) Target: "I set the exit target to
+  be midway down the price run." Results in section 4.1.
 - **Dead-cat bounce** ([dcb.html](https://www.thepatternsite.com/dcb.html), "As of 11/06/2026"): a one-day collapse,
   usually on news: "Price usually gaps downward, closing 15% to 70% lower than the prior day." On buying it: "Swing
   traders can buy near the event trend low and ride price upward until it peaks in the bounce phase." "Only try this if
@@ -315,11 +335,11 @@ exists is adjacent. Every number below has its source and its limits.
 
 ### 4.1 Bulkowski, vertical run down (thepatternsite.com)
 
-- Sample: "a study of 2,036 vertical runs in 469 stocks in the three bull markets fr..." (cut by the tool; the tool's
-  summary gives July 1995 to January 2014). Bull markets only.
+- Sample: "The figure on the right shows the results from a study of 2,036 vertical runs in 469 stocks in the three
+  bull markets from July 1995 to January 2014." Bull markets only.
 - "Most of the time (84%), the stock will retrace at least a portion of the move down."
 - "After a vertical run ends (black price bars), price continues to climb 46% of the time, completely retracing the drop
-  su..." (cut by the tool).
+  suffered in the vertical run."
 - "The median (midway) retrace is 81%."
 - His buy-stop entry (3.6) with a target midway up the run: "This should work 64% of the time."
 - Limits: bull markets only; a run of 4+ days with little overlap, no gap or volume condition; his own measurements,
@@ -363,8 +383,9 @@ exists is adjacent. Every number below has its source and its limits.
 - **His short-side extension table** (image in "The Parabolic Short", read by me; "from the close before the climax
   day"): seven large caps (MSTR 2024-11-20, NVDA 2024-03-08, SMCI 2024-02-15, MRNA 2020-11-30, TSLA 2020-02-03, TASR
   2004-04-16, QCOM 1999-12-31). ATR multiples above the 50-day from 7.36 (MSTR) to 10.3 (TSLA), average 8.81; average
-  21% above the 9 EMA, 37% above the 20 EMA, 77% above the 50-day, 172.5% above the 200-day. He uses a 20-day ATR
-  ("I plot it as a histogram and use a 20-day ATR", 2025-06-15). For a long mirror, % figures cannot mirror (a stock
+  21% above the 9 EMA, 37% above the 20 EMA, 77% above the 50-day, 172.5% above the 200-day (table re-read on the
+  check: every figure matches). He uses a 20-day ATR ("I plot it as a histogram and use a 20-day ATR", Sunday Scans
+  [2025-06-15](https://unchartedterritoryy.substack.com/p/sunday-scans-744), his section). For a long mirror, % figures cannot mirror (a stock
   cannot fall 77% below its 50-day as easily as it rises 77% above it); the ATR multiple can.
 - **Index bottoms:** "intermediate corrections will typically find a tradable bottom around an average of -3 ATR’s below
   the 50-day. During major corrections or crashes such as Covid, 2022 bear market, or the Tariff Crash, this reading can
@@ -486,7 +507,9 @@ measure the setup in a true capitulation.
 
 There is no `parabolic_long` detector in `api/services/pattern_engine/detectors/`. The name exists only as a Model Book
 card, a journal tag, a label in the chart-vision prompt (`api/services/voice_chart_vision.py`, an undefined name in a
-list) and a taxonomy entry (`api/services/desk_session_insights.py`). Three nearby pieces of code do exist.
+list), a taxonomy entry (`api/services/desk_session_insights.py`) and the course files (`docs/curriculum/
+uct_method_scripts.json`, `uct_method_chapters.json`, `uct_method_course.json`, `curriculum_final_v2.json`; section
+5.5). Three nearby pieces of code do exist.
 
 ### 5.2 `uct_capitulation.py`: the closest live scanner (member-visible as the "Capitulation" setup tag)
 
@@ -514,9 +537,12 @@ What it tests, faithfully:
    closes back inside or near the band.
 3. It has no blow-off-unwind context: a stock crashing from far above its averages never gets under the lower band.
 4. **I ran its own `evaluate()` on 13 model examples** (GBTC 2017-12, QQQ 2024-08, QQQ/TQQQ/SOXL 2025-04, TQQQ 2026-03,
-   SOXL and KORU 2026-06, CAR 2026-04, AGQ 2026-02, IGV 2026-02, UAMY and USAR 2025-10, NFLX 2015-08). It fired on two:
-   TQQQ (2025-04-04 and 04-07) and SOXL (2025-04-04). It missed Kullamägi's GBTC, Bracco's QQQ 2024-08-05, the owner's
-   TQQQ 2026-03-30/31 and Bracco's SOXL/KORU June 2026.
+   SOXL and KORU 2026-06, CAR 2026-04, AGQ 2026-02, IGV 2026-02, UAMY and USAR 2025-10, NFLX 2015-08). It fired on
+   three, all in the April 2025 crash: QQQ and TQQQ (a `setup_day` on 2025-04-04, 5 stars, and a `gap_below` on 04-07)
+   and SOXL (`gap_below` on 2025-04-04). (The first draft said two and left QQQ out; the cold check re-ran the script.)
+   It missed Kullamägi's GBTC, Bracco's QQQ 2024-08-05, the owner's TQQQ 2026-03-30/31 and Bracco's SOXL/KORU June 2026.
+5. Its docstring still says "INTERNAL (admin-only)"; `setup_tags.py` and the flag note in `docs/feature_flags.json`
+   show it has been a member-visible tag since 2026-10-24. The docstring is stale.
 So the live "Capitulation" tag is a different, narrower setup. It should not be presented as the Parabolic Long.
 
 ### 5.3 Chart IQ's `capitulation_long` label
@@ -550,8 +576,9 @@ dossier (39) covers it.
   or checklist. The short has `parabolic-short-plan`.
 - **`docs/study/research/definitions.json`** ("Parabolic Long"): "Riding a near-vertical run and leaving before the
   blow-off." Also the opposite of the ruling.
-- **The UCT Method course** (`docs/curriculum/uct_method_scripts.json`, module 9 lesson 5): "Parabolic Long: Riding the
-  Vertical, Bar by Bar" (TSLA, January 2020). And `curriculum_final_v2.json` describes "a Parabolic Long as a topping tell
+- **The UCT Method course** (`docs/curriculum/uct_method_scripts.json`, the module labelled "M10 · Setup Family IV:
+  Reversals & Reclaims — and the Short-Side Mirror", its sixth lesson): "Parabolic Long: Riding the Vertical, Bar by
+  Bar" (TSLA, January 2020). And `curriculum_final_v2.json` describes "a Parabolic Long as a topping tell
   on a position you already own". Both contradict the ruling.
 - **The chart scan catalogue** (`app/src/components/chart/engine/ast/starterScans.json`) is the one house text that
   agrees: "Parabolic Long is the same stretch measurement as Parabolic Short taken from the other side". It adds that no
@@ -627,8 +654,20 @@ but today I’m focusing on my 5-star Parabolic Short setup" (so the post is abo
   short lived trades and not meant to be held longer than 1-3 days." Header: "UAMY USAR ABAT - Rubber band longs".
 - 2025-11-05, "The Rest of the Week", his section "Bracco - ETHA ETHU" ([link](https://unchartedterritoryy.substack.com/p/the-rest-of-the-week-9c9)):
   "Think potential rubber band / capitulation long setup here for a short term trade opportunity."
+- 2025-10-26 ([link](https://unchartedterritoryy.substack.com/p/sunday-scans-13e)), the week after the UAMY/USAR/ABAT
+  call, a different use of the words: "The big theme early-mid last week was some rubber band / mean reversion longs on
+  some short term oversold momentum leaders such as IREN CIFR NBIS LEU BE HOOD etc. These all staged MAU&R’s (moving
+  average undercut and rallies)". Pullbacks to the 10-week average in leaders, not a burst down (section 3.2).
 - 2025-12-28 ([link](https://unchartedterritoryy.substack.com/p/sunday-scans-249)): "Think of stocks like rubber bands,
   the further you stretch one apart, the harder it will snap back, the same philosophy applies with stocks."
+- 2026-01-25 ([link](https://unchartedterritoryy.substack.com/p/sunday-scans-7fb)), on the silver blow-off, writing as
+  a short seller: "I just know through vigorous studying that parabolic advances often go further than anyone thinks.
+  For that reason, I never add when I am down and always pyramid into weakness as the price validates my conviction."
+  On his AGQ short (2026-01-18, [link](https://unchartedterritoryy.substack.com/p/sunday-scans-2a1)): "I shorted AGQ
+  shares as my vehicle which resulted in 3 failed attempts over 2 sessions."
+- 2026-03-08 ([link](https://unchartedterritoryy.substack.com/p/sunday-scans-dcf)), the VIX levels he uses: "I have two
+  main levels that I really pay attention to on the VIX. The first one being 30. Anytime we get a fast move up into 30
+  it is usually a good time to start paying attention for a mean reversion opportunity." "The second big level is 50."
 - 2026-01-18 ([link](https://unchartedterritoryy.substack.com/p/sunday-scans-2a1)), FIGR (the intraday kind, see 3.2):
   "This is the ATR mean-reversion long setup I use to get exposure to powerful, trending leaders". His checklist at the
   low: "A Cascading sell off (parabolic curve)", "Increasing volume on each leg lower", "Extreme 244% ATR move", "600%
@@ -669,8 +708,9 @@ but today I’m focusing on my 5-star Parabolic Short setup" (so the post is abo
 
 **Discord, as summarised by the brain** (summaries, not his words, except where marked):
 - KB 11186 (2025-03-15): his annotated QQQ study of the August 2024 bottom, labelling 2024-08-05 'Day 3 parabolic burst
-  lower with two open gaps' (his chart label, as transcribed), gapping under the 200-day, 3.5 ATR under the 50-day, and
-  closing up from the open while reclaiming the 200-day. Checked on our bars in 9.2, example 2.
+  lower with two open gaps' (his chart label, as the record transcribes it), "NQ -6.5% overnight, gapping below the
+  200ma". The record is cut off there in every copy in this repo, so nothing more from it is quoted. Checked on our
+  bars in 9.2, example 2.
 - KB 11061 (2025-02-25, summary): mean-reversion bounces work best when the indexes are also stretched down; he takes
   them at size only on a 5-star capitulation event.
 - KB 12095 (2025-12-01, his words): "i think most traders are not as good at that and woudl rather buy the wedge pop into
@@ -709,7 +749,7 @@ but today I’m focusing on my 5-star Parabolic Short setup" (so the post is abo
 | **B22** (no buys in the 3 days before earnings) | Applies; and a crash ON earnings is the news-driven kind to skip (Savor). | Applies. |
 | **B18, F65, D46** (market reading: Orange only A+, Red mostly cash and shorts) | Index capitulations, the best parabolic longs, come in Red or Orange markets. The owner traded TQQQ in one. | **Yes.** Question 6. |
 | **E54** (leveraged ETFs preferred) | Most of UCT's own parabolic longs were in 3x ETFs (TQQQ, SOXL, KORU, AGQ, ETHU, LABU). | Fits. |
-| **E56** (at most 3 tries a week, 6 a month, on one name) | Bracco took three attempts on AGQ's parabolic short; the same cap fits the long. | Fits. |
+| **E56** (at most 3 tries a week, 6 a month, on one name) | Bracco took "3 failed attempts over 2 sessions" on his AGQ parabolic short (2026-01-18, section 6.2); the same cap fits the long. | Fits. |
 | **D47** (shorts are the long setups reversed; the parabolic short has its own stop and target) | This dossier is that rule run backwards. | No. |
 | **E49, D38** (risk by grade) | Kullamägi calls it "by far the riskiest setup"; most should be B size. | Question 11. |
 
@@ -807,7 +847,8 @@ target the 9-day average (D47). The parabolic long is its mirror; both share the
 ### 8.7 Best market conditions
 
 - **Best:** the index is capitulating too: an index ETF at -3 ATR or more under its 50-day, a gap down of 1 ATR or more,
-  a Monday, a VIX spike (Bracco watches 30), deeply oversold breadth. [UCT] A crowded group unwinding all at once (3x
+  a Monday, a fast VIX move into 30 (Bracco, 2026-03-08: "Anytime we get a fast move up into 30 it is usually a good
+  time to start paying attention for a mean reversion opportunity."), deeply oversold breadth. [UCT] A crowded group unwinding all at once (3x
   ETFs, crypto, a hot theme). [UCT] Measured: the 2015-08-24 cluster averaged +0.98R.
 - **Worst:** the first days of a fresh breakdown from a top, a slow grind lower, the start of a crash (2020-02-28 averaged
   -0.79R), a lone stock collapsing on its own news. [UCT; measured; Savor]
@@ -821,8 +862,8 @@ target the 9-day average (D47). The parabolic long is its mirror; both share the
 2. **Too early in the move.** Day 1 or 2 of a breakdown; the "Quick Opening Range" turn that Bracco says often comes too
    early. [UCT]
 3. **Calling a stair-step decline parabolic,** or judging by % alone. [UCT]
-4. **Averaging down.** O'Neil: "I will never average down in price." Bracco: "I never add when I am down". [source
-   consensus]
+4. **Averaging down.** O'Neil (Motley Fool, 2002): "I will never average down in price." Bracco (Sunday Scans
+   2026-01-25, on his parabolic shorts): "I never add when I am down". [source consensus: two sources, one of them UCT]
 5. **Overstaying.** It is a 1-3 day snap back; the dead-cat bounce studies show the drop often resumes. [UCT; Bulkowski]
 6. **Expecting the 9 EMA every time.** After a crash from far above, it can be out of reach (CAR, AGQ). [measured]
 7. **Illiquid small caps** with wide spreads. [house rule; UCT]
@@ -862,7 +903,7 @@ Numbers are from our daily bars (split-adjusted). "Boxes" counts the five mirror
 2. **QQQ, 2024-08-05 (Bracco's "Day 3 parabolic burst lower"). A+ (index).** Down 08-01 -2.4%, 08-02 -2.4% (gap
    -1.9%), 08-05 -3.0% (gap -5.4%); volume 1.7x, 2.0x, 2.6x its average. Opened at 424.71 under the 200-day (429.90),
    closed 435.37 above it, +2.5% from the open; 3.49 ATR under the 50-day. Touched the 9 EMA in 4 sessions; +10.6% at
-   most within 10. (Bracco's chart says "+2.82% from open" per the KB summary; our open gives +2.5%.)
+   most within 10.
 3. **QQQ and TQQQ, 2025-04-07 (the tariff crash Monday; Bracco's "April low"). A+.** QQQ gapped down 4.1%, 2.8% and
    3.3% on 04-03, 04-04 and 04-07; volume 1.8x, 3.0x, 3.9x; 5.7 ATR under its 50-day and 14% under its 200-day at the
    04-07 close, which was +3.7% from the open (TQQQ +12.2% from its open). 9 EMA in 2 sessions; QQQ +10.4% and TQQQ
@@ -947,8 +988,9 @@ All read on 2026-11-09 unless stated. Reliability notes are mine.
 | "The Wyckoff Method: A Tutorial" | StockCharts ChartSchool / Roman Bogomazov and Michael Lipsett | https://chartschool.stockcharts.com/table-of-contents/market-analysis/wyckoff-analysis-articles/the-wyckoff-method-a-tutorial | Established school of an originator; high for definitions |
 | "Wyckoff Method" | Wyckoff Analytics | https://www.wyckoffanalytics.com/wyckoff-method/ | The same school; high |
 | "Reversal Extension: How Stocks Bottom" (2024-06-11) | TraderLion, byline Oliver Kell (written in the third person) | https://web.archive.org/web/20250820211726/https://traderlion.com/technical-analysis/chart-patterns/reversal-extension-how-stocks-bottom/ | Established educator presenting the originator; medium-high |
-| "Vertical Run Down" ("As of 11/06/2026") | Thomas Bulkowski, thepatternsite.com | https://thepatternsite.com/VerticalRunDown.html | Measured statistics; read through the fetch tool (curl refused); the site forbids AI training; medium-high |
-| Dead-cat bounce page (dcb.html, "As of 11/06/2026") | Thomas Bulkowski, thepatternsite.com | https://www.thepatternsite.com/dcb.html | As above |
+| "Vertical Run Down" ("As of 11/06/2026" when written; "As of 11/09/2026" on the check) | Thomas Bulkowski, thepatternsite.com | https://thepatternsite.com/VerticalRunDown.html | Measured statistics; read through the fetch tool (curl refused, HTTP 406, both days); the site forbids AI training; medium-high |
+| Dead-cat bounce page (dcb.html, same dates) | Thomas Bulkowski, thepatternsite.com | https://www.thepatternsite.com/dcb.html | As above |
+| Sunday Scans 2025-06-15 (the 20-day ATR), 2025-10-26 (MAU&R "rubber band" longs), 2026-01-25 ("I never add when I am down"), 2026-03-08 (VIX 30 and 50) | UCT Substack / Bracco's section | https://unchartedterritoryy.substack.com/p/sunday-scans-744 · /sunday-scans-13e · /sunday-scans-7fb · /sunday-scans-dcf | House source; added in checking; quoted exactly from the post API text |
 | "RSI(2)" | StockCharts ChartSchool (describing Larry Connors) | https://chartschool.stockcharts.com/table-of-contents/trading-strategies-and-models/trading-strategies/rsi-2 | Established educator; high for what it reports |
 | TMF interview with Bill O'Neil (2002-06-20) | The Motley Fool | https://www.fool.com/specials/2002/06/20/foolcom-tmf-interview-bill-oneil-special.aspx | Originator interview; high |
 | Blog post on charting stocks correctly (the trend template; Internet Archive copy, 2019-04-26) | Mark Minervini | https://web.archive.org/web/20190426232311/http://www.minervini.com:80/blog/index.php/blog/show/first_things_first_how_to_chart_stocks_correctly_and_increase_your_chances | Originator; high |
@@ -968,4 +1010,44 @@ published statistic for this exact setup; Investopedia (fetch refused today); th
 
 **Scratch work (not in the repo):** downloads, scripts and outputs under the session scratchpad,
 `setups/38-parabolic-long/` (`scripts/measure.py`, `measure2.py`, `intraday_test.py`, `feat.py`, `cap_check.py`;
-`measure/summary*.txt`; `txt/` holds the Substack texts; `web/` the outside pages).
+`measure/summary*.txt`; `txt/` holds the Substack texts; `web/` the outside pages). The cold check's fresh downloads,
+post texts and the quote-matching script are in `setups/38-parabolic-long/check/` (`qcheck.py`, `ptxt/`).
+
+---
+
+## Removed in checking
+
+Cold check, 2026-11-09. Everything else in the dossier was confirmed against its source as described at the top:
+all 311 quoted strings matched word for word (Bulkowski's through the fetch tool), every UCT quote sat under the
+section header the dossier attributes it to, every post date matched the post API, the bibliographic details
+(journals, volumes, pages, the 2021-01-08 / 2021-04-28 dates, the 2024-06-11 TraderLion date, the 2022-06-27 episode,
+the 2002-06-20 interview, the Internet Archive timestamps, Niv Goren as the Stonks Capital author), the extension table
+and the GBTC chart date read off the images, the scanner code summaries (5.2, 5.3, 5.4), the rulebook citations in
+section 7, and the numbers in 4.7, 4.8, 6.1 and 9.2 (recomputed from the bars and the writer's saved rows).
+
+1. **KB 11186 (section 6.2):** the clauses "3.5 ATR under the 50-day, and closing up from the open while reclaiming the
+   200-day" and, in 9.2 example 2, "Bracco's chart says '+2.82% from open' per the KB summary". Every copy of the
+   record in this repo stops at "3rd-lowest Nasdaq A/D in"; those details are not in it. Our own bars do show 3.49 ATR
+   and a close above the 200-day, so the facts stand on the bars alone (9.2, example 2), not on the record.
+2. **"Bracco watches 30" (section 8.7):** stated without a source. Replaced with his own words from Sunday Scans
+   2026-03-08, which say the same thing and add his second level, 50.
+3. **"It fired on two" (section 5.2):** the replay of `uct_capitulation.evaluate()` on the 13 examples also fires on
+   QQQ in April 2025 (setup day 2025-04-04, gap below 04-07). Corrected to three.
+4. **Course location (section 5.5):** "module 9 lesson 5" were zero-based list indexes; the file labels the module
+   "M10" and the lesson is its sixth. Corrected.
+5. **Wyckoff authorship (section 3.4):** "schematics edited by the late Hank Pruden" is a paraphrase; the page says
+   "created by Roman Bogomazov and edited by the late Dr. Henry O. (“Hank”) Pruden." Replaced with the page's words.
+6. **Bulkowski's point "B" (section 3.6):** "a point on his chart" became "the bar at the end of the run", which is what
+   the page's text supports ("from A to B", "the high of bar B").
+7. **Three truncated Bulkowski quotes** (3.6 entry, 4.1 sample, 4.1 the 46% line) completed from a fresh read; nothing
+   in them changed meaning.
+8. **Unsourced in the first draft, now sourced:** the 2025-06-15 "20-day ATR" line (link added), Bracco's "I never add
+   when I am down" (2026-01-25, link and context added: he was writing about shorting silver), and "three attempts on
+   AGQ" (his words: "3 failed attempts over 2 sessions", 2026-01-18).
+9. **Added:** Bulkowski's identification guidelines for the vertical run down (the "minimal overlap" line that R5 leans
+   on), Bracco's 2025-10-26 "rubber band / mean reversion longs" post (a pullback use of the name, flagged so it is not
+   mixed in), the stale "admin-only" docstring on `uct_capitulation.py`, the course files in 5.1, and the RVOL
+   definition (prior 50 sessions) that the 9.2 figures actually use.
+
+Nothing from the proposed rules (section 8) had to be removed: each line is measurable as written, and the only
+[source consensus] tag (8.8 #4) rests on two named sources.

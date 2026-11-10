@@ -6,6 +6,11 @@ PDF or file named next to it, kept to 40 words or fewer, and checked word for wo
 read a source, I say so and give no wording from it. Numbers marked **[my computation]** come from my own scripts run
 read-only on the app's daily bar store (method and limits in section 4).
 
+**Cold check, 2026-11-09 (a second reader).** Every web source, PDF and Substack post named below was fetched again and
+every double-quoted passage (204 of them) was matched word for word against those fresh copies; the detector, catalog
+and drawing code was re-read line by line and the writer's detector probe and replay statistics were re-run from the
+saved outputs. What changed is listed under "Removed or fixed in checking" at the end of the file.
+
 Tags used in section 8: **[source consensus]** several outside sources agree; **[originator]** the Wyckoff school's own
 teachers (Wyckoff, and the Golden Gate University line: Pruden, Fraser, Bogomazov); **[UCT]** UCT's own writers (the
 owner writes as TSDR) or the owner's verdict log; **[house rule]** the account rulebook, `docs/study/sizing_rule.md`
@@ -79,8 +84,9 @@ sold straight back into the range, trapping breakout buyers before a decline.
   measured fact about who trades each spring. Wyckoff's course asked students to study the market "as if they were the
   result of one man's operations. Let us call him the Composite Man" (Wyckoff course, section 9, as quoted in
   [Wyckoff Analytics' tutorial PDF](https://www.wyckoffanalytics.com/wp-content/uploads/2022/06/Wyckoff-Method-Wyckoff-Analytics-English-V2.pdf)).
-  Wikipedia also notes that Wyckoff's contemporaries accused him of market manipulation and that his own trading record
-  is disputed ([Wikipedia, Richard Wyckoff](https://en.wikipedia.org/wiki/Richard_Wyckoff)).
+  Wikipedia's "Market manipulation and lawsuits" section says Wyckoff "was criticized for his market manipulation
+  techniques by his contemporaries", and that tax records show him profitable in 1915 to 1919 but with "heavy losses
+  in the markets" in 1921 to 1923 ([Wikipedia, Richard Wyckoff](https://en.wikipedia.org/wiki/Richard_Wyckoff)).
 
 ---
 
@@ -89,13 +95,13 @@ sold straight back into the range, trapping breakout buyers before a decline.
 | When | Who, where | What it adds |
 |---|---|---|
 | 1910 | Richard D. Wyckoff (as "Rollo Tape"), *Studies in Tape Reading*, chapter VII "Dull Markets and Their Opportunities" | Insiders "shake other people out"; "shakeouts" around a level in Reading (1909) as buying chances. The words "spring" and "upthrust" do **not** appear in the scanned text (I searched it). |
-| 1931 to 1934 | Wyckoff's correspondence course (*The Richard D. Wyckoff Course in Stock Market Science and Technique*) | The "Composite Man" (section 9, quoted via Wyckoff Analytics). I could not read the course itself, so I cannot say whether it uses the word "spring". |
-| after 1934 | Robert G. Evans, who ran the Wyckoff school's teaching after Wyckoff's death | Pruden and von Lichtenstein: "Many of these annotations reflect the work of Mr. Robert G. Evans." Evans coined the "jump across the creek" (the SOS breakout) and the "back up" to it. |
-| 1986 | Jack K. Hutson, ed., *Charting the Stock Market: The Wyckoff Method* (Technical Analysis Inc.) | Cited by Pruden as a source of the schematics. Not read. |
+| 1931 | Wyckoff's correspondence course (*The Richard D. Wyckoff Course in Stock Market Science and Technique*); Pruden, Fraser and Bogomazov (2014): "In the year 1931, Richard D. Wyckoff created a message of instruction" | The "Composite Man" (section 9, quoted via Wyckoff Analytics). I could not read the course itself, so I cannot say whether it uses the word "spring". |
+| after 1934 | Robert G. Evans, who ran the Wyckoff school's teaching after Wyckoff's death | Pruden and von Lichtenstein: "Many of these annotations reflect the work of Mr. Robert G. Evans." Evans coined the "jump across the creek" (the SOS breakout) and the "back up" to it (ChartSchool: "coined by Robert Evans"; Pruden: "The term “jump” was first used by Robert G. Evans"). |
+| 1986 | Jack K. Hutson, ed., *Charting the Stock Market: The Wyckoff Method* (Technical Analysis Inc., Seattle) | In Pruden and von Lichtenstein's bibliography (the schematics themselves are credited to Forte 1994). ChartSchool's unsigned "Wyckoff Market Analysis" page credits its "two rules" to this book (Hutson, Weis and Schroeder). Not read. |
 | 1994 | Jim Forte, CMT, "Anatomy of a Trading Range", *MTA Journal* issue 43 | The schematics and event labels Pruden reprints. Not read (I could not reach the journal archive). |
 | 2006 | Hank Pruden and Max von Lichtenstein, "Wyckoff Schematics: Visual templates for market timing decisions", *Market Technician* (STA) issue 55 | Definitions of spring, shakeout, upthrust, UTAD; where to buy; "you should not buy breakouts". Read in full. |
 | 2007 | Hank Pruden, *The Three Skills of Top Trading* (Wiley, Hoboken; ChartSchool cites 2007, the 2014 S&C article cites 2008) | The nine buying and selling tests reprinted by ChartSchool (pp. 136-37). Book not read. |
-| 2013 | David H. Weis, *Trades About to Happen: A Modern Adaptation of the Wyckoff Method* (Wiley) | A Wyckoff teacher's book with chapters on springs and upthrusts (per Wyckoff Analytics' page on Weis). Book not read; no wording from it is used. |
+| 2013 | David H. Weis, *Trades About to Happen: A Modern Adaptation of the Wyckoff Method* (Wiley, 224 pp.) | A Wyckoff teacher's book whose table of contents (the publisher's page, Wiley) lists Chapter 5 "Springs" and Chapter 6 "Upthrusts". Wyckoff Analytics' page on Weis names the book but not those chapters. Book not read; no wording from it is used. |
 | 2014 | Pruden, Fraser and Bogomazov, "The Composite Man's Bull Market Campaign", *Stocks & Commodities* V.32:8 | Uses the numbered springs ("a number 3 spring or the secondary-test of a number 2 spring"). Read. |
 | 2015 to 2022 | Bruce Fraser, "Wyckoff Power Charting" blog on StockCharts | The clearest trading rules: spring types #1, #2, #3, where to buy, where to stop; UT and UTAD. Read 10 posts. |
 | 2023 | Stewart Taylor, CMT, "Reversal Bars Part 4-1: Springs and Upthrust", CMT Association | A modern bar-pattern reading that disagrees on volume. Read. |
@@ -300,21 +306,24 @@ flat floor) and the **volume reading** of the dip.
   a secondary source; I could not check its citations.
 - My web searching ran out partway through this session (a shared search budget), so after that I worked from known
   pages and the links on them. A study I could not find is not proof that none exists.
-- The Wyckoff school's own "tests" are not hit rates. Pruden's bibliography lists "Wyckoff Laws: A Market Test" (IFTA
-  Journal 2004 and 2008) and "Wyckoff Proofs: Tests, Testing and Secondary Tests" (IFTA Journal 2010), per his CMT
-  slides. The slides describe the first as "A report on this ambitious, natural laboratory test of the Wyckoff Law and
+- The Wyckoff school's own "tests" are not hit rates. Pruden's bibliography lists "Wyckoff Laws: A Market Test" (with
+  Bernard Belletante, Parts A and B, IFTA Journal 2004 and 2008) and "Wyckoff Proofs: Tests, Testing and Secondary
+  Tests" (IFTA Journal 2010), per his CMT slides. The slides describe the first as "A report on this ambitious, natural laboratory test of the Wyckoff Law and
   Cause and Effect, of DJIA 14,400": a test of one Dow Jones point-and-figure projection, not a hit-rate study. I could
   not read the IFTA articles themselves.
 
 ### 4.2 The nearest measured statistic: Bulkowski's busted rectangles (**his site states a notice against AI training**)
 Thomas Bulkowski's site says: "This website, in whole or in part, shall not be used to train artificial intelligence
 (AI) systems" (home page). I read and cite it here only for the owner, with a link. His site refuses plain `curl`, so I
-read these two pages through the WebFetch tool; the wording below is from that reading, not from a saved copy, and
-should be re-checked on the page before it is reused.
-- [Busted Rectangles](https://thepatternsite.com/BustRectangles.html) (updated 12/29/2020): a rectangle "busts" when
-  price breaks out, moves no more than 10%, reverses and closes beyond the opposite side. For rectangle **tops** with a
-  downward breakout that busts upward, he reports an average rise of 49% (71% for single busts), and in the performance
-  section "51% of rectangle tops will bust".
+read these two pages through the WebFetch tool; the wording below is from that reading, not from a saved copy (the
+checker re-read both pages the same way on 2026-11-09 and the wording matched), and should be re-checked on the page
+before it is reused.
+- [Busted Rectangles](https://thepatternsite.com/BustRectangles.html) ("Updated with new statistics on 12/29/2020"): a
+  rectangle busts "When price moves no more than 10%, reverses direction, and closes beyond the side opposite the
+  breakout". For rectangle **tops** with a downward breakout that busts upward, he reports "an average of 49%"; for
+  single busts "the average rise is 71%", which he qualifies: "This is for rectangle tops with downward breakouts (so
+  they bust upward) in bull markets." In the performance section, "51% of rectangle tops will bust". He gives no
+  rectangle-bottom figures ("rectangle tops ... have more busts than rectangle bottoms").
 - Why it is only "nearest": a bust needs a close beyond the **far** side of the rectangle (the SOS breakout), not just
   back inside. It measures the spring plus the jump across the creek, with no volume rule. The page shows no sample
   size, dates or horizon.
@@ -446,7 +455,9 @@ its target, whichever first, up to 120 sessions. Script `tools/app_det_run.py`.
 | Target distance, median | 1.29R | 1.30R |
 | Average result (target = its R, stop = -1R) | +0.10R | -0.16R |
 So a member who follows the scanner's plan through Compass gets a stop about five times the house limit, a target only
-about 1.3R away, and for the upthrust, a losing trade on average.
+about 1.3R away, and for the upthrust, a losing trade on average. (Checker: every number in this table was recomputed
+from the saved replay file `out/app_det_800.csv` and matched; the one-bar probe in 5.1 was re-run and gave the same
+result.)
 
 ### 4.5 The house's own named examples, checked on the bar store (**[my computation]**)
 | Example | Who, when | What the bars show | House trade (next open, stop under the dip) |
@@ -555,11 +566,15 @@ Answers the screener's `base_matches` column and the provenance panel. Spring on
   resistance = highest high. The range must be horizontal (the file's "boxiness" bound, marked "ours").
 - A spring = any bar in the last 10 with low under support and close above it (the textbook one-bar shape). Any depth
   counts. No volume rule. The last close must still be above support.
-- Its criteria quote a corpus id `wyckoff_schematics` that is not in the repo. I traced three of its quotes: two are the
-  ChartSchool tutorial; "A spring is an example of a 'bear trap'... In reality, though, the drop marks the end of the
-  downtrend, thus 'trapping' the late sellers, or bears." matches Pruden and von Lichtenstein (2006). I could not trace
-  "Instead of steadfast rules, Wyckoff advocated broad guidelines when analyzing the stock market. Nothing in the stock
-  market is definitive." to any page I read.
+- Its criteria quote a corpus id `wyckoff_schematics` that is not in the repo (no other file names it). I traced its
+  quotes: two are the ChartSchool tutorial; "A spring is an example of a 'bear trap'... In reality, though, the drop
+  marks the end of the downtrend, thus 'trapping' the late sellers, or bears." matches Pruden and von Lichtenstein
+  (2006) word for word. "Instead of steadfast rules, Wyckoff advocated broad guidelines when analyzing the stock
+  market. Nothing in the stock market is definitive." is on ChartSchool's unsigned
+  [Wyckoff Market Analysis](https://chartschool.stockcharts.com/table-of-contents/market-analysis/wyckoff-analysis-articles/wyckoff-market-analysis)
+  page (found in checking); it is ChartSchool's own summary, not Wyckoff's words, and the page credits the "two rules"
+  beside it to Hutson, Weis and Schroeder's 1986 book. The catalog's "Wyckoff is quoted rejecting mechanical rules
+  outright" therefore rests on an educator's paraphrase.
 - This is the most faithful of the three engines, and its comments say so honestly ("our invention wearing his name"
   for anything more). It has no trade plan, by design.
 
@@ -612,10 +627,11 @@ the brain knowledge-base files in the repo. Authorship is by section: "TSDR's We
 Watchlist"); "Bracco’s Breakdown & Top Ideas" is Bracco; the "Index & ETF" section and the intro have no individual
 byline. Quotes keep the writers' spelling.
 
-**What I found.** The words "Wyckoff", "spring" (in this sense) and "upthrust" never appear in the public posts. The
-idea appears constantly under other names: "shakeout" (110 hits in 47 posts), "undercut" (116 in 65), "UNR" / "UnR"
-(54 in 32), "failed breakdown" (24 in 16), "failed breakout" (14 in 11), "bull trap" (3 in 1), "trap" in the trapped
-sense (5).
+**What I found.** The words "Wyckoff", "spring" (in this sense; the word appears four times as the season) and
+"upthrust" never appear in the public posts. The idea appears constantly under other names (counts re-done in checking
+over the post bodies of all 103 posts): "shakeout" / "shake out" (112 hits in 47 posts), "undercut" (116 in 65), "UnR"
+/ "UNR" (27 in 19; 48 in 34 counting "U&R" and "undercut and rally" too), "squat" (27 in 23), "failed breakdown" (24 in
+16), "failed breakout" (14 in 11), "bull trap" (3 in 1), "shake n bake" (5 in 3).
 
 ### 6.1 The owner (TSDR)
 - **The clearest spring trade in UCT's writing: DELL, 2026-03-08** ([Sunday Scans](https://unchartedterritoryy.substack.com/p/sunday-scans-dcf),
@@ -680,7 +696,11 @@ sense (5).
   2025-12-05 he said QQQ spiked over its rising channel into a big spot and fell back in, and labeled it a Wyckoff UTAD
   (ref `t13315`); on 2025-02-24 he kept open a "November-style" bear trap: a failed new high, a big down day, then an
   undercut and rally (ref `t10513`). Manrav on 2025-09-13 called MU a textbook shakeout he failed to re-enter (ref
-  `t9179`). These show the house knows the Wyckoff names and uses them as reads, not as a checklist.
+  `t9179`, in `brain_kb_rules_2026-11-06.json`, not the cycle file). These show the house knows the Wyckoff names and
+  uses them as reads, not as a checklist. (Checker: the section each Substack quote sits under was re-derived from the
+  posts' own headings: the owner's quotes all fall under "TSDR's Weekly Outlook & Watchlist" (headed "Patrick (TSDR)'s
+  Weekly Outlook & Watchlist" on 2026-11-08), Bracco's under "Bracco's Breakdown & Top Ideas", and the 6.3 quotes under
+  the index sections or the intro; the post dates all matched.)
 
 ### 6.3 Unsigned sections (Index & ETF, intros)
 - 2025-08-24, IWM ([Sunday Scans](https://unchartedterritoryy.substack.com/p/sunday-scans-ffa)): "The squat is the best
@@ -929,9 +949,11 @@ Not tradable (skip, not a grade): below the 200-day; a close back under the spri
 | 18 | ChartSchool Glossary S and U | StockCharts | https://chartschool.stockcharts.com/table-of-contents/glossary/glossary-s ; https://chartschool.stockcharts.com/table-of-contents/glossary/glossary-u | Educator; the 1-3 day window. |
 | 19 | Wyckoff Analytics pages on Hank Pruden and David Weis | Wyckoff Analytics | https://www.wyckoffanalytics.com/hank-pruden/ ; https://www.wyckoffanalytics.com/david-weis/ | Biographical only. |
 | 20 | "Richard Wyckoff" | Wikipedia | https://en.wikipedia.org/wiki/Richard_Wyckoff | Tertiary; used for dates, the controversy and the research note. Its citations not checked. |
-| 21 | "Busted Rectangles", home page and "Trading Tricks & Traps" | Thomas Bulkowski, ThePatternSite.com (busted rectangles updated 2020-12-29) | https://thepatternsite.com/BustRectangles.html ; https://thepatternsite.com/ | Measured statistics, but no sample size on the page. **States a notice against AI training.** Read via WebFetch (plain curl refused); wording not checked against a saved copy. |
-| 22 | UCT Substack, the 31 posts quoted or checked in section 6 (2025-06 to 2026-11), from the 103-post sitemap | Uncharted Territory: TSDR (the owner), Bracco, unsigned sections | https://unchartedterritoryy.substack.com/sitemap.xml and each post linked in section 6 | House voice; high for how we trade it. Re-fetched and checked word for word. |
-| 23 | Brain knowledge-base files (Discord summaries) | UCT, in the repo | `docs/study/levels/brain_kb_cycle_2026-11-06.json` (refs t11016, t13315, t10513, t9179) | Member-only material; paraphrased, not quoted. |
+| 21 | "Busted Rectangles" and the home page | Thomas Bulkowski, ThePatternSite.com (busted rectangles updated 2020-12-29) | https://thepatternsite.com/BustRectangles.html ; https://thepatternsite.com/ | Measured statistics, but no sample size on the page. **States a notice against AI training.** Read via WebFetch (plain curl refused) twice, by the writer and the checker; wording not checked against a saved copy. |
+| 22 | UCT Substack, the 26 posts quoted in sections 6 and 8 (2025-06 to 2026-11), from the 103-post sitemap; all 103 bodies searched for the counts | Uncharted Territory: TSDR (the owner), Bracco, unsigned sections | https://unchartedterritoryy.substack.com/sitemap.xml and each post linked in section 6 | House voice; high for how we trade it. Re-fetched and checked word for word, twice. |
+| 23 | Brain knowledge-base files (Discord summaries) | UCT, in the repo | `docs/study/levels/brain_kb_cycle_2026-11-06.json` (refs t11016, t13315, t10513); `docs/study/levels/brain_kb_rules_2026-11-06.json` (ref t9179) | Member-only material; paraphrased, not quoted. |
+| 26 | "Wyckoff Market Analysis" | StockCharts ChartSchool, unsigned | https://chartschool.stockcharts.com/table-of-contents/market-analysis/wyckoff-analysis-articles/wyckoff-market-analysis | Added in checking: the home of the base catalog's "steadfast rules" quote. Educator paraphrase, not Wyckoff's words. |
+| 27 | *Trades About to Happen*, publisher's page (table of contents) | Wiley | https://www.wiley-vch.de/en/areas-interest/finance-economics-law/trades-about-to-happen-978-0-470-48780-8 | Added in checking: confirms chapters 5 "Springs" and 6 "Upthrusts". Book not read. |
 | 24 | Repo files | this repo, branch feat/study-content | `api/services/pattern_engine/detectors/uct/wyckoff_spring.py`, `wyckoff_upthrust.py`; `api/services/screener/base_catalog.py` (`WYCKOFF_SPRING`); `api/services/pattern_engine/setup_draw_r2.py`, `setup_draw_r3.py`; `api/services/auto_structures.py`; `api/services/pattern_engine/detectors/registry.py`; `api/routers/patterns.py`; `tests/fixtures/wyckoff_spring/_generate.py`; `app/src/pages/modelbook/setupCatalog.js`; `app/src/constants/setupGroups.js`; `docs/study/courses/V/V.04.json`; `docs/study/UNITS-foundations.md`; `docs/study/sizing_rule.md`; `docs/study/TRADE_PLANS.md`; `docs/study/audits/2026-10-24/owner_verdicts.jsonl` | Read directly; the detectors were also imported and run read-only. |
 | 25 | My computations | session scratchpad, `setups/35-wyckoff-spring-upthrust/tools/` | `wy_scan.py`, `analyze.py`, `alt_entries.py`, `baseline_random.py`, `app_det_run.py`, `house_examples.py`, `probe_detector.py`, `quotecheck.py` | Not peer-reviewed; limits in 4.3. |
 
@@ -939,3 +961,41 @@ Not tradable (skip, not a grade): below the 200-day; a close back under the spri
 *Charting the Stock Market: The Wyckoff Method* (1986); Jim Forte, "Anatomy of a Trading Range", *MTA Journal* 43
 (1994); Hank Pruden, *The Three Skills of Top Trading* (Wiley, 2007); Pruden's IFTA Journal articles (2004, 2008,
 2010); David H. Weis, *Trades About to Happen* (Wiley, 2013); any Volume Spread Analysis source.
+
+---
+
+## 12. Removed or fixed in checking (2026-11-09, cold check)
+
+Method: every URL and PDF in section 11 was fetched afresh (plain `curl`, or WebFetch for Bulkowski), the 103 Substack
+posts were pulled from the sitemap, and a script matched all 204 double-quoted passages in this file against those
+copies after normalising quotes, dashes and line-break hyphens. All 204 matched (the two Bulkowski quotes and the three
+detector-narrative quotes were matched by eye against WebFetch's reading and the `.py` f-strings). The scanner summary in
+5.1, the catalog in 5.2 and the drawing constants in 5.3 were re-read against the code and are correct; the writer's
+probe and replay were re-run (section 4.4) and every number matched. Changes made:
+
+- **Fixed.** Section 1: "Wyckoff's contemporaries accused him of market manipulation and ... his own trading record is
+  disputed" overstated Wikipedia, which says he "was criticized for his market manipulation techniques by his
+  contemporaries" and records profitable years (1915-19) and heavy losses (1921-23). Rewritten with the page's words.
+- **Fixed.** Section 2: the course was dated "1931 to 1934" with no source; Pruden, Fraser and Bogomazov (2014) give
+  1931, so the row now says 1931 and cites them.
+- **Fixed.** Section 2: Hutson (1986) was "cited by Pruden as a source of the schematics"; Pruden's PDF credits the
+  schematics to Forte and lists Hutson only in the bibliography. Corrected.
+- **Fixed.** Section 2: Weis (2013) was said to have "chapters on springs and upthrusts (per Wyckoff Analytics' page on
+  Weis)"; that page names the book but no chapters. The chapters are real (Wiley's table of contents: 5 "Springs", 6
+  "Upthrusts"), so the claim stays with the right source.
+- **Fixed.** Section 5.2: the catalog's "Instead of steadfast rules ..." quote, which the writer "could not trace", is
+  ChartSchool's unsigned "Wyckoff Market Analysis" page. Added, with the caution that it is an educator's paraphrase.
+- **Fixed.** Section 6: the "UNR / UnR" count (54 in 32) could not be reproduced; the checker's count over all 103 post
+  bodies is 27 in 19 for the tokens, 48 in 34 counting "U&R" and "undercut and rally". The shakeout count moved from 110
+  to 112 (counting "shake out"). Other counts matched.
+- **Fixed.** Section 6.2 and 11: Manrav's MU note (ref t9179) is in `brain_kb_rules_2026-11-06.json`, not the cycle file.
+- **Fixed.** Section 4.2: Bulkowski's 71% single-bust figure carries his own qualifier "in bull markets", which was
+  missing; his wording is now quoted rather than paraphrased.
+- **Removed.** Section 11, row 21: the page title "Trading Tricks & Traps", which neither reader could confirm on the
+  site.
+- **Removed.** Section 11, row 22: "the 31 posts quoted or checked" (26 posts are actually quoted, 25 in section 6 and
+  one more in 8.1; the writer's extra five were read for the counts). Row now says 26 quoted, all 103 searched.
+- **Checked and kept.** The Pruden 2007 / 2008 publication-date note (ChartSchool cites 2007; the 2014 article's
+  references cite 2008), Fraser's 1987 Golden Gate start, the glossary's "1-3 days", Taylor's 2023-08-21 date, Forte
+  1994 (*MTA Journal* 43, Summer-Fall), the detector docstring's "1908-1934", the blind-judge scores in 5.3, the V.04
+  item keys (q45, q48, q57, q65) and the Discord-summary dates all check out against their sources.

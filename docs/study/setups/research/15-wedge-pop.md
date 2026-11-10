@@ -1145,3 +1145,93 @@ match the code. Section 4.4's figures match the writer's saved outputs (`analysi
 4.5's day change, volume, 200-day, stop, depth, gap and 10-day figures were re-measured from the bars and match (to
 rounding). The house R column in 4.5 was spot-checked for the winners count and mean (7 of 24, +0.18R), not
 re-simulated.
+
+---
+
+## 13. Examples (from our data)
+
+(Numbered 13 because this dossier's section 12 is already the checking notes; this is the "Examples (from our data)"
+section the other dossiers carry as 12.)
+
+**The scan's rule (one paragraph).** Daily bars from the local sandbox, scanned over the 2,630 names that ever met the
+house liquidity rule (`common.universe("ever")`), triggers from 2000-01-01 to 2026-11-04; the scan completed in 310
+seconds, nothing was cut for time. A hit is a pop day t that meets section 8.1 as coded: at least 8 of the 15 closes
+before t under the 20-day EMA (the prior decline); the lowest low of the 20 sessions before t is also the lowest low of
+the 40 sessions before t (a fresh low, then a base); the base is the sessions after that low day up to t-1, at least 3 of
+them, with at least half of their closes at or under the higher of the 10- and 20-day EMAs and ranges shrinking (the
+mean range of the 5 sessions before t under 0.85 times the mean range of the 10 sessions before those); the pivot is the
+highest high of the base; on the pop day the high trades through the pivot, the close is above both EMAs and in the top
+40% of the day's range, volume beats the prior day's and the base days' average; close above the 200-day SMA (B26) and
+not more than 10% above the 10-day SMA (C29); close $10 or more and 50-day average dollar volume $20 million or more
+on the day before (B23). The fill is a market order at the pivot plus a cent, or the open when the open gapped above the
+pivot, and no fill more than 4% over the pivot (C28, E57); the stop is 5 cents under the pop day's low (A3), and hits
+whose stop was wider than 10% or narrower than 0.75% were dropped (the same bounds as 4.4: not tradable, or an R so
+small the multiples mean nothing). One hit per name per 20 sessions. Not coded: relative strength against the index
+(8.1's last line) and the RS rating (C31), the market reading, the trims, the time stop and the earnings blackout (B22).
+Outcome: from the day after the pop, 60 sessions forward, the first of stop / 3R / 5R; same day, the stop wins. Code:
+`scratchpad/setups/15-wedge-pop/scan_wp.py` and `chart_wp.py` (not in the repo).
+
+**Base rate.** 6,518 hits; 6,289 on stocks after removing the obvious ETFs by ticker (SPY, QQQ, the sector and leveraged
+funds). Of the stock hits, **42.7% reached 3R and 29.2% reached 5R before the stop**; 81.8% were eventually stopped at
+the original stop within the 60-session window (that includes winners, since the stop never moves here). The median
+stop was 1.7% of the fill and the median time to 3R among the winners was 3 sessions. **Caveats:** (1) a fixed stop
+with no trims, no breakeven move, no trail and no time stop, so this measures how often the structure delivers 3R and
+5R, not what the house trade earns; (2) the fill is at the pivot intraday, but the pop day's qualifying facts (the close
+above both EMAs and in the top 40% of the range, the volume) are known only at the close, so a trader who buys the
+pivot as it trades also takes the pops that fade before the close, which this scan never counts. That is the main
+reason this rate is so much higher than 4.4's 20.6% (which bought at the close); the pop day's own run from the pivot to
+the close is counted as profit here. Cuts worth teaching (stocks only): pop-day volume 1.5 times the base days' average
+or more, 2,119 hits, 48.0% to 3R and 32.8% to 5R, against 40.0% and 27.4% below it (Kell's "increased accumulation
+volume" earns its place); a close back under the pivot on the pop day (1,026 hits) cut the rate to 23.1% / 14.0%
+against 46.5% / 32.1% for a close above it, the strongest single cut, and a reason to make "closes above the pivot" part
+of the grade; a gap open of 1% or more (1,333 hits) did better, 46.2% / 33.6%, not worse, which sides with Kell's "Most
+Wedge Pops that lead to new, powerful trends start with gaps"; a stop within 3% (5,170 hits) 45.5% / 31.5% against
+29.8% / 18.2% for wider stops (A13 earns its place); a decline of 15% or more into the low (3,516 hits) 44.9% / 30.4%
+against 39.9% / 27.6%; the count of closes under the 20 EMA (12 or more of 15 against 8 to 11) made no difference,
+43.1% / 29.3% against 41.8% / 29.0%; short bases of 3 to 5 sessions (1,504 hits) did slightly better than longer ones,
+46.5% / 32.4% against 41.5% / 28.2%; the app's 1.05 times the 50-day volume (4,020 hits) added little, 43.9% / 30.3%
+against 40.6% / 27.1%.
+
+**The 10 examples** (all stocks, one per name, ten different years; no pop day was an earnings-reaction day and none
+had a report inside the 3 sessions after it; every one reached 5R and was above 1R by the tenth session, so the house time
+stop (C33) would not have cut it; prices are split-adjusted as the database holds them). Files:
+`scratchpad/setups/15-wedge-pop/final/NN_TICKER_DATE.png` and the phone sheets `sheet_1-4.png`, `sheet_5-7.png`,
+`sheet_8-10.png` (not in the repo). "Decline" is the fall from the highest high of the 60 sessions before the low to the
+low; "under" is closes under the 20 EMA in the 15 sessions before the pop; "vol" is pop-day volume over the base days'
+average (and over the 50-day average).
+
+| # | Ticker | Pop day | Decline / under / base | Vol | Buy | Stop (risk) | Best R (3R on day) | Why it is textbook |
+|---|---|---|---|---|---|---|---|---|
+| 1 | CROX | 2007-04-04 | 26% / 12 of 15 / 14 days, 21.68-24.57 | 1.9x (1.3x) | 24.58 | 23.68 (3.6%) | 25R (7) | After a 26% correction, two weeks of flat, shrinking bars under both EMAs; the pop closed at 24.99, in the top 3% of its range. The widest stop of the ten (3.6%) and the slowest start (3R on day 7): A13 says smaller size, not a skip. Then 25 to 45. |
+| 2 | RCL | 2009-07-15 | 34% / 14 of 15 / 4 days, 11.80-12.95 | 1.4x (0.9x) | 13.18 (the open, a 3.9% gap) | 12.97 (1.6%) | 56R (1) | Early in the 2009 cycle, the shortest base the rule allows, right at the 200-day. A gap open under the 4% chase line, so the fill is the open and the stop (under the day's low) sits above the pivot. Volume beat the base and the prior day but not the 50-day average: the setup's own volume test, not the app's. |
+| 3 | FNV | 2016-02-03 | 25% / 14 of 15 / 7 days, 41.47-45.52 | 1.7x (1.7x) | 45.53 | 44.77 (1.7%) | 34R (1) | The base formed just under a flat 200-day and the pop closed 0.6% above it, the thinnest B26 pass of the ten. 3R the next session and 45 to 69 in ten weeks. |
+| 4 | TEAM | 2019-05-08 | 14% / 9 of 15 / 12 days, 100.25-112.00 | 2.1x (2.1x) | 112.01 | 110.81 (1.1%) | 31R (1) | A pullback inside a strong uptrend (28% above the 200-day), the kind of pop Kell took on MU and CAVA: the shallowest decline and the fewest closes under the 20 EMA (9) that still qualified. The pop closed at 117.17 in the top 4% of its range. |
+| 5 | NET | 2020-09-18 | 28% / 12 of 15 / 7 days, 32.70-36.33 | 2.1x (2.0x) | 36.50 (the open, a 1.1% gap) | 35.59 (2.5%) | 55R (2) | A two-week shakeout under both EMAs after a long run, the ranges shrinking to 0.57 of the prior ten days'; the pop reclaimed both averages on twice the base's volume, then 37 to 75 by November. |
+| 6 | TGT | 2021-03-19 | 17% / 15 of 15 / 10 days, 166.83-181.79 | 2.2x (1.9x) | 181.80 | 179.58 (1.2%) | 25R (1) | The clearest wedge shape of the ten: the heaviest-volume day of the decline (2021-03-02) came two sessions before the low, then two weeks of shrinking bars (contraction 0.44, the tightest here) under both EMAs, then a pop that closed above the pivot and both averages. |
+| 7 | SLB | 2022-01-03 | 21% / 12 of 15 / 8 days, 27.65-30.24 | 2.5x (1.8x) | 30.25 | 29.93 (1.1%) | 50R (1) | One wide-range bar from inside the base through the pivot and both EMAs, closing at 31.72, 4.9% over the pivot: buyable only as it traded through (E57), a chase at the close (C28). Energy's 2022 leadership started here. |
+| 8 | DHI | 2023-11-01 | 22% / 13 of 15 / 5 days, 100.08-104.78 | 1.6x (1.3x) | 104.79 | 103.60 (1.1%) | 45R (1) | Three sessions after SPY's 2023-10-27 low: a five-day base that sat just under the 200-day, and a pop that closed 0.8% above it with 3R the next day. The "within about 20 sessions after the index's own low" condition in 8.7, in one chart. |
+| 9 | SNOW | 2025-04-24 | 38% / 13 of 15 / 11 days, 120.10-151.95 | 1.6x (1.2x) | 151.96 (the open, a 1.2% gap) | 149.03 (1.9%) | 25R (3) | The deepest decline of the ten, into the 2025-04-07 crash low that SPY shared; eleven sessions of base (the box is tall because the rebound off 120 is inside it; the pivot is the high of those sessions), then a pop above both EMAs while the index itself was popping. |
+| 10 | STLD | 2026-03-31 | 22% / 15 of 15 / 7 days, 162.16-175.51 | 1.2x (1.3x) | 175.52 | 171.31 (2.4%) | 27R (6) | The lightest pop volume of the ten (1.2 times the base), a B-grade pop that still worked: 3R took six sessions, then 175 to 280 in ten weeks. Shows volume as a grade cue, not a gate, exactly as 8.1 proposes. |
+
+Replaced or passed over in the visual review: TPR 2004-10-26 and GLW 2005-10-31 (clean pops, but the report came the
+same evening or the day before, so B22 would have blocked it or the pop was an earnings reaction), AXON 2014-10-28 (a
+report two sessions after the pop), BHC 2010-12-01 (a gap open that put the stop above the pivot on a 16% pullback,
+confusing on a first read), UCTT 2017-07-10 and SM 2011-06-29 (reached 5R on a tight stop but then chopped inside the
+old range, not an obvious picture), RIO 2008-04-02 (a bear-market rally that gave back the whole move). XYZ 2018-01-03
+(Square, now Block) was clean but is a renamed ticker, and TEX 2025-12-03 and SPHR 2025-08-25 are good alternates for
+2025 if SNOW is replaced.
+
+**Notable failures (in words).**
+- **MU 2022-03-29.** A pop through 81.20 on 1.8 times the 50-day volume, closing at 82.05 above both EMAs, after a
+  31% decline and 14 of 15 closes under the 20 EMA: a textbook picture. Micron reported that evening (2022-03-29, after
+  the close); the next day's low of 78.60 went through the 79.21 stop at the open. The B22 blackout (no trigger in the
+  3 sessions before a report) is the whole lesson. AMZN 2016-01-28 is the same story: a 2.9x-volume pop at 30.43
+  (split-adjusted), the report that night, a 28.50 low the next day through a 29.83 stop.
+- **CRWD 2021-03-17.** The pop was itself the earnings-reaction day (reported 2021-03-16 after the close) on 3 times the
+  50-day volume, and the day's range left a stop 8.6% below the fill. It was stopped the next session at 47.40. Two
+  lessons: an earnings-day pop is an Episodic Pivot or Power Earnings Gap, not a Wedge Pop; and a stop wider than about
+  3% is a reason for a smaller position or a pass (A13), never a reason to tighten it to fit.
+- **COIN 2024-08-23.** A 13-day base after a 41% decline, 15 of 15 closes under the 20 EMA, then a pop through 209.80
+  that closed at 211.40, but on only 1.04 times the 50-day volume and with a 4.7% stop. Two sessions later the low of
+  194.10 took the stop out. In the scan, pops with volume under 1.5 times the base and a stop wider than 3% were the
+  weakest groups; this one was both.

@@ -1185,3 +1185,96 @@ and DKNG details.
 again); whether the words "EMA Crossback" appear in Kell's book; the TraderLion lesson page and masterclass PDFs (403,
 no archive copy); the three videos (no transcript); the list of "30 large, liquid leaders" behind the ten examples in
 8.10 (the ten trades themselves were re-derived and match).
+
+---
+
+## 13. Examples (from our data)
+
+(Numbered 13 because section 12 is the cold check above; the workflow asked for an "Examples" section.)
+
+**The scan's rule (long only).** Daily bars of the 2,630 names that ever met the house liquidity rule, 2000-01-01 to
+2026-11-06, all split-adjusted. A *Wedge Pop* day: close above both the 9 and 20-day EMA, the prior close at or under
+the 20 EMA, at least 8 of the 15 prior closes under the 20 EMA, volume above the 50-day average (8.1a); or a *breakout*
+day: close over the prior 20-session high on at least 1.2x volume (8.1b). On that day the stock closes above the
+200-day SMA, at $10 or more, with $20M or more traded a day (B23, B26). The first session after the pop whose low
+reaches the 9 EMA, 3 to 20 sessions later, starts the pullback; price may not close more than 1% under the 20 EMA
+before it. The *hold day* is the first session of that pullback (within 4 sessions of the touch) whose low stays within
+1% under the 20 EMA, closes at or above the 20 EMA in the upper half of its range, with the 9 EMA above the 20 EMA, the
+20 EMA higher than 5 sessions earlier, and a 200-day SMA no lower than 20 sessions earlier; the drift from the post-pop
+high to the hold day is 2 to 10 sessions (8.1, 8.2). *Buy* with a market order the first time price trades 2 cents over
+the hold-day high within the next 3 sessions (a gap open above it fills at the open; E57), skipped if the fill is more
+than 4% over the trigger (C28) or if the hold-day low breaks first. *Stop* 3 cents under the hold-day low; any stop
+wider than 5% is skipped (8.3). Outcome: the first of the stop, 3R or 5R in the next 60 sessions, a fixed stop, no
+trims, no breakeven move. NOT in the scan (no data or not codable): RS 80+ (C31), the market-colour rule, the
+earnings-within-3-sessions rule (B22; checked by hand on the ten examples below), the 1%-of-volume rule, and the
+owner's grading of the chart. Script: `_study-resume/scratchpad/setups/14-ema-crossback/scan14.py` (not in the repo).
+
+**Base rate.** 21,461 triggered trades across all 2,630 names (the scan completed in 277 seconds). 28.9% reached 3R
+and 17.6% reached 5R before the stop; 82.6% hit the stop at some point in the 60 sessions; the median best excursion
+was 1.2R. The rate is steady across decades (2000-09: 29.0% to 3R, 2010-19: 29.3%, 2020-26: 28.3%), so it is not an
+artefact of one bull market. Caveat: this is a fixed stop with no trims and no trail, so it measures how often the
+pattern travels, not what the house plan (a third at 3R, a third at 5R, trail the rest) would have earned; and it has
+no RS or market filter, so it is the raw setup, not the setup as the rulebook trades it. Splits inside the scan:
+
+| Split | Trades | To 3R | To 5R |
+|---|---|---|---|
+| Wedge Pop first (8.1a) | 5,171 | 30.6% | 18.9% |
+| Breakout first (8.1b) | 16,290 | 28.3% | 17.2% |
+| Stop 2% or less | 8,473 | 31.1% | 20.2% |
+| Stop 2% to 3% | 7,149 | 28.3% | 17.0% |
+| Stop 3% to 5% | 5,839 | 26.5% | 14.7% |
+| Pop to hold day 3 to 10 sessions | 16,466 | 28.5% | 17.4% |
+| Pop to hold day 11 to 20 sessions | 4,995 | 30.0% | 18.5% |
+| Pullback volume under 0.8x the 50-day average | 5,707 | 29.4% | 18.9% |
+| Pullback volume 0.8x or more | 15,754 | 28.7% | 17.2% |
+| Hold-day low under the 20 EMA (by up to 1%) | 4,248 | 30.1% | 18.0% |
+| Hold-day low at or above the 20 EMA | 17,213 | 28.6% | 17.5% |
+
+Read-across to section 8: the Wedge Pop version edges the breakout version (supports recommending 8.1a as the textbook
+case); a tight stop pays (supports A13 and the 8.3 size-down line); a quiet pullback has a small edge here, the opposite
+of section 4.4 item 5's finding on 30 names, so volume stays a grading cue, not a rule; a shallow undercut of the 20 EMA
+does not hurt (supports Kell's TSLA undercut in 8.1).
+
+**The ten examples** (hold day in the chart title; all Wedge Pop first; buy = 2 cents over the hold-day high; prices
+are the sandbox's split-adjusted prices; "drift" = sessions from the post-pop high to the hold day; "depth" = the
+hold-day low against the 20 EMA; no earnings report within 3 sessions of any entry, checked against the earnings table).
+Charts: `_study-resume/scratchpad/setups/14-ema-crossback/final/` (01 to 10 and sheets 1-4, 5-7, 8-10).
+
+| # | Stock | Entry day | Pop (volume) | Pop to hold | Drift | Depth | Hold close in range | Pullback vol | Buy | Fill | Stop (risk) | Best | Why it is textbook |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | CROX | 2007-04-23 | 04-04 (1.3x) | 11 | 4 | +1.0% | 0.88 | 0.56x | 26.99 | 26.99 | 25.86 (4.2%) | 20.1R, 3R in 9 d | Rising 200-day, a pop out of a 6-week shelf, quiet 4-day drift to the 20 EMA, strong close on the hold day, then a straight run. The 4.2% stop is a size-down case under 8.3 |
+| 2 | NOC | 2014-11-11 | 10-23 (1.8x) | 12 | 4 | +1.2% | 0.62 | 1.13x | 136.18 | 136.18 | 134.80 (1.0%) | 20.4R, 3R in 8 d | The steadier kind: a slow stock in a long uptrend, a pop off a 50-day shakeout, a sideways 4-day drift onto the 9 EMA, a 1% stop |
+| 3 | UAA | 2015-06-16 | 06-05 (1.5x) | 6 | 2 | +0.7% | 0.66 | 0.41x | 40.82 | 40.82 | 40.17 (1.6%) | 15.5R, 3R in 5 d | A leader in a clean stair-step; the pullback took two quiet sessions (0.41x volume) and the trigger came the next day |
+| 4 | ALGN | 2017-02-10 | 02-01 (3.7x) | 6 | 6 | -0.0% | 0.78 | 1.02x | 96.51 | 96.51 | 94.17 (2.4%) | 20.8R, 3R in 11 d | The pop was an earnings gap on 3.7x volume (report 2017-01-31 after the close; the next report is months away); six sessions of drift back to the 20 EMA, the low exactly on it, a strong close |
+| 5 | LW | 2018-10-15 | 10-02 (3.4x) | 8 | 3 | +2.1% | 0.79 | 2.09x | 73.21 | 73.21 | 72.06 (1.6%) | 9.3R, 3R in 3 d | The pop was the October 2018 earnings gap (report 10-02 before the open, 3.4x volume); a 3-day drift onto the 9 EMA (the low 2.1% above the 20), a close in the upper range, trigger next day, 3R in three sessions. The pullback ran on heavy volume (2.1x): the one example that goes against the quiet-drift cue, so grade it below the others |
+| 6 | ASML | 2020-11-27 | 11-04 (3.1x) | 15 | 2 | +2.6% | 0.69 | 0.59x | 424.70 | 429.33 | 420.72 (2.0%) | 20.8R, 3R in 4 d | A 2-day drift onto the 9 EMA only (low 2.6% above the 20), a gap open over the trigger filled at 429.33 (1.1% over the buy point, inside C28), then a 5-week run |
+| 7 | SNPS | 2021-06-04 | 05-20 (1.7x) | 9 | 5 | +0.1% | 0.58 | 0.93x | 252.62 | 252.62 | 247.84 (1.9%) | 17.2R, 3R in 7 d | The pop ended a 3-month correction above a rising 200-day (the "fresh turn" case of 8.7); five sessions sideways onto the 20 EMA, then a new high within two weeks |
+| 8 | NET | 2023-11-13 | 11-03 (3.6x) | 5 | 3 | +0.5% | 0.88 | 0.86x | 63.34 | 63.34 | 61.31 (3.2%) | 25.9R, 3R in 1 d | Earnings-gap pop (report 2023-11-02 after the close, 3.6x volume on 11-03), a 3-day drift to the 20 EMA, a hold day closing near its high, and the trigger day itself ran past 3R. Stop over 3%: size down |
+| 9 | CLS | 2024-10-03 | 09-19 (1.1x) | 9 | 4 | -0.6% | 0.84 | 0.57x | 50.64 | 50.64 | 48.94 (3.4%) | 29.3R, 3R in 3 d | Pop off the 200-day after a 3-month base, a quiet 4-day drift that undercut the 20 EMA by 0.6% and closed back over it; the best run in the set. Stop over 3%: size down |
+| 10 | HOOD | 2025-09-16 | 09-08 (2.1x) | 5 | 3 | +2.0% | 0.59 | 0.85x | 116.55 | 116.55 | 112.39 (3.6%) | 9.0R, 3R in 6 d | The year the owner named ("think back to HOOD 2025"): a 2.1x-volume pop, a 3-day drift onto the 9 EMA, trigger the next day, 5R inside three weeks. Stop over 3%: size down |
+
+Not used, and why: JAZZ 2013-11-01 (27R) was dropped because its report's reaction day came 3 sessions after the entry
+(B22), and AMD 2019-10-24 (23R, a fine-looking chart) because its report (2019-10-29 after the close) was due 3 sessions
+after the entry: B22 forbids the buy, and the earnings gap did most of the work. The scan's top raw winners were ETFs and slow dividend stocks with sub-1% stops (SPY 2005, AGG 2019, IEF 2020,
+VZ 2013: 25R to 60R on a 0.2% to 0.8% stop); they pass the maths but are not what the setup teaches, so none is a model.
+GLW 2010 and CVNA 2021 worked but on a flat 200-day or a 1.0x-volume pop: not obvious to a learner. VRT 2025-09-18
+(10R) had a 4.6% stop.
+
+**Notable failures (all passed every scan rule).**
+- MU 2025-08-19: pop 08-08 on 1.3x volume, a 3-day drift, hold day 08-18, entry 123.70 with a 2.5% stop; stopped the
+  next session (08-20) with a best excursion of 0R. A clean-looking crossback that simply failed: the stop did its job.
+- LLY 2024-09-03: pop 08-08 (2.9x, the earnings gap), 16 sessions to the hold day, a 6-day drift, entry 961.02, 2.1%
+  stop; stopped on 09-04, best 0R. The long wait after the pop and a stock already up 15% over the prior quarter match
+  8.7's warning about buying late in the stock's own advance.
+- NFLX 2023-04-11: pop 03-23, a 2-day drift, entry 34.34 (split-adjusted), 3.2% stop; stopped 04-12, best 0R, with the
+  report's reaction day on 04-19. The entry was 5 sessions before earnings, outside B22's 3-session window, but the
+  stock could not hold its pullback low into the print.
+- AAPL 2022-02-09: pop 01-28 off the January low, hold 02-08, 2.6% stop; stopped 02-11 with 0R. The Nasdaq 100 (QQQ) had
+  closed under its own 20-day EMA the day before the entry and regained it only that day, inside the January 2022
+  correction: the market condition Kell and UCT's intro both warn about (8.1, Market).
+
+**Limits of this check.** Daily bars only (the advanced 65-minute trigger in 8.2 was not tested); no RS or market data in
+the scan; the short mirror (8.6) was not scanned (it is a Red-market-only proposal and the time budget went to the long
+side); the base rate is the raw pattern with a fixed stop, so the house plan's trims and trail would change the R
+numbers; and a scan cannot see the "clean and obvious" quality the owner grades by eye, which is why the ten were chosen
+by looking at every chart, not by best R.

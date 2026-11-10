@@ -1,0 +1,121 @@
+/* SPOT THE MISTAKE (SpotMistakeGame.jsx): only what the Study kit lacks, on the kit's own tokens (study.module.css .kit):
+   the hearts beside the status line, the entry card whose four lines are the kit's tiles one to a row, the note under
+   each line after Check (why it broke the plan, or why it was fine), the takeover's lines, and the end screen's run log
+   as one entry a row. No new colours: the gold, the ink, the up and down of the kit. */
+
+/* ── the status line and the hearts ────────────────────────────────────────────────────────────────────────── */
+.hudRow { display: flex; align-items: center; gap: 12px; }
+.hudRow > :first-child { flex: 1; min-width: 0; }
+.hearts { flex: none; display: inline-flex; align-items: center; gap: 3px; padding: 0 12px; border-radius: 16px; border: 1px solid var(--k-line);
+  background: var(--k-glass), var(--k-plate); height: 44px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), 0 6px 16px rgba(0, 0, 0, .3); }
+/* each heart is the kit's shield glyph (UIcon), lit gold while it stands and dim once lost, as in Order Ticket */
+.heart { display: grid; place-items: center; font-style: normal; transition: color .3s, opacity .3s, filter .3s, transform .35s var(--k-ease); }
+.heart svg { display: block; }
+.heart.heartOn { color: var(--k-gold-bright); filter: drop-shadow(0 0 6px rgba(220, 187, 94, .45)); }
+.heart.lost { color: var(--k-line-lit); opacity: .75; transform: scale(.86); }
+
+/* ── the question ──────────────────────────────────────────────────────────────────────────────────────────── */
+.question { margin: 0; font-size: 26px; line-height: 1.2; font-weight: 850; letter-spacing: -.015em; color: var(--k-ink); text-wrap: balance; }
+
+/* ── the entry: the hero, where a chart stands in the chart games ───────────────────────────────────────────── */
+.entry { position: relative; display: grid; gap: 14px; margin-top: 12px; padding: 28px 22px 22px; border-radius: 22px;
+  border: 1px solid color-mix(in srgb, var(--k-gold) 38%, transparent);
+  background: radial-gradient(120% 130% at 0% 0%, color-mix(in srgb, var(--k-gold) 10%, transparent), transparent 58%), var(--k-glass), var(--k-plate);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, .45), inset 0 1px 0 rgba(255, 255, 255, .05); animation: mkDeal .36s var(--k-ease) both; }
+/* a ruled margin down the left, like a page of a journal */
+.entry::before { content: ''; position: absolute; left: 0; top: 24px; bottom: 24px; width: 3px; border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg, var(--k-gold-bright), color-mix(in srgb, var(--k-gold) 12%, transparent)); }
+.entryHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.plate { position: absolute; top: -13px; left: 22px; display: inline-flex; align-items: center; gap: 6px; padding: 5px 14px; border-radius: 10px; font-size: 11.5px; font-weight: 900;
+  letter-spacing: .22em; text-transform: uppercase; white-space: nowrap; color: var(--k-gold-ink);
+  background: linear-gradient(180deg, var(--k-gold-bright), var(--k-gold) 60%, var(--k-gold-deep)); box-shadow: 0 3px 0 var(--k-gold-edge), 0 8px 18px rgba(0, 0, 0, .4); }
+.plate svg { display: block; }
+.entryNote { margin-left: auto; font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--k-ink-dim); }
+.story { margin: 0; font-size: 19px; line-height: 1.5; font-weight: 600; color: var(--k-ink); overflow-wrap: anywhere; }
+
+/* the four lines: one to a row, each the kit's tile with the line's own words */
+.lines { display: grid; gap: 10px; }
+.lineRow { display: grid; gap: 8px; }
+.line { min-width: 0; }
+/* a sentence, not a two-word answer: the tile's label (its second span, after the key cap) reads as a line of text */
+.lineText > span:nth-of-type(2) { font-size: 17px; font-weight: 600; line-height: 1.42; letter-spacing: 0; overflow-wrap: anywhere; }
+.row_right .line, .row_wrong .line { animation: none; }
+.row_quiet .note { opacity: .82; }
+
+/* the note under a line after Check */
+.note { display: grid; gap: 4px; margin: 0 6px 2px 14px; padding: 10px 14px 11px 14px; border-radius: 12px; border: 1px solid var(--k-line);
+  background: rgba(255, 255, 255, .025); animation: mkRise .4s var(--k-ease) both; animation-delay: calc(var(--i, 0) * 70ms); }
+.noteTag { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; }
+.noteTag svg { display: block; }
+.noteOk { border-color: color-mix(in srgb, var(--k-up) 35%, transparent); }
+.noteOk .noteTag { color: var(--k-up); }
+.noteBad { border-color: color-mix(in srgb, var(--k-down) 55%, transparent); background: color-mix(in srgb, var(--k-down) 9%, transparent); box-shadow: 0 0 26px color-mix(in srgb, var(--k-down) 18%, transparent); }
+.noteBad .noteTag { color: #ffb3b3; }
+.noteText { font-size: 15px; line-height: 1.5; color: var(--k-ink-soft); }
+.noteBad .noteText { color: var(--k-ink); font-weight: 500; }
+
+/* ── the lesson card's extras (the card itself is the kit's coach) ──────────────────────────────────────────── */
+.why { margin: 0; font-size: 16.5px; line-height: 1.55; font-weight: 500; color: var(--k-ink); }
+.src { display: flex; align-items: flex-start; gap: 6px; margin: 0; font-size: 12.5px; line-height: 1.4; color: var(--k-ink-dim); }
+.src svg { flex: none; margin-top: 1px; color: var(--k-gold); }
+.src a { color: inherit; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--k-gold) 45%, transparent); text-underline-offset: 2px; }
+.src a:hover { color: var(--k-ink-soft); }
+
+/* ── the takeover's lines ───────────────────────────────────────────────────────────────────────────────────── */
+.tkWhy { display: block; font-size: 17px; line-height: 1.45; color: var(--k-ink); }
+.tkLine { display: block; margin-top: 10px; font-size: 14.5px; line-height: 1.45; color: var(--k-ink-soft); }
+.tkHearts { font-weight: 800; letter-spacing: .08em; text-transform: uppercase; font-size: 12.5px; color: var(--k-ink-dim); }
+
+/* ── an answer the server never scored ─────────────────────────────────────────────────────────────────────── */
+.lostNote { margin: 0; font-size: 14px; line-height: 1.45; text-align: center; color: var(--k-ink-dim); }
+
+/* ── the failed draw: the kit's load-failed card with a way back under it ───────────────────────────────────── */
+.failed { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 18px 0 26px; }
+
+/* ── the end screen ─────────────────────────────────────────────────────────────────────────────────────────── */
+.end { overflow-x: clip; }
+.endNote { display: block; }
+.endNote + .endNote { margin-top: 6px; }
+.signIn { margin-top: 14px; }
+/* the run log (EndHard's): one entry a row, the broken line as its title, the member's pick and the lesson under it */
+.end [data-testid='run-log'] { grid-template-columns: 1fr; gap: 10px; }
+.end [data-testid='run-log'] > [role='listitem'] { gap: 7px; padding: 13px 16px 14px; text-align: left; }
+.end [data-testid='run-log'] > [role='listitem'] > b { font-size: 15.5px; line-height: 1.42; font-weight: 700; color: var(--k-ink); }
+.end [data-testid='run-log'] > [role='listitem'] > em { display: block; font-size: 14px; font-weight: 500; letter-spacing: 0; font-style: normal; color: var(--k-ink-soft); }
+.review { display: flex; flex-direction: column; gap: 7px; }
+.calls { display: flex; flex-wrap: wrap; gap: 6px; }
+.call { display: inline-flex; align-items: baseline; gap: 4px; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--k-ink-dim); border: 1px solid var(--k-line); background: var(--k-plate); }
+.calls .call b { font-size: 12px; letter-spacing: .06em; }
+.truth { border-color: color-mix(in srgb, var(--k-gold) 45%, transparent); }
+.calls .truth b { color: var(--k-gold-bright); }
+.mine { border-color: color-mix(in srgb, var(--k-up) 45%, transparent); }
+.calls .mine b { color: var(--k-up); }
+.wrong { border-color: color-mix(in srgb, var(--k-down) 45%, transparent); }
+.calls .wrong b { color: var(--k-down); }
+.reviewLine { line-height: 1.5; color: var(--k-ink-soft); }
+
+@media (max-width: 640px) {
+  /* the status line keeps the full width on a phone; the hearts sit just under it, at the right */
+  .hudRow { flex-direction: column; align-items: stretch; gap: 8px; }
+  .hearts { align-self: flex-end; height: auto; padding: 5px 10px; gap: 3px; border-radius: 12px; }
+  .heart svg { width: 18px; height: 18px; }
+  .question { font-size: 21px; }
+  .entry { padding: 24px 14px 16px; border-radius: 18px; gap: 12px; }
+  .plate { left: 14px; }
+  .entryNote { display: none; }
+  .story { font-size: 16.5px; }
+  .lineText > span:nth-of-type(2) { font-size: 15.5px; line-height: 1.4; }
+  .note { margin: 0 2px 0 8px; padding: 9px 12px 10px; }
+  .noteText { font-size: 14px; }
+  .why { font-size: 15.5px; }
+  .tkWhy { font-size: 15.5px; }
+  .end [data-testid='run-log'] > [role='listitem'] { padding: 12px 13px 13px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .entry, .note { animation: none; }
+  .heart { transition: none; }
+}
+
+@keyframes mkDeal { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes mkRise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }

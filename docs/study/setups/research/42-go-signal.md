@@ -22,6 +22,12 @@ level and the market.
   Smarts*, Andrew Aziz's book, any TraderLion page, any investors.com page, UCT's private Discord and members' videos.
   My web-search allowance ran out early in this run (six searches worked). Every other page came from a URL I
   already knew. Section 11 lists the gaps.
+- **Cold check, 9 Nov 2026 (a second reader).** Every quote above was re-opened at its source that day: all 103 Substack
+  posts were downloaded again through Substack's post API and each quote found word for word in the section named
+  (owner, Bracco, The Wiz, Manrav, unsigned); the eight outside pages and the Wiley PDF were downloaded again and every
+  quote, page number and date found; every owner ruling was matched to `owner_verdicts.jsonl`; the scanner summary was
+  read against the code, the fixtures and the shared helpers; the test tables were matched to the scripts' outputs and
+  the house-rule shares and RS proxies recomputed from the trade rows. What changed is listed in section 12.
 - **UCT's private Discord** appears only through the knowledge-base summaries already stored in this public repo
   (`docs/study/levels/brain_kb_*.json`, tracked since commit ca78c0aa82). Those are machine-written summaries, not
   anyone's exact words. I paraphrase them and quote none of them. Note for the owner: the repo's `CLAUDE.md` lists the
@@ -31,7 +37,9 @@ level and the market.
 Tags used in section 8: **[owner ruling]** the owner's words in `docs/study/audits/2026-10-24/owner_verdicts.jsonl`;
 **[UCT]** the owner, Bracco or another UCT writer in the public Substack; **[house rule]** the account rulebook,
 `docs/study/sizing_rule.md` section 9; **[code]** our scanner or finder; **[source consensus]** several outside sources on
-the family (Oops, U&R, spring) agree; **[originator]** a named originator of a family member; **[measured]** our own test
+the family (Oops, U&R, spring) agree; **[originator]** a named originator of a family member; **[outside source]** a named outside trader's own words on a
+mechanic the setup shares (not an originator of the family); **[brain template]** the firm brain's AI-built summary of
+his material, not verified as his words; **[measured]** our own test
 in section 4; **[my proposal]** my recommendation, for the owner to accept or change.
 
 Terms. **PC**: the prior day's close. **PL**: the prior day's low. **Red / green**: below / above the prior close (the
@@ -82,7 +90,7 @@ brain's template for it is titled "Go Signal (TSDR)" (`docs/superpowers/research
 
 | Name | Who | Where and when (verified) | What it covers |
 |---|---|---|---|
-| **GO SIGNAL** | the owner (TSDR) | Substack, first public use 8 Jun 2025 (ALAB); naming line 22 Jun 2025 (above); 23 mentions in 19 posts through 8 Nov 2026 (section 6) | His entry: an undercut of support and a fast reclaim, read on the hourly chart |
+| **GO SIGNAL** | the owner (TSDR) | Substack, first public use 8 Jun 2025 (ALAB); naming line 22 Jun 2025 (above); 24 mentions (23 passages) in 19 posts through 8 Nov 2026 (section 6) | His entry: an undercut of support and a fast reclaim, read on the hourly chart |
 | **GO SIGNAL** (private) | the owner | A knowledge-base summary of his Discord post dated 2024-10-19 (`brain_kb_2026-11-06.json`, row 10789) calls it a full explanation of his core GO SIGNAL entry method, which the summary says he referred to throughout his alerts, with four annotated 65-minute examples. Machine summary, not his words | The earliest dated record I found. It implies earlier use I could not see |
 | **Hourly GO Signal** | the owner | AMD, [Sunday Scans, 16 Nov 2025](https://unchartedterritoryy.substack.com/p/sunday-scans-d6a); "an hourly GO SIGNAL around the $140 mark" (SHOP, [27 Sep 2026](https://unchartedterritoryy.substack.com/p/sunday-scans-09b)) | The same, said outright to be hourly |
 | **Red to green GO SIGNAL** | the owner | FIG, [The Rest of the Week, 15 Oct 2025](https://unchartedterritoryy.substack.com/p/the-rest-of-the-week-39d) | The version his 2026-11-01 ruling makes the key |
@@ -102,10 +110,10 @@ brain's template for it is titled "Go Signal (TSDR)" (`docs/superpowers/research
 - **The market version.** On 22 June 2025 the 0.7% gap down he wanted was in the index (QQQ near its 20-day line at
   $520-$523), and the Go Signal there was the market's green light to "execute on our focus list". So the owner uses the
   name for an index turn as well as for a stock. The coach's vocabulary map files "Go Signal" under market conditions
-  next to FTD (`docs/agent/coach/VOCABULARY-MAP.md`). Whether IBD or others call a follow-through day a "go signal" I
-  could not check (search ran out); I make no claim.
+  next to FTD (`docs/agent/coach/VOCABULARY-MAP.md`). A web search in checking (9 Nov 2026) found no IBD page or book that calls a
+  follow-through day a "go signal"; the only "Go / No Go" usage found was a newsletter's own alert system, not a source.
 - **No outside source.** The few searches that worked found no trader, book or educator who uses "Go Signal" for this
-  pattern. TradingView scripts and promotional newsletters using "go" signals are unrelated and are not sources.
+  pattern; a second search in checking (9 Nov 2026) found none either. TradingView scripts and promotional newsletters using "go" signals are unrelated and are not sources.
 
 ## 3. Every definition, source by source
 
@@ -143,7 +151,7 @@ bars, close or touch, which levels count, and how tight the flag must be (questi
 
 ### 3.2 The owner in public (Substack, his sections; full quotes in section 6)
 
-What the 23 Substack mentions add to the rulings:
+What the 24 Substack mentions add to the rulings:
 - **Trigger shape:** "Ideal scenario for next week is a gap down of 0.7% or more that gets bought up. There is nothing
   I like more than a gap down reversal to give me signal." (22 Jun 2025, about QQQ.) Also "dip under the MAs and the
   $6.50 level with a fierce reclaim" (NVTS, 29 Jun 2025) and "The dip into bullish gap support and quick reclaim. This
@@ -167,7 +175,8 @@ support, range or moving average; (3) buyers stepping in to leave a lower wick, 
 annotated 65-minute examples came with it; one is MSTR, where on 2024-10-17 a bar undercut $190 support and the daily
 9 EMA, then broke out the next day. The summary breaks off mid-sentence in a note about the day's low. Our scanner's
 three gates (location, a weak open that sweeps support, buyers stepping in) follow this summary closely (section 5.1).
-Other rows (paraphrased): a desk log of 2025-06-17 calls a SNOW hourly day a possible Go Signal with red to green and
+Other rows (paraphrased; these sit in `brain_kb_rules_2026-11-06.json`, rows 10117 and 12473 also in
+`brain_kb_cycle_2026-11-06.json`): a desk log of 2025-06-17 calls a SNOW hourly day a possible Go Signal with red to green and
 new highs the next day as confirmation (row 10117); a desk log of 2025-11-29 on CRS wants an hourly undercut and a Go
 Signal in a price zone, then a trail on the 20 EMA (row 10252); a desk log of 2025-02-03 says CPNG held a support zone
 and gave a Go Signal (row 10004). These desk logs look like his own Discord text, which is private, so I do not quote them.
@@ -211,7 +220,9 @@ still lives.
 "The Oops Reversal is triggered when the opening gap down is being bought up and passes the prior day’s low."
 ([docs.deepvue.com](https://docs.deepvue.com/articles/deepvue-custom-indicators-technical-patterns)) The same page
 gives the Upside Reversal: "Upside reversals suggest that buyers are beginning to dominate sellers, which may lead to an
-increase in price." No timeframe, no stop, no location.
+increase in price." No timeframe, no stop, no location. The page dates the pattern to 1979 ("In 1979, Larry Williams
+introduced the Oops Reversal trading method"); Williams' own site says 1981 (section 3.6). The originator's date is used
+here.
 
 ### 3.8 Gil Morales, U&R and MAU&R (the OWL method's terms, which the owner cites)
 
@@ -232,7 +243,7 @@ increase in price." No timeframe, no stop, no location.
 - The test that follows: "a successful test (indicating that further price increases will follow) typically makes a
   higher low on lesser volume". This matches the owner's "higher low" remarks (VEON ruling; YOU and FLNC posts).
 - Volume: a low-volume spring is the better one ("A low-volume spring (or a low-volume test of a shakeout) indicates that
-  the stock is likely to be ready to move up"). The page is the same text on [wyckoffanalytics.com](https://www.wyckoffanalytics.com/wyckoff-method/).
+  the stock is likely to be ready to move up"). The same text, unsigned there, is on [wyckoffanalytics.com](https://www.wyckoffanalytics.com/wyckoff-method/).
 
 ### 3.10 Kristjan Kullamägi (Qullamaggie): the intraday entry and the day-low stop
 
@@ -507,7 +518,7 @@ session i when all of these hold:
 - Variants: `red_to_green` (also closes above the prior close) and `daily_proxy` (does not have to). A "no_location"
   label (the same shape without G1) is stored, not fired. The bearish mirror is not fired.
 - **Entry:** the prior close if the session traded through it from below, otherwise the close. **Stop:** the session low,
-  exactly. **Targets:** 2R and 3R (`make_levels` in `uct_setups_common.py`).
+  exactly (`make_levels` moves it 0.5% under the entry only when the low is not below the entry). **Targets:** 2R and 3R (`make_levels` in `uct_setups_common.py`).
 - **Firing:** the newest of the last 3 sessions that qualifies and has not been stopped out since; confidence =
   0.40 geometry + 0.25 volume + 0.20 context + 0.15 history, at least 50. Geometry starts at 70 and adds points for red
   to green, a volume gap, a 40% wick and two levels swept.
@@ -525,7 +536,8 @@ session i when all of these hold:
 3. **Its rising-EMA gate cut one of his "good" charts:** AAPL 2022-09-01 is the negative fixture `neg_ema20_falling_AAPL_20220901`.
 4. **Two of its positive fixtures are charts he cut:** `pos_5_META_20220809` ("Cut", downtrend under every average) and
    `pos_6_GOOGL_20221116` ("Cut").
-5. **No 200-day gate (B26 is a hard rule).** `pos_2_MSFT_20221117` closed at $241.68 with the 200-day at $268.27.
+5. **No 200-day gate (B26 is a hard rule).** `pos_2_MSFT_20221117` closed at $241.68 with the 200-day near $268 ($267.91 on our daily database; the fixture
+   itself holds only 130 bars, so the scanner could not read a 200-day line from it even if it tried).
 6. **It does not require red to green.** The `daily_proxy` variant fires without a close above the prior close; his
    2026-11-01 key requires the turn.
 7. **The liquidity floor is far below B23** ($2 and $10,000 a day against $10 and $20 million).
@@ -591,7 +603,7 @@ session i when all of these hold:
 All Substack quotes are from UCT's public Substack (https://unchartedterritoryy.substack.com). I read all 103 posts in
 the sitemap through Substack's post feed and searched every one for "go signal", "red to green", "UnR", "undercut",
 "hourly", "first hour", "30 min", "65 min" and "gap down". One post (Sunday Scans, 18 Oct 2026) is for subscribers only
-and was read as a preview. Dates are the post dates Substack stamps. All 23 "Go Signal" mentions sit in "TSDR's Weekly
+and was read as a preview. Dates are the post dates Substack stamps. All 24 "Go Signal" mentions (23 passages; one passage names it twice) sit in "TSDR's Weekly
 Outlook & Watchlist", the "Charts Covered" and "Honorable Mention" lists that follow it, the unsigned intro of one post,
 or a "TSDR Trading" section, so they are the owner's (the byline: "run by Patrick (TSDR), Bracco, EliteSwingTraders, &
 Manrav"). Quotes keep the writers' spelling.
@@ -599,7 +611,8 @@ Manrav"). Quotes keep the writers' spelling.
 ### 6.1 The owner's rulings (`docs/study/audits/2026-10-24/owner_verdicts.jsonl`)
 
 The definitions are in section 3.1. The grades, in short: 45 daily footprints graded 2026-10-27/28 (4 great, 14 good,
-2 good setup but no follow-through, 4 okay, 12 need the hourly, 1 earlier day, 7 cut; "Okay let's do it all now"), then
+2 good setup but no follow-through, 4 okay, 12 need the hourly, 1 earlier day, 6 cut, and 2 answered with the definition or a process note instead of a grade
+(AAPL 2023-02-17, MSFT 2022-11-14); "Okay let's do it all now"), then
 hourly close-ups on 2026-10-31 and 2026-11-01 (VGZ 2026-09-28 kept as okay; VST 2026-10-16, VGZ 2026-10-16 and MSFT
 2022-07-14 cut; five more pending because the white paint on the open bars hid the candle colours, so the open bars were
 re-marked). The sitting was paused on 2026-11-02 when he asked to revisit the whole Study plan. On 2026-11-08,
@@ -607,7 +620,7 @@ on the trade rules and the Go Signal: "Those answers are out there." Patterns in
 under every average, MSFT and AAPL 2022-10-11 at new lows), stocks he would not trade (GIC), and an index he did
 not care about (QQQ 2021-12-15, "Maybe a downside go signal but who cares").
 
-### 6.2 The owner on the Go Signal (all 23 Substack mentions)
+### 6.2 The owner on the Go Signal (all 24 Substack mentions, in 23 passages)
 
 1. ALAB, [8 Jun 2025](https://unchartedterritoryy.substack.com/p/sunday-scans): "This is pretty much my bread and
    butter. Setting up off the 20ema here. Any sort of GO SIGNAL would allow me entry with immediate full size." Then:
@@ -741,7 +754,7 @@ not care about (QQQ 2021-12-15, "Maybe a downside go signal but who cares").
 | C28 | no more than 4% past the buy point | the buy point is the prior close; only 2.2% of signals closed their reclaim candle more than 4% above it | rarely |
 | C29 | skip a long more than 10% above its 10-day average | 11.3% of signals in context were; most are pullbacks, so few | sometimes |
 | B26 (hard) | no longs below the 200-day SMA | a pullback in an uptrend, so mostly fine; but his "great" MSFT 2022-11-17 and "good" MSFT 2022-11-22 and AAPL 2022-09-01 were below the 200-day | yes for those examples: the rule wins and they leave the bank (question 11) |
-| B23 | $10 and $20 million a day | VGZ ($2.70) was kept as okay on 2026-11-01; GIC was cut as "not a stock I would trade"; the scanner's floor is $2 | yes for VGZ and the scanner |
+| B23 | $10 and $20 million a day | VGZ 2026-09-28 (a stock trading at about $2.60-2.70 that day) was kept as okay on 2026-11-01; GIC was cut as "not a stock I would trade"; the scanner's floor is $2 | yes for VGZ and the scanner |
 | C31 | RS 80+ | his own calls were often under 80 on our proxy (ZETA 58, BIDU 68, META 69, ZS 77); the proxy is not IBD's rating | needs his reading (question 12) |
 | B19, E51, E52 | breakeven at 2R-5R; a third at 3R and 5R; trail the 10-day (fast) or 21-day (steady) | he trails the 20-day EMA in his posts, which is close to the 21-day | no |
 | B20 | gap through the stop: the first 30-minute low is the new stop, out past 2R | his own 22 Jun 2025 "GAP DOWN SELL STRATEGY" is the same rule | no |
@@ -784,7 +797,8 @@ Each line is measurable and tagged. Where his words disagree, the options are gi
    - **Close, not touch:** an hourly close back above the prior close [my proposal; it is what "go red to green in the
      first or second hourly candle" most plainly means, and META 2025-09-12 shows the difference; question 4].
 6. **The reclaim candle is green** (closes above its open) [UCT, "strong hourly candles"; my proposal as a rule].
-7. **Volume** is not a rule [source consensus: Morales "not a factor"; no UCT number]. More volume on the reclaim than
+7. **Volume** is not a rule [originator: Morales "not a factor"; Williams' Oops as tested has no volume rule; no UCT number. Not a
+   consensus: Wyckoff's school prefers a low-volume spring, section 3.9]. More volume on the reclaim than
    on the flag's first hours is a plus for grading [code: the hourly finder's volume ratio; my proposal].
 
 ### 8.2 The buy
@@ -800,7 +814,7 @@ Each line is measurable and tagged. Where his words disagree, the options are gi
 
 ### 8.3 The stop
 
-- A few cents under the session's low at the time of entry [house rule A3, F62; UCT "LOD stop"; originator-adjacent:
+- A few cents under the session's low at the time of entry [house rule A3, F62; UCT "LOD stop"; outside source:
   Qullamaggie "Stop is always lows of the day"].
 - If that is more than about 3% from the entry, size down from the stop (A5) or skip it if it does not fit [house rule
   A3, A13]. Do not move the stop up to the reclaimed level to make it fit [my proposal; the level is where the
@@ -922,10 +936,10 @@ Read on 2026-11-09 unless noted.
 
 | # | Source | Publisher / author | URL or file | Reliability note |
 |---|---|---|---|---|
-| 1 | Uncharted Territory Substack, all 103 posts in the sitemap (23 Go Signal mentions in 19 posts) | Uncharted Territory: Patrick (TSDR), Bracco, contributors | https://unchartedterritoryy.substack.com/sitemap.xml (post links in section 6) | House source; outranks outside writers for how we trade it. One post subscriber-only (preview read). Authorship by section |
+| 1 | Uncharted Territory Substack, all 103 posts in the sitemap (24 Go Signal mentions in 19 posts) | Uncharted Territory: Patrick (TSDR), Bracco, contributors | https://unchartedterritoryy.substack.com/sitemap.xml (post links in section 6) | House source; outranks outside writers for how we trade it. One post subscriber-only (preview read). Authorship by section |
 | 2 | Owner verdict log, Go Signal lines (228-309, 491) | the owner, recorded by the Study sessions | `docs/study/audits/2026-10-24/owner_verdicts.jsonl` | His exact words; the notes beside them are the sessions' readings |
 | 3 | Account rulebook, section 9 | the owner, 2026-11-09 | `docs/study/sizing_rule.md` | House rules |
-| 4 | Knowledge-base summaries (rows 10789, 10117, 10252, 10004, 10968, 12473, 6021) | machine summaries of UCT's private Discord | `docs/study/levels/brain_kb_2026-11-06.json`, `brain_kb_rules_2026-11-06.json` | Not anyone's exact words; paraphrased only |
+| 4 | Knowledge-base summaries (rows 10789, 10117, 10252, 10004, 10968, 12473, 6021) | machine summaries of UCT's private Discord | `docs/study/levels/brain_kb_2026-11-06.json`, `brain_kb_rules_2026-11-06.json`, `brain_kb_cycle_2026-11-06.json` | Not anyone's exact words; paraphrased only |
 | 5 | Brain template "Go Signal (TSDR)" as quoted | firm brain, via the 2026 setup research | `docs/superpowers/research/setups/setup_criteria.json` | AI-built; one line matches his post word for word, one line I could not find in his posts |
 | 6 | Scanner and its fixtures | UCT app | `api/services/pattern_engine/detectors/uct/uct_go_signal.py`, `uct_setups_common.py`, `primitives/liquidity.py`, `tests/fixtures/uct_go_signal/`, commit 8c7ba47b99 | Read directly |
 | 7 | Study finders, overlay and vendor bars | UCT app | `scripts/study/find_go_signal_hourly.py`, `find_go_signal_examples.py`, `app/src/pages/study/goSignalOverlay.js`, `docs/study/setups/go_signal_hourly_bars.json` | Read directly |
@@ -940,3 +954,39 @@ Read on 2026-11-09 unless noted.
 | 16 | "We Tested Larry Williams' Oops Pattern" | Unger Academy | https://ungeracademy.com/blog/we-tested-larry-williams-oops-pattern-the-results-might-surprise-you | A course seller's backtest on DAX futures; undated |
 | 17 | Our own test (hourly bars 2023-12-12 to 2026-11-06, 968 names; 5-minute bars for 60 sessions) | this dossier | scratch scripts `tools/measure.py`, `summarize.py`, `summarize2.py`, `close_rule.py`, `bucket_check.py`, `examples.py` | Read-only; limits in section 4.3 |
 | 18 | Not read | Crabel, Kell, Shannon, Aziz, Connors and Raschke books; TraderLion; investors.com; Bulkowski | none | Search budget ran out; nothing quoted from them |
+| 19 | Web searches in checking: "go signal" as a trading setup; IBD "follow-through day" + "go signal" | the checker, 9 Nov 2026 | WebSearch | No outside writer or IBD page uses the name for this pattern or for the FTD; nothing quoted |
+
+## 12. Removed or fixed in checking
+
+Cold check of 9 Nov 2026. Nothing below changes a rule; the corrections are counts, one price, one figure and three
+tags. Everything else in sections 1 to 11 was confirmed at its source (see the checking note at the top).
+
+**Fixed**
+1. **The owner's grade tally (6.1).** The dossier said "7 cut". The log lists six cuts (META 2022-08-09, MSFT and AAPL
+   2022-10-11, GOOGL 2022-11-16, GIC 2026-10-21, QQQ 2021-12-15); the two other footprints of the 45 (AAPL 2023-02-17
+   and MSFT 2022-11-14) got the definition and a process note instead of a grade. Now 4 + 14 + 2 + 4 + 12 + 1 + 6 + 2 = 45.
+2. **The mention count (2, 3.2, 6, 6.2, 11).** "23 mentions in 19 posts" was 23 numbered passages; the posts carry the
+   name 24 times (passage 21 names it twice: SNDK and TEM). Recounted on a fresh download of all 103 posts; the 19
+   posts and the 8 Jun 2025 first use stand.
+3. **MSFT 2022-11-17's 200-day line (5.2 item 5).** "$268.27" could not be reproduced; our daily database gives $267.91.
+   Written as "near $268" with the measured figure. The point (below the 200-day, B26) stands, and so do MSFT 2022-11-22
+   ($245.03 against $267.01) and AAPL 2022-09-01 ($157.96 against $161.06).
+4. **VGZ's price (7, B23).** "VGZ ($2.70) was kept as okay on 2026-11-01" mixed two days: the day kept as okay was
+   VGZ 2026-09-28 ($2.60-2.70 on the vendor bars); $2.70 was the prior close of VGZ 2026-10-16, which was cut.
+5. **The volume tag (8.1 item 7).** "[source consensus]" needed two agreeing outside sources; Morales says volume is
+   not a factor and Williams' Oops as tested has no volume rule, but Wyckoff's school prefers a low-volume spring, so it
+   is not a consensus. Retagged.
+6. **"originator-adjacent" (8.3).** Not a tag in the legend; Qullamaggie is not an originator of this family. Two tags
+   added to the legend ([outside source], [brain template]) and the line retagged.
+7. **The scanner's stop (5.1).** "The session low, exactly" is true except in the one case `make_levels` handles (a low
+   not below the entry, nudged 0.5%); the exception is now stated.
+8. **Row file names (3.3, 11).** Rows 10117, 10252 and 10004 are in `brain_kb_rules_2026-11-06.json`, not in
+   `brain_kb_2026-11-06.json`; rows 10117 and 12473 also sit in `brain_kb_cycle_2026-11-06.json`. Named.
+9. **The IBD question (2).** "I could not check" replaced with the result of a search: no IBD page or book calls a
+   follow-through day a "go signal".
+
+**Added**
+- Deepvue dates the Oops to 1979; Williams' own site says 1981 (3.7). The originator's date is kept.
+- The Wyckoff Analytics copy of the tutorial is unsigned (3.9); the authors' names are on the StockCharts copy.
+
+**Removed:** nothing. No quote, attribution, statistic or criterion failed its source.

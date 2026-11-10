@@ -8,13 +8,21 @@ Jegadeesh abstract uses a Unicode hyphen and an en dash that I typed as plain hy
 description is one Python string split over two lines. Quotes keep the writer's own spelling and are 40 words or fewer.
 Where I could not read a source, I say so and give no wording from it.
 
+**Cold check, 2026-11-09.** A second reader re-fetched every source named below (all 103 Substack posts through the public
+post API, the nine Alvarez posts through the site's API, the Raschke PDFs, the Kell archive copies, the NBER, Crossref,
+French and StockCharts pages, the Bollinger rules, the TradingView script page, the Yahoo copy of the IBD article, the
+Bulkowski pages through WebFetch), re-ran the quote match (the draft's 314 quoted spans; every one found, the two Unicode-hyphen
+cases above included), re-mapped each Substack quote to its section header, re-derived the French period table from
+the downloaded file (every number agrees), re-read the detector and app code named in section 5, and compared the
+measurement script with its log (every number in the section 4.4 table agrees). What changed is listed in section 12.
+
 **What this setup is in our app today.** "Mean Reversion L/S" is a journal tag only (`setupGroups.js`, in the
 "Intraday" group). There is no Model Book card, no detector named for it, no trade plan, and no Study unit
 (`docs/study/UNITS-method.md` lists it among names with "no unit; owner may add later"). The owner has used the term once
 in the rulebook: C31 exempts "parabolic or mean reversion" trades from the RS 80 rule.
 
 **Related dossiers.** Mean reversion is a family, not one chart shape. Several members have their own dossier in this
-series: 34 Capitulation (the flush low; the app's `uct_capitulation` detector), the Parabolic Short and Parabolic Long
+series: 34 Capitulation (the flush low; the app's `uct_capitulation` detector), 39 Parabolic Short and 38 Parabolic Long
 (Bracco's post; see dossier 18, Part A, for Kullamägi's version), 18 Part B (Kell's Reversal and Exhaustion Extensions),
 29 Undercut and Rally and 13 MA Reclaim (the "MAU&R" that Bracco calls a rubber band long), 30 Oops Reversal and 28 2B
 (failed-low turns). This dossier covers the family as a whole: what makes a trade "mean reversion", how UCT uses the word,
@@ -65,7 +73,7 @@ The differences, as the sources draw them:
 | | Parabolic short (and long) | Mean reversion in general |
 |---|---|---|
 | What must happen first | A "parabolic burst": a 3-5 day final leg with straight up days, gaps, range and volume expansion (Bracco); a stock up 50-100%+ (large cap) or 300-1000%+ (small cap) in days or weeks (Kullamägi) | Any unusual stretch from an average, measured in ATRs, percent, an oscillator (RSI(2)) or a band; no burst required |
-| Shape | Exponential, accelerating curve; Bracco rejects "linear" stair-step moves | Any shape; often a pullback inside an uptrend (Connors) or a fast drop in a leader (Bracco) |
+| Shape | Exponential, accelerating curve; Bracco separates it from a "linear" curve of "steady, consistent price movement over time" | Any shape; often a pullback inside an uptrend (Connors) or a fast drop in a leader (Bracco) |
 | Frequency | "You’re lucky to get a couple 5-star candidates a year." (Bracco) | Common: thousands of signals a year in a broad universe (section 4.4) |
 | Target | The 9-day EMA (Bracco); the 10 and 20-day (Kullamägi) | The 5-day SMA (Connors), the 20 EMA (Kell), the mean the stretch was measured from |
 | House rule B26 | The named exception: parabolic longs below the 200-day, parabolic shorts above it | No exception: a mean-reversion long must be above the 200-day and a short below it, unless it is also a parabolic |
@@ -103,13 +111,15 @@ for the house rules (section 7).
 - **The academic root.** Short-term reversal in stock returns was documented in 1990 by Narasimhan Jegadeesh (*Journal
   of Finance* 45(3), 881-898: "The negative first-order serial correlation in monthly stock returns is highly
   significant.") and by Bruce Lehmann (NBER working paper w2533, March 1988, on one-week "winners" and "losers";
-  published in the *Quarterly Journal of Economics* in 1990, which I did not check). De Bondt and Thaler (1985)
+  published in the *Quarterly Journal of Economics* 105(1), 1-28, February 1990, per the NBER page's published-version
+  note; the journal text itself was not read). De Bondt and Thaler (1985)
   documented long-horizon overreaction.
 - **The swing-trading systems.** Larry Connors is credited with the best known one. StockCharts: "Larry Connors developed
   the 2-period RSI strategy, a fairly simple mean-reversion trading strategy designed to buy or sell securities after a
   corrective period." ([ChartSchool, RSI(2)](https://chartschool.stockcharts.com/table-of-contents/trading-strategies-and-models/trading-strategies/rsi-2))
-  The book usually cited is Connors and Cesar Alvarez, *Short Term Trading Strategies That Work* (2008); I did not read
-  it. Pradeep Bonde (Stockbee) wrote in January 2010 that a 2-period RSI book "came out just when mean reversion had
+  The book usually cited is Connors and Cesar Alvarez, *Short Term Trading Strategies That Work* (TradingMarkets, 2008;
+  bookseller listings date the first printing to November 2008 and some copies carry a 2009 copyright); I did not read
+  it. Alvarez's own bio page names him "the primary researcher and co-author" of it. Pradeep Bonde (Stockbee) wrote in January 2010 that a 2-period RSI book "came out just when mean reversion had
   become most popular strategy" (he does not name the author; section 3.2). Earlier, Connors and Linda Raschke's
   *Street Smarts* (M. Gordon Publishing, 1995, per the earlier internal file
   `docs/superpowers/research/bases/11-raschke-connors-crabel-shortterm.md`) collected short-term patterns, some of them
@@ -186,8 +196,10 @@ An educator's restatement; I did not read Connors' book.
 - **Entry:** "Connors advocates the before-the-close approach." The alternative is the next open.
 - **Exit:** "Connors advocates exiting long positions on a move above the 5-day SMA and short positions on a move below
   the 5-day SMA."
-- **Stop:** "Connors does not advocate using stops." StockCharts adds that in his tests stops "hurt" performance, and
-  recommends readers build a stop anyway.
+- **Stop:** "Connors does not advocate using stops." StockCharts adds that in his tests stops "hurt" performance, warns
+  that "not using stops can result in outsized losses and large drawdowns", suggests "setting a trailing stop or
+  employing the Parabolic SAR", and leaves the choice open: "Chartists need to decide for themselves."
+
 - **Philosophy:** "Connors states that traders should buy pullbacks, not breakouts."
 - **Known flaw:** "As noted above, the RSI(2) strategy can be early because the existing moves often continue after the
   signal." StockCharts' fix: wait for a sign of a turn, for example RSI(2) back above 50.
@@ -195,16 +207,22 @@ An educator's restatement; I did not read Connors' book.
 
 ### 3.4 Cesar Alvarez (Connors' co-author; alvarezquanttrading.com): tested variants
 
-Alvarez co-wrote the 2008 book and was Connors' director of research (the earlier internal files say so; his own posts say
-"One of the first strategies I tested for Larry Connors in 2003"). His blog publishes the rules of each test.
+Alvarez co-wrote the 2008 book. His bio page ([alvarezquanttrading.com/bio](https://alvarezquanttrading.com/bio/)) says
+he "spent nine years as a professional market researcher for Connors Research and TradingMarkets.com" and was "the
+primary researcher and co-author" of the book; an earlier internal file
+(`docs/superpowers/research/bases/11-raschke-connors-crabel-shortterm.md`) calls him Connors' former Director of
+Research, a title his bio page does not use. His own words: "One of the first strategies I tested for Larry Connors in
+2003" ([2024-01-24](https://alvarezquanttrading.com/blog/mean-reversion-vs-trend-following-through-the-years/)). His
+blog publishes the rules of each test.
 - **Typical setup he tests:** liquid stocks, 2-period RSI crossing under 1 to 5, often a 100 or 200-day trend filter,
-  entry at the next open or on a limit below the close, exit when RSI(2) rises over 30, 70 or 80, or on a close above
+  entry at the next open or on a limit below the close, exit when RSI(2) rises over 30 or 70, or on a close above
   the 5-day average.
 - **The 200-day:** "I typically only trade mean reversion when the stock is above its 200-day moving average." ([2019-03-13](https://alvarezquanttrading.com/blog/how-is-mean-reversion-doing-dead-shrinking-or-doing-just-fine/))
   Three years later: "For my mean reversion strategy, I do not use a 200-day moving average." ([2022-10-24](https://alvarezquanttrading.com/blog/mean-reversion-check-up-2022/))
 - **Stops:** "I have tested adding max loss stops to a mean reversion strategy, with no success." ([2016-03-16](https://alvarezquanttrading.com/blog/adding-stops-and-scaling-out-to-a-mean-reversion-strategy/))
-  But: "I want to be clear that I am not saying one should trade mean reversion without stops." His best combination in
-  one test: "The best results occur using a a two times ATR10 maximum stop loss and a three times ATR10 profit target."
+  But, in the 2015 post those words point back to: "I want to be clear that I am not saying one should trade mean
+  reversion without stops." His best combination in that test: "The best results occur using a a two times ATR10 maximum
+  stop loss and a three times ATR10 profit target."
   ([2015-09-30](https://alvarezquanttrading.com/blog/stop-losses-and-profit-targets-plus-happy-birthday-excel/))
 - **Entry:** in one 2007-2021 test, a limit order 1-4% below the close beat entry at the next open: "The CAR improved by
   21%, Exposure dropped 33%, MDD dropped and the avg % p/l doubled." Waiting for confirmation (a buy stop above the close)
@@ -228,6 +246,8 @@ Source: interviews she posts on her own site, [lindaraschke.net/articles](https:
 - **After a volatility spike:** "So, shorting the reaction after a V-spike reversal is a sucker’s play." (Active Trader,
   February 2004)
 - **Orders:** "I use market orders most of the time." (1993; it matches house rule E57)
+- **Her horizon:** "Even though I'm on a short-term timeframe, two to three days, I try to look for something where I
+  can see a couple points' move" (1993). This is the source of the "two to three days" in the table below.
 
 ### 3.6 Oliver Kell: the Reversal Extension and the Exhaustion Extension
 
@@ -274,9 +294,12 @@ V-shape), aligning with the new intraday trend for higher-probability, lower-ris
   the book.
 - **The ATR% multiple from the 50-day.** A TradingView script "ATR% multiple from 50-MA" by user jfsrev (2023-06-27),
   read through WebFetch, defines ATR% as ATR divided by price, and the multiple as the percent gain from the 50-day SMA
-  divided by ATR%. It suggests profit-taking can start at "7-10 times the ATR% from the 50-SMA." Bracco credits the
-  indicator to "@jfsrevg and @RealSimpleAriel on X" (2025-06-13) and an unsigned Sunday Scans calls it "the ATR extension
-  metrics from Jeff Sun" (2025-10-19). I could not confirm on Jeff Sun's own page that jfsrev is his account.
+  divided by ATR%. Its own words: "A = ATR% = $ ATR / $ Last Done Price B = % Gain From 50-MA B / A = ATR% multiple from
+  50-MA". It suggests profit-taking can start at "7-10 times the ATR% from the 50-SMA." The author says the script was
+  built "on my behalf" by "TradingView User Fred6724", and the page is tagged "jeffsun", "jeffsuntrading" and "jfsrevg".
+  Bracco writes of "an indicator inspired by @jfsrevg and @RealSimpleAriel on X" (2025-06-13) and an unsigned Sunday
+  Scans calls it "the ATR extension metrics from Jeff Sun" (2025-10-19). The page's tags support the Jeff Sun credit; I
+  did not confirm it on a page of Jeff Sun's own.
 
 ### 3.10 Bulkowski: the dead-cat bounce (the failed mean-reversion long)
 
@@ -326,7 +349,7 @@ templates (`api/services/uct_agent/coach/setups.py`).
 | Trigger | Opening range high; first green 5-min candle | n/s | The close (or next open) | Next open, or a limit below the close | n/s | Volume snap back | Intraday turn ("Right Side of the V"); ideally after a gap down |
 | Stop | n/s for the long (short: day's high) | n/s | None | None helped; 2 ATR best in one test | n/s | Just below the bar's low | Just under the washout low |
 | Target | 50-100% bounce | n/s | Close above the 5-day SMA | RSI(2) over 30-80; 5-day | n/s | Retest of the 20 EMA | Partials on the first bounce; the 9 EMA for parabolics; trail the 20 EMA if it trends |
-| Hold | "a few days" | 3-5 days | Days | 1-6 days | 2-3 days (her general horizon) | Quick | 1-3 days |
+| Hold | "a few days" | 3-5 days | Days | 1-6 days | "two to three days" (1993) | Quick | 1-3 days |
 
 ### 3.14 Where the sources disagree
 
@@ -359,11 +382,11 @@ templates (`api/services/uct_agent/coach/setups.py`).
   continuation: "The difference between the abnormal returns on the extreme decile portfolios over the period 1934-1987
   is 2.49 percent per month." Limits: monthly, before costs, a long-short of the extreme deciles, and it mixes the
   one-month reversal with a twelve-month continuation effect.
-- **Lehmann, NBER w2533 (March 1988; published in the *Quarterly Journal of Economics* in 1990, not checked).** "This study finds sharp
+- **Lehmann, NBER w2533 (March 1988; published in the *Quarterly Journal of Economics* 105(1), February 1990, per the NBER page).** "This study finds sharp
   evidence of market inefficiency in the form of systematic tendencies for current 'winners' and 'losers' in one week to
   experience sizeable return reversals over the subsequent week". He reports the profits survive his corrections for
   bid-ask spreads and "plausible levels of transactions costs". Limits: 1960s-1980s data.
-- **Nagel, NBER w17653 (December 2011; published in the *Review of Financial Studies* in 2012, per its RePEc listing).** Reversal returns are "strongly
+- **Nagel, NBER w17653 (December 2011; published in the *Review of Financial Studies* 25(7), 2012, per the NBER page's published-version note).** Reversal returns are "strongly
   time-varying and highly predictable with the VIX index", and "Expected returns and conditional Sharpe Ratios increase
   enormously along with the VIX during times of financial market turmoil, such as the financial crisis 2007-09." This is
   the best outside support for waiting for fear before buying a flush. Limits: portfolio-level reversal, not single-stock
@@ -400,8 +423,9 @@ only the numbers in his text.
 - **2000-2022 check-up, the same kind of rules.** "These tests confirmed what I see in my trading, that the edges are
   continuing to get smaller but are still there." Above the 200-day: "In the current bear market and the one in 2020, the
   returns are negative." ([2022-10-24](https://alvarezquanttrading.com/blog/mean-reversion-check-up-2022/))
-- **Volume.** Same setup above the 200-day: average .54% per trade; setups in the lower 0-39 volume percent-rank averaged
-  .64%, but were only 18% of trades. Below the 200-day the average was .15%. ([2022-12-07](https://alvarezquanttrading.com/blog/volume-and-mean-reversion/))
+- **Volume.** Same setup above the 200-day (2007-2022, RSI(2) under 1, exit over 70): average .54% per trade; setups in
+  the lower 0-39 volume percent-rank averaged .64% ("18% above the average"), but "that is only 18% of trades". Below
+  the 200-day the average was .15%. ([2022-12-07](https://alvarezquanttrading.com/blog/volume-and-mean-reversion/))
 - **Stops.** Percent stops "hurts your compounded returns" without improving the maximum drawdown, though they cut the
   worst 50 trades; a 2 x ATR(10) stop with a 3 x ATR(10) target was his best combination in that test (16.46% CAR, 33%
   better than his base). ([2015-09-30](https://alvarezquanttrading.com/blog/stop-losses-and-profit-targets-plus-happy-birthday-excel/))
@@ -433,7 +457,9 @@ tickers only, so survivorship bias flatters longs), 2010-01-01 to 2026-08-01, on
 order (E57), and traded three ways from the same entry: **HOUSE** (stop 3 cents under the signal day's low, or over its
 high for shorts: A3, F62), **NOSTOP** (Connors), and **ATR2** (a stop 2 x ATR(14) from the entry, Alvarez's best size).
 All three exit at the first close back through the 5-day SMA (Connors' exit), else at the tenth session's close (C33),
-else at the stop. The signals were fixed before the first run. No costs, no slippage.
+else at the stop. The six mechanical signals and the control were fixed before the first run (the first version of the
+script); the two UCT stand-ins (LF and RB) were added in the third version, after the first results had been seen, so
+they are exploratory, not pre-registered. No costs, no slippage.
 
 The signals: **L_RSI2_UP** close over the 200-day SMA and RSI(2) under 5 (Connors' long); **L_RSI2_DN** the same under
 the 200-day; **L_ATR3_UP / DN** a close 3 ATR(14) or more under the 20-day SMA, over or under the 200-day (the old brain
@@ -514,11 +540,13 @@ repo.
 - **cascade:** the three sessions before fell at least 1.5 ATR (`CAP_CASCADE_ATR = 1.5`);
 - **and one of:** three down closes, each bigger than the last; record volume (the most in up to 252 prior sessions, with
   at least 190 sessions of history); or 2x the 50-day volume rising across three down days;
-- **vetoed** by a decline on falling volume (5-bar slope) unless the volume is a record;
+- **vetoed** by a decline on falling volume (5-bar slope) unless the volume is a record (the veto is applied to the
+  setup-day variant only);
 - **a second variant, `gap_below`:** the day after such a setup day opens under its low.
 - **Entry:** the close of the flush. **Stop:** the session low. **Targets:** 2R and 3R (`make_levels`). A 0-5 star count
-  tallies the extremes. Labels only: a 3-day 15% drop from above the 50-day (`CAP_JERSACE_DROP = 0.85`, named after the
-  UCT contributor Jersace), a loose stretch, open down-gaps, and the extension from the 50-day in ATRs.
+  tallies the extremes. Labels only: a 3-day 15% drop from above the 50-day (the constant is `CAP_JERSACE_DROP = 0.85`; Jersace is a
+  UCT contributor, and the file does not say more about the name), a loose stretch, open down-gaps, and the extension
+  from the 50-day in ATRs.
 - **Liquidity:** the shared `liquidity_floor`: price $2 and a 20-day average of $10,000 traded (`primitives/liquidity.py`).
 - **Member gate:** in `INTERNAL_PATTERN_IDS` (admin only), but in `SETUP_TAG_TEAM_SET`, so members see a "Capitulation"
   tag defined as "A wide-range flush that closes far below the lower Bollinger Band after a multi-day slide." The tag
@@ -526,7 +554,7 @@ repo.
   of the 14 sessions before it, with 5 of the 8 prior sessions down; a red day with a range of 2 ATR and 2x average
   volume; a close more than 2 standard deviations under the 20-day average; and the prior close at least 15% under the
   highest close of the prior 25 sessions, set at least 5 sessions earlier. Blind round-2 judging scored it
-  2.89 (file header).
+  2.89 (the header of `tag_textbook.py`, not of the detector file).
 
 **Chart IQ "Climax / exhaustion" (short).** Fires when the close is at least 5 ATR above the 50-day SMA (`ext50 >= 5`),
 at least 12% above the 9 EMA, up at least 25% from the 20-day low, with at least 2 straight up closes; grade A if 7 ATR or
@@ -597,6 +625,13 @@ Every quote below was found in the saved post and its section author checked by 
   Again, such as NBIS off the 50SMA, HVE level at $95.72, down 8 days in a row."
 - **After the July 2026 semis flush** ([Sunday Scans, 2026-08-02](https://unchartedterritoryy.substack.com/p/sunday-scans-cd2)):
   "I thought the reversion trade on Memory, Korea, and Semis was a really good opportunity and probably still is honestly."
+- **The TQQQ trade, the week after** ([Sunday Scans, 2026-04-05](https://unchartedterritoryy.substack.com/p/sunday-scans-356)):
+  "Came into the week pretty adamant (Read Last Week’s SS) that we were likely to get a snapback rally. Was able to get
+  positioned in TQQQ with this insane entry price." The entry: "Tuesday’s gap up gave a very good opportunity on the
+  intraday pullback and was a textbook Brian Shannon Gap Up against intermediate trend."
+- **A bounce he would not buy** ([Sunday Scans, 2026-07-19](https://unchartedterritoryy.substack.com/p/sunday-scans-a52),
+  SNDK): "Ideally at a dead cat bounce spot here. Lot of excitement on the oversold bounce attempt on Friday only to
+  close weak and fade".
 - **KB 10707** (2024-04-26, his chat words as the KB records them): in a list of possible edges he wrote "Snap back long".
 
 ### 6.2 Bracco
@@ -618,7 +653,9 @@ Every quote below was found in the saved post and its section author checked by 
   move", "600% above avg 5-minute volume", "Retesting the prior all-time high", "$50 psychological level". The trade:
   "Entry around 49.81, stop at 49." "Scaled out a few partials on the initial bounce and held a core piece to swing,
   planning to add if the daily tightened up for another leg." "My original plan was to trail the 20EMA and look for
-  re-add spots."
+  re-add spots." The trigger, in his words: "I initiated after it washed out the $50 psych level and previous ATH peak
+  on the highest volume of the day." The cause: "An overreactive sell off into a huge area of support on a leading IPO."
+  The setting: "a sharp -16% late-day drop on Monday wiped out the late chasers and shook out the weak hands."
 - **SNDK, the same setup two days earlier** (same post): "It sold off right at the open, no green 10-minute candles all the
   way down until lows of the day." "It hit over -200% ATR move at the lows of the day and held right at S3 (support
   pivot)." "SNDK was the lesson, FIGR was the exam."
@@ -673,6 +710,30 @@ Every quote below was found in the saved post and its section author checked by 
 - **Software, a capitulation long idea** ([The Rest of the Week, 2026-02-04](https://unchartedterritoryy.substack.com/p/the-rest-of-the-week-732)):
   "IGV traded it highest volume in its 26-year history today on its 6th consecutive down day and 4th consecutive down
   weak." "We have range and volume expansion as the ETF nears a huge 2+ year support area."
+- **What a capitulation bottom looks like to him** ([Sunday Scans, 2025-11-16](https://unchartedterritoryy.substack.com/p/sunday-scans-d6a)):
+  "Many of the names that blew off top in October and lead this correction lower feel very close to some sort of
+  capitulation bottom. They are very oversold from short term MA’s, down multiple weeks/days in a row and are seeing an
+  increase in daily volume."
+- **"Capitulation long" as his own name for it** ([The Rest of the Week, 2025-11-05](https://unchartedterritoryy.substack.com/p/the-rest-of-the-week-9c9),
+  ETHA/ETHU after "ETH -15% & BTC -7%" at the lows, ETHU on "its highest volume ever"): "Think potential rubber band /
+  capitulation long setup here for a short term trade opportunity."
+- **A mean-reversion short he would not front-run** ([Sunday Scans, 2026-04-05](https://unchartedterritoryy.substack.com/p/sunday-scans-356),
+  USO "completely outside the upper Bollinger Band"): "Another day or two of straight vertical price action and this may
+  set up a really clean mean reversion opportunity. Not something I am going to front run".
+- **The index version, two more times** ([Sunday Scans, 2026-06-14](https://unchartedterritoryy.substack.com/p/sunday-scans-e95)):
+  "The Nasdaq corrected almost -9% in just 5-days while still remaining above a sharply rising 50-day moving average."
+  "Only regret was not being willing to try the SOXL idea on the intraday turn Tuesday". And
+  ([2026-07-05](https://unchartedterritoryy.substack.com/p/sunday-scans-dec)): "SOXL on another mean reversion to the
+  long side. We saw SOXX SMH fall over -15% in just two days".
+- **One that gave only a day** ([Sunday Scans, 2026-10-25](https://unchartedterritoryy.substack.com/p/sunday-scans-36e),
+  NCLD): "Was very interested in mean reversion trade on neoclouds into the 10/15 gap down and only got one day of glory
+  before pushing back towards lows." "Clear capitulatory action on this wave down imo but may be a tough trade."
+- **The overreaction reading** (2025-10-12, same post as the breadth quotes): "To me this represents an overreaction due
+  to excessive leverage and overconfidence among market participants."
+- **His "Monday Effect"** (2026-03-22): "where through my studies notable capitulations and turns have occurred on a
+  Monday, especially when you get consecutive down days into the end of the week." He lists four dates; three were
+  Mondays (2020-03-23, 2024-08-05, 2025-04-07), but his "Monday, March 24 2022" fell on a Thursday (the March 2022 low
+  was Monday the 14th). An observation, not a measurement.
 - **KB 12095** (2025-12-01, his chat words): "i think most traders are not as good at that and woudl rather buy the wedge
   pop into a new uptrend versus the oversold bounce." **KB 11061** (2025-02-25) is a summary, not his words: it says he
   finds mean-reversion bounces work best when the indexes are also stretched down and aligned, and that he takes them at
@@ -814,11 +875,11 @@ Each line is measurable. Where sources disagree I give the options and recommend
 ### 8.6 What invalidates it
 
 - A trade below the flush low (the stop). **[source consensus]**
-- A second flush to a new low on heavier volume (the detector's narrative; Bulkowski's continued decline). **[source
-  consensus]**
+- A second flush to a new low on heavier volume (the detector's narrative; Bulkowski's continued decline). **[house
+  material; Bulkowski; my reading]**
 - The bounce stalls and closes weak on day one or two (the detector's narrative "early warning"). **[my proposal]**
 - The news behind the drop is a real change in the business (a guidance cut, fraud): Bulkowski's dead-cat bounce is the
-  likely path. **[source consensus; my reading]**
+  likely path. **[Bulkowski, a single source; my reading]**
 
 ### 8.7 The short mirror
 
@@ -833,9 +894,10 @@ Each line is measurable. Where sources disagree I give the options and recommend
 ### 8.8 Best market conditions
 
 - Longs: a fear spike in a market that was healthy (Bracco's "overreaction" in October 2025, with indexes just off highs);
-  the VIX rising fast toward 30 (Bracco); breadth oversold (MMTW, S5FD, T2108: Bracco; Stockbee's breadth); a Monday
-  after a weak Friday (Bracco's "Monday Effect", an observation from four dated examples, not measured). **[UCT]**
-- Measured support: reversal returns rise with the VIX (Nagel). **[source consensus]**
+  the VIX rising fast toward 30 (Bracco); breadth oversold (MMTW and S5FD: Bracco; T2108 is the posts' own breadth
+  gauge; Stockbee's breadth); a Monday after a weak Friday (Bracco's "Monday Effect", an observation from four dated
+  examples, one of them not a Monday; not measured). **[UCT]**
+- Measured support: reversal returns rise with the VIX (Nagel, one study; portfolio-level, not chart setups). **[study, single source]**
 - Worse: bear markets. Alvarez found returns negative in the 2020 and 2022 bear markets even for stocks above their
   200-day; in my check the below-200 versions lost heavily in 2020 (section 4.4); and the owner's own view is
   "below the 200SMA no participation is best". **[source consensus; UCT]**
@@ -985,7 +1047,8 @@ test** = a named trader's published backtest; **house** = UCT's own material.
 - W. De Bondt and R. Thaler, "Does the Stock Market Overreact?", *Journal of Finance* 40(3), July 1985, 793-805,
   doi:10.1111/j.1540-6261.1985.tb05004.x ; abstract via Crossref. Study.
 - B. Lehmann, "Fads, Martingales, and Market Efficiency", NBER Working Paper 2533, March 1988,
-  https://www.nber.org/papers/w2533 ; abstract read. Study (published 1990 in the QJE; not read there).
+  https://www.nber.org/papers/w2533 ; abstract read. Study (published in the *Quarterly Journal of Economics* 105(1),
+  1-28, February 1990, per the NBER page; not read there).
 - S. Nagel, "Evaporating Liquidity", NBER Working Paper 17653, December 2011, https://www.nber.org/papers/w17653 ;
   abstract read. Study (published 2012 in the *Review of Financial Studies*).
 - Kenneth R. French Data Library, "Short-Term Reversal Factor (ST_Rev)", monthly file built from the 202609 CRSP
@@ -1000,8 +1063,8 @@ test** = a named trader's published backtest; **house** = UCT's own material.
   .../blog/mean-reversion-and-the-broken-rubber-band/ (2016-06-17);
   .../blog/mean-reversion-entry-at-open-vs-intraday-pullback-vs-confirmation/ (2021-08-25);
   .../blog/avoiding-trades-before-earnings/ (2019-04-24);
-  .../blog/mean-reversion-vs-trend-following-through-the-years/ (2024-01-24). Practitioner tests by the co-author of the
-  Connors book; rules published, results tables are images I could not read.
+  .../blog/mean-reversion-vs-trend-following-through-the-years/ (2024-01-24); bio page https://alvarezquanttrading.com/bio/ .
+  Practitioner tests by the co-author of the Connors book; rules published, results tables are images I could not read.
 
 **My own check**
 - `tools/measure_mr3.py` and its log in my scratch folder, on the local sandbox daily bars (survivorship-biased; not
@@ -1011,3 +1074,61 @@ test** = a named trader's published backtest; **house** = UCT's own material.
 - Forum posts, AI-written strategy pages and indicator marketplaces that surfaced in searches (for example skill
   marketplaces and strategy blogs restating RSI(2)). A pirated PDF of *Street Smarts* linked from an older internal file
   was not opened.
+
+---
+
+## 12. Cold check (2026-11-09): what was confirmed, fixed and removed
+
+**Confirmed.** All of the draft's 314 quoted spans were found word for word in freshly fetched copies of their sources (the two
+Unicode-hyphen cases in the Crossref abstracts as disclosed at the top). Every Substack quote sits under the section the
+dossier credits it to (Bracco's sections, the owner's "TSDR's Weekly Outlook & Watchlist" / "Patrick (TSDR)'s Weekly
+Outlook & Watchlist", the unsigned "Index & ETF" and intro passages, "Thoughts on the Market", "Manrav - SMTC CRWV").
+The post dates, the weekday claims (FIGR Monday 2026-01-12; SNDK "Thursday, January 8th"; UAMY/USAR/ABAT Friday
+2025-10-17; ETH Friday 2025-10-10 after hours; SOXL Friday 2026-06-05; IGV Tuesday 2026-02-03) and the "evening post,
+next-day UTC date" rule all hold. The French ST_Rev period table was recomputed from the downloaded file and every
+number agrees. The section 4.4 table was compared line by line with the script's log and agrees. The detector summary in
+section 5.2 matches `uct_capitulation.py`, `tag_textbook.py`, `liquidity.py` and `registry.py`; the Chart IQ, backtest
+template, journal tag, Model Book card, vocabulary, coach list, archive mapping and voice-KB claims match the files
+named. The Bulkowski statistics and the anti-AI notice were re-read through WebFetch and match. Bracco's parabolic-burst
+checklist, his credit to Lance Breitstein and the "@jfsrevg and @RealSimpleAriel" credit are in the post as described.
+The three KB rows (10707, 11061, 12095) say what the dossier says they say.
+
+**Fixed (wording that did not match its source).**
+1. StockCharts does not "recommend readers build a stop anyway"; it warns about outsized losses, suggests a trailing
+   stop or Parabolic SAR, and says "Chartists need to decide for themselves" (section 3.3).
+2. "Connors' director of research" came only from an older internal file; Alvarez's own bio says "professional market
+   researcher for Connors Research and TradingMarkets.com" and "primary researcher and co-author" of the book
+   (section 3.4). The 2003 quote is now tied to its post (2024-01-24).
+3. "I want to be clear that I am not saying one should trade mean reversion without stops" is from the 2015-09-30 post,
+   not the 2016-03-16 post it followed (section 3.4).
+4. Alvarez's exits in the posts read are RSI(2) over 30 or 70 (and the 5-day average); "80" appears only as his
+   overbought threshold in the 2024 index study, so it was dropped from the exit list (section 3.4).
+5. The "2-3 days" given for Raschke's horizon had no source in the dossier; it is now quoted from the 1993 interview
+   ("short-term timeframe, two to three days") (sections 3.5, 3.13).
+6. The blind-judging score 2.89 is in the header of `tag_textbook.py`, not of the detector file (section 5.2). The
+   falling-volume veto applies to the setup-day variant only; the `gap_below` variant has no veto (section 5.2).
+7. "The signals were fixed before the first run" was true of the six mechanical signals and the control only; the LF
+   and RB stand-ins were added in the script's third version, after results had been seen (section 4.4).
+8. "Bracco rejects 'linear' stair-step moves": his post contrasts a parabolic curve with a "linear" one of "steady,
+   consistent price movement"; "stair-step" was the writer's word (section 1 table).
+9. Lehmann's and Nagel's published versions are named on the NBER pages themselves (QJE 105(1), February 1990; RFS
+   25(7), 2012), so "not checked" and "per its RePEc listing" were replaced (sections 2, 4.1, 11).
+10. The TradingView page carries the formula and the tags "jeffsun", "jeffsuntrading", "jfsrevg", which support
+    Bracco's Jeff Sun credit; the dossier's doubt was narrowed to "not confirmed on a page of Jeff Sun's own" (section 3.9).
+11. T2108 is the posts' standing breadth gauge, not a Bracco attribution; MMTW and S5FD are his (section 8.8). One of
+    the four "Monday Effect" dates (March 24, 2022) was a Thursday (sections 6.2, 8.8).
+12. The Connors book's year is given with its hedge (first printing November 2008; some copies carry a 2009 copyright).
+13. Three basis tags in section 8 read "[source consensus]" on one outside source (a second flush on heavier volume;
+    a business-changing collapse; Nagel's VIX finding); each now names its single source. The "Related dossiers" note
+    now points to dossiers 38 and 39 for the parabolic long and short.
+
+**Added.** Bracco's own description of a capitulation bottom (2025-11-16), his "rubber band / capitulation long" on
+ETHA/ETHU (2025-11-05), the USO mean-reversion short he would not front-run (2026-04-05), two more index versions
+(2026-06-14, 2026-07-05), the NCLD trade that "only got one day of glory" (2026-10-25), his "overreaction" reading
+(2025-10-12), the FIGR trigger in his words, and the owner's TQQQ follow-through and SNDK "dead cat bounce" passages
+(2026-04-05, 2026-07-19). Alvarez's bio page was added to the sources.
+
+**Removed in checking.** No quote had to be removed: every quoted span was found on its page. The statements removed as
+unsupported were the "recommends readers build a stop anyway" reading of StockCharts (item 1), the exit threshold "80"
+(item 4), "director of research" stated as fact (item 2), "stair-step" (item 8), and the unqualified "signals were fixed
+before the first run" (item 7); each is replaced by the sourced wording above.

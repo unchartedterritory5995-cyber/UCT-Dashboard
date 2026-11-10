@@ -1195,3 +1195,71 @@ KMA script, Deepvue, StratLab, BigGuava, FinancialWisdomTV, ChartSchool x4, Bulk
 member-tag, Chart IQ and finder code summaries; the 4.2 tables (evidence, evidence_kept, evidence_atlas, ATLAS.md);
 the 4.3 (a) kept-vs-cut medians and counts, the A13, C28 and C29 counts, the 4.3 (c), (d) and (e) tables, all re-run
 or recomputed from the scan outputs by the checker.
+
+---
+
+## 12. Examples (from our data)
+
+**The scan's rule (one paragraph).** Daily bars from the local sandbox, the 2,630 names that ever met the house
+liquidity rule (close $10 or more, 50-day average dollar volume $20 million or more; B23). Checked on the day before
+the launch: the lowest close of the last 60 sessions at least 15% under the highest high of the 60 sessions before
+that (rule 2); at least 25 of the last 40 closes within 10% of the bundle's middle and the last 30 closes spanning no
+more than 20% of price (rule 3); at least 10 of the prior 40 closes under the lowest of the 8 EMA / 21 EMA / 50 SMA and
+fewer than 20 above the highest (rule 4); the three averages within 3% of price of each other (rule 5); the 200-day
+within 10% of the bundle's middle (rule 6). The launch bar: the first close above all four averages after a close that
+was not (rule 7; B26), up 2% or more, close in the top 35% of its range, volume 1.2x or more its 50-day average (rule
+8), opening no more than 6% above the prior close (rule 9). The stack (8 > 21 > 50) is recorded, not required (rule
+10). Earnings (rule 11; B22): any hit with an earnings reaction day on the launch day or the next 3 sessions was
+dropped after the scan (447 of 2,864), using the sandbox's Yahoo + SEC 8-K dates, which are complete from about 2005.
+The trade is the house trade from 8.2 and 8.3: a market order at the launch-day close (E57), the stop 5 cents under the
+launch-day low (A3), skipped if that stop is more than 6% away (the 8.3 cap) or the close is more than 10% over its
+10-day SMA (C29); the C28 chase limit is recorded as the close's distance over the top of the averages. Any name with a
+close-to-close move over 40% inside the base or the forward window was skipped as broken data (unadjusted splits,
+reused tickers). Code: `scratchpad/setups/07-launchpad/lp_rule.py` and `pick_lp.py` (not in the repo).
+
+**Base rate.** 2,630 of 2,630 liquid names scanned (the scan finished inside its budget). Hits run from 1996 to 2026
+(the first year a name clears the liquidity rule with 260 bars of history). After the earnings filter: **2,417 hits;
+26.6% reached 3R and 14.6% reached 5R** before the stop, within a 60-session window (before the filter: 2,864 hits,
+26.3% and 14.3%). This is a fixed stop under the launch-day low with no trims, no breakeven move, no trail and no
+time stop, so it is a floor for the setup, not the house plan's result. The 967 hits that were already stacked
+(8 > 21 > 50) on the launch day reached 3R 23.9% of the time, so the stack on the day adds nothing here (consistent
+with 4.3 d). Hits are dense in 2021-2026 (1,090 of 2,417) because the liquid universe is larger then.
+
+**The 10 examples** (charts and the three phone sheets in `scratchpad/setups/07-launchpad/final/`; one per ticker,
+ten different years; buy = the launch-day close; stop = 5 cents under the launch-day low; best R = the highest high
+within 60 sessions, in R, before the stop was touched; the structure numbers are the day before the launch).
+
+| # | ticker | launch day | correction | 8/21/50 width | 200-day from bundle | closes under / above bundle (of 40) | launch day: change, close in range, volume | buy | stop (%) | best R | why it is textbook |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | KBH | 2004-09-01 | -24.8% | 2.91% | 2.6% | 15 / 13 | +2.5%, 0.94, 1.27x | 35.26 | 34.26 (2.9%) | 11.2 (3R in 7 sessions) | a 4-month correction, two months of closes around a flat 200-day, the averages pinch to within 3% and the launch closes above all four; stacked on the day |
+| 2 | CME | 2005-05-16 | -26.2% | 1.82% | 3.9% | 22 / 9 | +3.6%, 1.00, 1.19x | 39.60 | 38.61 (2.5%) | 23.6 (3R in 5) | after a 26% correction the stock sat under a tight bundle on top of a rising 200-day; the launch closes at its high; volume is a hair under 1.2x (1.19x rounds up in the scan), the one soft spot |
+| 3 | RMD | 2006-10-24 | -21.1% | 0.95% | 5.1% | 23 / 2 | +4.3%, 0.84, 1.87x | 21.41 | 20.91 (2.3%) | 11.3 (3R in 12) | two months of closes UNDER a converging bundle, a flat 200-day just above, then one wide bar through all four on 1.9x volume; not stacked on the day, stacked within 3 |
+| 4 | AIZ | 2013-01-14 | -15.4% | 0.87% | 2.3% | 20 / 4 | +2.0%, 1.00, 1.24x | 36.92 | 36.15 (2.1%) | 14.2 (3R in 13) | the smallest launch bar of the ten (+2.0%, the floor of rule 8) out of a very tight pad; the 200-day flat and 2% away; a slow, steady trend along the 8 and 21 EMAs afterwards |
+| 5 | CMC | 2016-11-04 | -19.6% | 0.72% | 2.4% | 18 / 15 | +4.1%, 0.79, 1.85x | 16.69 | 16.01 (4.1%) | 11.7 (3R in 3) | a long, shallow base with the 200-day right under the bundle; the launch bar is wide on 1.85x volume; 3R in three sessions (earnings were 6 sessions earlier, not on the launch) |
+| 6 | MSCI | 2017-01-04 | -15.0% | 1.32% | 0.8% | 18 / 3 | +2.5%, 0.81, 1.46x | 80.71 | 79.03 (2.1%) | 17.0 (3R in 20) | the 200-day is inside the bundle (0.8% away): all four averages in a 2% band for weeks, then a quiet +2.5% launch; the slow kind of pad, 3R took 20 sessions |
+| 7 | ILMN | 2020-12-01 | -33.6% | 0.68% | 4.9% | 20 / 5 | +3.8%, 0.84, 1.36x | 325.23 | 313.76 (3.5%) | 18.8 (3R in 15) | the deepest correction of the ten (-34%), then two months of closes under a 0.7%-wide bundle near a flat 200-day; the launch close is 8.6% over the 10-day, inside the C29 limit but a learner should see it is stretched |
+| 8 | RL | 2023-11-14 | -19.3% | 0.53% | 2.5% | 23 / 11 | +4.4%, 0.82, 1.30x | 120.44 | 117.02 (2.8%) | 16.9 (3R in 11) | the tightest bundle of the ten (0.53%) sitting on the 200-day; the earnings reaction was 4 sessions earlier (2023-11-08) and did NOT clear the averages; the launch is the follow-through bar that did |
+| 9 | DDOG | 2024-10-04 | -22.1% | 1.66% | 5.8% | 11 / 7 | +4.4%, 0.97, 1.63x | 122.69 | 118.32 (3.6%) | 10.8 (3R in 33) | a growth leader; the launch closes near its high, then the stock dangles along the 21 EMA for four weeks (the retest the originators buy) before the run; 3R took 33 sessions, yet it was over 1R inside 10 days so the C33 time stop would not have fired |
+| 10 | BABA | 2025-01-24 | -31.6% | 1.86% | 1.0% | 26 / 0 | +3.5%, 0.98, 1.33x | 89.14 | 86.43 (3.0%) | 21.9 (3R in 3) | 26 of 40 closes under the bundle and none above it, the 200-day 1% from the bundle, the launch closes at its high; not stacked on the day (the 50 was still on top), stacked within 3 sessions |
+
+All ten reached 5R before the stop. None has an earnings reaction day on the launch day or in the next 3 sessions
+(each name has 30 to 100 report dates in the sandbox, so the check is real, not a blank). KBH (2004) is the one chart
+before the earnings file is complete; its nearest known reports are 2004-06-17 and 2004-09-22, both outside the window.
+
+**Notable failures (in words).** The scan's failures look exactly like its winners on the launch day; what differs
+is what came next.
+- **BA, 2021-11-15.** A 20% correction, a 0.7%-wide bundle, a +5.5% launch on 2.55x volume closing above all four
+  averages: every box ticked. It traded through the stop (2.7% under the close) the NEXT session and kept falling. A
+  launch out of a pad in a stock that was not a leader (BA had spent two years in a downtrend) is still a launch by
+  the rules; rule 12 (a stock he would trade) is the only line that would have kept a learner out.
+- **CMCSA, 2017-12-04.** A 16% correction, a 0.8% bundle, +4.9% on 2.17x volume. Stopped two sessions later. A
+  big-volume launch in a slow large cap, the kind of name the FITB ruling warns about.
+- **NEE, 2025-03-10.** A 22% correction, a 0.7% bundle, +4.6% on 2.36x volume, the stop 4.9% away (near the 6% cap).
+  Stopped two sessions later. The wide stop meant a small position, which is the point of A5: the rule's job was to
+  keep the loss at 1R, and it did.
+- **TEAM, 2021-04-30** (a different date from the owner's kept TEAM chart): +4.1% on 2.13x volume, stopped the next
+  session.
+
+Reading these: a launch bar with 2x or more volume was not a protection (11 of the owner's 26 kept charts had 2x, and
+so did these four failures). The base, the leadership of the stock and the market reading carry the edge, as 8.8
+point 10 says; the launch bar is the timing.

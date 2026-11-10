@@ -5,12 +5,17 @@ post or file named next to it and kept to 40 words or fewer. Quotes from Bulkows
 Daily (through Yahoo Finance) were read through a fetch tool that returns excerpts, and are marked so; check them by eye
 before they ship. Nothing here is a ruling. Where I could not read a source, I say so and give no wording from it.
 
-**Cold check, 2026-11-09.** A second reader re-opened every source on their own: the outside pages live (plain
-downloads where the site allows them; the fetch tool only for Bulkowski's site, which refuses plain downloads with HTTP
-406, and for Yahoo, which answered HTTP 429), all 103 UCT posts re-downloaded with every UCT quote re-found and its
-section re-read, the app code, the rulebook, the verdict log, and the replay (its numbers re-read from its own output
-files, the pause-entry numbers recomputed, and its event rule matched day for day against the app's own `remount.py`
-code). What changed is listed at the end under "Changed in checking"; what was taken out, under "Removed in checking".
+**Cold check, 2026-11-09 (two passes).** A second reader re-opened every source on their own: the outside pages live
+(plain downloads where the site allows them; the fetch tool only for Bulkowski's site, which refuses plain downloads
+with HTTP 406, and for Yahoo, which answered HTTP 429), all 103 UCT posts re-downloaded with every UCT quote re-found
+and its section re-read, the app code, the rulebook, the verdict log, and the replay (its numbers re-read from its own
+output files, the pause-entry numbers recomputed, and its event rule re-run against the app's own `remount.py`
+candidate code: on AAPL, MSFT and NVDA, 2015 to 2026, the replay reproduced 100 of the app's 104 qualifying days and
+added none, so it is a near-subset of the app's rule, not an exact match). That first pass ended before it wrote its
+log; a third reader then redid the whole check (every outside quote re-found in a fresh live download, every UCT quote
+re-found in the re-downloaded posts, every code claim re-read against the code, every replay number re-read from the
+output files) and wrote the two closing sections. What changed is listed at the end under "Changed in checking"; what
+was taken out, under "Removed in checking".
 
 Tags used in section 8: **[source consensus]** several outside sources agree; **[originator]** the named trader's own
 words; **outside source** (inside a tag) one outside educator or data source that is not the originator (IBD,
@@ -39,8 +44,8 @@ detail, I point to it rather than repeat it.
   (found in checking; section 2). Our own Model Book calls "remount the 9 EMA" "the community’s phrasing". Who first
   used the word at UCT cannot be shown; most of UCT's uses are in the owner's sections.
 - **What the owner means by it is wider than one moving average.** In UCT's public Substack the word appears in 90
-  sentences (my count, section 6). About three quarters (67 of 90) name a moving average (the 200-day most of all, then the 50-day,
-  the 9/20 EMAs and "all MAs"). At least nine name a price level or "spot" instead, for example "remount the $100 level"
+  sentences (my count, re-counted in checking, section 6). About three quarters (67 or 68 of 90, by keyword) name a moving average (the 200-day most of all, then the 50-day,
+  the 9/20 EMAs and "all MAs"). At least nine (ten by keyword) name a price level or "spot" instead, for example "remount the $100 level"
   (RBRK), "remount that $245 level" (IWM) and "remount the ATH from Jan" (XBI). One names AVWAPs ("Remounted the
   AVWAPs", QQQ), and one names a failed breakout ("failed breakout squat and remount", PLAB). The shared idea: **a line
   the stock lost is taken back.**
@@ -107,10 +112,10 @@ say whether he coined the setup name or picked the word up from others.
 | Stockbee blog search, `remount`, `remounted`, `reclaim` (https://stockbee.blogspot.com/search?q=remount), 2026-11-09 | "No posts matching the query: remount" (same for the other two). Blogger search can miss posts, and Bonde also writes on a members' site and on X, which I could not search. A strong hint, not proof. |
 | Stockbee blog search, `failed breakdown` | Several posts. The one on point: "Jesse Livermore 3 point range breakdown failure setup" (2011-12-05). No "remount". |
 | Web search for "remount" as a trading setup (three queries, 2026-11-09) | Nothing used the word as a setup name. The session's web-search budget then ran out, so no further searches were possible. |
-| Web searches in checking (six queries, 2026-11-09) | One verified outside use of the verb: Kunal Desai, "HIMS 20SMA Trend Contiuation PULLBACK SETUP" (TradingView, posted 2025-05-30, https://www.tradingview.com/chart/PLTR/VINcnR2j-HIMS-20SMA-Trend-Contiuation-PULLBACK-SETUP/): "Today, it remounted the 9 EMA — a key trigger in my swing strategy for momentum re-entry." and "Entry: Took a position on today’s remount of the 9 EMA." His profile on the page: "Kunal Desai, Founder of BullsOnWallStreet – Trading Education Since 2008". He names the setup a pullback, not a "remount". A lead only, not a source: a 2015 page on an unrelated property blog reproduces part of an unsigned trading post that names BullsOnWallStreet and calls the "breakout-remount" one of two favourite setups; the original post was not found, so nothing from it is used. |
+| Web searches in checking (six queries by the first checker, two more by the second, 2026-11-09) | One verified outside use of the verb: Kunal Desai, "HIMS 20SMA Trend Contiuation PULLBACK SETUP" (TradingView, posted 2025-05-30, https://www.tradingview.com/chart/PLTR/VINcnR2j-HIMS-20SMA-Trend-Contiuation-PULLBACK-SETUP/): "Today, it remounted the 9 EMA — a key trigger in my swing strategy for momentum re-entry." and "Entry: Took a position on today’s remount of the 9 EMA." His profile on the page: "Kunal Desai, Founder of BullsOnWallStreet – Trading Education Since 2008". He names the setup a pullback, not a "remount". A lead only, not a source: a 2015 page on an unrelated property blog reproduces part of an unsigned trading post that names BullsOnWallStreet and calls the "breakout-remount" one of two favourite setups; the original post was not found, so nothing from it is used. |
 | This repo's setup vocabulary (`docs/wisdom/vocabulary/setup-vocabulary-v1.json`) | "Remount": `status_reason` "verbatim Sunday Scans usage (W1 §3.1)", `coined_by: null`. |
 | This repo's setup catalog (`docs/superpowers/research/setups/setup_criteria.json`) | `"brain_template": "Remount (TSDR)"`. |
-| UCT's public Substack, 103 posts 2025-06-01 to 2026-11-08 | First use in a post with a named writer: "Remounted 200SMA, like the big green volume bars on it." (TSDR WATCHLIST, 2025-06-20). |
+| UCT's public Substack, 103 posts 2025-06-01 to 2026-11-08 | First use in a post with a named writer: "Remounted 200SMA, like the big green volume bars on it." (TSDR WATCHLIST, 2025-06-20). Added in checking, the two earlier, unsigned uses: "BTC faked down and supported yesterday, trying to remount today." (2025-06-03, https://unchartedterritoryy.substack.com/p/stock-setups, a post under the publication's own byline with no section headings) and "GOOGL for single stock would be focus as it remounts 200 day." (2025-06-08, https://unchartedterritoryy.substack.com/p/sunday-scans, the unsigned index section). The verb was in use at UCT from the first week of the public Substack. |
 
 **Where the Bonde attribution in our code came from: unknown.** `remount.py`'s docstring names the "Pradeep Bonde /
 Stockbee swing system". Its narrative says the pattern was "popularized by Pradeep Bonde at Stockbee" and that "Bonde
@@ -168,6 +173,11 @@ https://www.virtueofselfishinvesting.com/faqs/answer/what-is-the-moving-average-
 - **The level version.** "a straight U&R is simply an undercut of a prior low (price point) in the pattern and a rally
   back above that same low."
 - Not stated: which average, how long below, a volume rule, a target.
+- Added in checking: the FAQ names no book. Morales and Kacher's books exist (Wiley: *Trade Like an O'Neil Disciple*,
+  2010; *In the Trading Cockpit with the O'Neil Disciples*, 2012; *Short-Selling with the O'Neil Disciples*, 2015, per
+  Wiley's own listings) but none was read, so whether and how the U&R is defined there is unverified; setup 29's dossier
+  says the same of the 2015 book. The FAQ page, re-read live on 2026-11-09, shows "First published: 13 Jul 2017" and
+  "Last updated: 13 Jul 2017".
 
 ### 3.2 Gil Morales: the failed rally back to the 50-day (the short mirror)
 Source: "Gil Morales and Dr. Christian Kacher - Part II" (the page uses a long dash), TradingMarkets Editors, 2000-01-08,
@@ -385,8 +395,9 @@ https://articles.stockcharts.com/article/articles-arthurhill-2019-02-just-how-ef
 
 ### 4.4 My replay of `remount.py` on the app's daily bars (my computation, not a published statistic)
 **Method.** Scripts and outputs are in the session scratchpad (`setups/32-remount/scripts/replay.py`, `analyze.py`,
-`pause_entry.py`), not in the repo. Data: the workbench copy of the app's bars database (`bars.db`, 4,079 daily tickers,
-history to 2026-11-09), read-only, split-adjusted prices.
+`pause_entry.py`), not in the repo. Data: a local read-only copy of the app's bars database (`bars.db`; the writer
+recorded 4,079 daily tickers, a re-count in checking found 4,284 distinct daily tickers with history to 2026-11-09;
+2,534 of them produced a qualifying day), split-adjusted prices.
 - **Events.** Every day from 2005-01-03 to 2026-08-12 on which `remount.py`'s core rule passes, evaluated on that day's
   close as a scan would see it: the 20 EMA or 50 SMA (value on the day, held flat, as the code does) or a swing-high
   pivot 6 to 80 bars old that price had closed above; the prior close under the line and this close above; 5 to 30
@@ -538,7 +549,7 @@ a stop of `EMA21 - 0.25 x ATR14`, and: "The firm's CODE uses the 21 EMA while it
 ### 5.5 The Study bank's Chart IQ event "MA remount" (`api/services/chart_iq/engine/v44_read.py`)
 Fires when 4 of the last 6 closes were under the 20 EMA, the close is back over the 9 and 20 EMA, the close sits at
 least 30% up the day's range, the close is over a 50-day SMA that is higher than 10 sessions ago, and over the 200-day
-SMA. Its text: "first close back over the 9 and 20 EMA (4 of the last 6 closes were under the 20), holding the 50SMA".
+SMA (the 200-day test is skipped when the chart has no 200-day value yet; `not s200 or x['c'] > s200`). Its text: "first close back over the 9 and 20 EMA (4 of the last 6 closes were under the 20), holding the 50SMA".
 This is the owner's "remount of the 9/20EMAs" inside an uptrend, and it is the only rule in the app with both a rising
 50-day and a 200-day test. It is a pullback trigger more than a lost-line setup.
 
@@ -608,7 +619,11 @@ his; "Index & ETF" sections and "Thoughts on the Market" are unsigned.
 **My count.** "remount" (any form) appears in 90 sentences: 46 in the owner's sections, 33 in the unsigned index
 sections, 4 in "Thoughts on the Market", 2 in Bracco's, 5 elsewhere. About 67 name a moving average; at least 9 name a
 price level, "spot" or old high; 1 names AVWAPs; the rest name nothing. (Method: every sentence with the word; the
-object read by a keyword match and then checked by hand for the level cases.)
+object read by a keyword match and then checked by hand for the level cases.) **Re-count in checking** (all 103 posts
+re-downloaded, sections assigned from the headings, the "Charts Covered" and "Some great charts" lists counted with
+the owner's section they follow): 90 sentences again; 50 owner, 33 index, 4 Thoughts on the Market, 2 Bracco, 1 in the
+heading-less 2025-06-03 post. By keyword, 68 name a moving average, 10 a level, 1 AVWAPs, 11 nothing. The 46/50 gap is
+four sentences under lists after his section; the hand-checked level cases above are unchanged.
 
 ### 6.1 Remounts of a level, a pivot or a "spot" (the part setup 13 does not cover)
 - RBRK: "Looks goo against the 50SMA, want to see a higher low and remount the $100 level." ("goo" is the original.)
@@ -798,8 +813,8 @@ picture is not the same as a rule that adds edge, and I say which is which.
 - **A level must be a real level (level remounts only).** It held before it broke: at least **10 of the 15 closes**
   before the break at or above it; and it is not a chop line: the close crossed it **2 times or fewer** in the 60
   sessions before the break. [UCT code: `draw:remount`; judges' failure "chop lines"; ChartSchool on sideways markets]
-- **Location (hard).** The remount close is above the **200-day SMA**, and the 200-day is not lower than it was 20
-  sessions ago. A 200-day remount is the cross itself; then the 200-day must be flat or rising. [house rule B26; UCT
+- **Location (hard).** The remount close is above the **200-day SMA**, and the 200-day is higher than it was 20
+  sessions ago (the drawing's gate, `setup_gate`: a flat or falling 200-day is rejected). A 200-day remount is the cross itself; then the 200-day must be flat or rising. [house rule B26; UCT
   code: the drawing's gate; replay: +0.11R above against +0.01R below]
 - **The remount day.** Closes above the line by **0.25 ATR or more** (not "a marginal poke") and **2 ATR or less** (not a
   chase); a green candle; the close in the **upper half** of the day's range. [UCT code: `draw:remount`, the vision
@@ -1013,5 +1028,148 @@ not as a proven edge.
 
 **Searched for and not found or not readable:** any outside use of "remount" as a setup name; any Bonde text using the
 word; Linda Raschke's Turtle Soup rules; Mark Minervini's own text on squats; Livermore's, Granville's and O'Neil's
-books; Kell's own TraderLion pages (HTTP 403); Bulkowski's sample sizes for busted rectangles and head-and-shoulders
-tops. Nothing from these is quoted or used as a rule.
+books; Morales and Kacher's three Wiley books (not read; see 3.1); Kell's own TraderLion pages (HTTP 403);
+Bulkowski's sample sizes for busted rectangles and head-and-shoulders tops. Nothing from these is quoted or used as a
+rule.
+
+---
+
+## Changed in checking (2026-11-09)
+
+Every quote in this file was re-found word for word at its source on 2026-11-09: the 14 outside pages in fresh live
+downloads (VoSI, TradingMarkets twice, ChartSchool twice, Deepvue twice, Arthur Hill, Alphatrends twice, Stockbee's
+two posts and its "remount" search, TradingView; the "remounted" and "reclaim" searches in the first pass's saved
+copies of the same day), Bulkowski's three pages and the two IBD articles through the
+fetch tool, all 44 UCT sentences in the re-downloaded Substack posts with the ticker heading above each one confirmed,
+the four verdict-log rulings in `owner_verdicts.jsonl` (rows 39, 107, 228 and 555), and the house rules against
+`sizing_rule.md` section 9. The code summary in section 5 was re-read line by line against `remount.py`,
+`setup_draw.py` (including `setup_gate` and `_avg_vol`), `uct_ma_reclaim.py`'s docstring, `auto_structures.py`,
+`patterns.py`, `starterScans.json`, `v44_read.py`, `setupCatalog.js`, `setupPlaybooks.js`, `setupGroups.js`,
+`UNITS-method.md`, `uct_method_chapters.json`, `curriculum_final_v2.json`, `rubrics.py`, `setup_criteria.json`,
+`setup-vocabulary-v1.json`, `ask_setup.py`, `finviz.py` and `engine.py`. Every replay number in section 4.4 and 6.7
+was re-read from `analysis.txt` and recomputed from `pause.json`. What changed:
+
+1. **Section 4.4, the data line.** "4,079 daily tickers" became a re-count: 4,284 distinct daily tickers in the local
+   copy, 2,534 of which produced a qualifying day. "The workbench copy" became "a local read-only copy" (the file sits
+   in a local data directory, not the Study workbench).
+2. **The cold-check note at the top.** "Matched day for day against the app's own `remount.py` code" was an
+   overstatement. Re-running the app's own `_enumerate_candidates` on AAPL, MSFT and NVDA for 2015 to 2026 gave 104
+   qualifying days; the replay held 100 of them and none the app lacked. The replay is a near-subset of the app's
+   rule; at 89,665 trades the four misses change no table.
+3. **Section 2.** Added the two earlier uses of the word on the public Substack, both unsigned: 2025-06-03 ("BTC faked
+   down and supported yesterday, trying to remount today.", the `stock-setups` post, published under the publication's
+   byline with no section headings) and 2025-06-08 (GOOGL "as it remounts 200 day", the index section). The "first use
+   in a post with a named writer" (2025-06-20) stands.
+4. **Section 6, the count.** The writer's 90 sentences were re-counted at 90. By section, 50 (not 46) fall under the
+   owner's headings when the "Charts Covered" lists after his section are counted as his, as the writer's own rule
+   says; 1 (not 5) falls elsewhere. By keyword, 68 name a moving average (the writer wrote "about 67"), 10 a level (the
+   writer wrote "at least 9"), 1 AVWAPs, 11 nothing. Both counts are heuristics over headings and keywords; the
+   hand-checked level quotes in 6.1 are unchanged.
+5. **Section 3.1.** Added that the VoSI FAQ names no book, that Morales and Kacher's three Wiley books (2010, 2012,
+   2015) exist but were not read, and the page's own "First published / Last updated: 13 Jul 2017" lines.
+6. **Section 5.5.** The Chart IQ "MA remount" event's 200-day test is skipped when the chart has no 200-day value yet
+   (`not s200 or x['c'] > s200`); the summary now says so.
+7. **Section 8.1, Location.** "Not lower than it was 20 sessions ago" became "higher than it was 20 sessions ago", which
+   is what the drawing's `setup_gate` tests (`s <= s0` is rejected as `falling_200d`).
+8. **Section 11.** Morales and Kacher's books added to the "not read" list; the web-search row in section 2 notes the
+   second checker's two further searches (they found the same TradingView post and nothing else using the word as a
+   setup name).
+
+Confirmed without change, for the record: Bulkowski's percentages (51/66/71 and "49%" for rectangles; 42/71/54 and
+"276 busted patterns found out of 650" for descending triangles; 32/67/67 and "35%" for head-and-shoulders tops), his
+update dates (12/29/2020; 12/28/2020 twice), the single-bust rule's four points, the AI-use notice; IBD's two sentences
+and dates (2015-05-14, 2013-10-28); the Kunal Desai post (2025-05-30, titled "HIMS 20SMA Trend Contiuation PULLBACK
+SETUP for NASDAQ:PLTR by kunal00"); the Stockbee blog's "No posts matching the query" for all three words; every
+`remount.py` constant, gate, score weight and level formula in 5.1 (the lowest reachable confidence is 42.4, as the
+writer computed); every `draw:remount` constant in 5.2 and the round-3 and recertification numbers in 4.3; the
+`uct_ma_reclaim` lab numbers; the 13 candidate rows in 6.7; the pause-entry numbers (24,881 of 44,755; median risk
+1.99%; 78% within 3%; +0.091 R, se 0.014; median fill 3 sessions after the remount day and 3.2% over the line, 39% more
+than 4% over it).
+
+## Removed in checking
+
+Nothing. Every quote, number, date and attribution in the file was found at its source. The two statements that were
+wrong (the ticker count and the "day for day" claim) were corrected in place and are listed above, not removed.
+
+## 12. Examples (from our data)
+
+Scanned 2026-11-09 on the local read-only copy of the daily bars (2,630 names that ever met the house liquidity rule,
+2000 to 2026, every name covered; the scan took under 5 minutes). Scripts: `scan_remount.py` and `chart_remount.py` in
+the setup's scratch folder; hits in `final/hits.json`, the 10 charts and the three phone sheets in `final/`.
+
+**The rule, as scanned (section 8's MA remount plus the house rules).** The line is the 50-day or the 200-day SMA. The
+stock closed under the line for 5 to 30 consecutive sessions, and at least one of those closes was 0.5 ATR(14) or more
+under it. The remount day closes above the line by 0.25 to 2 ATR, is a green candle closing in the upper half of its
+range, on volume at least 1.2x the prior 20-day average; the stock is above a 200-day that is higher than 20 sessions
+ago (a 200-day remount: flat or rising), closes at $10 or more, and has traded $20 million or more a day over 50 days.
+**Entry B (the default):** within the next 5 sessions, every one closing above the line, the first quiet day (an inside
+day, or a range of 1 ATR or less) arms the buy; the trade is a market order the next session as price trades over that
+day's high (fill = the higher of the quiet day's high plus a cent and the open), skipped if the fill is more than 4%
+over the quiet day's high (C28) or more than 10% over the 10-day average (C29). Stop: 5 cents under the quiet day's
+low, up to 4% away (the rule's "about 3%", with a little room). **Entry A (recorded for comparison only):** the
+remount-day close, stop 5 cents under the remount-day low, only when that stop is 3% or less. One remount per 10
+sessions per line; the forward walk is 60 sessions, a fixed stop, no trims, no trail, no breakeven, and the first of
+stop / 3R / 5R wins (both on one day counts as the stop). Not scanned: level remounts, 20 EMA remounts, the hourly and
+red-to-green variants, the short mirror, RS 80+, the market reading, and the earnings blackout (B22); all of those are
+in section 8 but need data the daily scan does not have, or were left out to keep the picture simple.
+
+**Base rate (fixed stop, no trims, 60 sessions).**
+
+| entry | hits | reached 3R | reached 5R | stopped within 60 sessions | median best R |
+|---|---|---|---|---|---|
+| B, the pause (default) | 3,869 | 29.6% | 21.1% | 81.9% | 1.06 |
+| A, the remount day | 4,821 | 29.8% | 19.7% | 79.9% | 1.08 |
+| both, 50-day line | 6,162 | 30.3% | 21.0% | 80.7% | 1.09 |
+| both, 200-day line | 2,528 | 28.3% | 18.6% | 80.9% | 0.98 |
+| all | 8,690 | 29.7% | 20.3% | 80.8% | 1.06 |
+
+Caveats. It is a fixed stop with no trims, so "stopped" includes trades that ran to 2R and came back; with the house
+trims (a third at 3R, a third at 5R, breakeven at 2R to 5R) the picture is better than the stopped share suggests.
+About half of Entry B trades (49%) never reached 1R, which is the dossier's case for the 10-day time stop (C33). Among
+the sub-rules, none moved the mechanical result much: remount volume 1.5x+ against under 1.5x gave 30.1% against 29.4%
+to 3R; an inside quiet day against a 1-ATR quiet day gave 22.0% against 20.7% to 5R; stops of 2% or less reached 5R a
+little more often (21.9% against 18.5%) because the R unit is smaller. 439 remount days qualified under both lines at
+once (the stock remounted the 50 and the 200 on the same day) and are counted under each. Prices are split-adjusted, so
+the $10 rule is approximate for older years (SLAB 2021 and NKE 2020 are unadjusted-era names; NFLX-type names show as
+tenths of their then-quoted price). ETFs are in the universe and in the base rate (IAU and ITB were among the top hits by
+R) but were excluded from the examples. These are my computations on one data copy, not a published statistic.
+
+**The 10 examples** (all Entry B, all 5R or better, one per ticker, 2010 to 2025; "run" = consecutive closes under the
+line before the remount day, "depth" = the deepest close under the line in ATR, "vol" = remount-day volume against the
+20-day average; best R is the highest high within 60 sessions against the fixed stop).
+
+| # | ticker | remount day | buy day | line | run | depth | vol | buy point | entry | stop | stop % | best R | why it is textbook |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | MAR | 2010-03-05 | 2010-03-09 | 50 | 27 | 3.0 ATR | 1.35x | 26.35 | 26.36 | 25.93 | 1.6% | 22.3 | A long, shallow loss of the 50-day under a rising 200-day; the remount, an inside quiet day, the buy over it, then a straight run to new highs. |
+| 2 | MGM | 2013-12-06 | 2013-12-13 | 50 | 25 | 3.1 ATR | 1.53x | 20.94 | 20.95 | 20.55 | 1.9% | 19.5 | 25 closes under the 50 in an uptrend, then a green remount on 1.5x volume; five sessions of holding above before an inside day gave the trigger; 3R in 2 days. |
+| 3 | STLD | 2016-10-19 | 2016-10-26 | 50 | 14 | 1.9 ATR | 2.34x | 26.49 | 26.56 | 25.91 | 2.4% | 20.9 | High-volume (2.3x) remount; the quiet day is 2016-10-25, which our earnings table lists as a report date, so the buy came after the report (B22 as written). The post-election steel run did the rest. |
+| 4 | WB | 2017-04-20 | 2017-04-25 | 50 | 11 | 1.1 ATR | 1.69x | 54.30 | 54.31 | 53.37 | 1.7% | 29.8 | A leader's clean remount; 3R in 2 days before its May earnings gap added the rest. Our earnings table has no dates for WB, so the report timing is not confirmed from our data. |
+| 5 | NKE | 2020-08-05 | 2020-08-07 | 50 | 7 | 1.0 ATR | 1.37x | 101.18 | 101.19 | 99.98 | 1.2% | 25.0 | A 7-day dip under the 50 after the 2020 recovery; a strong remount close (+1.3 ATR), an inside day, the buy, 3R the next day. The cleanest small-stop example. |
+| 6 | UTHR | 2020-10-13 | 2020-10-15 | 200 | 5 | 0.7 ATR | 1.54x | 110.66 | 110.67 | 108.11 | 2.3% | 23.6 | A 200-day remount at the minimum 5 closes below; the 200-day flat-to-rising, the 50-day above the 200; quiet day, buy, 3R in 3 days. |
+| 7 | SLAB | 2021-10-19 | 2021-10-21 | 50 | 30 | 4.2 ATR | 1.32x | 150.50 | 150.51 | 149.08 | 1.0% | 43.0 | The maximum 30 closes below and the deepest break in the set (4.2 ATR); the remount close is the smallest allowed (+0.27 ATR) and the stop 1.0%, which is why the R count is so high; 3R came in 3 days, before the 2021-10-27 report (our table) gapped it further. |
+| 8 | AMD | 2023-11-01 | 2023-11-03 | 50 | 11 | 2.4 ATR | 2.60x | 109.41 | 109.42 | 105.86 | 3.3% | 21.2 | The remount day is the earnings reaction day (report 2023-10-31 after the close in our table): a 2.6x-volume remount of the 50 after 11 closes below, under a rising 200; the stop is the widest of the ten at 3.3%. |
+| 9 | SCCO | 2024-03-07 | 2024-03-11 | 50 | 9 | 1.8 ATR | 1.72x | 80.07 | 80.08 | 78.49 | 2.0% | 25.2 | A copper leader: 9 closes under the 50, a +1.1 ATR remount close on 1.7x volume, a 1-ATR quiet day, the buy, 3R in 2 days and a 60-session trend. |
+| 10 | BABA | 2025-01-17 | 2025-01-24 | 200 | 6 | 2.2 ATR | 1.80x | 86.20 | 86.71 | 84.91 | 2.1% | 34.3 | A 200-day remount after 6 closes below; the quiet day was 2025-01-23 and the fill 0.6% over its high; 3R in 2 days; the move ended in April, which the 21-day trail (E52) would have caught. |
+
+Earnings check (the earnings table, Yahoo plus SEC 8-K): MAR, MGM, NKE, UTHR, SCCO and BABA had no report between the
+remount day and the day 3R was reached; STLD, SLAB and AMD are noted in the table; WB has no dates on file. CAVA
+2024-08-13 (50-day, 17 closes below, 2.0x volume, best 20.8R), ASML 2020-11-06, ETSY 2018-02-16, LULU 2010-03-04 and
+ILMN 2020-12-03 (a 200-day remount after 26 closes below) were drawn and are as good; they were left out for one
+example per year where possible.
+
+**Notable failures (Entry B, stopped at 0R).**
+- **AMZN, remount 2021-10-15, buy 2021-10-20.** A textbook-looking remount of both the 50 and the 200 on the same day on
+  1.8x volume after 14 closes below, stop 1.0% under a tight quiet day. Stopped within days with nothing gained, and the
+  stock rolled over into its 2022 decline. The picture was right; the market and the group were not (the dossier's
+  "ignoring the market" mistake), and a 1% stop on a mega-cap leaves no room.
+- **PYPL, remount 2018-10-19, buy 2018-10-23.** A 200-day remount on 2.98x volume (the earnings reaction, 2018-10-18
+  after the close in our table) in the middle of the October 2018 correction, stop 3.2%. Stopped at once as the index
+  made new lows; the stock chopped around its 200-day for months. The heavy-volume remount did not help with the index
+  under its own 200-day (section 8.7).
+- **BA, remount 2019-06-18, buy 2019-06-21.** 29 closes under the 200-day after the 737 MAX gap, then a 2.7x-volume
+  remount day. Stopped in a week; the line was retaken and lost again twice more that summer. A 200-day that is flat
+  (it just passed the "not lower than 20 sessions ago" test) after a news-driven break is the weakest version of the
+  setup.
+Other names in the same list: DIS 2020-02-05 (200-day remount two weeks before the 2020 crash), MSFT and NVDA both
+on 2020-11-06 (a 5-day dip and remount that failed in the sector rotation), DOCU 2024-03-14 (24 closes below, 2.0x
+volume, stopped).

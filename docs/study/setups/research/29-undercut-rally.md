@@ -17,10 +17,12 @@ read a source, I say so and give no wording from it.
   whose addresses I already had (from our repo, from earlier dossiers, or from the pages themselves). Section 3.12 and
   section 11 list what I could not open. The biggest gap: Morales says the U&R "is described in detail in the book,
   Short-Selling with the O'Neil Disciples", and I could not read that book.
-- **Cold check (2026-11-09, a second reader).** Every quote was re-checked against fresh downloads (or a page tool for
-  Yahoo and Bulkowski), every Substack quote against its own post and section heading, the scanner summaries against
-  the code, and the 13 example sessions against the bars. Web searches were run this time. What changed is listed in
-  section 12.
+- **Cold check (2026-11-09, a second reader, finished the same evening).** Every quote was re-checked by script
+  against the saved copies and, for the "page tool" sources, against the live page again (Yahoo's two IBD columns,
+  Bulkowski, the EdgeRater replay page, both TradingMarkets articles, Wyckoff Analytics, the OWL glossary); every
+  Substack quote against its own post's date and the section heading above it; the scanner summaries against the code
+  line by line; the measurement tables against the scripts' output files; and the 13 example sessions re-derived from
+  the local bars. Web searches were run this time. What changed is listed in section 12.
 
 Tags used in section 8: **[source consensus]** several outside sources agree; **[originator]** the people who named or
 codified it (here: Gil Morales and Chris Kacher for the name "Undercut & Rally" and "MAU&R"; Richard Wyckoff's school
@@ -219,8 +221,10 @@ not as a stand-alone buy.
 ### 3.6 The Wyckoff spring (the root, per Morales)
 
 [ChartSchool tutorial](https://chartschool.stockcharts.com/table-of-contents/market-analysis/wyckoff-analysis-articles/the-wyckoff-method-a-tutorial)
-by Roman Bogomazov and Michael Lipsett (schematics edited by the late Dr. Henry O. Pruden); the same text is on
-[wyckoffanalytics.com/wyckoff-method](https://www.wyckoffanalytics.com/wyckoff-method/).
+by Roman Bogomazov and Michael Lipsett (schematics edited by the late Dr. Henry O. Pruden); most of the same text is on
+[wyckoffanalytics.com/wyckoff-method](https://www.wyckoffanalytics.com/wyckoff-method/) (checked live 2026-11-09:
+the spring, bear-trap, "late within a TR" and "spring on steroids" sentences are there word for word; that page's
+upthrust sentence reads "a UT or UTAD is the opposite of a spring", and it carries no author credit).
 - **Shape.** A spring "takes price below the low of the TR and then reverses to close within the TR". (TR = trading
   range.) Later: "a spring is a price move below the support level of the TR (established in Phases A and B) that
   quickly reverses and moves back into the TR."
@@ -254,10 +258,13 @@ the next session" (section 5.4); the version I could read says the order is "goo
 Smarts," Connors and Raschke "outline a trading pattern which they named Turtle Soup Plus One". Its rules, as that page
 gives them: "The close of the new low (day one) must be at or below the previous 20-bar low." "An entry buy stop is
 placed the next day (day two) at the earlier 20-day low." "If you are not filled on day two, the trade is cancelled."
-"If filled, place a protective sell stop one tick under the lower of the day-one low or the day-two low." So the same
-book has a same-day and a next-day version; our scanner's "next session" wording matches Plus One, not Turtle Soup
-itself. (A 2001 TradingMarkets summary by Marc Dupee puts the Turtle Soup stop at "the previous day's low", which
-differs from StockCharts' "just below today's low"; only the book can settle it.)
+"If filled, place a protective sell stop one tick under the lower of the day-one low or the day-two low." (All four
+sentences re-read on the live page in checking; it also says the prior 20-bar low "must have been made at least three
+trading sessions earlier", where StockCharts' Turtle Soup rule says four.) So the same book has a same-day and a
+next-day version; our scanner's "next session" wording matches Plus One, not Turtle Soup itself. (Corrected in
+checking: an earlier TradingMarkets note, [Marc Dupee, 13 Jun 2001](https://tradingmarkets.com/?p=645410), describes
+the **Plus One** buy, not Turtle Soup itself: "The entry signal is at the prior 20-day low and the stop goes at the
+previous day's low." That is the Plus One stop in other words; it does not contradict StockCharts' same-day rule.)
 
 ### 3.8 Deepvue's bar definitions (the one-day version)
 
@@ -491,7 +498,8 @@ by the close. Read it as an upper bound.
 
 **Other counts.** Of the first undercuts of a bounced swing low, 71% closed back above it within 3 sessions (77% when
 above the 200-day). Only 20 of the 25,310 E1 events above a rising 200-day were more than 10% over the 10-day average
-(C29 almost never binds on this setup). In every group the median house result was -1R: most trades are stopped, and
+(C29 almost never binds on this setup). In every group but one the median house result was -1R (the exception is the
+6%-or-deeper undercuts, median -0.24R, because their wide stops were often not reached): most trades are stopped, and
 the mean comes from about one trade in ten that makes 3R or more.
 
 **What the numbers say, plainly.**
@@ -555,9 +563,10 @@ Admin-only (`INTERNAL_PATTERN_IDS` in `registry.py`), added 2026-10-16 as a port
 4. Entry = the close. Stop = the session low itself. Targets = 2R and 3R (`make_levels` in `uct_setups_common.py`).
 5. Wrapper: the shared liquidity floor (`primitives/liquidity.py`: $2 price and $10,000 a day of dollar volume); the
    newest of the last 3 sessions that qualifies; dropped once a later session trades through its stop.
-6. Confidence: geometry starts at 70 (+5 per extra level, +5 for DCR 0.75 or more, +5 above the 21 EMA), RVOL score,
-   context floored at 40. By my arithmetic the lowest possible confidence is 53.5, so the floor of 50 never rejects
-   anything.
+6. Confidence: geometry starts at 70 (+5 per extra level, up to +15; +5 for DCR 0.75 or more; +5 above the 21 EMA),
+   RVOL score floored at 40, context floored at 40, a fixed 50 for history, weighted 40/25/20/15. The lowest possible
+   confidence is 0.4 x 70 + 0.25 x 40 + 0.2 x 40 + 0.15 x 50 = 53.5, so the floor of 50 never rejects anything
+   (checked against `uct_setups_common.py` in the cold check).
 
 ### 5.3 Every other place the app defines it
 
@@ -620,7 +629,9 @@ Admin-only (`INTERNAL_PATTERN_IDS` in `registry.py`), added 2026-10-16 as a port
    With that entry the stop (1.5% under the undercut low) can be the whole consolidation (up to 10%) plus the undercut
    (up to 4%) plus 1.5%. That breaks A13's "about 3%".
 6. **Comment and code disagree.** The comment says the rally must close "support + half the undercut depth"; the code
-   uses 25% (`* 0.25`). The `entry_condition` text says "on volume > 1.3x 20-bar avg", but nothing checks it.
+   uses 25% (`* 0.25`). The `entry_condition` text says "on volume > 1.3x 20-bar avg", but no gate enforces it: the
+   only 1.3 in the code picks a word for the narrative from the rally-to-undercut volume ratio, which is a different
+   number, and the one volume gate is the 0.7x rule in step 8.
 7. **A look-ahead mismatch.** The 50-day SMA level is taken at the last bar, not at the undercut bar, so the level an
    older undercut is measured against moves with today's average.
 8. **No liquidity floor on the public scanner; a very low one on the internal one.** `u_and_r.py` never calls the
@@ -847,16 +858,18 @@ the house plan (section 4.3) from that day's close. These are teaching candidate
 | 4 | ZS 2025-09-03 | Owner: "undercut the base on earnings and remounted all MAs" | base low | 260.40 / 270.58 / 0.72 | 3.8% | above, rising | +0.87R | Earnings reaction day, RVOL 3.4; he bought later, at $288.50 |
 | 5 | PLTR 2025-10-22 | Owner: "ideal spot would've been the UnR at $170" | $170 | 169.42 / 175.49 / 0.47 | 3.5% | above, rising | +3.5R | Weak close (DCR under 0.5) still worked |
 | 6 | IREN 2025-10-22 | Owner: "Nice UnR of the previous highs from Sept and dip below the $50 spot." | $50, the September highs | 48.20 / 51.83 / 0.38 | 7.1% | above, rising | +2.16R | Prior high as the level; wide stop |
-| 7 | FIGR 2026-01-12 | Bracco: "U&R of the previous all time high", long 49.81, "Risked 80 cents" | $50, the prior high | 49.10 / 52.23 / 0.33 | 6.1% (1.6% from his fill) | none (IPO in 2025) | +3.78R | Mean-reversion framing; B26 cannot be applied without a 200-day |
-| 8 | MXL 2026-04-28 | Owner: "day three undercut of earnings day low at $50" | earnings-day low (53.70 in our bars) | 49.60 / 52.01 / 0.37 | 4.7% | above, rising | +8.21R | 40.9% over its 10-day average: C29 would have blocked it |
+| 7 | FIGR 2026-01-12 | Bracco: "U&R of the previous all time high", long 49.81, "Risked 80 cents" | $50, the prior high | 49.10 / 52.23 / 0.33 | 6.1% (his 80 cents = 1.6% from his fill; 5 cents under the day's low = 1.5%) | none (IPO in 2025) | +3.78R | Mean-reversion framing; B26 cannot be applied without a 200-day |
+| 8 | MXL 2026-04-28 | Owner: "day three undercut of earnings day low at $50" | $50 (the owner's level). The earnings day's low in our bars is 53.70, and the 04-28 close of 52.01 did not reclaim it; $50 is what was undercut and reclaimed | 49.60 / 52.01 / 0.37 | 4.7% | above, rising | +8.21R | 40.9% over its 10-day average: C29 would have blocked it |
 | 9 | NBIS 2026-04-29 | Owner: "undercut that previous high at $141, reclaim it perfectly" | $141 | 134.22 / 141.19 / 0.74 | 5.0% | above, rising | +5.07R | 04-27 try failed (-1.0R); "shaken out too many times" |
 | 10 | DELL 2026-08-07 | Owner: "The 20EMA undercut and reclaim on 8/7 is tight risk" | 20-day EMA, about 423-426 | 416.30 / 453.77 / 0.95 | 8.3% | above, rising | -0.31R | Tight only with an intraday entry near the average |
 | 11 | TEAM 2026-09-29 | Owner: "undercuts this range slightly closing with a strong lower wick" | the range low | 168.05 / 175.96 / 0.69 | 4.5% | above, rising | +3.85R | His buy: the 30-minute pivot at $172 |
 | 12 | U 2026-11-03 | Owner: "very good UnR of the $40 level" | $40 | 38.30 / 40.48 / 0.92 | 5.5% | above, not rising | +4.45R | He passed: earnings, then buyout news. A valid shape skipped by rule |
 | 13 | HOOD 2025-04-07 | Bracco (2026-04-05): RS names "briefly undercut those previous lows and reclaimed" | prior lows near the 200-day | 29.66 / 35.41 / 0.77 | 16.4% | above, rising | +6.55R | A market-turn U&R; the daily stop breaks A13 badly |
 
-I could not find bars for WULF (not in the local database). None of the 13 has a stop within 3% when bought at the
-close; the closest are PLTR (3.5%) and ZS (3.8%). They fit A13 only with the owner's kind of entry, intraday and near
+(Cold check: every number in this table was re-derived from the local bars on 2026-11-09 and matched. The writer's
+note that WULF, named in the same 2025-09-14 post, had no bars is out of date: the bars are there, but the owner's WULF
+note is a breakout and an HVC hold, not a U&R, so it is not a candidate.) None of the 13 has a stop within 3% when
+bought at the close; the closest are PLTR (3.5%) and ZS (3.8%). They fit A13 only with the owner's kind of entry, intraday and near
 the level (FIGR 1.6% from Bracco's fill; AAOI 3.3% from the owner's, just over). That is the strongest practical
 lesson of this table. A note on timing: in our test (section 4.3) a reclaim one session later did no worse than a
 same-day reclaim, so "same day" is a preference, not a measured edge.
@@ -893,11 +906,13 @@ Each line is measurable and tagged. Where sources disagree I give the options an
    average daily volume. [house rule] B23, D42
 2. **Above the 200-day.** The buy-day close is above the 200-day SMA. [house rule] B26. (The market-turn exception is
    question 3.)
-3. **The trend is not falling.** The 50-day SMA today is at or above its value 10 sessions ago, and price is not under
-   declining averages. [UCT] the owner's RBRK pass ("I did not like the declining moving averages") and his note that
-   an undercut "below the MAs is just not something I generally do"; [my proposal] the 10-session test.
-4. **A leader.** RS rating 80 or more, in a strong group. [house rule] C31. (Unless the owner rules the washout version
-   mean reversion; question 4.)
+3. **The trend is not falling.** The 50-day SMA today is at or above its value 10 sessions ago, and the buy-day close
+   is above the 50-day SMA (a MAU&R of the 50-day reclaims it by definition). [UCT] the owner's RBRK pass ("I did not
+   like the declining moving averages") and his note that an undercut "below the MAs is just not something I generally
+   do"; [my proposal] the 10-session test and the 50-day as the line (it is also the internal scanner's gate).
+4. **A leader.** RS rating 80 or more, in one of the strongest groups. [house rule] C31 (the rule names no number for
+   the group; the RS floor is the measurable part). (Unless the owner rules the washout version mean reversion;
+   question 4.)
 5. **The level (L) is one of these:**
    - a. **A prior low in the pattern:** a swing low (under the 3 lows before it, not above the 3 after it) that price
      then bounced at least 5% off, 5 to 60 sessions before the undercut. [originator] Morales "a prior low in the
@@ -917,7 +932,8 @@ Each line is measurable and tagged. Where sources disagree I give the options an
    this setup. [measured] 6%+ undercuts had the worst results and 10% stops; [my proposal] the 3% and 6% lines.
    (Morales gives no number on purpose; question 5.)
 8. **Brief.** Price closes back above L the same session or within the next 3; no more than 3 closes under L. [source
-   consensus] Wyckoff "quickly reverses", the journal's "a day or two"; [my proposal] 3 sessions. Longer is a Remount
+   consensus] Wyckoff "quickly reverses", Turtle Soup (same day) and Turtle Soup Plus One (the next day), Deepvue's
+   bars (same day); [UCT] the journal template's "a day or two"; [my proposal] 3 sessions. Longer is a Remount
    (setup 32).
 9. **Volume is not required.** [originator] Morales: "Volume is generally not a factor"; [measured] high-volume reclaims
    were not better. Light volume on the undercut is a grade-up (section 9). [originator] Wyckoff.
@@ -938,7 +954,10 @@ Each line is measurable and tagged. Where sources disagree I give the options an
 - **Option C, confirmation (IBD style):** buy only when price clears a set distance over the old low. [originator] IBD
   shakeout-plus-three. A later, higher entry with a wider stop; I do not recommend it as the default.
 - **Never buy the undercut itself** before the level is back. [source consensus] Morales ("rallies back above it"),
-  the journal template ("Enter on the reclaim, never on the undercut."), the knowledge-base template.
+  Turtle Soup (a buy-stop "slightly above the previous 20-day low"), IBD's shakeout-plus-three (the buy is three points
+  over the old low); [UCT] the journal template ("Enter on the reclaim, never on the undercut.") and the knowledge-base
+  template. One school differs: Wyckoff's tutorial allows "at least a partial long position" on a low-volume spring
+  itself, before any test.
 - Write L, the stop and the size before the open. [house rule] D39.
 
 **Recommendation:** teach A as our default and B as the fallback. Our test shows why: entering near the level is what
@@ -1071,7 +1090,7 @@ tool because the site refused a plain download.
 |---|---|---|---|---|
 | 1 | [Glossary & Trading Methods](https://theowltrader.com/glossary-trading-methods/) and [About](https://theowltrader.com/about/) | The OWL Trader, Gil Morales (site (c)2023, undated entries) | Saved | Originator of the name. High for definition; no numbers |
 | 2 | [What is the MAU&R pattern?](https://www.virtueofselfishinvesting.com/faqs/answer/what-is-the-moving-average-undercut-rally-mau-r-pattern) | Virtue of Selfish Investing (MoKa Investors: Morales and Kacher), first published 13 Jul 2017 | Saved | Originator. High |
-| 3 | [Gil Morales: Undercut and Rally template](https://edgerater.com/tradingtemplates/gm_undercutandrally) | EdgeRater (software vendor), undated | Saved | Secondary report of a Morales talk. Medium |
+| 3 | [Gil Morales: Undercut and Rally template](https://edgerater.com/tradingtemplates/gm_undercutandrally) and the [webinar replay page](https://edgerater.com/WebinarReplay/undercutandrallytemplate) | EdgeRater (software vendor), undated; the replay page dates the talk to April 2019 | Saved; replay page read live in checking | Secondary report of a Morales talk. Medium |
 | 4 | [In the Trading Cockpit with the O'Neil Disciples, publisher preview](https://api.pageplace.de/preview/DT0400.9781118287293_A23567645/preview-9781118287293_A23567645.pdf) | Wiley, Morales and Kacher, 2013 | Saved (preview only) | No U&R text in the preview; table of contents only |
 | 5 | [IBD column on the double bottom and the shakeout-plus-three](https://finance.yahoo.com/news/spot-early-buy-point-double-195200041.html) | Investor's Business Daily via Yahoo Finance, 16 Apr 2015 | Page tool | Established educator. High for IBD's rule |
 | 6 | [IBD column on the proper handle and its shakeout](https://finance.yahoo.com/news/why-look-proper-handle-often-220600578.html) | Investor's Business Daily via Yahoo Finance, 25 Feb 2015 | Page tool | Established educator. High |
@@ -1093,9 +1112,149 @@ tool because the site refused a plain download.
 | 22 | `docs/study/levels/brain_kb_2026-11-06.json` | UCT knowledge base export (AI summaries of UCT's private archive, in this repo) | Read directly | AI summary, unreviewed. Pointer only |
 | 23 | Local daily bars (`bars.db`, workbench copy) and my scripts | this dossier | Run read-only | Our own measurement; limits in section 4.3 |
 | 24 | [lindaraschke.net/articles](https://lindaraschke.net/articles/) and its 11 linked article PDFs (interviews and articles; dates not checked) | Linda Bradford Raschke | Saved | Originator's site; nothing on Turtle Soup or this setup |
+| 25 | [Breakout After Failure](https://tradingmarkets.com/recent/breakout_after_failure-654653) (John Patrick Lee, 25 Jul 2006) and [What Turtle Soup Can Do For You](https://tradingmarkets.com/?p=645410) (Marc Dupee, 13 Jun 2001) | TradingMarkets (Connors's own publishing site) | Read live in checking, plain download | Second-hand summaries of *Street Smarts*' Turtle Soup Plus One; the book itself not read. Medium |
 
 **Not read (named so nobody assumes they were):** Morales and Kacher, *Short-Selling with the O'Neil Disciples* and
 *Trade Like an O'Neil Disciple*; Livermore, *How to Trade in Stocks*; Connors and Raschke, *Street Smarts*; William
 O'Neil's books; Mark Minervini; Larry Williams; Victor Sperandeo; TraderLion (HTTP 403); the recorded Zoom session
 (edu_videos:355). My web search allowance was used up for the whole session before I started, so no new pages could be
-found; every page above came from an address already known.
+found; every page above came from an address already known. (The cold check ran web searches; they found no page that
+changes section 2, see section 12.)
+
+## 12. Cold check (2026-11-09): what was confirmed, fixed and removed
+
+**How it was done.** A script pulled every quoted string from this file and searched for it, with curly and straight
+quotes treated alike, in the saved copies (section 11's "Saved" sources, all 103 Substack posts, and the repo files
+named in sections 5 and 6): 169 distinct quoted strings of three or more words were found word for word; the only
+quoted strings not found are this file's own phrases (section titles, the baseline's question, this section's quotes
+of the writer's old wording) and the two EdgeRater replay-page sentences, which were read live instead. The eight
+quotes from the two "page tool" sources (IBD via Yahoo) were put to the live page one by one as yes/no questions and
+all came back word for word; Bulkowski's three numbers and his revision date and AI notice were re-read live; the OWL glossary, the
+EdgeRater replay page and the two TradingMarkets articles were re-read live. Every Substack quote was traced to its
+post's Substack timestamp and to the section heading above it (owner, Bracco, Index & ETF, Manrav, The Wiz, Jersace,
+unsigned), and every attribution in section 6 held. The scanner summaries in section 5 were checked constant by
+constant against `u_and_r.py`, `uct_undercut_reclaim.py`, `uct_setups_common.py`, `primitives/liquidity.py`,
+`setup_draw.py`, `auto_structures.py`, `registry.py`, `chart_iq/engine/v2_setups.py`, `screener/bar_character.py`,
+`screener/saved_screens.py` and `pattern_vision/rubrics.py`; the app-text and docs claims against `setupCatalog.js`,
+`setupGroups.js`, `setupTagMap.js`, `notebookTemplates.js`, `starterScans.json`, `UNITS-method.md`,
+`trading_principles.json`, `setup-criteria.json`, `setup-vocabulary-v1.json`, `remount.py` and the two earlier research
+files. Tables A, B and C in section 4.3 were compared cell by cell with the scripts' output files (`tables_min05.md`,
+`tables_e1i.md`, `se_min05.txt`) and matched; the 13 example sessions in section 6.7 were re-derived from the local
+bars with the writer's own script and matched. Web searches: nothing from Brian Shannon uses "undercut and rally";
+nothing dates the name before Morales and Kacher (their 13 Jul 2017 FAQ remains the earliest dated use found, and
+Wiley lists *Short-Selling with the O'Neil Disciples* as 2015); *Street Smarts* is listed as 1995 by some sellers and
+1996 by StockCharts, so that stays unresolved.
+
+**Fixed in checking.**
+1. Section 3.7: the 2001 TradingMarkets note by Marc Dupee describes the Turtle Soup **Plus One** buy, not Turtle Soup
+   itself, so its "previous day's low" stop is the Plus One stop and does not contradict StockCharts. Rewritten, dated
+   (13 Jun 2001) and linked; the Lee article's extra detail (prior low "at least three trading sessions earlier") added.
+2. Section 3.6: "the same text is on wyckoffanalytics.com" became "most of the same text": that page's upthrust sentence
+   reads "a UT or UTAD is the opposite of a spring" and it carries no author credit.
+3. Section 4.3, "Other counts": "In every group the median house result was -1R" was not true of the 6%-or-deeper
+   undercuts (median -0.24R). Corrected.
+4. Section 6.7, MXL row: the level cell said "earnings-day low (53.70 in our bars)", but the 04-28 close of 52.01 did
+   not reclaim 53.70; the owner's $50 is what was undercut and reclaimed. The cell now says so.
+5. Section 6.7, FIGR row: "1.6% from his fill" is Bracco's stated 80 cents; a stop 5 cents under the day's low is 1.5%.
+   Both now shown.
+6. Section 6.7, the note under the table: WULF's bars are in the database (the writer's copy was still filling); the
+   owner's WULF note in that post is a breakout and HVC hold, not a U&R, so it is not a candidate either way.
+7. Section 5.2: the internal scanner's "+5 per extra level" is capped at +15, and the confidence floor arithmetic now
+   shows its terms.
+8. Section 5.4 point 6: "nothing checks" the 1.3x volume text was sharpened: the only 1.3 in the code labels the
+   rally-to-undercut volume ratio in the narrative; the one volume gate is 0.7x.
+9. Section 8.1 rule 3 was not measurable ("price is not under declining averages"); it now tests the 50-day SMA's
+   10-session slope and a close above the 50-day. Rule 4 notes that C31's "strongest groups" has no number.
+10. Section 8.1 rule 8 and section 8.2's "never buy the undercut": the [source consensus] tags leaned on the journal
+    template and the knowledge-base template, which are house material, not outside sources. The outside sources that
+    agree are now named (Wyckoff, Turtle Soup and Plus One, Deepvue; Morales, Turtle Soup, IBD), the house items moved
+    under [UCT], and Wyckoff's dissent (a partial long on the spring itself) is stated.
+11. Section 11: the EdgeRater replay page and the two TradingMarkets articles added as sources (3 and 25).
+
+**Removed in checking.**
+- Section 6.7: the sentence "I could not find bars for WULF (not in the local database)." The bars exist; see Fixed 6.
+- Section 3.7: the claim that Dupee's note gives a Turtle Soup stop that "differs from StockCharts'" and that "only the
+  book can settle it". It was a Plus One stop; see Fixed 1.
+
+**Checked and left as written (so nobody re-checks them).** Morales's glossary sentences, including that the U&R "is
+described in detail in the book, Short-Selling with the O'Neil Disciples" and the Livermore "Chapter 5" claim (his
+words; the books were not read); the VoSI FAQ's 13 Jul 2017 dates and MoKa copyright; EdgeRater's three categories and
+50 SMA note; IBD's two columns (dates 16 Apr 2015 and 25 Feb 2015 confirmed live); the Wyckoff tutorial's author line
+and every quoted sentence; StockCharts' Turtle Soup rules and its 1996 date for *Street Smarts*; Deepvue's two bar
+definitions; Kell's TSLA 65-minute remark (interview dated Apr 01, 2023); Osler's two abstracts, including "Most
+results are statistically significant for hours, although not for days." and "stop-loss orders propagate trends and
+are sometimes triggered in waves" (one sentence, not a splice); the Alphatrends pages (no "undercut and rally", no
+"bear trap"; the book page's strategy list); Bulkowski's 19%, 145 and 42%; the Substack byline; the owner rulings in
+`owner_verdicts.jsonl` (Go Signal, Kicker, Oops TVTX, Gap Support TWLO); the `u_and_r.py` narrative's "70%+", "$300M+
+cap, 500K+ avg volume", "3-5%", DeMark and Turtle Soup sentences and its Shannon attribution; the registry's "round 1
+(2026-10-16): noise" note and the recertification scores in `auto_structures.py`; the drawing rule's every constant;
+the agent criteria file's three conditions and `"reviewed": false`; the vocabulary file's two Zoom locators (00:36:06
+is the definition locator, 00:14:08 an evidence locator); the knowledge-base template's 8% stop and 10-15% target.
+
+## 13. Examples (from our data)
+
+(Numbered 13 because section 12 was already taken by the cold check; this is the "Examples (from our data)" section
+every dossier carries.) Scan run 2026-11-09 on the sandbox's daily bars (read-only), all 2,630 names that ever met
+the house liquidity rule, 1984 to 2026; the scan finished inside its time budget (coverage 2,630 of 2,630). Scripts:
+`_study-resume/scratchpad/setups/29-undercut-rally/ur_scan.py` and `final_ur.py`; charts and the three phone sheets
+(`sheet_1-4.png`, `sheet_5-7.png`, `sheet_8-10.png`) in that folder's `final/` (scratch, not in the repo).
+
+**The rule as scanned (section 8 plus the house rules).** The level L is the lowest low of the prior 10 sessions
+(8.1.5b), and not yesterday's low alone (8.1.5 "not enough on its own"); the session before the undercut closed above
+L (8.1.6); the day's low trades under L by at most 6% (8.1.7); price closes back above L the same session or within
+the next 3 (8.1.8); the buy is a market order as price trades back above L on the reclaim day (8.2 option A: L plus one
+cent, or the open if the stock gaps back above L), no more than 4% over L and 10% over the 10-day average (C28, C29);
+the stop is 5 cents under the undercut low (8.3); the close must be above the 200-day and the 50-day with the 50-day
+no lower than 10 sessions earlier (B26, 8.1.3); price $10 or more and $20 million a day on the 20-day average (B23);
+no earnings reaction day from the undercut through 3 sessions after the buy (8.1.11); volume is not required (8.1.9).
+Not scanned: the RS 80 floor (C31), because the sandbox has no RS ratings; the 50-day and 200-day tests stand in for
+it. One hit per level (a 5-session gap after each reclaim).
+
+**Base rate.** 62,966 hits (61,379 since 2000, with the same rates). Before the stop was touched, **35.6% reached 3R
+and 24.7% reached 5R** inside a 60-session window. The stop is fixed at the undercut low with no trims, no breakeven
+move and no trail, so "reached 3R" is a touch of that price, not a booked result; 84.4% of the hits touched the stop at
+some point in the 60 sessions, most of them after already making 1R or more. Median undercut 0.67%, median stop
+1.73% from the entry. Splits worth teaching: a reclaim that took 1 to 3 sessions did better than a same-day reclaim
+(43.2% to 3R against 31.3%); a reclaim day that closed in its top half did far better than one that did not (42.4%
+against 17.7%, which backs 8.2 option B's DCR line); a stop within 3% beat a wider one (37.6% against 27.1%, which
+backs A13); the undercut's depth within 6% made no difference to the 3R rate (35.5% at 3% or less against 36.9%
+deeper, though the deeper ones reached 5R less often, 21.4% against 24.9%); the size of the earlier bounce off L made
+no difference. The same-day entry at L plus one cent is an idealised fill: it assumes you were watching and bought the
+first trade back through the level, which is exactly option A.
+
+**The 10 examples (one per ticker, ten different years, all reached 5R).** "Under" is the undercut low as a percent
+below L; "days under" counts sessions from the undercut day to the reclaim day; the stop percent is from the buy.
+
+| # | Ticker, buy day | Level L (its date) | Undercut low, under, days under | Buy | Stop | Best R (3R in) | Why it is textbook |
+|---|---|---|---|---|---|---|---|
+| 1 | NTAP 2004-10-27 | 23.04 (10-12) | 22.72, 1.39%, 1 | 23.05 | 22.67 (1.65%) | 31.4R (2 days) | Two-week shelf above a rising 50-day; one red day pokes under it on average volume (0.97x), the next day opens under L and closes near the high; earnings came 15 sessions later |
+| 2 | OII 2007-05-25 | 23.57 (05-11) | 23.31, 1.12%, 1 | 23.59 | 23.26 (1.38%) | 34.8R (2 days) | A shallow pullback in a steady uptrend; the undercut day's volume was light (0.73x), the Wyckoff grade-up; the reclaim is quiet, not a surge |
+| 3 | WHR 2009-08-18 | 55.87 (08-04) | 54.90, 1.74%, 1 | 55.88 | 54.85 (1.84%) | 23.8R (2 days) | Two weeks sideways after a sharp July run; the shakeout day on 0.61x volume, then a reclaim day that closes 3% above L; the 200-day is far below but the 50-day is rising steeply |
+| 4 | SWKS 2010-11-17 | 22.51 (11-03) | 22.07, 1.95%, 1 | 22.52 | 22.02 (2.22%) | 30.6R (2 days) | The level is the pre-earnings low; eight sessions after the report the stock undercuts it and reclaims the next day, riding the 21-day EMA |
+| 5 | WYNN 2013-11-21 | 159.37 (11-07) | 157.48, 1.19%, 2 | 159.97 | 157.43 (1.59%) | 26.0R (8 days) | Two closes under L, then a gap back above it: the buy is the open, 0.4% over L, still well inside C28; the slowest of the ten to 3R |
+| 6 | INCY 2016-11-04 | 84.42 (10-28) | 83.01, 1.67%, 1 | 84.43 | 82.96 (1.74%) | 27.5R (1 day) | A post-earnings pullback (report 11-01) undercuts the pre-report low three sessions later and reclaims it the next day on a strong close; the 11-09 gap that followed was not an earnings reaction |
+| 7 | VEEV 2019-03-08 | 111.64 (03-04) | 110.23, 1.26%, 0 | 111.65 | 110.18 (1.32%) | 30.8R (1 day) | Same-day U&R: opens under L, trades to 110.23 and closes at 114.54 (DCR 0.96) on 1.4x volume; the level is the low set the week after earnings |
+| 8 | QCOM 2020-09-21 | 109.62 (09-08) | 108.30, 1.20%, 0 | 109.63 | 108.25 (1.26%) | 37.3R (1 day) | A two-week flat shelf on the 50-day; same-day undercut and reclaim on 0.85x volume, close 2% above L; the cleanest "quick shakeout below the base" of the set |
+| 9 | STLD 2022-02-24 | 59.95 (02-11) | 59.04, 1.52%, 0 | 60.18 | 58.99 (1.98%) | 33.8R (1 day) | Undercuts the February low intraday and closes 5.5% higher (DCR 0.95); the buy is the open because the stock had already recovered L by the bell, 0.4% over it |
+| 10 | AMD 2024-01-04 | 135.37 (12-20) | 133.74, 1.20%, 1 | 135.38 | 133.69 (1.25%) | 54.4R (1 day) | A two-week pause on the 21-day EMA after a run; one-day poke under the pause low, reclaim the next day, then the 2024 leg up; a 1.25% stop |
+
+Every chart was looked at before it was kept. Charts replaced on sight: MYGN 2008-06-30 (the "undercut" day was a
+news-driven gap and reversal that closed 13% higher; the L-plus-a-cent fill is not believable there), AVAV 2018-07-30
+(a 0.59% undercut, too subtle to teach, the owner's "a little subtle and hidden"), CAR 2021-09-13, APPN 2020-09-21,
+VKTX 2024-01-04 and MSTR 2020-10-30 (valid, but the moves that followed dwarf the structure so the undercut is
+unreadable on a daily chart; they are in `hits.json` if wanted), and the leveraged ETFs that top the raw list (SCO,
+QID, LABD, TECL). A chart note: the long titles are cut at the right edge in the PNGs; the best-R figure is in the
+table above.
+
+**Notable failures (in words, from the same scan).**
+- **LULU 2020-02-24.** L 242.17, undercut 2.68% the same day, buy at the open 245.39 (1.3% over L), stop 235.64, which
+  is 3.97% from the buy: already over the A13 line, so the house answer was size down or skip. It made 0.52R and was
+  stopped three sessions later (02-27, low 220.21) as the market broke down; 20 sessions later the stock was 172. A
+  correct-looking U&R in a stock means nothing when the index is breaking (8.7, B18).
+- **AMD 2021-09-14.** L 105.52, undercut 2.74%, two closes under, reclaim, buy 105.52, stop 102.58 (2.79%). Reached
+  0.42R, stopped four sessions later at 99.51 in the September 2021 pullback, and was back at 105 twenty sessions
+  after that. The stop did its job; the lesson is 8.5: a new try needs a new trigger, not a hold through the loss.
+- **NVDA 2024-04-05.** L 87.62, undercut 1.99%, one close under, reclaim, buy 87.63, stop 85.83 (2.05%). Reached
+  0.67R and was stopped two sessions later at 83.02 as the April 2024 correction began; the shakeout turned into a
+  three-week pullback. The reclaim day closed in its top half, so even the best-looking reclaim loses about 58% of the
+  time by this scan's count; the edge is in the R multiple of the winners, not the hit rate.

@@ -1,6 +1,11 @@
 # Setup 33: Failed Head & Shoulders / Rounded Top (asked for as a short; the house uses it as a long)
 
-Research dossier for the owner's setup-by-setup review. Written 2026-11-09. Every quote below was copied from the page,
+Research dossier for the owner's setup-by-setup review. Written 2026-11-09. **Cold-checked 2026-11-09 by a second
+reader:** every quote was re-opened at its source (the two book OCR texts re-downloaded from archive.org, the Brandt,
+StockCharts, Wyckoff Analytics, IBD and Substack pages re-fetched, Bulkowski's pages read again through a fetch tool);
+the scanner summary was re-read against the code; the bar-store prices in 4.6 and 6 were re-queried; the writer's
+simulation summaries were compared line by line with the numbers quoted. Corrections are marked "[checked]" where they
+sit and listed under "Removed in checking" at the end. Every quote below was copied from the page,
 file or transcript named next to it, and kept to 40 words or fewer. Book quotes come from Internet Archive OCR text; I
 removed line-break hyphens the scan left inside words, and throughout I wrote curly quote marks and apostrophes as straight
 ones; nothing else was changed. Nothing here is a ruling. Where I could
@@ -95,8 +100,10 @@ shoulder's high, with the stop a few cents under that day's low.
   11th edition, 2018, edited by W.H.C. Bassetti), Chapter 6: "This is one of the more common and, by all odds, the most
   reliable of the Major Reversal Patterns." Brandt names the older source: "Schabacker, Edwards and Magee are the
   authoritative sources on classical charting principles." I could not read Richard Schabacker's book. Brandt dates his
-  *Technical Analysis and Stock Market Profits* "written in 1937"; the app's detector text says 1932. I could not verify
-  either date.
+  *Technical Analysis and Stock Market Profits* "written in 1937"; the app's detector text says 1932. [checked] The
+  publisher of the modern reprint, Harriman House, dates the first edition 1932: his 1930 book "was followed in 1932 by
+  Technical Analysis and in 1934 by Stock Market Profits: A Course in Forecasting" (author page, source 18). Brandt's
+  1937 is not explained by that page; it may refer to a later edition, which I could not confirm.
 - **"Failed head and shoulders".** John J. Murphy, *Technical Analysis of the Financial Markets* (New York Institute of
   Finance, 1999), Chapter 5 has a subsection titled "The Failed Head And Shoulders Pattern". He says the post-break
   version "creates what is often called, for obvious reasons, a failed head and shoulders", so the name was already in use.
@@ -213,7 +220,7 @@ Head-and-shoulders top (hst.html, statistics updated 8/26/2020):
   leading to the pattern is small, expect a small decline." "Pullbacks hurt post breakout performance."
 - **Symmetry, measured (HSTExplained.html):** "The more unsymmetrical a head-and-shoulders top appears, the better it
   performs." A higher left shoulder "see declines that average 25% compared to declines of 20% for higher right
-  shoulders".
+  shoulders and 19% for even shoulders" [checked: the sentence continues with the even-shoulder figure].
 
 Busted head-and-shoulders top (BustHST.html, "Updated with new statistics on 12/28/2020"):
 - **Definition:** price "breaks out downward and drops no more than 10%, turns around, and then closes above the top of
@@ -287,7 +294,8 @@ The short mirror, busted head-and-shoulders bottom (BustHSB.html, updated 12/28/
 - IBD treats the head-and-shoulders as a **short-sale** pattern after big advances. David Saito-Chung (updated 2022-02-16):
   "There are at least three keys to a smart search of how and when to sell a stock short. The first key? Look only at
   stocks that rise at least 300% to 400% in price to new highs." Then "The second key: Count the number of bases."
-- Saito-Chung (2018): "the head-and-shoulders pattern, which can take as long as seven months to build".
+- Saito-Chung ("Late-Stage Breakout Failure? Good Short Selling Moment", published 2016-01-05, updated 2018-11-19
+  [checked]): "the head-and-shoulders pattern, which can take as long as seven months to build".
 - A 2024 IBD title warns: "Head-And-Shoulders Pattern Spots Short-Sale Entries, But Beware Of Potential Headaches".
   The body is paywalled; I could not read what the headaches are.
 
@@ -299,7 +307,7 @@ The short mirror, busted head-and-shoulders bottom (BustHSB.html, updated 12/28/
 | Shape | 3 peaks, head highest, items A to D all required | 3 peaks; right shoulder retraces 1/2 to 2/3 of C to D | 3 peaks; symmetry preferred, not required | 3 peaks; asymmetric tops perform better | "when properly identified" | H&S or rounded top on the daily |
 | Length | not given for daily patterns | not given | not given | not given | tops "brief", bottoms longer | weeks ("Could take a few weeks to form") |
 | Volume | heavy left shoulder, light right shoulder (an estimate, 1/3 each way) | lighter on the head, lightest on the right shoulder, expand on the break | lighter head and right shoulder, expand on the break | highest on the left shoulder, declining 61% of the time | not given | not stated |
-| Moving averages | none | none | long-term averages as targets | none | none | 50-day ("line in the sand"; "undercut of the 50SMA and launch"), 20-day, 200-day |
+| Moving averages | none | none | "long-term moving averages" named among the other factors to weigh against a target [checked] | none | none | 50-day ("line in the sand"; "undercut of the 50SMA and launch"), 20-day, 200-day |
 | Top confirmed by | a close about 3% under the neckline | a close under the neckline; 1-3% or two closes | a convincing break, with volume | a close under the neckline (or right armpit) | a completed top ("A") | a close under the neckline ($333 SMH) |
 | Failure defined as | "saved" before the break (perhaps 20%); "false move" after (rare) | "any decisive close back above the neckline"; also before the break | not defined | busted: drop under 10%, then a close over the top of the pattern | B: a full day back above the neckline; C: over the right shoulder high | "failed breakdown", "failed H&S breakdown", "failed rounded top / H&S" |
 | Long entry | none | none | none | buy a penny over the head | on the penetration of the right shoulder high | buy the failed breakdown; for indexes, TQQQ/SOXL |
@@ -370,7 +378,8 @@ The short mirror, busted head-and-shoulders bottom (BustHSB.html, updated 12/28/
 ### 4.5 My computation: the app's own detectors, followed forward, under the house rulebook [my computation]
 
 **Method.**
-- **Data:** the local read-only test copy of the app's daily bar store (`bars.db`, 4,188 tickers, to 2026-11-09).
+- **Data:** the local read-only test copy of the app's daily bar store (`bars.db`, 4,284 tickers with daily bars, to
+  2026-11-09; 1,726 of them met the 1,000-bar and $20M tests below) [checked: the draft said 4,188; the copy holds 4,284].
   A random sample (seed 33) of 600 tickers with at least 1,000 bars since 2010 and an average daily dollar volume of
   $20M or more. Includes ETFs. Detection dates 2010-01-01 to 2026-08-31.
 - **Detection:** every 5th bar, the app's own `head_shoulders.detect_head_shoulders` and
@@ -544,8 +553,10 @@ does not work", nearest standard name "Busted head-and-shoulders top / busted ro
    - A quote credited to Peter Brandt, "the most reliable classical reversal pattern when the neckline breaks with
      volume". I did not find it. His published wording (2013) is that the H&S, "when properly identified", "is the most
      reliable of all classical chart patterns".
-   - "origins traced back to Charles Dow" and "formally codified by Richard Schabacker in ... (1932)": not verified (Brandt
-     writes 1937).
+   - "origins traced back to Charles Dow": not verified in any source I read. "formally codified by Richard Schabacker in
+     ... (1932)": the 1932 date matches the reprint publisher's own account (Harriman House, "followed in 1932 by
+     Technical Analysis", source 18) [checked]; Brandt writes "written in 1937". Whether the book "formally codified" the
+     pattern I could not check without reading it.
    - "the textbook 8-18 bar window where the highest-follow-through H&S patterns resolve": no source found.
    - The management text says to cover part "at 1R for a free trade"; the house first trims at 3R (B19).
 7. **Unverified text shown to members (rounded top).**
@@ -633,6 +644,12 @@ invalid above the 50-day; Bracco (2024-05-30) hoped the IWM weekly would become 
 
 **Not found.** Bracco's "The Parabolic Short" (2025-06-13) has no H&S or rounded-top content; its top variations are
 parabolic. No UCT post gives a stop, size or exit rule for this setup.
+
+**[checked] The count.** A fresh search of all 103 public posts for "head and shoulders", "H&S", "rounded top" and
+"rounding top" found 9 posts: the 7 Bracco issues and 2 owner sections quoted above, plus one more that is not this
+setup: "The Rest of the Week." (2025-10-01), on SMCI, "Inverse head and shoulders look to it on the daily timeframe.
+Clear resistance at $48 level." (a bullish inverse pattern, no failure; the section carries no writer's heading). The
+2026-08-16 issue also says, of another stock, "Should have bought the inverse head and shoulders break on earnings."
 
 ---
 
@@ -862,14 +879,45 @@ as a teaching aid, not a checklist.
 | 14 | UCT Substack, all 103 posts listed in https://unchartedterritoryy.substack.com/sitemap.xml, read through the public post API; quoted: sunday-scans-4d1, -b99, -56d, -422, -cab, -33a, -ae1, -da5, -0d2; checked: the-parabolic-short | Uncharted Territory (Patrick, TSDR Trading; Bracco) | 2025-06-22 to 2026-08-16 for the quoted posts | House source; quoted exactly; all quoted posts are public editions. Chart images in four posts viewed. |
 | 15 | qullamaggie.com post sitemap and its 9 posts | Kristjan Kullamägi | various | Searched; no mention of H&S or rounded tops. |
 | 16 | The app's daily bar store (local read-only copy of `bars.db`) | this app | bars to 2026-11-09 | Used for every [my computation] number; method and limits in 4.5. |
+| 18 | Richard Schabacker author page, https://harriman-house.com/authors/richard-schabacker/technical-analysis-and-stock-market-profits/9780857199171 | Harriman House (publisher of the reprint) | page undated; read 2026-11-09 [added in checking] | Publisher's dating only ("followed in 1932 by Technical Analysis"); the book itself was not read. |
 | 17 | Repo files: `api/services/pattern_engine/detectors/classical/head_shoulders.py`, `rounded_top.py`, `inverse_head_shoulders.py`, `api/services/pattern_engine/primitives/pivots.py`, `primitives/context.py`, `app/src/pages/modelbook/setupCatalog.js`, `app/src/constants/setupGroups.js`, `app/src/pages/journal-2-0/lib/setupTagMap.js`, `api/services/desk_session_insights.py`, `docs/study/sizing_rule.md`, `docs/study/TRADE_PLANS.md`, `docs/study/audits/2026-10-24/owner_verdicts.jsonl`, `docs/study/UNITS-method.md`, `docs/study/UNITS-foundations.md`, `docs/study/plan-review.html`, `docs/study/research/definitions.json`, `docs/superpowers/research/setups/setup_criteria.json`, `docs/superpowers/research/setups/PERFORMANCE_ranked.md`, `docs/superpowers/research/bases/01-bulkowski-classic-patterns.md`, `docs/superpowers/research/bases/06-edwards-magee-murphy-canon.md`, `docs/wisdom/vocabulary/setup-vocabulary-v1.json`, `docs/study/levels/brain_kb_2026-11-06.json`, `docs/study/levels/brain_kb_cycle_2026-11-06.json` | this repo, branch feat/study-content | as of 2026-11-09 | Read directly. The brain files hold member-only Discord material: paraphrased here, wording not copied. |
 
 **Not read, and why.**
 - Richard Schabacker's *Technical Analysis and Stock Market Profits*: no copy; the web-search budget for this session was
-  used up before I could look for one. Nothing is quoted from it.
+  used up before I could look for one. Nothing is quoted from it. [checked] Only the publisher's dating (1932, source 18)
+  was added.
 - Bulkowski's books (*Encyclopedia of Chart Patterns*, *Visual Guide to Chart Patterns*): the O'Reilly preview refused the
   request (HTTP 403). I used his website only.
 - Savin, Weller and Zvingelis (2007), on H&S patterns in U.S. stocks: I could not reach a copy. Not used.
 - Brandt's members-only posts, IBD article bodies, O'Neil's and Minervini's books, Weinstein's book, Stockbee, Linda
   Raschke: not read for this setup. Nothing is quoted from them.
 - The app's detector text credits Adam Grimes and Charles Dow; I did not find or read those claims in a source.
+
+---
+
+## 12. Removed in checking (cold check, 2026-11-09)
+
+**Method.** 104 quotes and attributions were matched word for word against freshly fetched copies of their sources
+(99 exact; 4 differed only by OCR line-break artefacts in the Murphy scan; 1, the "Jonathon King" byline, was confirmed
+through the site's author record rather than the post text). Bulkowski's eight pages were read again through a fetch
+tool (direct requests still answer HTTP 406) and every number quoted from them was found on the page. The scanner
+summary in section 5 was read against `head_shoulders.py`, `rounded_top.py` and `primitives/pivots.py`; every
+threshold, level, weight and member-facing sentence quoted there is in the code. The 10 example rows in 4.6 and the
+dated prices in section 6 were re-queried from the same bar-store copy and matched. The simulation figures in 4.5 were
+compared with the writer's own summary files and matched; the simulation itself was not re-run.
+
+**Nothing was removed.** Four statements were corrected in place, each marked "[checked]":
+1. The bar-store copy holds **4,284** tickers with daily bars, not 4,188 (4.5).
+2. IBD's "seven months" article was published 2016-01-05 and updated 2018-11-19; the draft dated it only "2018" (3.7).
+3. Schabacker's book: the reprint publisher Harriman House dates the first edition **1932**, so the app's 1932 is the
+   publisher's date and Brandt's "written in 1937" is the outlier; the draft said neither date could be verified
+   (sections 2, 5, 11; new source 18).
+4. The comparison table's StockCharts "Moving averages" cell was sharpened: the page names "long-term moving averages"
+   only as one of the other factors to weigh against a price target (3.8).
+
+**Added.** The rest of Bulkowski's symmetry sentence ("and 19% for even shoulders", 3.4); the count of UCT posts that
+name the pattern, 9 of 103, with the one inverse-H&S mention that is not this setup (section 6).
+
+**Still unverified, and said so in the text.** Brandt's 1937 date; "Charles Dow" as the pattern's origin; the simulated
+R results in 4.5 and 4.6 (the writer's scripts and outputs were read, not re-executed); the NY Fed and NBER papers
+(listed, never quoted); the owner's Discord archive entries (paraphrased from the house brain files, not from Discord).

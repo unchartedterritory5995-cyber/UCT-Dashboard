@@ -20,6 +20,18 @@ read a source, I say so and give no wording from it.
   and against the repo files; each Bulkowski sentence was re-confirmed one at a time through WebFetch, page by page.
   TraderLion also refuses WebFetch (HTTP 403). RePEc carries no abstract for Bernard and Thomas (1989) or Chan (2003).
   What was corrected or removed is listed at the end, under "Removed in checking".
+- **Cold check 2, 2026-11-09 evening (a third reader, working from its own downloads, not the writer's).** All 103
+  Substack posts, the 12 Stockbee posts, both Qullamaggie posts, the 11 VoSI pages, Morpheus, ChartSchool, SMB, the IBD
+  teaser, the Yahoo reprint, Wiley, RePEc and alphatrends were downloaded again and every one of the 529 double-quoted
+  spans in this file was matched word for word against them and the repo files (0 misses). Each Substack quote was then
+  matched inside the post its row links, the row's date against the post's own `datePublished`, and the section heading
+  above it against the "where" column (all 61 rows agree). Each Bonde, Kullamägi and Morales/Kacher quote was matched
+  inside the post or FAQ the text dates it to, and the Stockbee comment quotes to their commenter and date. The nine
+  Bulkowski pages were re-read one at a time through WebFetch. The scanner, Chart IQ, screener and catalyst summaries of
+  section 5 were re-read against the code. Twelve of the eighteen gaps in 6.7 were recomputed from the bars database
+  (the writer had checked five). The whole of section 4.3 was re-run from the scripts; every statistic reproduced within
+  rounding except the random-day baseline, which is a different random sample on the grown database and came out higher
+  (section 4.3). The few wording changes are listed under "Removed in checking", at the end.
 - **Substack dates** are the dates Substack prints on each post, which are UTC. Eight of the posts cited here went out
   on the evening before in US Eastern time (for example the post dated 2026-02-16 went out on Sunday 2026-02-15 at
   9:35 pm ET; the 2025-06-20 "Market Update and Watchlist" went out on 2025-06-19 at 9:53 pm ET).
@@ -256,8 +268,12 @@ setup: Episodic Pivots" (2021-11-02).
 - **Trail.** "Trail your stop with the 10- or 20-day moving average once they surpass your initial stop." In the same
   post: "You can trail these with the 20- or 50-day moving average, or whatever you find to work the best."
 - **Position cap.** "I don't believe you should ever have more than 30% of your account over night in any stock or
-  ETF."
+  ETF." (A general rule in the introduction of the 2021-01-08 post, before the three setups; not written for the EP
+  alone.)
 - Note: his "sell 1/3 to 1/2 of the position after 3-5 days" rule is written for his Breakout setup, not for the EP.
+  The ORH entry, the day's-low stop and the 10- or 20-day trail above sit under the post's "Episodic Pivot (EP)" heading;
+  the 1 to 1.5 times ADR/ATR cap, "No need to be first in." and "Volume is the #1 thing to focus on." are from the
+  2021-11-02 post.
 
 ### 3.5 Gil Morales and Chris Kacher (the buyable gap-up)
 
@@ -370,8 +386,8 @@ Open". It treats the setup as an intraday trade on 5-minute charts and ends on "
 never the open, always the reclaim." Its worked numbers in two chapters ("Entry $31.20, pullback low $29.95") name no
 stock, although the script calls one of those chapters "a real loser"; the chart notes for the same chapters point to
 META on 2023-02-02 at different prices (a reclaim near $187, a stop near $184.50), so the figures cannot be traced to a
-real trade. `docs/study/UNITS-method.md` (SET.20) carries the same line. This
-conflicts with the owner's own words (section 6) and is not an outside source.
+real trade. `docs/study/UNITS-method.md` (SET.20) carries the same lesson title and the same idea in its own words
+("never the emotional open"). This conflicts with the owner's own words (section 6) and is not an outside source.
 
 ### 3.12 Read but not used, or could not read
 
@@ -533,8 +549,11 @@ No commissions or slippage.
 - **Buy C, Bulkowski's confirmation.** The first close above the gap day's high within 20 sessions; stop 0.1% under the
   lowest low since the gap day, the gap day included.
 - **Baseline.** 11,784 random days in the same stocks under the same floors, bought at the close with the stop under
-  that day's low, same plan: **+0.04R a trade (standard error 0.03), 29% winners**. Random days whose stop was 2.5% to
-  4.5% (like a gap day's): +0.06R (0.05).
+  that day's low, same plan: **+0.04R a trade (standard error 0.03), 29% winners** in the writer's run. Random days
+  whose stop was 2.5% to 4.5% (like a gap day's): +0.06R (0.05). **Cold check 2 re-ran the same script on the same
+  database a few hours later** (the database had taken new bars, so the same seed drew a different set of days; 7,315 of
+  the 11,784 days were the same): **+0.09R (0.03), 30% winners**; the 2.5% to 4.5% slice +0.11R (0.05). Read the
+  baseline as somewhere between +0.04R and +0.09R, with 20-session drift of about +0.8% to +0.9% in both runs.
 
 **Results** (R per trade with its standard error in brackets; "held" = no close under the gap-day low in the next 10
 sessions):
@@ -571,8 +590,9 @@ sessions):
 1. **Earnings gaps hold; other gaps mostly do not.** Earnings gaps kept the gap-day low for 10 sessions 55% of the time
    and traded back to the prior close within 20 sessions 41% of the time. Gaps with no earnings nearby: 40% and 57%.
 2. **Day one beat the baseline on earnings gaps only.** Buy A on earnings gaps: +0.23R (0.05), against +0.04R (0.03) for
-   random days. On no-earnings gaps: +0.01R (0.06), no better than random. Below the 200-day, no-earnings gaps did worst
-   (34% held, 69% traded back to the prior close).
+   random days in the writer's baseline and +0.09R (0.03) in the cold-check re-run; the gap over random days is about
+   two to three standard errors, not more. On no-earnings gaps: +0.01R (0.06), no better than random. Below the 200-day,
+   no-earnings gaps did worst (34% held, 69% traded back to the prior close).
 3. **The first pullback and reclaim did not beat day one.** Buy B, the course draft's version, came out near zero on
    earnings gaps (-0.01R) and found a setup on only 45% of them (a median of 6 sessions after the gap). Buy D, the glyph
    read literally, found one on 25% of earnings gaps, with a median stop of 6.2%, and came out at +0.05R (0.03).
@@ -601,6 +621,12 @@ some are missed reports. "No earnings" is not the same as "news": it mixes compa
 market-wide days. Buy A uses the close, not the opening range. Daily bars cannot see the intraday path, so same-day stop
 and target order is guessed (stop first). No costs. Events overlap in time, so the standard errors are too small. The
 result changes by period (earnings Buy A was +0.07R in 2000 to 2012). None of this is a promise about the next trade.
+**Reproduction (cold check 2, 2026-11-09 evening).** `measure.py`, `baseline.py` and `analyze.py` were re-run from
+scratch against the same read-only database after it had taken new bars: 11,475 gap events (6,859 earnings, 3,892 no
+earnings; the table above has 11,461 / 6,855 / 3,885 from the writer's run). Every figure in the table and in points 1
+to 8 reproduced within rounding (for example earnings Buy A +0.234R, se 0.049; Buy B -0.008R on 3,073; Buy D +0.052R on
+1,726, median stop 6.17%; 69.1% / 26.3% of the 2,920 big gaps; 70.8% failing one of C29, A13, B26). Only the random-day
+baseline moved, from +0.04R to +0.09R, because it is a different random sample; it is reported both ways above.
 
 ---
 
@@ -647,7 +673,8 @@ names. `api/services/pattern_vision/eval.py` maps the journal tag "News Gappers"
   35% or less, a 10% gap on 3 times volume, and more); otherwise it becomes "ER gap", with the reason "big-volume gap,
   not out of neglect (likely earnings)".
 - **"PEG flag"** (`v3_bases.py`): a base of up to 30 bars and 30% depth that starts within 15 bars after an 8%, 3 times
-  volume gap, with the format text `flag on top of the %s earnings/news gap`.
+  volume gap (or a 3% gap whose day closes 10% or more up, on 3 times volume), with the format text
+  `flag on top of the %s earnings/news gap`.
 - **"Buyable gap-up"** (`v2_setups.py`): a 4% gap on 1.5 times volume, closing in the upper half, above the 50-day, with
   the stop drawn at the "Gap midpoint (BGU stop)", halfway between the gap day's low and the prior day's high.
 - **"ER breakdown"** (`v44_read.py`): a gap down of 8% or more on 3 times volume reads "no swing trade area".
@@ -939,8 +966,10 @@ Every line is measurable on daily bars unless it says intraday. Thresholds marke
   upper-half closes held the gap-day low 68% of the time against 40%; no outside source sets that line] A close in the
   lower half is a B-; a red close is not this setup.
 - **Location.** The gap-day close is above the 200-day SMA. [house rule B26] Prefer a gap out of a base: an open above
-  the top of a base of 4 weeks or more, or out of a 3 to 6 month sideways range. [source consensus on a prior base:
-  Kullamägi (sideways 3-6 months), Wagner (a base of at least four to five weeks)]
+  the top of a base of 4 weeks or more, or out of a 3 to 6 month sideways range (to measure it: the prior 60 sessions'
+  high is no more than 35% above their low, the quiet test of section 4.3; the 35% is my line, neither source gives
+  one). [source consensus on a prior base: Kullamägi (sideways 3-6 months), Wagner (a base of at least four to five
+  weeks); the 35% is my proposal]
 - **Not late.** Not up more than about 30% in the 3 months before the gap, and not the 3rd to 5th day of a straight-up
   burst. [originator: "not rallied" in Bonde (looked at over about 65 days) and Kullamägi (3-6 months), with no number
   from either; the 30% line is my proposal; UCT: Bracco's climax gap] (Measured: earnings gaps after a 30% run were
@@ -1227,3 +1256,125 @@ cited Substack posts; the verdict lines cited in 6.1; the rule numbers and wordi
 `sizing_rule.md` section 9; the scanner and engine summaries in section 5 against the code; the glyph arithmetic in 3.2;
 the 4.3 tables against the draft's saved outputs (`measure/table2.md`), including a re-count of the 6.2% earnings-date
 hole; and the gap, price and date figures of section 6.7 spot-checked on the bars database (FSLY, NVDA, TXN, HTZ, DELL).
+
+---
+
+### Cold check 2 (2026-11-09 evening, a third reader)
+
+Method: own downloads of every web source (not the writer's copies), a script match of all 529 quoted spans, a per-row
+match of the 61 Substack rows (quote inside the linked post, date against `datePublished`, section heading against the
+"where" column), a per-quote match of the Bonde, Kullamägi and VoSI quotes to the post or FAQ they are dated to, the
+Bulkowski pages through WebFetch, the code of section 5 re-read, 12 of the 18 gaps in 6.7 recomputed from the bars
+database (META, OKTA, APPS, TWLO twice, MXL, AAON, CRCL, GRMN, SANM, XMTR, RMBS, plus the writer's five again), and a
+full re-run of the section 4.3 scripts.
+
+**Confirmed, no change:** all 529 quotes (0 misses); all 41 Substack post dates and the eight "evening before" posts;
+the 43 uses of "earnings gapper" (my count on the fresh downloads, all sections and writers); the section headings over
+every 6.2, 6.3 and 6.4 quote (the owner's rows sit under "TSDR’s Weekly Outlook & Watchlist" or its "Charts Covered"; the
+"no byline" rows under "Earnings & Economic Calendar for the Week", "Closing Comments and Mindset" or "Index & ETFs"; the
+team rows under each signer's heading; the 2025-11-09 "I love trading earnings gappers on day one." is the post's
+opening paragraph); the 12 Stockbee post dates; the commenters and dates of the Stockbee comment quotes (the "about 6%
+CAR" / "about 50% CAR" backtest is a reader signing "Paul", 2010-02-21; the "less than 1%", "low of last 2 days", "4
+parts", "85 plus" and "monthly EP scan" replies are Pradeep Bonde's, 2010; "Yes. It is normally low of the EP day." is
+his, 2017-01-31; "ATM" is his, 2021-11-08); his blog search for "power earnings gap" (three posts: Opportunity Buffet Part
+1, How to trade earnings, Gaps and traps; the phrase appears only in the search box and result banner); the Kullamägi
+post dates (2021-01-08, modified 2021-04-28; 2021-11-02); every VoSI page date ("Last updated" or "Published" as the page
+prints it: 24 Oct 2010; 21 Oct 2010 and 4 Apr 2012; 25 Jul 2012 and 11 Feb 2025; 21 Oct 2010; 1 Aug 2013; 13 May 2013;
+3 Jul 2025; 28 and 31 Oct 2010; 25 Feb 2014 and 20 Oct 2022; 3 Nov 2011; 12 Feb 2011) and the "Rule #2" / "page 171 of
+our book (hardcover 1st edition)" wording; Wagner (2018-09-06, modified 2022-04-06); Grimes (2010-10-02; his "closure"
+is a gap that "traded back at least to the previous day’s range"); IBD (Rachel Fox, 2026-05-28) and the Yahoo reprint
+(2015-04-15, "Gaps are exceptions."); Wiley (1st edition, September 2010, 384 pages, "Dr. K's Laboratory: Buying Gap-Ups
+in Leading Stocks"); RePEc (abstracts for Frazzini and Gervais et al.; "No abstract is available" for Bernard and Thomas
+and for Chan); every Bulkowski sentence and number in 3.6 and 4.1, including that the broker-upgrade page lacks the
+"perfect trades" sentence and the bad-surprise table is one bull-market table; the five brain KB rows of 6.5; the
+`setup_criteria.json` quotes; the course draft's 12 minutes, its "$31.20 / $29.95" figures, its "real loser" and its META
+2023-02-02 chart notes; the glyph arithmetic (the pullback's lowest low is 1.0576 against a gap-day midpoint of 1.0529,
+the trigger closes at 1.1295 against a gap-day high of 1.1118, in units of the pre-gap price); every detector constant
+and sentence quoted in 5.2 and 5.5 (including the PEG detector's docstring-versus-code mismatch, "largest gap_pct" against
+the highest-confidence pick); the Chart IQ, screener and catalyst-engine readings of 5.3 and 5.4; the rulebook numbers
+of section 7 (71 rules, the texts of A3 to F69 as cited); and all 18 rows of 6.7 (12 recomputed here, 5 by the writer,
+TSN recomputed too).
+
+**Corrected or tightened:**
+1. *Baseline (4.3).* The writer's +0.04R (0.03) is what the writer's saved run gives, but a re-run of the same script
+   on the same database a few hours later (new bars had been added, so the same seed drew a different set of days)
+   gives +0.09R (0.03). Both are now reported, and point 2 of "What the numbers say" no longer leans on the lower one.
+   Everything else in 4.3 reproduced within rounding; the re-run's counts are recorded under "Reproduction".
+2. *Kullamägi's 30% position cap (3.4)* is a general rule from the introduction of his 2021-01-08 post, not an EP rule;
+   said so. Which of his two posts each 3.4 quote comes from is now stated.
+3. *"PEG flag" (5.3)* has a second branch in the code (a 3% gap whose day closes 10% or more up, on 3 times volume);
+   added.
+4. *3.11* said `UNITS-method.md` "carries the same line"; it carries the same lesson title and the idea in different
+   words ("never the emotional open"). Reworded.
+5. *8.1 Location* said "a 3 to 6 month sideways range" with no measurable line; the 60-session range test of 4.3 (35%)
+   is now attached and marked as my proposal.
+
+**Removed:** nothing. No quote, attribution, date or number in the file failed its source.
+
+---
+
+## 12. Examples (from our data)
+
+Scan written 2026-11-09 night (`_study-resume/scratchpad/setups/22-news-gapper/ng_scan.py`, charts `ng_chart.py`), on
+the local sandbox's daily bars, read-only, over the 2,630 names that ever met the house liquidity rule, from 2005-01-01
+(report dates are complete from about 2005, so an earnings gap can be told from a news gap). All 2,630 names were
+scanned (the 420-second budget was not reached).
+
+**The rule, in one paragraph.** Gap day: the open at least 4% above the prior close; volume at least 3x the 50-day
+average; the gap holds (the day's low stays above the prior close), the day closes green and in the upper half of its
+range; the close is above the 200-day SMA (B26); the stock is not up more than 30% over the prior 65 sessions; the prior
+close is at least $10 and the stock traded at least $20 million a day (B23). The gap is classed **earnings** when the
+gap day is a report reaction day (`earnings_reaction_days`: the report date for a pre-open report, the next session for
+an after-close one), **news** when the name has report dates covering that time and this day is not one (our data
+cannot NAME the news; it only shows a catalyst-size gap that was not a report), **unknown** when the name has no report
+dates. Three buys, all market orders at the trigger (E57), chase limit 4% (C28), entry no more than 10% over the 10-day
+SMA (C29), stop within 3% (A13): **Buy 1, real** (hourly bars; only names and dates with hourly data, 2023-12-12 on):
+over the first-hour high, stop a few cents under the first-hour low, allowed up to 5% when also within 1.5x the 14-day
+ATR (the cap in 8.3; flagged, since A13 says "usually" 3%); a buy stopped later the same day is counted as a loss.
+**Buy 1, proxy** (daily bars only): the gap-day close with the stop a few cents under the gap-day low, kept only when
+within 3%. **Buy 2, the first pullback and reclaim** (the card): within 2 to 10 sessions, a pullback of at least 2
+sessions with two down closes or an inside day, every close above the gap-day low and no trade back to the prior close;
+buy when price trades over the prior day's high; stop a few cents under the pullback low (within 3%, else under the
+lower of the trigger and prior day's lows). Outcome: a fixed stop, no trims, no breakeven move, 60 sessions forward,
+the first of stop / 3R / 5R (`common.outcome`).
+
+**Base rate.** 1,491 hits (1,022 earnings, 348 news, 121 unknown; 1,200 pullback buys, 250 close-proxy day-one buys,
+41 real first-hour buys). **29.5% reached 3R and 19.5% reached 5R before the stop** (fixed stop, no trims, so the
+house trade, which trims a third at 3R and moves to breakeven, would do better on the winners and the same on the
+losers). By buy: real first-hour buy 36.6% / 24.4% (41 trades, 2023-12 on, one stopped the same day); close proxy
+31.2% / 20.4%; pullback 28.9% / 19.2%. By class: earnings 29.4% / 19.6%, news 29.3% / 18.1%, unknown 31.4% / 23.1%.
+Caveats: the day-one proxy is the close, not the opening-range buy the owner takes (daily bars cannot see it before
+2023-12); the "news" class means "not a report day", not a verified headline; the 65-session "not late" test and the
+3-times volume line are this dossier's proposals (section 8), not owner rulings.
+
+**The 10 examples** (sheets `final/sheet_1-4.png`, `sheet_5-7.png`, `sheet_8-10.png` in the scratch folder; facts from
+`final/examples.json`). "Buy" is the market-order fill, "best R" the highest R reached within 60 sessions before the stop.
+
+| # | stock | gap day | class | gap / volume / close in range | buy | stop | best R | why it is textbook |
+|---|---|---|---|---|---|---|---|---|
+| 1 | INTC | 2014-06-13 | news (not a report day; nearest report dates in our data 2014-04-15 and 2014-07-15) | +6.4%, 4.1x (a 1-year volume high), 62% | day-one proxy, the close 29.87 | 29.51 (1.2%) | 15.8R | A gap out of a 4-month base on the year's biggest volume; the stop under the gap-day low was 1.2% away and never touched; a steady ride on the 10-day EMA to 3R in 8 sessions |
+| 2 | ULTA | 2016-03-11 (report 2016-03-10) | earnings | +14.2%, 4.8x (1-year high), 94% | pullback day 6, over the prior high at 190.69 | 186.55 (2.2%) | 12.1R | A big gap out of a correction (down 11% over 65 sessions) that closed at the top of its range; a 4-session pullback 2.8% deep held the gap-day low, then a clean reclaim |
+| 3 | AMZN | 2017-10-27 (report 2017-10-26) | earnings | +8.8%, 5.5x (1-year high), 92% | pullback day 6 at 55.11 | 54.29 (1.5%) | 22.6R | The classic: a flat 5-month base, a gap on the year's volume record, a tight 4-session pause 1.7% deep, then a 2-month trend on the 10-day |
+| 4 | TWLO | 2018-02-14 (report 2018-02-13) | earnings | +10.0%, 8.3x, 62% | pullback day 8 at 33.55 | 32.59 (2.9%) | 24.1R | A gap out of a 3-month bottom straight through the 200-day; the first 6-session pullback held the gap-day low and the reclaim ran to 3R in 4 sessions |
+| 5 | TGT | 2019-08-21 (report 2019-08-21, pre-open) | earnings | +16.8%, 9.0x (1-year high), 93% | pullback day 6 at 105.11 | 103.20 (1.8%) | 12.0R | A 17% gap to all-time highs in a large-cap on 9x volume; a 4-session flag with almost no give-back (0.1% under the gap-day high), then the reclaim |
+| 6 | PANW | 2021-08-24 (report 2021-08-23) | earnings | +13.7%, 11.6x (1-year high), 82% | pullback day 8 at 77.06 | 75.92 (1.5%) | 14.2R | Out of a 6-month range on 11.6x volume; a 6-session pullback 2.6% deep that never closed under the gap-day low; a textbook 10-day trend after |
+| 7 | DECK | 2023-10-27 (report 2023-10-26) | earnings | +12.5%, 5.2x, 79% | pullback day 7 at 101.01 | 98.39 (2.6%) | 18.9R | A gap from a 3-month pullback to the 200-day; a 5-session pause 1.3% deep; the kind of leader the owner's PEG list is built from |
+| 8 | NFLX | 2024-10-18 (report 2024-10-17) | earnings | +7.3%, 5.6x, 92% | pullback day 6 at 75.62 | 74.38 (1.6%) | 19.6R | A gap to new highs from a tight base, a 4-session pullback 2.9% deep, a stop 1.6% away and a two-month run |
+| 9 | HAL | 2025-10-21 (report 2025-10-21, pre-open) | earnings | +8.6%, 3.2x, 83% | **real day-one buy**, over the first-hour high 24.87 at the 12:30 bar | 24.07, under the first-hour low (3.3%) | 10.9R | The only example with the owner's actual buy on real hourly bars: the stock cleared its first-hour high in the third hour and never looked back; 3R in 2 sessions. The gap-day close was above a falling 200-day the stock had been under for months (B26 is met, but it is a turnaround, not a leader) |
+| 10 | CCJ | 2025-05-23 | news (not a report day; nearest report dates in our data 2025-05-01 and 2025-07-31) | +6.2%, 3.4x, 98% | pullback day 6 at 58.93 | 57.58 (2.3%) | 15.8R | A news gap in a stock already in a strong uptrend (up 13.5% over 65 sessions, under the 30% line) closing at the very top of its range; a 4-session pause 1.9% deep, then 3R in 5 sessions |
+
+Two examples are "news" by our classification (INTC, CCJ): the data shows a catalyst-size gap on a day that was not a
+report reaction day, but it does not say what the catalyst was. The owner should confirm the headline before either is
+used as a "news" model. Removed in checking: BIDU 2010-02-25 (an 11-session pullback, at the edge of the 10-session
+window), FORM 2025-10-29 (a report is listed for that date but the reaction day did not match the gap; ambiguous),
+SMTC 2024-03-26 (two sessions before a scheduled report, B22), SGRY 2026-11-04 (only three sessions of history after
+the buy, and a report due 2026-11-09). Every chart was looked at; none had a split artefact or a reused ticker.
+
+**Notable failures (in words).** AVAV, gap 2024-03-05 (+15.3% on 15.8x volume, closing at 79% of its range): the
+8-session pullback and reclaim on 2024-03-14 was bought at 162.59 and went straight to the stop (158.43) without a
+single higher high; a big-volume gap does not protect a late Buy 2. SEDG, gap 2019-05-07 (+15.0%, 11.4x): the day-4
+reclaim at 51.76 failed the next session, best 0.0R; the whole gap was given back within weeks. PEN, gap 2026-01-15
+(+11.1%, 18.2x, a 1-year volume high): the stock was already up 23.8% over 65 sessions and the day-4 reclaim at 357.70
+reached 0.45R before the stop; late in a run, even the loudest gap is a poor Buy 2. The pattern across the losers: the
+pullback buy fails most often when the reclaim comes early (day 4) after a very wide day-one range, when the stop sits
+under a shallow pullback inside that wide gap bar, and when the stock was already extended before the gap.

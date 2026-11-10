@@ -28,6 +28,13 @@ only through a summary.
 - The repo's brain-KB files (`docs/study/levels/brain_kb_*.json`) hold machine summaries of Bracco's Discord posts. I
   quote them only as summaries, never as his words.
 - Same question as dossier 27: this public repo now quotes short Sunday Scans passages. Question 14 asks if that is fine.
+- **Cold check (2026-11-09, second pass by a different session).** Every quote below was re-matched by script against
+  freshly downloaded copies of the pages (the Substack posts, qullamaggie.com, StockCharts, kelltrading.com, Stockbee,
+  the archive.org TraderLion copies, the NBER abstracts, the CTE sheet) and against the repo files; Bulkowski's and IBD's
+  pages were re-read through a fetch tool; both of Bracco's extension-table images were downloaded from the posts and
+  re-read; the publish dates of every cited post were read from the page metadata; the scanner summary in section 5 was
+  checked line by line against the code; the proxy facts in 4.2 were recomputed from the saved event file. What was
+  changed or removed is listed in section 12.
 
 **The short version.**
 - A parabolic short sells a stock that has gone nearly vertical, on the day the run exhausts itself and turns, and covers
@@ -101,10 +108,11 @@ these stocks.
   the earliest named, written definition I found.
 - **UCT's version: Bracco.** "The Parabolic Short", UCT Substack, 2025-06-13, signed "- Bracco" (page description: "Bracco
   (@braczyy on X) - June 13th , 2025"). He coined the terms he uses: "This is a term I created to help identify and time a
-  Parabolic Short correctly" (the parabolic burst); the "U-Turn"; the "Long-Drawn-Out Range Breakdown"; and later the "day
-  2 gap down" variant (Sunday Scans 2025-12-28). He grades setups on a five-star scale. He credits Lance Breitstein for the
-  "Right Side of the V" entry idea and the previous-bar-high trail, Steven Place for the 20-delta call gauge, and Jeff Sun
-  for the ATR-multiple indicator.
+  Parabolic Short correctly" (the parabolic burst); the "U-Turn"; the "Long-Drawn-Out Range Breakdown"; and later the name
+  "day 2 gap down" (Sunday Scans 2025-12-28) for the gap-down top formation his 2025 post already describes. He grades
+  setups on a five-star scale. He credits Lance Breitstein for the "Right Side of the V" entry idea and the
+  previous-bar-high trail and Steven Place for the 20-delta call gauge (both in the 2025 post), and Jeff Sun for the
+  ATR-multiple indicator (Sunday Scans 2025-09-21 and 2026-05-10; the 2025 post does not name him).
 - **Other names.** Blow-off top short; climax top short; exhaustion gap short (Breitstein, per the summary in 3.4); the
   "Exhaustion Extension" (Oliver Kell, step 5 of his cycle, used as a sell signal, 3.6); vertical run up (Bulkowski,
   3.9). In our app: "Parabolic Short" (`parabolic_short.py`), "Parabolic Extension" (screener), "Climax / exhaustion" (Chart
@@ -335,7 +343,9 @@ by Roman Bogomazov and Michael Lipsett (same text on [wyckoffanalytics.com](http
 
 "Investor's Corner: When To Sell On The Way Up", IBD, 2014-04-04, on
 [Yahoo Finance](https://finance.yahoo.com/news/investors-corner-sell-way-183200275.html).
-- "After a prolonged advance, shares soar 25% to 50% or more in three weeks or less." "That's the hallmark of a climax top."
+- The framing sentence: "There is one case when a stock on the way up is flashing a sure-fire sell signal: when a climax
+  top forms." Then: "After a prolonged advance, shares soar 25% to 50% or more in three weeks or less." "That's the
+  hallmark of a climax top."
 - The same column: "any stock that surges that fast in three weeks or less should be held at least eight weeks." (That is
   IBD's rule for a 20% gain inside three weeks; our screener file notes the overlap.)
 - It is a sell rule for owners. I could not read O'Neil's book list of climax signs (largest daily gain, exhaustion gap,
@@ -347,7 +357,8 @@ by Roman Bogomazov and Michael Lipsett (same text on [wyckoffanalytics.com](http
 - Shape: "Price moves up in a steep run for at least four sessions." "That's when price goes vertical, climbing day after
   day with little or no overlap between price bars."
 - Signal: "If price closes down, then sell an existing holding or anticipate a retrace by shorting the stock." The trigger
-  is a close below the bottom of the last bar of the run.
+  in his words: "Use a close above the top or below the bottom of the last price bar in the vertical run as the trading
+  signal."
 - His statistics are in 4.1.
 
 ### 3.10 Pradeep Bonde (Stockbee), one line (read)
@@ -424,8 +435,8 @@ under its open. Entry 0.1% under the climax low; stop 1% over the climax high; t
 ### 4.1 Published statistics
 
 - **Bulkowski, vertical runs** (fetch tool; AI notice applies): "a study of 3,024 vertical runs in 247 stocks in the three
-  bull markets from July 1995 to January 2014." After the run, "price continues to climb 21% of the time"; otherwise, 79%,
-  it first closes below the last bar. "The median (midway) retrace is 52%." "A full 22% will retrace the complete AB move."
+  bull markets from July 1995 to January 2014." After the run, "price continues to climb 21% of the time"; "The remainder
+  of the time (79%), price first closes below the last price bar in the pattern". "The median (midway) retrace is 52%." "A full 22% will retrace the complete AB move."
   "Just 21% of vertical runs suffer a trend change (a drop of at least 20%)." "Seventy-eight percent of vertical runs take
   less than three months to make a new high." Limits: bull markets only; a run is any steep 4+ session rise, not a climax
   burst; no trade with stop and target is tested.
@@ -515,8 +526,10 @@ T2, the day-2 gap down, on the proxy: n=96, median stop about 5%, +0.37R (-0.13 
 
 **Facts about the proxy events (325).** 98% closed above the 200-day; SPY was above its 200-day 92% of the time. Median
 climax gap 2%; median open to close -4%; median open to low -7%. The stop from the close to the climax high was over 3% in
-81% of cases and over 10% in 26%. The 9 EMA sat a median 11% under the climax close, about 2R. Median days to the 9 EMA:
-5 (3 for the A+ cut). By year: 50 in 2020, 42 in 2021, 119 in 2024 to 2026, every other year 15 or fewer.
+81% of cases and over 10% in 26%. The 9 EMA sat a median 11% under the climax close, about 2R. Median sessions to the 9
+EMA inside the T1 trade (a stop-out counted as never reaching it): 5 (3 for the A+ cut); the plain first touch of the
+9 EMA, stop or no stop, came in a median 2 sessions. By year: 50 in 2020, 42 in 2021, 119 in 2024 to 2026, every other
+year 15 or fewer. (All of these were recomputed from the saved event file in checking and agree.)
 
 **Hourly bars, 2023-12 to 2026-11 (T3, the closest I can get to Bracco's entry).** On a PB gap-up day, short the close of
 the first hourly bar that closes under the session VWAP; stop 0.1% over the high so far.
@@ -866,8 +879,8 @@ opened 3.9% lower, so daily bars cannot show it. Not usable as a daily-chart exa
    overnight gap ups, the climax gap may count; (c) in 2 of the last 3 days the percent gain beat the day before; (d) volume
    up 2 days in a row. [UCT] Need 3 of 4 for a full-size grade; 2 of 4 only with exceptional extension (Bracco's two-day
    exception, his PLUG and KORU). [UCT; measured: under 3 boxes did about nothing]
-4. **The climax-day gap.** The climax day opens above the prior close. Required. [UCT; Breitstein] A gap of 5%+ is
-   stronger. [measured]
+4. **The climax-day gap.** The climax day opens above the prior close. Required. [UCT; Breitstein, secondhand] A gap of
+   5%+ is stronger. [measured]
 5. **Volume.** The climax day's volume, and ideally its first 5 to 15 minutes, the highest of the run. [UCT; measured:
    year-high volume helped]
 6. **Location.** Above the 200-day by nature; allowed by the B26 exception for setups that pass lines 1 to 4. [house rule]
@@ -887,8 +900,8 @@ opened 3.9% lower, so daily bars cannot show it. Not usable as a daily-chart exa
    reference point]
 5. One entry, full size, one stop (A5) [house rule], unless the owner allows Bracco's second entry at the break of the
    day's low (question 7).
-6. A 1 to 2 day window: if the trigger fails twice or the window passes, drop the idea. [Stamatoudis; UCT "move on";
-   house E56 caps tries at 3 a week]
+6. A 1 to 2 day window: if the trigger fails twice or the window passes, drop the idea. [Stamatoudis; house E56 caps
+   tries at 3 a week]
 
 **P2 (day-2 gap down).** The climax day closes in the middle or top of its range (a hanging man or doji at the high), and
 the next day gaps down. Short an opening-range breakdown while the gap stays unfilled. Stop a few cents over the prior close
@@ -911,8 +924,9 @@ the next day gaps down. Short an opening-range breakdown while the gap stays unf
 - Overnight: hold only if the trade is already in profit ("if the risk is paid for"), with the stop no worse than
   breakeven. [UCT; my proposal for "breakeven"]
 - These replace the default 3R/5R trims and the 10/21-day trail for this setup. [my proposal; question 6]
-- Time limit: if the 9 EMA is not reached within 3 sessions of entry, cover. [my proposal; measured median 3 sessions on
-  the A+ cut; the Discord summary t10902 says "2-3 days to reach the 9 EMA"]
+- Time limit: if the 9 EMA is not reached within 3 sessions of entry, cover. [my proposal; measured: a median 3 sessions
+  to the 9 EMA inside the T1 trade on the A+ cut, 5 on the broad proxy; the Discord summary t10902 says "2-3 days to
+  reach the 9 EMA"]
 
 ### 8.6 What invalidates it
 
@@ -933,7 +947,9 @@ the next day gaps down. Short an opening-range breakdown while the gap stays unf
 
 - A hot, euphoric tape, often near the end of an up-cycle: "each cycle almost always ends with biggest and best leaders
   going parabolic and blowing off top." [UCT] Stockbee: they "can work very well" in a bullish market. [Stockbee]
-- An index that is itself short-term stretched (QQQ or ARKK far above its averages) adds conviction. [UCT]
+- An index that is itself short-term stretched adds conviction. Bracco (2025-09-21): "One thing that does help add a
+  little confidence to these setups is the euphoric sentiment post fed meeting and ETF’s like ARKK and QQQ becoming a
+  little short-term extended." [UCT]
 - Thursdays and Fridays into monthly options expiration, when a gamma squeeze is fading (the 20-delta distance narrowing).
   [UCT]
 - [measured] 92% of proxy events came with SPY above its 200-day. The few with SPY under it did as well or better (n=25).
@@ -1026,7 +1042,7 @@ Grading is the owner's call (E50). These are observable marks from the sources a
 | 2 | Sunday Scans and The Rest of the Week, all 103 sitemap posts (links in 3.2 and 6) | https://unchartedterritoryy.substack.com/sitemap.xml | UCT / Bracco, TSDR, unsigned | 2025-06 to 2026-11 | House; authorship from section headings. One subscriber-only post had no text. The 2026 extension table (2026-05-10) read from its image. |
 | 3 | "3 TIMELESS setups that have made me TENS OF MILLIONS!" | https://qullamaggie.com/my-3-timeless-setups-that-have-made-me-tens-of-millions/ | Kristjan Kullamägi | 2021-01-08 (upd. 2021-04-28) | Originator, primary. |
 | 4 | FAQ; "Lessons from a $140K loss" | https://qullamaggie.com/faq/ ; https://qullamaggie.com/lessons-from-a-140k-loss/ | Kristjan Kullamägi | 2021-04-27; 2020-04-08 | Originator, primary. |
-| 5 | CTE Research Sheet: Lance Breitstein | https://completetradersedge.com/wp-content/uploads/2026/09/CTE-Research-Sheet-Lance-Breitstein-market-wizards-next-generation.pdf | Complete Trader's Edge (summary of Schwager & Coyle, 2026, ch. 2) | 2026 | Secondhand summary; the book itself not read. The publisher's listing (harriman-house.com) showed in search results; I did not open it. |
+| 5 | CTE Research Sheet: Lance Breitstein | https://completetradersedge.com/wp-content/uploads/2026/09/CTE-Research-Sheet-Lance-Breitstein-market-wizards-next-generation.pdf | Complete Trader's Edge (summary of Schwager & Coyle, 2026, ch. 2) | 2026 | Secondhand summary; the book itself not read. The sheet names the book, both authors, 2026 and "Chapter 2" but not the publisher; Harriman House's own listing (harriman-house.com, published 2026-06-09) showed in search results in both passes and was not opened. |
 | 6 | "Unlock Massive Profits with Parabolic Shorts: 6 Essential Nuances" | https://web.archive.org/web/20250513105402/https://traderlion.com/profile/marios-stamatoudis/parabolic-shorts/ | TraderLion / Marios Stamatoudis | 2025-01-24 | Established educator site; archived copy (live site blocks fetches). |
 | 7 | The Cycle of Price Action (home page) | https://kelltrading.com/ | Oliver Kell | read 2026-11-09 | Originator of the cycle, primary. |
 | 8 | "Exhaustion Extension: How to Sell into Strength" | https://web.archive.org/web/20240915143622/https://traderlion.com/technical-analysis/chart-patterns/exhaustion-extension-sell-into-strength/ | TraderLion / Ameet Rai, on Kell | 2024-09-11 | Educator summary of Kell; archived copy. |
@@ -1046,3 +1062,44 @@ Grading is the owner's call (E50). These are observable marks from the sources a
 | 22 | House rules: `docs/study/sizing_rule.md` section 9; `docs/study/TRADE_PLANS.md`; `docs/study/audits/2026-10-24/owner_verdicts.jsonl` | this repo | the owner | 2026-11-09 | The rulebook and rulings. |
 | 23 | Lift ledger `docs/base_lift_ledger.json`; brain KB `docs/study/levels/brain_kb_*.json` | this repo | this app | 2026-09-01; 2026-11-06 | Ledger: our measurement. Brain KB: machine summaries of Discord posts, not exact words. |
 | 24 | Daily bars (`bars.db`, workbench copy) and hourly bars (shared intraday store) | local | the app's own data | to 2026-11-09 | Used for every [measured] number; read-only; survivorship bias against shorts; method in 4.2. |
+
+---
+
+## 12. Checked, changed and removed in checking (2026-11-09, second pass)
+
+**How it was checked.** All 24 sources were opened again from their URLs (the two that refuse plain requests, Bulkowski
+and IBD on Yahoo, through a fetch tool, which returned the sentences quoted here word for word). A script matched every
+quoted string in this file against the saved page text and the repo files; the few it could not match are code strings
+split across lines in the source (`setupPlaybooks.js`, `parabolic_short.py`) and were checked by eye. The scanner
+summary (5.1) was read against `parabolic_short.py` line by line: every gate, level, score weight and narrative claim is
+as stated. The Chart IQ, Kell-cycle, screener, voice-KB, patterns-API, Model Book, journal-tag, template, fingerprint and
+course passages (5.2, 5.3) were read in the code and match. The owner's words in 5.4 are in `owner_verdicts.jsonl` lines
+555 to 584 as quoted. Both extension tables were re-read from the images in the posts (2025: 8.81 / 21% / 37% / 77% /
+172.50%; 2026: 17.01 / 22.88% / 40.62% / 85.25% / 191.88%, with NVDA 12.6, SMCI 25.67, MSTR 15.52, SLV 13.32, INTC 18.74,
+SNDK 14.57, MU 12.61). The proxy facts in 4.2 (n=325, median $84M dollar volume, 98% above the 200-day, SPY above its
+200-day 92%, median stop 6%, over 3% in 81%, over 10% in 26%, 9 EMA a median 11% below and 1.97R away, 51% reached before
+a new high) were recomputed from the saved event file and agree; the per-example numbers in 6.6 were checked against the
+saved example file. Every post date in 3.2 and 6 matches the page's publish date. The CTE sheet's trade-log table reads
+misaligned in plain text; read row by row, the Avis short (2 Nov 2021, "Upside capitulation") is the one with "Over $2
+million lost in under an hour", as 3.4 says. Section 8 uses no [source consensus] tag, so none needed two sources.
+
+**Changed.**
+- Section 2: the Jeff Sun credit is in Sunday Scans 2025-09-21 and 2026-05-10, not in the 2025 post (which names
+  Breitstein, Stamatoudis and Steven Place); and the 2025 post already describes the gap-down top formation, so what came
+  later (2025-12-28) is the name "day 2 gap down", not the variant.
+- Section 3.8 and 3.9: IBD's framing sentence and Bulkowski's signal sentence added as exact quotes.
+- Section 4.1: the Bulkowski "79%" line is now his exact sentence instead of a paraphrase.
+- Section 4.2 and 8.5: "median days to the 9 EMA" now says which count it is (inside the T1 trade, where a stop-out counts
+  as never reaching it: 5 sessions, 3 on the A+ cut); the plain first touch came in a median 2 sessions.
+- Section 8.2 line 4: the Breitstein tag now carries "secondhand", as the tag legend requires.
+- Section 8.8: the ARKK/QQQ line now carries Bracco's exact words (2025-09-21).
+- Section 11, source 5: the sheet does not name the publisher; Harriman House comes from the publisher's listing seen in
+  search results.
+
+**Removed.**
+- Section 8.3 line 6: the basis tag UCT "move on". The only "move on" in Bracco's posts (2026-01-18, "Just have to review
+  it, learn, and move on.") is about a mental mistake on a long trade, not a rule about a window for the parabolic short.
+
+**Still not verified (unchanged, flagged).** The book behind the CTE sheet; Kullamägi's X posts and streams (the source of
+the two lines Bracco attributes to him, 3.1 and 6.2); O'Neil's book list of climax signs (a web search in this pass also
+found no investors.com page with it); the hourly-bar test (T3) was not re-run.

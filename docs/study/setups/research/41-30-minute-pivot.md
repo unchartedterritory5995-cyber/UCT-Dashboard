@@ -4,6 +4,13 @@ Research dossier for the owner's setup-by-setup review. Written 2026-11-09. Ever
 post or file named next to it and kept to 40 words or fewer. Nothing here is a ruling. Where I could not read a source,
 I say so and give no wording from it.
 
+**Cold check, 2026-11-09 (a second agent).** Every quote below was re-opened at its source (the eight X posts through the
+FxTwitter API, every cited Substack post through the public post API plus a sweep of all 103 posts on the sitemap, the
+Pivot Party, TradingView, Qullamaggie, ChartSchool and Investopedia pages, the Raschke PDF, the three YouTube watch pages,
+the two chart images), the knowledge-base note ids were pulled from the files, the scanner summary was read against the
+code, and the five named examples and the replay table were recomputed from the shared bars and the saved event files.
+What changed is listed under "Removed in checking" at the end; corrections in the body are marked **[checked]**.
+
 Tags used in section 8: **[source consensus]** several sources agree; **[originator]** the trader who named the setup,
 in his own words; **[UCT]** UCT's own writers, the owner's verdict log or UCT's own code; **[house rule]** the account
 rulebook, `docs/study/sizing_rule.md` section 9; **[my proposal]** my recommendation, for the owner to accept or change.
@@ -18,8 +25,10 @@ of the trader who calls himself "Elite Swing Traders" and who joined UCT as a tr
 - **The setup has a named originator, and he is part of UCT.** 1ChartMaster (Elite Swing Traders on X) wrote on
   2025-04-09: "I developed this strategy on my own and I am damn proud of it." His earliest post I found that names it is
   2025-03-11. UCT interviewed him on 2025-07-11 and announced on 2025-08-03 that he had joined "as a trader, coach, and
-  admin". Two UCT workshop videos cover it. I found no earlier use of the name (my search was cut short; section 2). The
-  mechanics are older.
+  admin". Two UCT workshop videos are devoted to it and three more carry it in their house summaries (section 5.6)
+  **[checked]**. Neither the writer nor the checker found an earlier use of the name (section 2); the earliest
+  third-party uses are TradingView scripts from 2025-07-29 on, and one of them (2026-10) credits "@1ChartMaster (Elite
+  Swing Trading)" by name (section 3.5). The mechanics are older.
 - **What it is, in his words and in the owner's trades, is a turn on the 30-minute chart at support, not the first
   half hour's high.** A leader pulls back in a "string of red 30-minute candles"; the trader waits for the "pivot", the
   point where the 30-minute chart turns back up, near support such as a short-term moving average; the stop goes "just
@@ -86,6 +95,9 @@ read charts pretty good", South Florida; account opened 2021-05-20). His own cla
 I found no use of the phrase "30 minute pivot" as a setup name before March 2025. My web search for this setup was cut
 short (the session's shared search budget ran out after three searches), so an earlier use could exist that I did not
 see. I make no claim that he was first in the world, only that he says he developed it and I found no one earlier.
+**[checked]** The checker's own web search (2026-11-09) also found no earlier use as a setup name: every hit was a
+TradingView script published after his posts (2025-07-29, 2025-09-10, 2026-10-11; section 3.5), a floor-trader pivot
+system on 30-minute bars (the homonym, section 3.8) or a forex system. The 2026-10-11 script credits him by name.
 
 **How it reached UCT (dates from UCT's public Substack and YouTube page data).**
 - 2025-07-11: Substack post "Interview with @1ChartMaster", subtitle "Discussion with Elite Swing Traders". The embedded
@@ -95,6 +107,8 @@ see. I make no claim that he was first in the world, only that he says he develo
   and admin."
 - 2025-09-11 and 2025-09-17: two member workshop videos, "Q & A With 1ChartMaster" and "30 Minute Pivot Workshop with
   1ChartMaster" (in the Desk video library, `api/services/education_seed.py`). No transcript was available to me.
+  **[checked]** Three later workshops with him carry the pivot in their library summaries: "ETF Scanning, Groups and
+  Lists" (2026-01-26), "Relative Strength and Weakness" (2026-02-09) and "Range Trading" (2026-02-26); section 5.6.
 - 2025-09-14, Sunday Scans intro (unsigned), a caption under a member's results: "The 30 Min Pivot doing wonders".
 - From 2026-06 the owner uses the name in his own Substack sections for his own trades (section 6).
 
@@ -109,6 +123,8 @@ package: the 30-minute bar, the "string of red", the leader filter and the name.
 - "pivot strategy" (the owner's desk log, 2025-08-04, about a member's pivot strategy on APLD; summary in the repo's
   knowledge base, KB 10154).
 - "30-Min Pivot Party" (an unrelated third-party site that describes the same rule, section 3.4).
+- "Elite 30 Min Pivot" (a TradingView script by TenAM Trader, 2025) and "30 Min Pivot Pullback Strategy" (a TradingView
+  script that credits 1ChartMaster, 2026), section 3.5 **[checked]**.
 - **Not the same thing:** floor-trader "pivot points" (a formula from the prior period's high, low and close; section
   3.8), the CANSLIM/Minervini "pivot point" (a base's buy point, setups 1 to 6) and the Episodic Pivot (setup 20). The
   word "pivot" in "30-minute pivot" means a turning point on the 30-minute chart.
@@ -149,8 +165,10 @@ returns the post text exactly as posted. The links below are the posts themselve
 - **A worked trade, HOOD, 2026-09-03**: "I buy weakness after strength and use the 30 min pivot to make it happen. Here's
   another example with the trade now over 10R. My price 102.99" ([post](https://x.com/1ChartMaster/status/2095562525752406106)).
   His attached 30-minute chart (I viewed it) marks an entry line at 102.94, a stop line at 101.16, a risk label of
-  "-1.78 (-1.73%)" and a gain label of "20.30 (19.73%)". On the real bars (section 4.3): HOOD fell through a string of
-  red 30-minute candles from 2026-08-27; on 2026-08-31 the 9:30 and 10:00 candles were red (low 100.69), the 10:30
+  "-1.78 (-1.73%)" and a gain label of "20.30 (19.73%)" (the checker viewed the image again: all four labels are
+  there, and the chart's own day low reads 100.68). On the real bars (section 4.3): HOOD fell from its 2026-08-27 high
+  through a run of mostly red 30-minute candles on 2026-08-28 **[checked: 08-27 itself was mixed]**; on 2026-08-31 the
+  9:30 and 10:00 candles were red (low 100.69), the 10:30
   candle was the first green one (high 102.67, low 101.20), and the 11:00 candle took out its high. His stop, 101.16, is
   4 cents under that green candle's low, **not** under the day's low (100.69). The daily 20-day EMA (about 101.4) and
   50-day SMA (about 101.3) were right there.
@@ -159,7 +177,8 @@ returns the post text exactly as posted. The links below are the posts themselve
 - **HNGE, 2025-08-06**: "$HNGE 30 min pivot to the house. New ATHs" ([post](https://x.com/1ChartMaster/status/1953110205866164700)).
   His attached 30-minute chart (I viewed it) shows a pullback of red candles on 2025-08-05 into rising short moving
   averages, green candles turning up off the low, then a gap and run to new highs on 2025-08-06. I have no bars to check
-  the levels.
+  the levels. **[checked]** The chart also carries TradingView's "E" (earnings) marker at the 2025-08-05 close, so the
+  08-06 gap looks like an earnings gap; the pivot itself formed the afternoon before the report.
 - **Not verified, so not quoted.** A search-engine summary attributed to a 2025-09-05 $TEM post a step-by-step rule
   (wait for the first green 30-minute candle; the trigger is the next candle taking out its high; the stop under that
   green candle's low). I could not open that post and do not have its link, so I give no wording from it. It agrees with
@@ -230,14 +249,30 @@ read the name.
 - "Enter on a break of that green candle's high. Stop at its low. Target 3x the risk."
 - "Two or more consecutive red 30-minute candles confirm sellers are in control, for now."
 
-### 3.5 TradingView, "30 Min Pivot Enhanced" (community script, read 2026-11-09)
+### 3.5 TradingView community scripts (read 2026-11-09; community code, low reliability)
 
-A public indicator by the user aniketsangwan5 ([page](https://www.tradingview.com/script/cAuyXk3o-30-Min-Pivot-Enhanced/)).
-Its description: it "detects pivot reversals and potential buy/sell signals on the 30-minute timeframe" and "pivots form
-after consecutive same-color candles". The bullish case comes "after a red streak". It does not credit anyone. Community
-code, low reliability; it shows the red-streak reading has spread. Our repo's earlier sweep
-(`docs/superpowers/research/setups/setup_criteria.json`, `p30.provenance`) also names a "TenAM Trader" TradingView
-script whose only rule is "the risk is defined by the pivot candle". I could not find or read that script.
+Three public scripts carry the name. They matter only as evidence of how the trading public reads it and of who it is
+credited to. None is a source for a rule.
+
+- **"30 Min Pivot Enhanced"**, by the user aniketsangwan5, published 2025-09-10 **[checked: date added]**
+  ([page](https://www.tradingview.com/script/cAuyXk3o-30-Min-Pivot-Enhanced/)). Its description: it "detects pivot
+  reversals and potential buy/sell signals on the 30-minute timeframe" and "pivots form after consecutive same-color
+  candles". The bullish case comes "after a red streak". It does not credit anyone.
+- **"Elite 30 Min Pivot - by TenAM Trader"**, published 2025-07-29 **[checked: found and read by the checker]**
+  ([page](https://www.tradingview.com/script/fhvOnhag-Elite-30-Min-Pivot-by-TenAM-Trader/)). Its rule: "A trend is defined
+  when a configurable number (default: 3) of same-colored candles (green or red) appear in a row. The pivot is marked by
+  the first opposite-color candle after the trend." Then: "A BUY signal is triggered when price breaks/closes above a
+  pivot high from a downtrend", within "the next few candles (default: 2)", and "Stop Loss Line – opposite side of the
+  pivot candle." It does not credit anyone; "Elite" is not explained on the page. Our repo's earlier sweep
+  (`docs/superpowers/research/setups/setup_criteria.json`, `p30.provenance`) summarised this script as "the risk is
+  defined by the pivot candle"; that is a paraphrase, not wording from the page.
+- **"30 Min Pivot"** (described as "The 30 Min Pivot Pullback Strategy"), published 2026-10-11, updated 2026-10-16
+  **[checked: new]** ([page](https://www.tradingview.com/script/refbFy4d-30-Min-Pivot/)). Its rule: "Tracks constructive
+  pullbacks touching Daily 8 & 21 EMA support levels"; "BUY: Placed at the trigger bar's high."; "SL: Anchored to the
+  structural low of the trigger bar"; "T1 (+2R)". Its credits: "Special acknowledgment to the momentum trading frameworks
+  shared by Sean ( SrxTrades ) and @1ChartMaster (Elite Swing Trading), whose tactical moving average pullback setups
+  and execution clarity inspired this Pine Script implementation." The only outside attribution of the method to him
+  that either agent found. (Its benchmark is India's CNX500; the author trades Indian stocks.)
 
 ### 3.6 The other reading: the first half hour's range (what our Model Book card describes)
 
@@ -247,9 +282,10 @@ script whose only rule is "the risk is defined by the pivot candle". I could not
   always lows of the day". ([page](https://qullamaggie.com/my-3-timeless-setups-that-have-made-me-tens-of-millions/))
   One of his three choices, the first 60-minute candle, is in fact the first half hour. This is an opening-range break
   on a breakout day, not a pullback pivot.
-- **Investopedia, "Opening Range".** Our `docs/study/research/definitions.json` quotes it (read 2026-10-17): the opening
-  range is "a security's high and low prices during the first 15 minutes of trading." The page answered HTTP 402 to me
-  today, so I could not re-check it.
+- **Investopedia, "Opening Range"** ([page](https://www.investopedia.com/terms/o/opening-range.asp), re-read by the
+  checker 2026-11-09; "Updated May 19, 2026"). "The opening range refers to a security's high and low prices during the
+  first 15 minutes of trading." Our `docs/study/research/definitions.json` quote (read 2026-10-17) is on the page word
+  for word. **[checked: the writer got HTTP 402; the checker got the page]**
 - **The app's ORB detector** (`opening_range_breakout.py`) uses a 30-minute opening range (six 5-minute bars). Section 5.
 - Full treatment of the opening-range break, including Crabel and the Zarattini studies, belongs to setup 40.
 
@@ -282,10 +318,12 @@ and a member who searches the term will find it. The course should say so in one
 
 - The two UCT workshop videos and the 2025-07-11 interview: no transcript (YouTube refused the caption request; the app's
   own transcript endpoint needs a server secret, which I did not use). The repo holds house summaries of them (section 5.6).
-- Zarattini, Barbon and Aziz (2024), the 30-minute opening-range numbers: SSRN answered HTTP 403. Section 4.2 reports
-  them only as our repo recorded them.
-- The 1ChartMaster $TEM post (2025-09-05) and his risk post (2026-09-30), section 3.1.
-- Investopedia (HTTP 402). The "TenAM Trader" script (no link).
+- Zarattini, Barbon and Aziz (2024), the 30-minute opening-range numbers: SSRN answered HTTP 403 to the writer and again
+  to the checker (two clients). Section 4.2 reports them only as our repo recorded them.
+- The 1ChartMaster $TEM post (2025-09-05) and his risk post (2026-09-30), section 3.1. The checker's search did not
+  surface the $TEM post either.
+- **[checked]** Investopedia and the TenAM Trader script were on this list; both were read by the checker (sections 3.5
+  and 3.6).
 
 ### 3.10 Comparison table
 
@@ -297,7 +335,7 @@ and a member who searches the term will find it. The course should say so in one
 | Owner (Substack trades) | leaders in uptrends (DELL, LITE, TEAM, GLW, TQQQ) | pullback / "shake" | 20-day EMA (GLW, LITE, DELL); a range undercut (TEAM) | n/s in words; DELL bars: the 10:00 candle that made the low | n/s; DELL fill (527) was under the candle's high (530.43) | DELL: 520, under the turn candle's low 520.18 | DELL held; "5-1 RR" next day | n/s |
 | UCT Discord (summaries) | leaders pulling back orderly | n/s | required: a key spot or MA, gap support, HVC | a pivot candle | n/s | the day's low or under the pivot candle (KB 12976) | breakeven after buying (AtTheAsk) | n/s |
 | 30-Min Pivot Party | "Strong uptrend" | "Two or more consecutive red" 30-min candles | "right at the daily 8, 21, or 50 EMA" | first green 30-min candle | break of its high | "at its low" | "3x the risk" | n/s |
-| TradingView script | n/s | "a red streak" | n/s | pivot after a streak; optional "flush" candle | "pivot breakouts" | n/s | n/s | n/s |
+| TradingView scripts (3) | "Stage 2 market leaders" (Pullback Strategy) | "a red streak" (Enhanced); 3 same-colour candles by default (TenAM) | n/s; "Daily 8 & 21 EMA" (Pullback Strategy) | the first opposite-colour candle (TenAM); optional "flush" candle (Enhanced) | break or close over the pivot high within 2 candles (TenAM); "the trigger bar's high" (Pullback Strategy) | "opposite side of the pivot candle" (TenAM); "the structural low of the trigger bar" (Pullback Strategy) | "T1 (+2R)" (Pullback Strategy) | n/s |
 | Raschke 1997 (ancestor) | ADX(14) over 30 and rising | retrace to the 20 EMA | 20-period EMA | the bar that touches | "buy stop above the high of the previous bar" | "newly formed swing low" | trail | n/s |
 | Model Book card (UCT app) | n/s | "consolidate under" the first half hour's high | n/s | the first 30-min bar | break of that bar's high | n/s | n/s | "with volume" |
 | Kullamägi ORH (other reading) | breakout setups | n/s | the breakout level | the first 1, 5 or 60-min bar (first 60-min bar = 9:30-10:00) | its high | "lows of the day" | 1/3 to 1/2 after 3-5 days, trail 10/20-day | n/s |
@@ -312,10 +350,14 @@ and a member who searches the term will find it. The course should say so in one
    EMA.
 3. **Which levels.** 8 EMA or 8-week EMA (1ChartMaster); daily 8, 21, 50 EMA (Pivot Party); 10 EMA, 20 EMA, 50 SMA, gap
    support, HVC, a range low (UCT).
-4. **How many red candles.** "A string" (1ChartMaster); "two or more" (Pivot Party); a streak length setting (TradingView).
-5. **Where the stop goes.** Under the pivot candle's low (HOOD chart, Pivot Party); "just below the recent 30 minute
-   low" (1ChartMaster's post, which could mean either); the day's low or under the pivot candle (TSDR, Discord, KB 12976); the house
-   default A3 is under the day's low. On HOOD the two differ: the pivot candle's low was 101.20, the day's low 100.69.
+4. **How many red candles.** "A string" (1ChartMaster); "two or more" (Pivot Party); a streak length setting, default 3
+   (TenAM Trader) or configurable (Enhanced) on TradingView.
+5. **Where the stop goes.** Under the pivot candle's low (HOOD chart, Pivot Party, both TradingView rules); "just below
+   the recent 30 minute low" (1ChartMaster's post, which could mean either); the day's low or under the pivot candle
+   (TSDR, Discord, KB 12976); the house default A3 is under the day's low. **[checked]** The two differ on four of the
+   five named examples, not one: HOOD (pivot low 101.20, day low 100.69), LITE (883.43 against 881.23, the 11:00 red
+   candle's low), TEAM (168.73 against the 13:00 flush low 168.05) and TQQQ (68.31 against 67.93). Only on DELL did the
+   pivot candle make the day's low (520.18). The gap is 0.25% to 0.55% of price in those four cases.
 6. **The entry price.** Over the pivot candle's high (HOOD, Pivot Party). The owner's DELL fill at 527 was below the
    turn candle's high (530.43), as if he bought the reclaim of the first candle's low (527.16) inside the turn.
 7. **How long to hold.** "Short but sweet" (1ChartMaster 2025) and "3x the risk" (Pivot Party) against swing holds to
@@ -339,7 +381,8 @@ Our repo's earlier sweep (`docs/superpowers/research/setups/setup_sources.json` 
 `zarattini_orb_stocks` and `p30.measured`) records that Carlo Zarattini, Andrea Barbon and Andrew Aziz, "A Profitable Day
 Trading Strategy For The U.S. Equity Market" (SSRN 4729284, 2024), tested opening-range breaks on US stocks with 5, 15, 30
 and 60-minute ranges, with a relative-volume filter, and that the 30-minute range did worst (Sharpe 0.21 against 2.81 for
-5 minutes). SSRN refused my download (HTTP 403), so I have not checked these numbers. Even if exact, they measure a
+5 minutes). SSRN refused my download (HTTP 403), and refused the checker's two attempts the same way, so neither of us
+has checked these numbers. Even if exact, they measure a
 different trade: a day trade on the first half hour's range, closed by the end of the day. They say nothing about a
 pullback pivot held as a swing.
 
@@ -352,10 +395,14 @@ charting service. "First touch" walks forward bar by bar; a bar that touches the
 | Case | Who | Entry / stop | Risk | Daily level | Reached | Notes |
 |---|---|---|---|---|---|---|
 | DELL 2026-10-01 | owner | 527 / 520 (his numbers) | 1.33% | 20-day EMA about 534.8; the day's low 520.18 undercut it, close 541.70 | 2R and 3R at 13:00 that day; 5R in the first half hour next morning | Matches his "up 35 points ... 5-1 RR". Stop touched 2026-10-14 (after 9.7R best) |
-| LITE 2026-09-28 | owner | 895 (his) / 883.41 (my reading: 2c under the 11:30 green candle's low) | 1.29% | 20-day EMA about 913.6; low 881.23, close 921.66 | 2R same day; 3R and 5R in the first half hour next morning; 21.4R best within 10 sessions | The day is my reading: his 2026-09-27 post asks "DO we look for the $900 shake n bake?" |
+| LITE 2026-09-28 | owner | 895 (his) / 883.41 (my reading: 2c under the 11:30 green candle's low) | 1.29% | 20-day EMA about 913.6; low 881.23, close 921.66 | 2R same day; 3R and 5R in the first half hour next morning; 21.4R best within 10 sessions | The day is my reading: his 2026-09-27 post asks "DO we look for the $900 shake n bake?" The pivot candle's low (883.43) sat 2.20 above the day's low (881.23, the 11:00 red candle) **[checked]** |
 | HOOD 2026-08-31 | 1ChartMaster | 102.99 / 101.16 (his) | 1.78% | 20-day EMA about 101.4, 50-day SMA about 101.3 | 2R next day; 3R and 5R on 2026-09-03 | 12.1R best; matches "over 10R" |
 | TQQQ 2026-08-24 | owner (levels mine) | 69.10 / 68.29 | 1.17% | under its 20 and 50-day, over its 200-day; undercut the 2026-08-20 low | 2R next day; 5R 2026-08-27 | Stop touched 2026-09-01 after 6.3R best |
-| TEAM 2026-09-29 | owner (levels mine) | 172.38 / 168.71 (the 13:30 green candle after a 13:00 flush to 168.05) | 2.13% | under its 20-day EMA (about 183); the low undercut the base's low (174.21, 2026-09-09) and the day closed at 175.96, as he wrote ("undercuts this range slightly closing with a strong lower wick"); it broke 200 on 2026-10-08 | 2R and 3R next day; 5R 2026-10-01 | 11.6R best |
+| TEAM 2026-09-29 | owner (levels mine) | 172.38 / 168.71 (the 13:30 green candle, low 168.73, after a 13:00 flush to 168.05; the stop is under the pivot candle, not the day's low) | 2.13% | under its 20-day EMA (about 183); the low undercut the base's low (174.21, 2026-09-09) and the day closed at 175.96, as he wrote ("undercuts this range slightly closing with a strong lower wick"); it broke 200 on 2026-10-08 | 2R and 3R next day; 5R 2026-10-01 | 11.6R best |
+
+**[checked]** The checker re-ran the five cases on the same bars: every entry, stop, level and R figure above reproduced
+(DELL stop touched 2026-10-14 after 9.7R; LITE 21.4R; HOOD 12.1R; TQQQ stopped 2026-09-01 after 6.3R; TEAM 11.6R), and
+the first half hour's highs quoted in section 5.5 (DELL 543.15, HOOD 104.17, LITE 950.50) are the 9:30 candles' highs.
 
 All five reached 5R. **This proves nothing about the odds.** These are trades the authors chose to post afterwards; a
 losing pivot is rarely written up. They do show what the setup looks like when it works: a leader, a pullback that
@@ -388,6 +435,14 @@ Counted once per stock per day (the first trigger), so repeated stabs do not inf
 | Strict: undercut and reclaim of the average, pivot = the day's low, 3+ reds, RS top 20%, risk 0.75% to 3% (all triggers) | 121 | 28.1% | 22.3% | 17.4% | +0.08 (-0.29 to +0.46) |
 | **The card's version**: first 30-minute bar's high, stop under its low (all days) | 5,367 | 29.9% | 20.3% | 9.8% | **-0.11 (-0.16 to -0.07)** |
 
+**[checked]** The checker recomputed this table from the saved event files (`replay2/pivot_events.csv`,
+`card_events.csv`; 13,591 pivot events, 82.7% matured) with its own once-per-stock-per-day pick (the first trigger of
+the day) and its own 2,000-draw bootstrap. The "not near an average" row (5,031; 33.6 / 25.6 / 17.3; +0.09, +0.03 to
++0.16), the "5 or more" row, the strict row and the card row reproduced exactly. The "at an average" rows came out with
+3% to 4% fewer trades and the same rates (3,499 trades, 33.9 / 24.3 / 15.0, +0.02, -0.05 to +0.09; "3 or more": 1,904,
+35.8 / 26.6 / 17.0, +0.13, +0.04 to +0.23; with the RS proxy: 798, +0.14, -0.01 to +0.30), the difference being which
+of a day's repeated stabs counts as "the" trade. No conclusion below changes.
+
 The RS proxy is the stock's 63-day return ranked across this universe, not the app's RS rating. Managed trades that ended
 above zero were about a fifth to a quarter in every version: few winners, some of them large. The intervals are simple
 bootstrap intervals that treat trades as independent. Many trades share a day and the market moves them together, so the
@@ -414,8 +469,9 @@ true uncertainty is wider than shown.
 target counts as a stop (cautious); my averages come from 60-minute bars and can differ by cents from a charting
 service; no earnings filter. This is a check of the skeleton, not a test of the setup as UCT trades it.
 
-**The strict list, in date order (winners and losers both), for the owner to look at.** Entry / stop; the best
-reach before the original stop; the house-managed result.
+**The last 16 of the 121 strict trades (2026-10-15 to 10-23), in date order, winners and losers both, for the owner to
+look at** **[checked: the writer's list is this tail, not the whole strict set; the 16 lines reproduce exactly from the
+event file]**. Entry / stop; the best reach before the original stop; the house-managed result.
 DT 2026-10-15 (62.48 / 61.79; 3.7R; 0R, back to breakeven first) · NTNX 2026-10-15 (68.43 / 67.18; 2.4R; 0R) ·
 SN 2026-10-16 (187.60 / 186.11; 16.0R; +7.2R) · CLF 2026-10-16 (12.14 / 11.96; 14.0R; +6.7R) · NOW 2026-10-16 (141.34 /
 139.92; 12.8R; +2.7R) · W 2026-10-16 (107.36 / 105.49; 7.3R; +4.2R) · IQV 2026-10-20 (267.81 / 263.26; 3.7R; +1.0R) ·
@@ -480,6 +536,13 @@ reading. It is not the pivot. Its docstring also makes claims I could not source
   range", and `"conflicts": "No external source names a '30-minute pivot'."`
 - `docs/wisdom/vocabulary/setup-vocabulary-v1.json`: status "candidate", `"coined_by": null`, "little evidence (one
   passing use)".
+- **[checked]** `docs/superpowers/research/setups/setup_criteria.json`, the "30min Pivot" entry, already disagrees with
+  the card in two places: `p30.provenance` records that the setup "traces to @1ChartMaster on X and a TradingView script
+  (TenAM Trader)" with "NO VOLUME-CONFIRMATION NUMBER FOUND anywhere", and `p30.measured` records the Zarattini 30-minute
+  figures (Sharpe 0.21; 5-minute 2.81, 15-minute 1.43, 60-minute 0.40) with the note that they "cut against the setup's
+  existence" as the card defines it. Its `p30.firm_30min_close` row keeps a house KB summary of Gil Morales's reason for
+  waiting 30 minutes (retail order flow in the first half hour); that is a rationale for the opening-range reading, not
+  for the pivot.
 
 ### 5.5 What looks wrong or disagrees with the sources
 
@@ -504,7 +567,20 @@ reading. It is not the pivot. Its docstring also makes claims I could not source
 candles, by layering probabilities such as support/resistance, moving averages, and trend lines." It adds that
 "Successful pivots often occur at key support or resistance levels" and mentions "the 15-minute rule to handle gaps".
 "Q & A With 1ChartMaster" (iOD-jIcX46A, 1:39:43) "Highlighted the effectiveness of the 30-minute pivot strategy for
-low-risk entries and high rewards." The curriculum file `docs/curriculum/curriculum_final_v2.json` adds chapter notes
+low-risk entries and high rewards." (The checker confirmed both videos' titles, dates and lengths on their YouTube
+pages: 2025-09-17 on the TSDR TRADING channel and 2025-09-11 on the Uncharted Territory channel.)
+
+**[checked] Three more library summaries in the same file carry the pivot; the writer missed them.** They are house
+summaries of workshops, not his words, but two of them state the rule more plainly than anything else in the repo:
+- "Relative Strength and Weakness Workshop With 1ChartMaster and TSDR" (mfswYu5UlX8, 2026-02-09, 1:08:36): "Using the
+  30‑minute pivot (buy the first strong 30‑min green candle after a pullback; stop at its low)."
+- "Range Trading Workshop with 1ChartMaster and TSDR" (xYWEDyTRPuc, 2026-02-26, 1:04:53): "support buys
+  (8‑day/21‑day/30‑min pivots) offer tighter, safer risk." and "30‑minute pivots are the cleanest entries: red → green
+  at a key level with tiny risk."
+- "ETF Scanning, Groups and Lists Workshop With TSDR and 1ChartMaster" (_xK_MuRCvhg, 2026-01-26, 1:01:43): "intraday
+  tactics like the 30‑minute pivot".
+Both rule-like summaries agree with the originator's HOOD chart (first green candle; stop at its low) and with the
+level requirement in TSDR's and AtTheAsk's notes. The curriculum file `docs/curriculum/curriculum_final_v2.json` adds chapter notes
 (written by our curriculum pipeline; I did not check them against the videos) for three library videos: "29:00 - invalidation rules & the one-candle selectivity rule (A+ setups only)"
 (video 52), "5:48 – 30-minute pivot entry/stop/R:R mechanics (QQQ example)" (video 135) and "18:07 - the 30-minute pivot
 reversal bonus" (video 83). These are summaries, and I do not know who presents video 52. The owner should watch those minutes before the rules
@@ -552,7 +628,10 @@ nowhere else I could reach.
 
 - **Bracco:** I found no mention of the 30-minute pivot in his Substack sections or in "The Parabolic Short".
 - **ChartMaster's "The Rest of the Week" sections** (2025-10 to 2026-04) give daily trigger levels ("Needs to clear
-  519-520 to trigger the trade", MSFT, 2025-10-01) but never use the words "30 min pivot". One is close in spirit: PATH
+  519-520 to trigger the trade", MSFT, [the-rest-of-the-week](https://unchartedterritoryy.substack.com/p/the-rest-of-the-week),
+  2025-10-01 **[checked: link added; the quote is in his "ChartMaster - MSFT EME" section]**) but never use the words
+  "30 min pivot" (the checker's sweep of all 103 posts found the phrase only in the five posts quoted in 3.2 and 6.2).
+  One is close in spirit: PATH
   "pulled back in to the 8ema. This looks like a tight risk spot. Want to see it hold the pivot here on any retest and buy
   on the way back up." ([the-rest-of-the-week-39d](https://unchartedterritoryy.substack.com/p/the-rest-of-the-week-39d),
   2025-10-15)
@@ -576,7 +655,8 @@ The owner asked for about ten examples per setup. Checked on bars (section 4.3):
    69.09.
 6. **GLW 2026-06-23**, owner: the gap-down day into the 20-day EMA (only hourly bars here; the hourly low 186.60 sat on my
    20-day EMA of about 186.55).
-7. **HNGE 2025-08-05**, 1ChartMaster's chart (no bars to check).
+7. **HNGE 2025-08-05**, 1ChartMaster's chart (no bars to check; his chart shows an earnings marker at that day's close,
+   so the 08-06 run was an earnings gap, section 3.1).
 8. **NBIS, the week of 2025-10-20, about 95.70**, at the 50-day SMA and an HVC after 8 down days (Discord note KB 11957).
 9. **ALAB 2025-09-30** (Discord desk log, KB 10201).
 10. **APLD 2025-08-04** (Discord desk log, KB 10154).
@@ -591,7 +671,7 @@ Plus the replay's strict-cut list (section 4.4), which includes losers on purpos
 
 | House rule | What the setup does | Conflict? |
 |---|---|---|
-| A3 / F62 stop a few cents under the day's low or prior day's low | The originator's stop is a few cents under the **pivot candle's** low, which is often the day's low (DELL, LITE, TEAM) but not always (HOOD: 101.20 against a day low of 100.69). | Small. Decide which (question 2). |
+| A3 / F62 stop a few cents under the day's low or prior day's low | The originator's stop is a few cents under the **pivot candle's** low. **[checked]** On the five named examples that was the day's low only on DELL; on HOOD, LITE, TEAM and TQQQ the pivot candle's low sat 0.25% to 0.55% above the day's low (section 3.11, item 5). | Real, not small: the two stops differ on most examples. Decide which (question 2). |
 | A13 stop usually within about 3% | Named examples 1.2% to 2.1%; my replay's median 0.6% (section 4.4). | None. A risk over 3% is a sign the pivot candle is too wide. |
 | A5 / A7 size from the stop, capped at 40% | Very tight stops make the risk-based size huge (at 1% account risk and a 0.6% stop the formula asks for 167% of the account). The 40% cap binds on almost every pivot. | Not a conflict, but the course must show the cap working, and A7's warning applies: "a gap can jump the stop". |
 | E57 market orders; D41 real stop with the broker | Buy at market when a candle takes out the pivot high (or a buy-stop a cent over it). | None. |
@@ -628,8 +708,8 @@ Each line is measurable. Where the sources disagree, the options and my recommen
   "At" = the low within 1% above the level, or undercutting it. [UCT] [originator: "often near ... the 8 EMA"] [my
   proposal for the 1%]
 - **Structure (30-minute):** at least 2 red 30-minute candles in a row (the red string), which may start the day before.
-  [originator: "a string of red"; Pivot Party: "two or more"] [my proposal: 2 minimum; 3 or more grades higher, section 9;
-  my replay favoured 3 or more, section 4.4]
+  [originator: "a string of red"; Pivot Party: "two or more"; TenAM Trader script: 3 by default] [my proposal: 2 minimum;
+  3 or more grades higher, section 9; my replay favoured 3 or more, section 4.4]
 - **The pivot candle:** the first green 30-minute candle after the red string, at the level. Best when its low is the low
   of the pullback and it closes in the upper half of its range. [originator; HOOD chart] [my proposal for "upper half"]
 - **Depth and length:** no fixed depth; the daily pullback is usually 1 to 5 days into the average. [UCT examples] [my
@@ -657,9 +737,10 @@ Each line is measurable. Where the sources disagree, the options and my recommen
 - **Default:** a few cents under the pivot candle's low. [originator: HOOD 4c under; "just below the recent 30 minute
   low"] [house rule F62]
 - **Option:** under the day's low when that is lower. [UCT: TSDR, day's low or under the pivot candle, KB 12976] [house rule A3]
-- **Recommend:** under the pivot candle's low when it is the day's low (the usual case: DELL, LITE, TEAM). When the day's
-  low is lower (HOOD), use the pivot candle's low only if the owner agrees (question 2); it is tighter and is the
-  originator's way.
+- **Recommend:** under the pivot candle's low (the originator's way; the Pivot Party and both TradingView rules agree).
+  **[checked]** This is not a corner case: on four of the five named examples (HOOD, LITE, TEAM, TQQQ) the pivot candle's
+  low sat above the day's low, so the two rules give different stops most of the time; only DELL's pivot candle made the
+  day's low. The owner must pick (question 2). The pivot-candle stop is tighter by 0.25% to 0.55% of price on those four.
 - **Skip** if the stop is more than 3% away or wider than the stock's average daily range. [house rule A13] [my proposal
   for the ADR test, after Kullamägi's "should not be wider than the ATR or ADR"]
 - The stop only moves up. [house rule A4]
@@ -740,7 +821,9 @@ Each line is measurable. Where the sources disagree, the options and my recommen
    public examples); (b) the first half hour's high (our card, course script, chart-builder note); (c) both, under two names.
    **Recommend (a)**, and rewrite the card's essence and glyph; the first-half-hour version belongs to setup 40 (ORB).
 2. **The stop:** (a) a few cents under the pivot candle's low (the originator; tighter); (b) under the day's low (A3).
-   They differ only when the pivot candle is not the day's low.
+   They differ whenever the pivot candle is not the day's low, which on the bars was four of your five public examples
+   (HOOD, LITE, TEAM, TQQQ; only DELL's pivot candle made the low) **[checked]**. Your own Discord note allows both
+   ("stop at LOD or below the pivot candle", KB 12976).
 3. **Must the pivot be at a daily level?** Your 2026-05-18 note says yes. If yes, which levels count: the 10/20-day
    EMA, the 50-day SMA, gap support, an HVC, a prior breakout level, a range low? Any others (AVWAP, the 8-week EMA)?
 4. **The red string:** at least 2 red 30-minute candles, or 3? Or no count, just "a pullback on the 30-minute chart"?
@@ -772,7 +855,7 @@ Each line is measurable. Where the sources disagree, the options and my recommen
 | 7 | [x.com/1ChartMaster/status/2095562525752406106](https://x.com/1ChartMaster/status/2095562525752406106) | 1ChartMaster | 2026-09-03 | Originator; HOOD chart with entry and stop viewed and checked on bars. Same route. |
 | 8 | [x.com/1ChartMaster/status/2104186021789499588](https://x.com/1ChartMaster/status/2104186021789499588) | 1ChartMaster | 2026-09-27 | Originator. Same route. |
 | 9 | 1ChartMaster's X profile (api.fxtwitter.com/1ChartMaster) | 1ChartMaster | read 2026-11-09 | Bio, location, join date. |
-| 10 | [UCT Substack sitemap](https://unchartedterritoryy.substack.com/sitemap.xml) and all 103 posts (via the Substack post API) | Uncharted Territory | 2025-06-01 to 2026-11-08 | House, public. One post is subscriber-only and was read only as far as the API returns. |
+| 10 | [UCT Substack sitemap](https://unchartedterritoryy.substack.com/sitemap.xml) and all 103 posts (via the Substack post API) | Uncharted Territory | 2025-06-01 to 2026-11-08 | House, public. One post is subscriber-only (sunday-scans-bf1) and was read only as far as the API returns. The checker repeated the sweep: 103 posts on the sitemap, the phrase "30 min(ute) pivot" in exactly five of them (sections 3.2 and 6.2), none from Bracco, none in "The Parabolic Short". |
 | 11 | [sunday-scans-ae1](https://unchartedterritoryy.substack.com/p/sunday-scans-ae1) (GLW) | TSDR | 2026-06-28 | House, the owner's own section. |
 | 12 | [sunday-scans-d40](https://unchartedterritoryy.substack.com/p/sunday-scans-d40) (TQQQ) | TSDR | 2026-08-30 | House, owner. |
 | 13 | [sunday-scans-4c6](https://unchartedterritoryy.substack.com/p/sunday-scans-4c6) (DELL) | TSDR | 2026-10-04 | House, owner; numbers verified on bars. |
@@ -781,15 +864,60 @@ Each line is measurable. Where the sources disagree, the options and my recommen
 | 16 | [sunday-scans-af4](https://unchartedterritoryy.substack.com/p/sunday-scans-af4), [sunday-scans-d70](https://unchartedterritoryy.substack.com/p/sunday-scans-d70), [sunday-scans-0d2](https://unchartedterritoryy.substack.com/p/sunday-scans-0d2), [sunday-scans-b99](https://unchartedterritoryy.substack.com/p/sunday-scans-b99) | TSDR | 2026-03-15, 2025-06-29, 2025-06-22, 2025-11-02 | House, owner; related intraday rules. |
 | 17 | [interview-with-1chartmaster](https://unchartedterritoryy.substack.com/p/interview-with-1chartmaster), [sunday-scans-726](https://unchartedterritoryy.substack.com/p/sunday-scans-726), [sunday-scans-461](https://unchartedterritoryy.substack.com/p/sunday-scans-461) | Uncharted Territory (unsigned) | 2025-07-11, 2025-08-03, 2025-09-14 | House; dates of the interview and of his joining. |
 | 18 | [the-rest-of-the-week-39d](https://unchartedterritoryy.substack.com/p/the-rest-of-the-week-39d) | ChartMaster section | 2025-10-15 | House. |
-| 19 | YouTube watch-page data for 9VbYA61sY0k (interview; auto-chapters), JChA7ErhE48 and iOD-jIcX46A (workshops) | Uncharted Territory / TSDR TRADING channels | 2025-07-11, 2025-09-17, 2025-09-11 | Titles, dates, lengths and chapters only; no transcript available to me. |
+| 19 | YouTube watch-page data for 9VbYA61sY0k (interview; auto-chapters), JChA7ErhE48 and iOD-jIcX46A (workshops) | Uncharted Territory / TSDR TRADING channels | 2025-07-11, 2025-09-17, 2025-09-11 | Titles, dates, lengths and chapters only; no transcript available to me. The checker re-read all three pages: "Interview w/ Elite Swing Traders (@1ChartMaster)", 50:13, chapter "The 30-minute pivot strategy" at 13:33; "1ChartMaster", 1:01:46; "1ChartMaster Workshop", 1:39:43. |
+| 19a | YouTube watch-page data for _xK_MuRCvhg, mfswYu5UlX8, xYWEDyTRPuc (the three later workshops in section 5.6) | Stef / Uncharted Territory channels | 2026-01-26, 2026-02-09, 2026-02-26 | Titles, dates and lengths only (1:01:43, 1:08:36, 1:04:53); read by the checker. Their summaries are from `education_seed.py`. |
+| 18a | [the-rest-of-the-week](https://unchartedterritoryy.substack.com/p/the-rest-of-the-week) | ChartMaster section | 2025-10-01 | House; the MSFT "519-520" line (section 6.3). Added by the checker. |
 | 20 | [30minpivotparty.com](https://30minpivotparty.com/) | two private individuals (footer) | undated (© 2026) | Low: a personal research site; corroborates the reading only. |
-| 21 | [TradingView "30 Min Pivot Enhanced"](https://www.tradingview.com/script/cAuyXk3o-30-Min-Pivot-Enhanced/) | aniketsangwan5 | not dated by me | Low: community script. |
+| 21 | [TradingView "30 Min Pivot Enhanced"](https://www.tradingview.com/script/cAuyXk3o-30-Min-Pivot-Enhanced/) | aniketsangwan5 | 2025-09-10 (date read by the checker) | Low: community script. |
+| 21a | [TradingView "Elite 30 Min Pivot - by TenAM Trader"](https://www.tradingview.com/script/fhvOnhag-Elite-30-Min-Pivot-by-TenAM-Trader/) | TenAM_Trader | 2025-07-29, updated 2026-10-06 | Low: community script; read by the checker. Credits no one. |
+| 21b | [TradingView "30 Min Pivot" (Pullback Strategy)](https://www.tradingview.com/script/refbFy4d-30-Min-Pivot/) | anonymous TradingView user | 2026-10-11, updated 2026-10-16 | Low: community script; read by the checker. Credits "@1ChartMaster (Elite Swing Trading)" and "Sean ( SrxTrades )". |
 | 22 | [qullamaggie.com, "3 TIMELESS setups"](https://qullamaggie.com/my-3-timeless-setups-that-have-made-me-tens-of-millions/) | Kristjan Kullamägi | 2021 | Originator of his setups; primary. |
 | 23 | ["Linda Bradford Raschke on Short Term Trading Strategies"](https://lindaraschke.net/wp-content/uploads/2026/01/august1997.pdf), *AIQ Opening Bell Monthly* | David Vomund (interview), on Raschke's site | 1997-08 | Originator of the Holy Grail; primary. |
 | 24 | [ChartSchool, "Pivot Points"](https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/pivot-points) | StockCharts | undated | Established educator; used only to separate the homonym. |
 | 25 | Zarattini, Barbon, Aziz, "A Profitable Day Trading Strategy For The U.S. Equity Market", SSRN 4729284 | as recorded in `docs/superpowers/research/setups/setup_sources.json` | 2024 | **Not read by me** (HTTP 403). Numbers unverified. |
-| 26 | Investopedia, "Opening Range" | as quoted in `docs/study/research/definitions.json` (read there 2026-10-17) | n/a | **Not re-read** (HTTP 402). |
+| 26 | [Investopedia, "Opening Range"](https://www.investopedia.com/terms/o/opening-range.asp) | Investopedia (Tim Smith; reviewed by Gordon Scott, CMT) | page "Updated May 19, 2026"; read by the checker 2026-11-09 | Established educator; the `definitions.json` quote is on the page word for word. (The writer got HTTP 402.) |
 | 27 | Repo: `app/src/pages/modelbook/setupCatalog.js`, `setupPlaybooks.js`, `app/src/constants/setupGroups.js`, `app/src/pages/journal-2-0/lib/setupTagMap.js`, `app/src/components/chart/engine/ast/starterScans.json`, `api/services/pattern_engine/detectors/uct/opening_range_breakout.py`, `api/main.py`, `api/services/desk_session_insights.py`, `api/services/education_seed.py` | UCT | current branch | House code and house summaries. |
 | 28 | Repo: `docs/study/sizing_rule.md` §9, `docs/study/TRADE_PLANS.md`, `docs/study/audits/2026-10-24/owner_verdicts.jsonl`, `docs/study/UNITS-method.md`, `docs/study/UNITS-foundations.md`, `docs/curriculum/uct_method_scripts.json`, `docs/curriculum/curriculum_final_v2.json`, `docs/study/research/definitions.json`, `docs/wisdom/vocabulary/setup-vocabulary-v1.json`, `docs/superpowers/research/setups/setup_criteria.json` | UCT | current branch | House rules, rulings and drafts. |
 | 29 | Repo: `docs/study/levels/brain_kb_2026-11-06.json`, `brain_kb_cycle_2026-11-06.json`, `brain_kb_rules_2026-11-06.json` | UCT knowledge base (machine summaries of Discord posts) | 2024-2026 posts | House, member-only origin: substance only, no wording copied. |
 | 30 | Shared research bars: Yahoo Finance 5 and 60-minute bars via yfinance, 2026-08-17 to 2026-11-06 (5-minute) | Yahoo | fetched 2026-11-09 | Unadjusted, regular hours; good enough for levels to the cent on liquid names, not audited. |
+
+---
+
+## 12. Removed in checking (cold check, 2026-11-09)
+
+Nothing had to be struck as unsourced: every quotation (about 53 from outside sources: 17 from the 8 X posts and the
+profile, 20 Substack lines, 3 Pivot Party, 3 TradingView, 4 Qullamaggie, 4 Raschke, 2 ChartSchool; plus the card,
+starter-scan, script, seed, curriculum, definitions, vocabulary, rulebook and verdict-log texts quoted from the repo)
+was found word for word at its source, every knowledge-base note id resolved to the
+note described, the scanner summary matches `opening_range_breakout.py` and `api/main.py`, and the five examples and
+the replay table reproduced from the bars and event files. The following statements were wrong or incomplete and were
+corrected in place (each is marked **[checked]** above):
+
+1. "often the day's low (DELL, LITE, TEAM)" and "the usual case: DELL, LITE, TEAM" (sections 7 and 8.3): on the bars the
+   pivot candle's low is the day's low only on DELL. On LITE (883.43 against 881.23), TEAM (168.73 against 168.05), HOOD
+   and TQQQ it sits above the day's low, so the originator's stop and house rule A3 differ on four of the five named
+   examples. Sections 3.11, 7, 8.3 and question 2 were rewritten.
+2. "The strict list, in date order" (section 4.4) was the last 16 of 121 strict trades (2026-10-15 to 10-23), not the
+   whole list. Reframed; the 16 lines themselves were correct.
+3. "I could not find or read that script" and the TenAM Trader script's "only rule is 'the risk is defined by the pivot
+   candle'" (section 3.5): the script was found and read; the quoted phrase is our `setup_criteria.json` paraphrase, not
+   the page's wording. Replaced with the page's own rule text (default 3 same-colour candles; first opposite-colour
+   candle; break or close over its high within 2 candles; stop on the opposite side of the pivot candle).
+4. "Two UCT workshop videos cover it" (short version): two are devoted to it; three later workshops carry it in their
+   library summaries, one of which states the rule ("buy the first strong 30‑min green candle after a pullback; stop at
+   its low"). Added to section 5.6.
+5. "HOOD fell through a string of red 30-minute candles from 2026-08-27": 08-27's 30-minute candles were mixed; the red
+   run is 08-28 and the open of 08-31. Reworded.
+6. Investopedia "HTTP 402, could not re-check": the checker read the page; the quote is exact. Updated in 3.6, 3.9 and
+   the sources.
+7. "TradingView ... not dated by me": published 2025-09-10. Dated.
+8. The MSFT "519-520" quote (section 6.3) had no link and sat under a sentence about a different post; it is in the
+   2025-10-01 "The Rest of the Week" (slug `the-rest-of-the-week`), ChartMaster's section. Link added.
+
+Added by the checker (not corrections): the 2026-10-11 TradingView "30 Min Pivot Pullback Strategy", which credits
+"@1ChartMaster (Elite Swing Trading)" (sections 2 and 3.5); the earnings marker on the HNGE chart (3.1, 6.5); the
+`setup_criteria.json` provenance and Zarattini rows (5.4); the checker's web search for earlier uses (2); the
+recomputation notes (4.3, 4.4). Still unverified by either agent: the Zarattini numbers (SSRN 403 twice), the $TEM post,
+the 2026-09-30 risk post, the two workshop transcripts, and which library videos the curriculum's ids 52, 83 and 135 are
+(the ids are Desk database ids, not positions in `education_seed.py`; the checker tried that mapping and it does not
+hold).

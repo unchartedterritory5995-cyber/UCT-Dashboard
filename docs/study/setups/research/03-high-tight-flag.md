@@ -1002,3 +1002,73 @@ the rulebook, the owner rulings, and the app code named in section 5. Everything
   built on them and the 2013 reader notes agree in substance; not to be quoted in a lesson until checked against the
   book.
 - The 2015-03-11 IBD column (no archived copy; checked through a fetch tool only).
+
+---
+
+## 13. Examples (from our data)
+
+(Numbered 13 because section 12, "Removed in checking", already existed when this was added on 2026-11-09.)
+
+**The scan's rule, in one paragraph.** Daily bars from the sandbox (3,897 names, 1984 to 2026), scanned over the 2,630
+names that ever met the house liquidity rule. A trigger day is one where the high clears the highest high of the prior
+30 sessions (the pattern high; rule 12), that high sits 5 to 30 sessions back (the flag; rule 6), and the pole, measured
+from the lowest low of the 40 sessions ending at the pattern high, is at least +90% (rules 1 and 2). Before entry the
+stock must be above its 50-day and 200-day SMAs (B26 and rule 9), price at least $10 and 50-day dollar volume at least
+$20 million (B23). Checks on the structure: the 40 sessions before the pole began fell no more than 30% high to low
+(rule 3); the stock was not up more than 200% in the 6 months before the pole began (rule 4); the flag's low is no
+more than 25% under the pattern high (rule 5); the five closes before the trigger sit within 10% of each other (rule
+7); the flag's average volume is below the pole's (rule 8); the close before the trigger is above a rising 10-day and a
+rising 21-day EMA and no flag close sat below the 21-day EMA (rule 9); and the pole top was not a parabolic climax
+(gap-up day closing below its open after three up days, rule 26). The buy is a market order a cent over the pattern
+high, or the open if the stock gapped over it; skipped if that is more than 4% past the high (C28) or more than 10%
+over the 10-day average (C29). The stop is 5 cents under the lower of the entry day's low and the prior day's low; if
+that is more than one 20-day average daily range below the entry, the entry day's low alone is used, and if that is
+still too wide the trade is skipped (rule 15). One hit per name per 30 sessions. The breakout-day volume is recorded
+(rule 14) but does not gate the hit. The outcome walks forward 60 sessions from the day after entry with a FIXED stop
+and no trims, no breakeven move and no trail, counting the first of stop, 3R, 5R; a day whose low hits the stop counts
+as stopped even if its high reached a target. Code: `_study-resume/scratchpad/setups/03-high-tight-flag/htf_scan.py`
+(outside the repo).
+
+**Base rate.** 54 hits in 2,630 of 2,630 liquid names (the scan completed in 119 seconds). 16 of 54 (29.6%) reached 3R
+before the stop; 12 of 54 (22.2%) reached 5R. Caveats: this is a fixed stop with no trims, so the house plan (a third at
+3R, a third at 5R, breakeven between 2R and 5R, trail the rest) is not what is measured; the stop is tight (most hits
+under 4% of entry, several under 1.5%), so one noisy day knocks out a trade that later worked (WDC 2026-05-26 is in the
+scan as a 3.1R winner only because it reached 3R before its stop; the stock later ran far higher); 42 of the 54 hits are
+from 2020 to 2026, partly because more names pass the $20 million rule recently and partly because the sandbox holds
+today's tickers, so delisted names that once flagged are missing (survivorship); one hit (LABU, a leveraged ETF, a
+failure) is not a stock; and the rule's 10% close tightness plus the no-close-under-the-21-EMA test reject many flags
+that a human would still call an HTF, so the 54 is a strict count, not the number of HTFs in the market. Before 2020 the
+rule found only 12 liquid hits in 36 years, which says the pattern is rare at our liquidity floor, as Bonde warns.
+
+**The 10 examples.** One per ticker, all reached at least 5R on the fixed-stop walk. "Pole" is low to high in sessions;
+"flag" is sessions from the pattern high to the day before the trigger, and depth is from the pattern high to the flag
+low. "Vol" is flag average volume over pole average; "BO vol" is the trigger day's volume over its 50-day average. Charts
+and phone sheets: `_study-resume/scratchpad/setups/03-high-tight-flag/final/` (sheet_1-4, sheet_5-7, sheet_8-10). Where an
+earnings report sat inside the pole it is named (from the sandbox's Yahoo + SEC dates; SAP has none on file).
+
+| # | Ticker | Trigger | Pole | Flag | Buy | Stop | Best R | Why it is textbook |
+|---|---|---|---|---|---|---|---|---|
+| 1 | SAP | 2000-01-25 | +98% in 30 d | 7 d, 7.9% deep, vol 0.45x, BO vol 1.08x | 64.56 | 63.83 (1.1%) | 9.3R (3R on day 1) | A dot-com-era double in six weeks, a one-week shallow flag on half the pole's volume, then a clean push. Note the tiny stop; the R is large partly because of it. No earnings date on file for the pole. |
+| 2 | SRPT | 2015-06-10 | +129% in 14 d | 14 d, 15.0% deep, vol 0.66x, BO vol 1.16x | 27.50 | 26.59 (3.3%) | 10.9R (3R on day 5) | The cleanest pole in the set: a +60% day on 2015-05-20 (after the 2015-05-07 report) tops a near-vertical two-week run, then a 14-day sideways flag that holds the 21-day EMA, then a breakout that never looks back. |
+| 3 | IOVA | 2019-06-28 | +129% in 27 d | 6 d, 11.3% deep, vol 0.71x, BO vol 2.9x | 23.27 | 22.75 (2.2%) | 6.4R (3R on day 1) | A biotech pole off a +36% day (2019-05-16, not an earnings day on file), a one-week flag, and the strongest breakout volume in the set (2.9x). The stop under the prior-day low held. |
+| 4 | CVNA | 2019-04-01 | +101% in 25 d | 8 d, 9.0% deep, vol 0.61x, BO vol 0.73x | 11.97 | 11.43 (4.5%) | 6.3R (3R on day 18) | The pole began on the 2019-02-28 report, off a base sitting near the 200-day after a prior decline (it passes rule 3 because the fall was more than 40 sessions earlier). Low breakout volume (0.73x), so a B grade on rule 14; it still ran 23% in two months. |
+| 5 | MRNA | 2020-04-15 | +99% in 30 d | 7 d, 13.1% deep, vol 0.33x, BO vol 0.97x | 35.67 | 33.10 (7.2%) | 20.0R (3R on day 2) | The pole included the 2020-02-26 report and a +28% day on 2020-02-25; the pattern high (35.66) matched the February spike high, so the breakout also cleared a two-month resistance. Flag volume a third of the pole's. The stop is 7.2% (within one ADR of a very volatile stock), wide against the house's usual 3%. |
+| 6 | CRNC | 2020-12-16 | +96% in 39 d | 11 d, 13.9% deep, vol 0.95x, BO vol 1.44x | 94.93 | 91.15 (4.0%) | 11.7R (3R on day 4) | A steadier eight-week pole (the 2020-11-16 report fell inside it) with an 11-day flag riding the 10-day EMA and a breakout on 1.44x volume, IBD's "at least 40% above average" met. Flag volume barely under the pole's: a B on rule 8. |
+| 7 | BIDU | 2021-02-05 | +100% in 36 d | 12 d, 13.2% deep, vol 0.68x, BO vol 0.9x | 264.95 | 255.06 (3.7%) | 9.1R (3R on day 2) | A large-cap double (no report in the pole) with a 12-day flag whose closes sit within 10% (at the limit of rule 7). Went to about 354 within three weeks, then collapsed under the flag low by late March: the 10-day trail (rule 19) is what gets a learner out. |
+| 8 | TMDX | 2024-05-14 | +92% in 30 d | 5 d, 7.0% deep, vol 0.75x, BO vol 1.46x | 132.97 | 128.10 (3.7%) | 8.0R (3R on day 23) | An earnings-gap pole (+25% on 2024-05-01), the shortest flag allowed (5 sessions), breakout on 1.46x volume. The slowest of the set to 3R (23 sessions): a lesson that a valid HTF can grind. |
+| 9 | SOFI | 2024-11-20 | +91% in 28 d | 7 d, 9.9% deep, vol 0.82x, BO vol 0.86x | 14.65 | 14.24 (2.8%) | 6.2R (3R on day 3) | The pole held the 2024-10-29 report; the stock gapped over the 14.44 pattern high so the fill is the open (1.5% past the high, inside the 4% chase limit). Below-average breakout volume: a B on rule 14. |
+| 10 | AMD | 2026-05-22 | +144% in 40 d | 9 d, 16.2% deep, vol 0.79x, BO vol 0.89x | 469.84 | 461.66 (1.7%) | 9.4R (3R on day 1) | The biggest liquid name in the set (about $12 billion a day): an eight-week pole including the 2026-05-06 report, a nine-day flag 16% deep, a gap-over entry, 3R the next session. Shows the pattern works at mega-cap size when the pole is real. |
+
+**Notable failures (from the same scan, in words).**
+- SRRK, 2020-12-22: the biggest pole in the scan (+291% in 34 sessions) and a 6-day, 15.5% flag, but flag volume was
+  13% of the pole's and the breakout day traded a tenth of its 50-day average. Stopped the next session with 0R. The
+  lesson is rule 14: a breakout that nobody buys is not a breakout, even on a perfect geometry.
+- NET, 2020-11-27: +113% in 40 sessions, a 14-day flag 18.7% deep, then a trigger on 0.86x volume with a 1.2% stop under
+  the prior day's low. Stopped the next session for 0R. A deeper-than-ideal flag plus weak demand plus a stop tighter
+  than one ordinary day's range is the usual way an HTF entry dies.
+- MRVL, 2026-05-13: +107% in 33 sessions, a tight 5-day flag, breakout volume 1.21x; it reached 2.35R and was then stopped
+  at the original stop. Under the house plan the stop would already have been at breakeven (B19, between 2R and 5R), so
+  this fixed-stop loss is a scratch in practice; the scan's 29.6% understates the plan for this reason.
+- Excluded from the examples: MGA, 2014-02-28, scored 18.5R but the sandbox's MGA series jumps from 2010-05 to 2014-02
+  with no bars between, so its "pole" is a data gap, not a move. Any scan result on a name with a history gap should be
+  thrown out the same way.

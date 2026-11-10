@@ -1160,3 +1160,82 @@ not usable), and a post of Shannon's own on reclaiming the 200-day (none found).
     Murphy's Law 6 article on slope (3.10); the owner's RDDT "as it begins to flatten out and rise" and his AMD aside
     (6.1); Bulkowski's full stage-by-stage buy rows (4.5); the drawing's recertification faults (4.6); setup 32, 28 and 29
     boundaries (2); the price check of the named examples and question 14 (6.8, 10).
+
+## 12. Examples (from our data)
+
+**The scan's rule (one paragraph).** Daily bars from the local sandbox (1984 to 2026-11-09), the 2,630 names that ever
+met the house liquidity rule, all scanned (nothing was cut for time). "The line" is the 200-day SMA, or the 50-day SMA
+only on days when the 50 sits above the 200. A reclaim day satisfies section 8.1: at least 5 consecutive closes under
+the line right before it, at least one of them 0.5 ATR(14) or more under the line; in the 60 sessions before that run
+began the close switched sides of the line no more than 2 times; the line today no lower than its value 10 sessions ago
+minus 0.5 ATR; a green candle closing in the upper half of its range, 0.5 to 2 ATR above the line, above the 200-day
+(B26), on volume at or above the 50-day average; close $10 or more and 50-day average dollar volume $20 million or more
+(B23). Entry A (section 8.2): a market order at the reclaim day's close, stop 5 cents under that day's low, taken only
+when the fill is no more than 4% over the line (C28) and the stop is 3.5% or less away (A13). Otherwise Entry B: 1 to 5
+following sessions all closing above the line, the last an inside day or a day with a range under 1 ATR; the fill is the
+first trade over that day's high (the open when it gapped over), no more than 4% over it, stop 5 cents under the lowest
+low of the pause, 5% or less away. Recorded as cues, not gates: the count of closes under the line, the 60-session range
+before the reclaim, whether the close cleared the 20 EMA, 50 and 200 together, whether the 200-day was above its value
+20 sessions earlier, and the reclaim-volume multiple. Not coded: RS 80+ (C31), the market reading, the 3-days-before-
+earnings rule (B22; the examples were checked by hand against the report dates), the 10%-over-the-10-day limit (C29),
+the 8-week base as a gate, and the trims. Outcome: from the day after the entry, 60 sessions forward, the first of stop
+/ 3R / 5R; same day, the stop wins.
+
+**Base rate.** 3,895 hits, 1995-12-15 to 2026-11-09 (2,636 are 200-day remounts, 1,259 are 50-day reclaims; 262 are
+on ETFs from a hand list of about 90 funds, and those did no differently, 25.2% / 16.4%). **26.5% reached 3R and 16.4%
+reached 5R before the stop**; 81.8% were eventually stopped at the original stop inside the 60-session window (winners
+included, since the stop never moves here) and 51.7% never reached 1R. Among winners the median time to 3R was 10
+sessions. **Caveat:** a fixed stop with no trims, no breakeven move, no trail and no time stop, so it measures how often
+the structure delivers 3R and 5R, not what the house trade earns. Cuts worth noting (same scan): Entry A 28.1% / 16.8%
+(2,487 hits) against Entry B 23.7% / 15.6% (1,408); 50-day reclaims above the 200-day 28.3% / 18.3% (1,259) against
+200-day remounts 25.6% / 15.4% (2,636); the 200-day above its value 20 sessions earlier 27.6% / 17.6% (2,647) against
+24.0% / 13.8% when it was not (1,248), the one cue that helped (section 8.1's A-grade slope test); reclaim volume 1.5x
+or more the 50-day average did NOT help, 25.5% / 15.6% (1,745) against 27.3% / 16.9% below 1.5x, so the 1.5x in section
+9 is a grade cue without support here; 40 or more closes under the line (the template's "8 weeks or more") did NOT help,
+24.0% / 14.3% (845) against 26.9% / 16.6% for 5-9 closes and 27.3% / 17.1% for 10-39; clearing all three averages on
+the reclaim day made little difference, 26.8% / 16.6% against 25.1% / 15.4%; closing 1-2 ATR over the line against
+0.5-1 ATR made none (26.7% against 26.4%); zero side-switches in the 60 sessions before against 1-2 made none (26.4%
+against 26.5%). This sides with section 4.1's warning: the structure alone is near a coin flip at 1R, and the slope of
+the 200-day is the only measured cue with a visible edge. These are one scan's counts, not a study; the owner's judgment
+on volume and base length stands until a better test is run.
+
+**The 10 examples** (all stocks, one per name, ten different years; eight 200-day remounts and two 50-day reclaims
+above a rising 200-day; seven Entry A, three Entry B; every one reached 5R; none was bought in the 3 sessions before a
+report, checked against the report dates; prices are split-adjusted as the database holds them). Files:
+`scratchpad/setups/13-ma-reclaim/final/NN_TICKER_DATE.png` and the phone sheets `sheet_1-4.png`, `sheet_5-7.png`,
+`sheet_8-10.png` (not in the repo). "Closes under" is the run of closes below the line before the reclaim; "deep" is the
+deepest close under the line in ATR(14); "range" is the high-to-low range of the 60 sessions before the reclaim.
+
+| # | Ticker | Reclaim / entry | Line | Structure (closes under / deep / range) | Reclaim day (close over line, vol) | Buy | Stop (risk) | Best R (3R on day) | Why it is textbook |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | UAL | 2024-09-06 (A, same day) | 200-day | 25 / 5.7 ATR / 34% | +0.62 ATR, 1.11x | 46.01 at the close | 44.80 (2.6%) | 45.9R (4) | A flat 200-day that price had held above since mid-April, a 5-week undercut, then a green reclaim that also cleared the 20 and 50; the trend that followed never looked back. |
+| 2 | XPO | 2023-04-17 (A, same day) | 200-day | 24 / 3.1 ATR / 36% | +0.52 ATR, 1.02x | 34.07 at the close | 33.07 (2.9%) | 27.7R (3) | A rising 200-day, a 5-week dip under it and a one-day remount at the lowest volume the rule accepts; shows the line, not the volume, carried the trade (the cuts above agree). |
+| 3 | MAS | 2020-05-18 (A, same day) | 200-day | 50 / 10.8 ATR / 46% | +1.06 ATR, 1.28x | 44.43 at the close | 43.93 (1.1%) | 28.4R (1) | The 2020 crash recovery: 10 weeks under the line, a V back to it, and a remount day whose low (43.98) stayed above the line (42.91), so the stop was tiny and 3R came the next day. Not an 8-week sideways base; a crash-and-recover remount. |
+| 4 | TARS | reclaim 2025-08-07, entry 2025-08-11 (B) | 200-day | 53 / 3.8 ATR / 29% | +0.66 ATR, 2.65x | 48.29 over the pause high 48.28 | 47.16 (2.3%) | 25.2R (2) | The reclaim day was the earnings-reaction day (report 2025-08-06; allowed by 8.2) after 11 weeks under a rising 200-day; one tight session above the line, then the buy over its high: Entry B as written. |
+| 5 | NTAP | 2017-09-12 (A, same day) | 200-day | 15 / 2.3 ATR / 17% | +0.54 ATR, 1.31x | 39.93 at the close | 39.11 (2.1%) | 22.2R (8) | A 3-week dip under a rising 200-day inside a quiet 17% range; the reclaim came with the 20 EMA still overhead and the stock cleared it in the following sessions; slow and steady to 5R. |
+| 6 | WDC | reclaim 2005-11-17, entry 2005-11-22 (B) | 200-day | 32 / 3.4 ATR / 26% | +1.28 ATR, 2.6x | 10.58 over the pause high 10.57 | 10.20 (3.6%) | 21.3R (18) | A 6-week undercut of a rising 200-day, a wide reclaim candle on 2.6x volume that cleared all three averages, two sessions of pause, then the buy; the slowest of the ten to 3R (18 sessions) and still a 20R move. |
+| 7 | INTC | 2007-04-09 (A, same day) | 200-day | 26 / 3.5 ATR / 16% | +0.56 ATR, 1.91x | 20.10 at the close | 19.80 (1.5%) | 15.0R (7) | A flat 200-day with about six months of price above it (since late September 2006), a 5-week sag under, a remount on 1.9x volume above all the averages; the mature-name remount the owner's template describes. |
+| 8 | ENPH | reclaim 2021-10-12, entry 2021-10-14 (B) | 200-day | 24 / 2.8 ATR / 29% | +0.57 ATR, 1.37x | 175.92 over the pause high 175.91 | 169.77 (3.5%) | 17.3R (9) | A rising 200-day, a 5-week undercut, a reclaim that cleared all three averages, a one-day pause and the buy over its high; also a lesson in trailing: it topped five weeks later, 52% above the entry, and gave most of it back by late December. |
+| 9 | ADSK | 2010-02-16 (A, same day) | 50-day (200 rising) | 16 / 2.6 ATR / 20% | +0.65 ATR, 1.74x | 25.24 at the close | 24.80 (1.7%) | 22.6R (6) | The 50-day variant: 3 weeks under the 50 with the 200-day rising far below, then a reclaim on 1.7x volume above all the averages; a Stage 2 name resuming. |
+| 10 | MGM | 2013-12-06 (A, same day) | 50-day (200 rising) | 25 / 3.1 ATR / 20% | +0.82 ATR, 1.31x | 20.17 at the close | 19.77 (2.0%) | 21.0R (6) | The 50-day variant after a 5-week sideways base under the line in a long uptrend; the reclaim cleared all three averages and the stock closed above the base's high (20.98) five sessions later. |
+
+Alternates that passed every check but share a year with one above: QGEN 2025-05-27 (200-day, Entry A, 22.3R) and AMD
+2023-11-03 (200-day Entry B after the 2023-11-01 earnings-reaction reclaim, 21.2R). Dropped by hand for rule B22 even
+though they were big winners: HUBS 2024-11-05 (report 2024-11-06), MSM 2016-10-31 (report 2016-11-01) and CDW
+2015-07-31 (report 2015-08-03).
+
+**Notable failures (in words).**
+- **AMZN 2023-04-27** (200-day, Entry A, stopped at 0R). Fifty-seven closes under a 200-day that was still falling (it
+  passed the 10-session slope test because the fall had slowed, but it sat below its value 20 sessions earlier: 106.85
+  against 107.52), a 2.65x-volume reclaim, and the report came after that very close (reaction day 2023-04-28): the
+  stock gapped back under the line the next morning and the stop was hit. Two lessons at once: a "flattening" line is
+  not a rising one (mistake 6), and never buy into the report (B22). The stock then rose about 19% over the next two
+  months without us.
+- **AAPL 2022-09-12** (200-day, Entry A, stopped at 0R). A clean-looking remount of a flat 200-day on 1.49x volume,
+  clearing the 20 and 50 as well, with the S&P 500 itself under its 200-day in September 2022; the next session gapped
+  down through the stop and the stock fell about 18% to its October low. Mistake 11: remounts while the index is under
+  its own 200-day.
+- **IWM 2023-12-06** (ETF; 200-day, Entry B, stopped at 0R). Fifty-three closes under the line, a 1.7x-volume reclaim,
+  a tight pause, the buy over its high with a 1.6% stop under the pause low; the stop was hit the next session on the
+  shakeout and the fund then closed about 9% higher three weeks later. The Entry B stop is tight by design; on a broad
+  index fund it was too tight for the noise. Also an ETF when the setup is written for leading stocks.

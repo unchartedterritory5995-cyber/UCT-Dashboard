@@ -943,3 +943,82 @@ cross-references, including the old wording listed below. No quote was found to 
 
 **Still unverified (said so where they appear):** everything attributed to *Street Smarts* itself; the SSRN page; the
 book's own reason for the name.
+
+---
+
+## 12. Examples (from our data)
+
+**The scan's rule, in one paragraph.** Daily bars, long side only (the short mirror of 8.6 was not scanned). Wilder's
+14-day ADX (seeded with a 14-bar mean, then Wilder smoothing) had to be above 30 *and higher than the day before* on
+at least one session in the 10 sessions before the touch, with that session's close above the 20-day EMA and the EMA
+above its level 10 sessions earlier (8.1, the gate and the direction test). The highest close of the last 20 sessions
+had to fall inside the same 10-session window (8.1, the momentum high), 2 to 10 sessions before the touch. The touch is
+a session whose range reaches the 20-day EMA (low at or below it, high at or above it) with the low above the 50-day SMA
+and the close above the 200-day SMA (8.1; house rule B26), and no other touch in the 10 sessions before it (the first
+pullback). From the touch session on, the buy is a market order the moment price trades 2 cents over the high of the
+most recent completed session (8.2; E57); a gap that opens more than 4% over that trigger is skipped (C28); the setup
+is void after a close under the 50-day SMA or 5 sessions with no trigger (8.2). The house gates at entry: close $10 or
+more, 50-day average dollar volume $20 million or more (B23), entry no more than 10% above the 10-day SMA (C29). The
+stop is 5 cents under the lowest low from the touch session through the trigger session (8.3); hits whose stop was
+more than 8% under the entry were dropped. After a hit the name is quiet for 20 sessions, a stand-in for "the ADX
+must rise over 30 again" (8.1, 8.5). Not measured, because the sandbox cannot: the RS-80 and group tests (C31), the
+earnings blackout (B22), the 1%-of-volume size cap (D42). The 10 examples below were checked against our earnings
+dates by hand; none has a report in the 3 sessions after the buy (one candidate, BIIB 2007-07-24, was dropped because
+its buy day was its report day, and FSLR 2020-07-31 was set aside because its report came 4 sessions later). The scan
+and chart code live in the scratch folder `_study-resume/scratchpad/setups/17-holy-grail/` (`hg_rule.py`, `pick.py`;
+not in the repo).
+
+**Base rate.** 26,173 hits across 2,630 of 2,630 liquid names (the full universe; 217 seconds), 1999-01 to 2026-11
+(hits before 2002 are few because the liquidity gate was rarely met). 27.2% reached 3R and 17.2% reached 5R before the
+stop; 82.3% were stopped at some point in the 60-session window (many after a trim level). This is a fixed stop with no
+trims, no breakeven move and no trail, so it is a floor for the house exits (B19, E51, E52), not an estimate of them.
+What moved the needle inside the scan: the stop's width (0-1% stops: 42.5% to 3R; 1-2%: 30.4%; 2-3%: 26.8%; 3-5%:
+24.8%; 5-8%: 23.5%; a tight stop makes 3R a smaller move, so the R numbers flatter it), while the ADX level above 30
+did not (30-40: 27.4%; 40-50: 26.8%; over 50: 27.4%), a quiet pullback did not (pullback volume under 0.8x the prior
+20 days: 27.6%; 1.0x or more: 26.7%), and a trigger on the touch day itself did slightly worse than one a day or two
+later (23.4% against 27.9%). The ADX result supports the dossier's doubt (section 4): the gate separates trends from
+chop, but a higher reading is not a better trade. The rule fires about 10 times a year per name on average, far too
+often to be "the" setup; the owner's RS-80 and group filters, which the sandbox cannot apply, are what would thin it.
+
+**The 10 examples** (charts and three phone sheets in the scratch folder's `final/`; "ADX" is the gate session's
+reading, "deep" is the pullback from the momentum-high close to the swing low; buy = trigger = fill, since none gapped
+over the trigger):
+
+| # | Ticker | Buy date | Momentum high / touch | ADX at gate | Pullback | 20 EMA at touch | Buy | Stop (under) | Best R (sessions to 3R) | Why it is textbook |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | CI | 2000-10-26 | 10-16 / 10-25 | 48.4 | 7 days, 6.1% | 36.38 | 36.72 | 36.03 (1.9%) | 12.9R (2) | A strong October thrust off the 50-day, seven quiet red days into the line, triggered the morning after the touch and never looked back. |
+| 2 | JBLU | 2003-07-21 | 07-14 / 07-18 | 53.4 | 4 days, 6.2% | 18.53 | 18.91 | 18.31 (3.2%) | 20.9R (5) | A young IPO leader stair-stepping along the 10 and 20 EMAs; the first real touch of the 20 after a 50+ ADX push, volume drying to 0.74x. |
+| 3 | AON | 2005-08-29 | 08-17 / 08-29 | 54.2 | 8 days, 4.2% | 28.87 | 29.35 | 28.76 (2.0%) | 13.2R (5) | A gap-and-go in early August, then an eight-day drift on half the volume; the touch day itself cleared the prior high (Raschke's purest form). |
+| 4 | EXPD | 2006-03-09 | 03-03 / 03-08 | 57.6 | 3 days, 3.6% | 38.39 | 38.93 | 38.14 (2.0%) | 19.7R (3) | Her 1993 "first two- to three-day retracement": three days, 3.6% deep, 2% stop, 3R in three sessions. |
+| 5 | CE | 2007-01-11 | 2006-12-29 / 01-10 | 53.4 | 6 days, 5.3% | 24.64 | 24.94 | 24.45 (2.0%) | 14.8R (14) | A six-day flag that kissed the line once; slow to pay (14 sessions to 3R) but orderly the whole way, a lesson in the time stop (C33) nearly firing on a winner. |
+| 6 | MA | 2009-08-20 | 08-07 / 08-19 | 45.3 | 8 days, 4.4% | 19.54 | 19.84 | 19.48 (1.8%) | 12.4R (2) | The post-earnings-gap leader of August 2009, pullback on 0.54x volume, the whole stop under the touch low at 1.8%. |
+| 7 | AMBA | 2016-06-28 | 06-20 / 06-27 | 46.1 | 5 days, 7.8% | 49.12 | 50.27 | 48.75 (3.0%) | 15.0R (8) | A trend so young the 200-day was only just reclaimed; the deepest pullback of the ten (7.8%) yet the line held to the cent. |
+| 8 | HLT | 2017-11-10 | 11-06 / 11-09 | 51.0 | 3 days, 2.4% | 71.76 | 72.78 | 71.58 (1.6%) | 12.8R (11) | The shallowest (2.4%) and tightest (1.6% stop): a steady ADX-50 trend that barely dipped to the line, then kept its slope. |
+| 9 | AAP | 2018-06-29 | 06-21 / 06-28 | 42.8 | 5 days, 4.4% | 133.72 | 136.20 | 133.27 (2.2%) | 12.0R (15) | A turnaround name just over its 200-day with a first touch after the ADX crossed 40; the slowest to 3R (15 sessions), then a 20%+ run. |
+| 10 | LITE | 2025-07-10 | 06-30 / 07-10 | 44.9 | 7 days, 6.4% | 89.17 | 91.78 | 88.88 (3.2%) | 29.9R (5) | The current-cycle leader: touch and trigger on the same day, 3R in five sessions, then the parabolic leg that Bracco's post warns about began. |
+
+All ten fills were within 2.5% of the 10-day SMA (C29 never close to binding) and every stop was under 3.3% (A13).
+None gapped over the trigger. Eight of ten triggered the session after the touch; AON and LITE triggered on the touch
+day itself.
+
+**Notable failures, in words** (all stopped for a full 1R with the best excursion under 0.5R):
+
+- **NVDA, 2024-04-03.** Every box ticked: ADX 53 and rising, a 5-day pullback to the 20 EMA, a 2.8% stop at 87.57
+  against a 90.11 buy. It was the third month of a near-vertical run, and the first touch of the line after that run
+  was the start of April's correction, not a resting point. Woods' caution (8.8, mistake 9): a very high ADX after
+  a climb like that can mean the trend is overdone. Bracco's parabolic signs belong in the pre-trade check.
+- **LULU, 2024-01-12.** ADX 51 after the December surge, a 4-day pullback, but the trigger did not come until the
+  fifth session after the touch (the last one allowed) at 488.08 with the stop at 478.08. The late trigger was the
+  tell: a stock that needs five days to clear a prior high is no longer in the thrust the ADX measured. It stopped out
+  and the stock did not recover that level in the rest of our data for the year.
+- **CELH, 2024-04-01.** ADX 49.5, a 10-day pullback (the longest the rule allows) and a 3.4% stop at 81.37 against an
+  84.24 buy. Ten days is a flag that has already lost its urgency; the setup is Raschke's only when the pullback is
+  short. It stopped out within the 60-session window with no excursion past 0.5R.
+
+The pattern across the failures: a gate reading near 50 after a long, steep run, and a pullback that was either long
+(CELH) or slow to trigger (LULU). The winners above all triggered within a day of the touch after pullbacks of 3 to 8
+sessions, with the ADX in the 40s to high 50s but the run itself only a few weeks old.
+
+**Data limits.** Daily bars only; the RS rating, group rank and the earnings blackout were not applied in the scan
+(the 10 picks were checked by hand against the earnings dates). The scan covered the whole liquid universe within the
+time budget, so the base rate is for the complete set, not a sample. Shorts were not scanned.

@@ -7,8 +7,23 @@ read a source, I say so and give no wording from it.
 - **Checked word for word against a saved copy** (downloaded today and searched by a script): UCT's Substack (all 103
   posts in https://unchartedterritoryy.substack.com/sitemap.xml, read through the public post API), Investors
   Underground (two 2017 posts), StocksToTrade (two posts by Tim Bohen), the Bear Bull Traders forum thread, QuantRocket,
-  StockCharts ChartSchool, Investopedia, Larry Williams' own site and the Wiley excerpt of his book, two Linda Raschke
+  StockCharts ChartSchool (two pages), Larry Williams' own site and the Wiley excerpt of his book, two Linda Raschke
   interviews posted on her own site, qullamaggie.com, two journal abstracts through Crossref, and our own code and docs.
+- **Cold check, 2026-11-09 (a second session, working from fresh downloads of every source above).** Every quote in this
+  file was searched for in the fresh copies by script; the Bulkowski sentences were confirmed one by one through the
+  fetch tool; the owner's rulings, the rulebook numbers and every code line and line number were re-read in the repo
+  (commit 3556ebf263); the test tables were re-derived from the writer's saved data where the saved summaries did not
+  show a number (the failed-reclaim rule, Table 4, the section 4.8 candidates, the AEHR row). The one source that could
+  not be re-read is Investopedia (HTTP 402 to a plain download, and the fetch tool refuses the domain); its two quotes
+  were dropped and replaced with StockCharts' definitions of the same terms.
+- **Second cold check, 2026-11-09 (a third session).** Everything was downloaded again (all 103 Substack posts through
+  the post API, the 23 outside pages and PDFs, both journal records through Crossref, Bulkowski through the fetch tool),
+  118 quoted passages were matched word for word by script against those copies and the repo files, every UCT quote
+  was traced to the newsletter section it sits in, every code line was re-read at commit 3556ebf263, and the numbers in
+  Tables 1 to 5, the failed-reclaim rule, the section 4.7 rows (AEHR included, from the daily bars) and the section 4.8
+  candidates were re-derived from the saved trade tables. Every quote and every number held. What changed is one
+  misattribution and a few wordings, listed under **"Removed in checking"** at the end (the earlier check pointed to
+  that section but had not written it).
 - **Read only through a fetch tool** (plain downloads refused with HTTP 406): Thomas Bulkowski's two opening gap pages.
   I read each page twice with different prompts and the two reads agreed. **His site states a notice against AI use:**
   "This website, in whole or in part, shall not be used to train artificial intelligence (AI) systems, technologies,"
@@ -65,7 +80,7 @@ collects orders and attention.
 price falls back under the prior close, those buyers are underwater and the move has failed. Bracco describes the same
 crowd on a gap down the day after a climax: "The gap down the following day is key, as longs from the previous close
 are underwater and short sellers take advantage." Academic work finds that overnight gains tend to reverse during the
-trading day that follows, mostly in stocks that retail investors are watching (Berkman and others, 2012, section 4.3).
+trading day that follows, mostly in stocks that retail investors are watching (Berkman and others, 2012, abstract).
 
 **What it is not.** It is not an edge on its own. In our tests (section 4.6) buying every red to green cross, or every
 day that closed red to green, made about the same as buying a random moment with the same kind of stop. The owner uses
@@ -83,11 +98,11 @@ fails) is much older and has other names.
 | Name | Who | Where and when (verified) | What it covers |
 |---|---|---|---|
 | **Red/Green Moves** | Investors Underground, byline "InvestorsLive" (a reader comment addresses the author as "Nate"; I did not verify the person behind the handle) | "5 Day Trading Strategies & Ideal Chart Setups", 23 Mar 2017, and "7 Actionable Trading Strategies and Lessons from Textbook Trading", 2 May 2017 (investorsunderground.com) | The cross of the prior close in either direction, as an intraday trade |
-| **Red-to-Green move / Green-to-Red move** | Andrew Aziz, *How to Day Trade for a Living* | **Not read.** Members of his firm's forum (Bear Bull Traders) quote the book's chapter in posts dated April and December 2018 (section 3.2). The passage existed by April 2018; I did not confirm the book's year or chapter from the book or its publisher | The cross of the prior close by a gapped "Stock in Play" |
+| **Red-to-Green move / Green-to-Red move** | Andrew Aziz, *How to Day Trade for a Living* | **Not read.** Members of his firm's forum (Bear Bull Traders) quote the book's chapter in posts dated April and December 2018 (section 3.2). The passage existed by April 2018; I did not confirm the book's year or chapter from the book or its publisher | The cross of the prior close by gapped "Stocks in Play" |
 | **Weak open red-to-green** | Tim Bohen, Lead Trainer, StocksToTrade | Posts of 20 Dec 2022 and 29 Jan 2024 (stockstotrade.com) | Intraday cross after a weak open, in runners and "real stocks" |
 | **R2G / G2R** | Forum shorthand | Bear Bull Traders forum, 29 Dec 2018 | Same |
 | **Gap down red to green; gap down reversal; red to green spot; reclaim of red to green** | UCT: the owner (TSDR), Bracco | Substack from 2025-06-08 (section 6) | The cross of the prior close after a gap down, used as the entry trigger in a swing setup |
-| **r2g** | Jersace (UCT contributor) | Substack, 2026-03-25 | Same, as an add point |
+| **r2g** | VIOTTI (UCT contributor; the post's CONTRIBUTORS section, under "VIOTTI - BKSY") | Substack, 2026-03-25 | Same, as an add point |
 | **Red to Green / Red to Green (Intraday) / Green to Red** | UCT app journal tags | `app/src/constants/setupGroups.js` lines 16 and 23 | Labels for trades |
 
 **Older relatives with their own names** (not the same rule, named so the course can tell them apart):
@@ -97,8 +112,10 @@ fails) is much older and has other names.
   of its steps (dossier 30).
 - **Gap fill / closing the gap** (StockCharts, Investopedia, Bulkowski): price returning to the prior close after an
   opening gap. A same-day gap fill on a gap down is a red to green touch.
-- **Three-Day Unfilled Gap Reversal** (Linda Raschke, 1997): the opposite idea, a gap down that does NOT fill, bought
-  later above the gap day's high (section 3.5).
+- **Three-Day Unfilled Gap Reversal** (Linda Raschke; the rules are printed in her August 1997 AIQ interview, whose
+  first question names her book *Street Smarts* and says "you give several strategies for short term traders"; whether
+  this pattern is in the book was not confirmed, because the book was not read and the interview does not say so): the
+  opposite idea, a gap down that does NOT fill, bought later above the gap day's high (section 3.5).
 - **Opening Gap Trading Setup, long and short** (Bulkowski, updated 2016): fades of large opening gaps (section 3.6).
 - **U-Turn** (Bracco, "The Parabolic Short", 2025): a gap-up climax day that fails; a cousin of green to red (section
   3.8).
@@ -106,8 +123,11 @@ fails) is much older and has other names.
 **Name collisions to avoid:**
 - **First Green Day** (Timothy Sykes and StocksToTrade, sitemaps list several posts): the first day that closes up after
   a run of down days. A multi-day pattern, not the intraday cross.
-- **Red Dog Reversal** (SMB Capital): our repo already notes it "is NOT Red-to-Green"
-  (`docs/superpowers/research/setups/setup_criteria.json`). I could not read SMB's page today.
+- **Red Dog Reversal** (Scott Redler, T3 Live; read in checking at https://www.t3live.com/blog/?p=28329): our repo
+  already notes it "is NOT Red-to-Green" (`docs/superpowers/research/setups/setup_criteria.json`), but that file calls it
+  "SMB's published named reversal", which is wrong: the page is Redler's own lesson. His line is the prior day's LOW,
+  not the prior close: the "stock is a short-term pull back often for 2+ days and trades below a prior day low", then
+  reclaims it. That is a prior-low reclaim (our Oops / undercut-and-rally family), not a red to green.
 - **Red or green CANDLE** (close versus the day's OPEN). Some traders mean the candle color, not the prior close. A
   TradingView user post (2021) builds its version on "the daily open line". The app's hourly Go Signal finder also uses
   close versus open (section 5). The owner's 2026-11-01 ruling names the prior close (section 6). This is the biggest
@@ -137,12 +157,14 @@ Two posts by "InvestorsLive".
 
 The Bear Bull Traders forum thread "stuck on Red to Green..." (https://forums.bearbulltraders.com/topic/283-stuck-on-red-to-green/)
 has members quoting "Andrew's chapter". I could not check these against the book. As quoted there:
-- Red to green (posted 16 Apr 2018): "if the price is lower than the previous day close (for stocks that gapped down),
-  the market is moving from a Red day to a Green day"
-- Green to red (posted 28 Dec 2018): "If the current price of the stock is higher than the previous day close (for
-  Stocks in Play that gapped up), the market is moving from a Green day to a Red day"
-- Members found the wording confusing. A forum regular (Robert H, 29 Dec 2018) rewrote it as: "Price is currently red
-  and moving towards previous day close => R2G". That is a member's reading, not the book.
+- Red to green (posted 16 Apr 2018 by the member DougT, "from Andrew's book"): "if the price is lower than the previous
+  day close (for stocks that gapped down), the market is moving from a Red day to a Green day"
+- Green to red (posted 28 Dec 2018 by the member sandstorm, "the excerpt from Andrew's book"): "If the current price of
+  the stock is higher than the previous day close (for Stocks in Play that gapped up), the market is moving from a Green
+  day to a Red day"
+- Members found the wording confusing. A member (Robert H, 29 Dec 2018) endorsed another member's rewrite ("@Dima
+  summed it up nicely"): "Price is currently red and moving towards previous day close => R2G". That is a member's
+  reading, not the book.
 - Criteria given (as quoted): a gapped stock, the prior close as the line, the direction of travel toward it. Stop,
   target, volume and trend are not in the quoted lines. Reliability: secondhand; treat it as what the book appears to say.
 
@@ -174,11 +196,13 @@ has members quoting "Andrew's chapter". I could not check these against the book
 
 ### 3.5 Linda Raschke (originator-level trader; two interviews on her own site; read today)
 
-- AIQ *Opening Bell*, August 1997, her "Three-Day Unfilled Gap Reversals" rules, quoted in part: "Today the security
-  gaps lower and does not fill the gap." Then a buy stop one tick above the gap day's high for the next three sessions,
-  and "If filled, place a protective sell stop at the low of the gap-down day." The sell side is the reverse. This is the
-  OPPOSITE of red to green: it wants the gap left open and buys the reversal days later. It shares the stop: under the
-  gap day's low.
+- AIQ *Opening Bell*, August 1997 (an interview that introduces her as the author of *Street Smarts* and says "Many of
+  the patterns discussed in Street Smarts actually have a mechanical entry or trigger"), her "Three-Day Unfilled Gap
+  Reversals" rules, quoted in part: "Today the security gaps lower and does not fill the gap." Then "Over the next
+  three trading sessions, have in place a buy stop one tick above the high of the gap-down day." and "If filled, place
+  a protective sell stop at the low of the gap-down day." On her sell examples: "the pattern on the sell side is simply
+  a reverse of the buy side." This is the OPPOSITE of red to green: it wants the gap left open and buys the reversal
+  days later. It shares the stop: under the gap day's low.
 - *Active Trader*, February 2004, interview by Mark Etzkorn. On gaps: "A large gap means one side is caught off
   balance." A pull quote in the same article: "In a down-trending market, an early gap up is a short 95 percent of the
   time." That is her claim in an interview mostly about her S&P futures trading, with no sample or method given. It is not a measured
@@ -226,14 +250,19 @@ recover after small down gaps and keep dropping after large down gaps." And the 
 leaves the uptrend intact; thus the gap is a buying opportunity." Not a red to green rule (no prior-close trigger), but
 the best evidence I found on WHICH gap downs get bought.
 
-### 3.10 StockCharts ChartSchool and Investopedia (educators; read today)
+### 3.10 StockCharts ChartSchool, two pages (educator; read today and re-read in checking)
 
-- StockCharts, "Gaps and Gap Analysis": a gap getting filled "means that the price action at a later time (a few days to
-  a few weeks) usually retraces, at the least, to the last day before the gap." Common gaps "usually get filled fairly
+- "Gaps and Gap Analysis": a gap getting filled "means that the price action at a later time (a few days to a few
+  weeks) usually retraces, at the least, to the last day before the gap." Common gaps "usually get filled fairly
   quickly". A vocabulary source; no trade rule.
-- Investopedia, "Gap" (updated 17 Jul 2026): "Partial gapping occurs when the opening price is higher or lower than the
-  previous day's close but within the previous day's price range." And: "Full gapping occurs when the opening is outside
-  of the previous day's range." Most red to green days start with a partial gap (section 4.6, Table 1).
+- "Gap Trading Strategies" (https://chartschool.stockcharts.com/table-of-contents/trading-strategies-and-models/trading-strategies/gap-trading-strategies):
+  "A Partial Gap Down occurs when the opening price is below yesterday's close, but not below yesterday's low." "A
+  Partial Gap Up occurs when today's opening price is higher than yesterday's close, but not higher than yesterday's
+  high." And: "A full gap down occurs when the price is below not only the previous day's close but the low of the day
+  before as well." Its own gap trades wait for the first hour and use its high or low, so they are not red to green
+  rules. Most red to green days start with a partial gap (section 4.6, Table 1). (The first draft of this dossier took
+  these two definitions from Investopedia's "Gap" page; that page could not be re-read in checking and its quotes
+  were removed.)
 
 ### 3.11 UCT's house definitions (details and every quote in section 6)
 
@@ -312,8 +341,8 @@ Our own tests are new for this dossier.
   closures happened "sometime during the same trading day". The long-side page does not restate that. A half gap "is half
   the distance from the prior day's close to today's opening price", so a full closure is a touch of the prior close: a
   red to green touch on a gap down.
-- Over all gap sizes: "Research shows that at least half the gap fills 84% of the time, but that is for all gap sizes
-  (as small as a penny)".
+- Over all gap sizes (the short-side page only; the long-side page has no 84% figure): "Research shows that at least
+  half the gap fills 84% of the time, but that is for all gap sizes (as small as a penny)".
 - Limits: 520 stocks of unknown liquidity, data to 2016, a touch is not a close above, no trade results. The "2010s" row
   covers 2010 to 2016. AI notice on the site.
 - Our check (section 4.6, Table 1): on liquid US stocks, 3%+ gap downs touched the prior close the same day 32% of the
@@ -375,7 +404,8 @@ counts first.
 - None of the tests can see the things the owner adds by eye: the theme, the group, the catalyst, how orderly the
   pullback is, the market reading (B18). Treat every number as a rough guide for his decisions, not a lesson fact.
 - The 5-minute test covers one short period, 2026-08-17 to 2026-11-06 (entries to 2026-10-08 for the plan results). In
-  that period QQQ rose to a peak on 2026-10-06 and then fell 14.8% to 2026-11-05; IWM fell 10.3% over the window. A
+  that period QQQ rose to a peak on 2026-10-06 and then fell 14.8% to 2026-11-05; IWM fell 10.3% from its 2026-08-14
+  close (the close before the window) to 2026-11-06, and its highest close in the window was the first day's. A
   falling market flatters shorts and hurts longs.
 - Same-day trades are many and correlated, so I report standard errors clustered by day (38 trading days in the 5-minute
   plan sample). They are wide.
@@ -503,7 +533,7 @@ red-to-green day's low.
 | GLXY 2026-01-23 | owner: "Gap down and red to green higher low on Friday" | -1.91% | -4.04% | +3.17% | 1.5% under the 9-day EMA; no 200-day yet (our data starts 2025-05-16) | -8.6% | day 4 |
 | AEHR 2026-04-02 | owner: "from -9% to up 12% on the day" (described, not traded) | -8.51% | -9.97% | +11.92% | 2.1% under the 20-day EMA | +77.9% | not in 10 |
 | ALAB 2026-08-13 | owner: "Bought Thursday red to green" | -1.80% | -2.76% | +1.25% | under a falling 20-day EMA and 13% under the 50-day | -8.9% | day 3 |
-| NOW 2026-09-25 | owner: "went red to green but the market had other plans" | -0.38% | -1.58% | -1.57% (failed) | on the 20-day EMA; crossed in the first 5-minute bar, crossed back 6 times | -2.5% | day 1 |
+| NOW 2026-09-25 | owner: "went red to green but the market had other plans" | -0.38% | -1.58% | -1.57% (failed) | on the 20-day EMA; traded over the prior close in the first 5-minute bar, and its 5-minute closes flipped across that line 6 times during the day | -2.5% | day 1 |
 | CRM 2026-10-28 | owner: "oops reversal and red to green move at the 20EMA", then "a 4% loss on the gap down" | -1.40% | -1.61% | +0.51% | 1.3% under the 20-day EMA, on the 50-day | -5.7% (gapped down 4.9% the next day) | day 1 |
 | SMH 2026-07-15 (G2R) | Index section: "big green to red move to lose the 50SMA" | +1.09% | low -4.43% | -1.59% | lost the 50-day | -2.2% (10 sessions: -16.0%) | |
 
@@ -515,8 +545,10 @@ within 1 to 3 sessions. Two of his examples (Q, GLXY) were young listings withou
 
 Chosen by rule, not by eye: above the 200-day, rising 20-day EMA, RS proxy 80+, gap 0.7%+, the low before the cross
 within 1% of the 9/20-day EMA or 50-day, within 10% of the 10-day, no earnings within 3 sessions, the cross by 10:25,
-closed above the prior close, reached 3R before the stop, stop 0.8% to 3%. 53 qualified; ten with different names and
-dates:
+closed above the prior close, reached 3R before the stop, stop 0.8% to 3%. A few dozen qualified (53 in the writer's
+run; 36 when the checker re-coded the same filters from the saved trade table, the difference being how the earnings
+and support-tag filters are written); the ten below passed both runs, and every number in the table was re-derived in
+checking:
 
 | # | Stock | Day | Gap | Cross (bar) | Stop | RS proxy | Low vs 20-day EMA | Plan result |
 |---|---|---|---|---|---|---|---|---|
@@ -593,8 +625,9 @@ the plain daily red to green after a red day. The docstring says it was "dropped
 - Model Book: `app/src/pages/modelbook/setupCatalog.js` has no card for it (the 26 cards end with ORB, 30-Minute Pivot
   and Go Signal).
 - Course plans: `docs/study/UNITS-method.md` line 189 says the three journal names are "entry triggers, taught in SET.06,
-  not setups". `docs/study/UNITS-foundations.md` F2b.09 and `docs/study/bank/walk.method.json` list RED TO GREEN as one of
-  "the firm's four entry triggers" (with BASE BREAKOUT, PREV DAY HIGH BREAK, PREV LOW RECLAIM).
+  not setups". `docs/study/UNITS-foundations.md` F2b.09 lists RED TO GREEN as one of "the firm's four entry triggers" (with
+  BASE BREAKOUT, PREV DAY HIGH BREAK, PREV LOW RECLAIM); `docs/study/bank/walk.method.json` teaches the same four as "The
+  four entry triggers".
 - `docs/study/research/definitions.json` (line 1514): "an entry trigger in the method, not a setup", with only an
   Investopedia gap quote as its source.
 - `docs/superpowers/research/setups/setup_criteria.json` (lines 541-592): "Red to Green" from the firm's brain template
@@ -755,9 +788,11 @@ red in his method, and it is bullish, not a short.
   group in the market." (A warning on the group, not a short trade.)
 - **Index section (unsigned)**, 2026-11-01 (669, QQQ): "This lead to two heavy gap downs that did not get bought up even
   a little bit." (The failure case, for contrast.)
-- **Jersace** (contributor), 2026-03-25 ([the-rest-of-the-week-ecf](https://unchartedterritoryy.substack.com/p/the-rest-of-the-week-ecf)):
+- **VIOTTI** (contributor; the post's CONTRIBUTORS section, entry "VIOTTI - BKSY"), 2026-03-25
+  ([the-rest-of-the-week-ecf](https://unchartedterritoryy.substack.com/p/the-rest-of-the-week-ecf)):
   "Would probably try a starter on a wick into there and then add on a r2g move." (A starter and an add conflict with the
-  house rule A5, one full position; section 7.)
+  house rule A5, one full position; section 7.) The first draft credited this line to Jersace; the fresh copy of the post
+  puts it under VIOTTI's name.
 
 ### 6.6 UCT material I did not quote
 
@@ -784,7 +819,7 @@ red in his method, and it is bullish, not a short.
   entries are wider (median 2.1%; 73% within 3%).
 - **E57** market orders: send a market order as price trades through the prior close (a stop-market order a cent over
   the line does the same job).
-- **A5** one full position at one price: the owner's "immediate full size" on a Go Signal fits; Jersace's starter-then-add
+- **A5** one full position at one price: the owner's "immediate full size" on a Go Signal fits; VIOTTI's starter-then-add
   plan and the brain template's add-on rules do not.
 - **B19, E51, E52** a third at 3R, a third at 5R, breakeven at 2R to 5R, trail the 10 or 21-day: no reason to change.
 - **B20** a gap through the stop: the first 30-minute low is the new stop, out past 2R. His CRM loss (a 4.9% gap down the
@@ -1000,7 +1035,7 @@ Read 2026-11-09 unless noted. "Saved" means a copy was downloaded and quotes wer
 
 | # | Source | Publisher, author, date | URL or path | Reliability note |
 |---|---|---|---|---|
-| 1 | UCT Substack, all 103 posts in the sitemap (27 mention red to green, green to red or r2g) | Uncharted Territory: the owner (TSDR), Bracco, Jersace, unsigned Index sections; 2025-06-08 to 2026-11-08 | https://unchartedterritoryy.substack.com/sitemap.xml and the post links in section 6 | House source; saved through the public post API; quotes checked by script; section authors checked by the post's own headings |
+| 1 | UCT Substack, all 103 posts in the sitemap (27 mention red to green, green to red or r2g; 35 mentions in all, re-counted in checking) | Uncharted Territory: the owner (TSDR), Bracco, the contributor VIOTTI, unsigned Index sections; posts dated 2025-06-01 to 2026-11-08 | https://unchartedterritoryy.substack.com/sitemap.xml and the post links in section 6 | House source; saved through the public post API; quotes checked by script; section authors checked by the post's own headings |
 | 2 | "The Parabolic Short" | UCT, Bracco, 2025-06-13 | https://unchartedterritoryy.substack.com/p/the-parabolic-short | House source; saved |
 | 3 | Owner rulings | the owner, 2026-10-27 and 2026-11-01 | `docs/study/audits/2026-10-24/owner_verdicts.jsonl` (lines 228-308) | His own words, logged by the review sessions |
 | 4 | Account rulebook | the owner, 2026-11-09 | `docs/study/sizing_rule.md` section 9 | House rules |
@@ -1021,13 +1056,48 @@ Read 2026-11-09 unless noted. "Saved" means a copy was downloaded and quotes wer
 | 19 | "3 TIMELESS setups that have made me TENS OF MILLIONS!" | Kristjan Kullamagi | https://qullamaggie.com/my-3-timeless-setups-that-have-made-me-tens-of-millions/ | Originator of his setups; used for the stop rule only; saved |
 | 20 | "Should You Buy or Sell Stocks that Gap Down?" | QuantRocket, Brian Stanley, 2020-09-02 | https://www.quantrocket.com/blog/buy-or-sell-down-gaps/ | Vendor backtest; parameter search makes it optimistic; saved |
 | 21 | "Gaps and Gap Analysis" | StockCharts ChartSchool, no author or date shown | https://chartschool.stockcharts.com/table-of-contents/chart-analysis/gaps-and-gap-analysis.md | Established educator; vocabulary only; saved |
-| 22 | "Gap" | Investopedia, updated 2026-07-17 | https://www.investopedia.com/terms/g/gap.asp | Reference; vocabulary only; saved |
+| 22 | "Gap" | Investopedia (the writer's copy said "updated 2026-07-17"; not re-read) | https://www.investopedia.com/terms/g/gap.asp | Reference; vocabulary only; the writer saved a copy, but both checks got HTTP 402 to a plain download and the fetch tool refuses the domain, so its two quotes were replaced by StockCharts' (section 3.10) and nothing here rests on it |
 | 23 | Berkman, Koch, Tuttle, Zhang, "Paying Attention: Overnight Returns and the Hidden Cost of Buying at the Open", JFQA 47(4) 715-741, 2012 | Cambridge University Press | doi 10.1017/S0022109012000270 (abstract through https://api.crossref.org) | Peer-reviewed; abstract only |
 | 24 | Heston, Korajczyk, Sadka, "Intraday Patterns in the Cross-section of Stock Returns", Journal of Finance 65(4) 1369-1407, 2010 | Wiley | doi 10.1111/j.1540-6261.2010.01573.x (abstract through Crossref) | Peer-reviewed; abstract only; paraphrased |
 | 25 | "Red to Green Move" | therighttrader.com, "By The Right Trader", updated 2026-10-13 | https://therighttrader.com/learn/trading-strategies/red-to-green-move | **Not used:** no author; reads as AI-written |
 | 26 | "THE RED TO GREEN AND GREEN TO RED ENTRY STRATEGY" | TradingView user TheTrad1ngGame, 2021-09-08 | https://in.tradingview.com/chart/FB/9IGcurr7-THE-RED-TO-GREEN-AND-GREEN-TO-RED-ENTRY-STRATEGY | **Not used for rules:** anonymous user idea; only to show the open-line reading exists |
-| 27 | "Red to Green Previous Day Price Close" | usethinkscript.com forum | https://usethinkscript.com/threads/red-to-green-previous-day-price-close.7173 | **Not used:** forum |
+| 27 | "Red to Green Previous Day Price Close" | usethinkscript.com forum | https://usethinkscript.com/threads/red-to-green-previous-day-price-close.7173 | **Not used:** forum (the second check got HTTP 403 from the site's bot wall, so even the title is the writer's reading) |
 | 28 | "Gaps and traps" | Stockbee, Pradeep Bonde, 2006-11-22 | https://stockbee.blogspot.com/2006/11/gaps-and-traps.html | Read; nothing on intraday reversal of a gap; not used |
 | 29 | Not read: Warrior Trading pages (HTTP 403), SMB Capital's "Red Dog Reversal" (no page found), technical.traders.com (HTTP 403), bullishbears.com (HTTP 403), TraderLion, Aziz's book itself | | | Gaps in this dossier |
 | 30 | App code and docs | this repo, read 2026-11-09 at commit 9b5e51efba | `api/services/screener/bar_character.py`; `api/services/chart_iq/engine/v3.py`, `v44_read.py`; `api/services/pattern_engine/detectors/uct/uct_go_signal.py`, `uct_oops_reversal.py`; `scripts/study/find_go_signal_hourly.py`; `app/src/constants/setupGroups.js`; `app/src/pages/journal-2-0/lib/setupTagMap.js`; `app/src/pages/modelbook/setupCatalog.js`; `api/services/uct_agent/coach/setups.py`; `app/src/agent/coach/brain.js`; `docs/study/TRADE_PLANS.md`; `docs/study/UNITS-method.md`; `docs/study/UNITS-foundations.md`; `docs/study/bank/walk.method.json`; `docs/curriculum/uct_method_course.json`; `docs/study/research/definitions.json`; `docs/wisdom/vocabulary/setup-vocabulary-v1.json`; `docs/superpowers/research/setups/setup_criteria.json`, `SETUP_NOTES.md`; `docs/study/levels/brain_kb_2026-11-06.json`, `docs/study/levels/dossiers/oops.md`; `docs/study/setups/research/30-oops-reversal.md` | What the app does today |
 | 31 | Price data | the app's sandbox daily `bars.db` (read-only; 3,874 names; to 2026-11-06), the session's intraday store (5-minute bars 2026-08-17 to 2026-11-06 for 1,000 names; hourly 2023-12-12 to 2026-11-06), Yahoo earnings dates | session scratch folder, not in the repo | Survivorship bias (current names); no costs; see section 4.6 |
+
+## Removed in checking
+
+Two checking passes, both on 2026-11-09. Nothing below changes a rule; the proposed rules in section 8 and the grades
+in section 9 stand on quotes and numbers that were confirmed.
+
+**Second cold check (third session), 2026-11-09**
+1. **Attribution fixed: the "r2g" quote (2026-03-25) is VIOTTI's, not Jersace's.** The fresh copy of
+   `the-rest-of-the-week-ecf` puts "Would probably try a starter on a wick into there and then add on a r2g move" in the
+   CONTRIBUTORS section under the entry "VIOTTI - BKSY". Corrected in the section 2 table, section 6.5, section 7 (A5)
+   and the Sources table. The quote itself is exact.
+2. **Claim removed: that the Three-Day Unfilled Gap Reversal is "one of the patterns of her book *Street Smarts*".** The
+   August 1997 interview prints the pattern's rules and discusses the book, but does not say the pattern is in it, and
+   the book was not read. Sections 2 and 3.5 now say only what the interview says.
+3. **Wording fixed, IWM:** "fell 10.3% over the window" is the move from the 2026-08-14 close (the close before the first
+   test day) to 2026-11-06; close to close inside the window it is 10.0%. The sentence now says which.
+4. **Wording fixed, NOW 2026-09-25:** "crossed back 6 times" now reads as what was measured: the 5-minute closes flipped
+   across the prior close 6 times (12 bars straddled the line).
+5. **Wording fixed, section 5.6:** only `UNITS-foundations.md` uses the words "the firm's four entry triggers";
+   `walk.method.json` calls them "The four entry triggers".
+6. **Sources table:** row 1 now gives the posts' real date span (2025-06-01 to 2026-11-08) and names VIOTTI; row 22
+   (Investopedia) says that neither check could re-read it (HTTP 402) and that nothing rests on it; row 27
+   (usethinkscript) says the second check got HTTP 403, so its title is the writer's reading.
+7. **Checked and kept, for the record:** all 35 mentions in 27 posts (re-counted: 35 and 27); `sunday-scans-d40` has no
+   mention; every "owner" quote sits under "TSDR's Weekly Outlook & Watchlist" (or "TSDR TRADING") and none under
+   "Bracco's Breakdown"; the QQQ, SMH and 2026-11-01 QQQ lines sit in the Index sections; the Bear Bull Traders posts are
+   dated 16 Apr 2018 (DougT), 28 Dec 2018 (sandstorm) and 29 Dec 2018 (Robert H); the two brain-KB notes paraphrased in
+   section 6.6 exist (`brain_kb_2026-11-06.json` id 10727, "TSDR 2024-06-03", "5 Star", "2 min chart";
+   `brain_kb_rules_2026-11-06.json`, "TSDR desk log — 2025-05-22", an r/g entry through a $10.45 HVC with the stop at
+   $9.80 under a $9.83 low); Bulkowski's two pages were read again through the fetch tool and every figure in section
+   4.1 matched; Kullamagi's page and Bracco's "The Parabolic Short" contain no "red to green" or "green to red".
+
+**First cold check (second session), 2026-11-09**
+8. **Investopedia's two "Gap" definitions (partial and full gap) were removed** and replaced by StockCharts' "Gap
+   Trading Strategies" definitions of the same terms (section 3.10), because the page could not be re-read.

@@ -8,6 +8,15 @@ against the saved search results) and Bulkowski's site (it blocks plain download
 with the web tool, saved as returned; the numbers were read twice and agree). Quotes keep the writer's own spelling,
 typos included. Where I could not read a source, I say so and give no wording from it.
 
+**Cold check (a second reader, 2026-11-09).** Every quote, attribution, statistic and code claim below was re-checked by
+someone who did not write it: the four Sperandeo copies were searched again through archive.org's full-text search API
+(`be-api.us.archive.org/fts/v1/search`, restricted to each item), Bulkowski's two pages were re-read with the web tool, the
+TradingMarkets and ChartSchool pages and all 103 Substack posts were downloaded fresh and matched by script, the repo
+files were re-read at the lines cited, the 4.4 and 4.5 tables were recomputed (4.5 from the bars; 4.4 from the writer's
+event files, plus an independent re-implementation on 350 random tickers, 4.4), and the ten appendix rows were recomputed
+from the bars. What changed is listed under "Removed in checking" at the end. The biggest correction: Sperandeo does give a
+time window for the failure (section 3.1); the first draft said he did not.
+
 **Who is who in UCT quotes.** The owner is Patrick (TSDR). He writes the "TSDR’s Weekly Outlook & Watchlist" section of
 the Sunday Scans. Bracco writes "Bracco’s Breakdown & Top Ideas". The intros and the "Index & ETF" sections are not
 signed; I mark them *unsigned*. Dates are the Substack post dates.
@@ -26,8 +35,11 @@ question 1).
 1. The rule is Sperandeo's and it is one sentence. In his first book (1991/1993): "In an uptrend, if a higher high is made but fails
    to carry through, and then prices drop below the previous high, then the trend is apt to reverse". The bottom is the
    mirror. He calls it "my personal favorite". He gives a stop (beyond the new extreme: "use the new high to compute your
-   initial stop"), a volume note, and a warning to "admit defeat quickly". He gives no fixed lookback, depth, time
-   window or target in the passages I could read. (Section 3.1 to 3.3.)
+   initial stop"), a volume note, and a warning to "admit defeat quickly". He also gives a time window, by the degree
+   of the trend: a 2B on a minor extreme "will usually occur within one day or less", an intermediate one "will usually
+   break within three to five days", a major one "within seven to ten days" (1993; the 2008 book says "a day or two",
+   "three to five days", "up to 10 days"). He gives no fixed lookback, depth or target in the passages I could read.
+   (Section 3.1 to 3.3.)
 2. The only published statistics are Thomas Bulkowski's (2010-2020, 468 stocks). A second peak a little above the first
    was followed by bigger declines than one at or below it, and a second valley a little below the first by bigger
    rises. But he also found the 2B top "beat the benchmark group ... only 34% of the time", and he presents it mainly as
@@ -63,7 +75,7 @@ the stop just beyond the new extreme the failed push made.
 
 **Sperandeo's own words for the top.** "In an uptrend, if a higher high is made but fails to carry through, and then
 prices drop below the previous high, then the trend is apt to reverse" (*Methods of a Wall Street Master*, section 3.1).
-For the bottom, his 1994 and 2008 books add: "The converse is true for downtrends." (sections 3.2 and 3.3).
+For the bottom, the next sentence in all three books is: "The converse is true for downtrends." (sections 3.1 to 3.3).
 
 **The market psychology (who is trapped, who is buying).**
 - *Who sold the break.* A prior low is a level everyone can see. When price trades under it, three groups act: holders
@@ -134,23 +146,38 @@ volume note and the loss rule (a long run of searches can read like copying a bo
 
 - **The rule (heading "2B Rule").** "In an uptrend, if a higher high is made but fails to carry through, and then prices
   drop below the previous high, then the trend is apt to reverse"
+- **The bottom.** The sentence after the rule: "The converse is true for downtrends." (present in this book too, not
+  only in the later ones; the 1993 scan hyphenates it "down- trends" at a line break).
 - **Time frames.** "This observation applies in any of the three trends; short-term, intermediate-term, or long-term"
+- **How fast it should fail (his time rule, by degree of trend; missed in the first draft, found in checking).** "A
+  2B on a minor high or low will usually occur within one day or less of the time the high or low is made." Then:
+  "For 2B's on intermediate highs or lows preceding a correction, the new high or low point will usually break within
+  three to five days." And: "At major market turning points, long-term 2B's, the new high or low will usually break
+  within seven to ten days." (Three sentences, read in overlapping search passages; Bulkowski's page block-quotes the same
+  three sentences, section 3.4, and the 2008 book restates them, section 3.3.) "Break" here means the move back through
+  the previous extreme, i.e. how soon after the new extreme the failure shows.
 - **His view of it.** "my personal favorite, is what I call the “2B” criterion."
+- **Where it sits in the book.** The book's own index reads "2B rule, 78-81, 82, 178, 181" and "1-2-3 criterion,
+  76-77, 178, 268"; the passage refers to Figures 7.9 to 7.13, so it is in chapter 7. The lead-in: "It has so much
+  weight that it almost merits being called a rule: The 2B Rule".
 - **Volume.** "In the stock market, after the new high is made, the failure to carry forward usually occurs on low to
   normal volume, and the confirmation of reversal occurs on higher volume." (31 words.)
 - **Losses.** "When trading on the 2B criterion, it is essential that you admit defeat quickly if the trade moves against
   you."
 - **His example of the exit.** "if you are day-trading and you short the market on a 2B and then the market rallies to
-  new highs again, you should immediately close your position" (the sentence continues; I did not read the rest).
+  new highs again, you should immediately close your position when prices break past the new 2B high" (the sentence may
+  continue; read only this far).
 - **Hit rate, as he states it (a judgment, not a test).** "When day-trading, the 2B criterion may be right only 50% of
-  the time, but if you limit losses when you’re wrong" (the sentence continues; I did not read the rest).
-- **What the passages did not show.** A lookback (how old the prior high must be), a maximum overshoot, a time limit for
-  the failure, an entry order type, or a profit target. The sentence just before the volume note ends "will usually break
-  within seven to ten days"; I could not read its subject, so I give it no meaning.
+  the time, but if you limit losses when you’re wrong and let your profits run when" (the sentence continues; read only
+  this far). Just before it: by limiting losses "you’ll “stay at the table” and be able to keep trying."
+- **What the passages did not show.** A lookback (how old the prior high must be), a maximum overshoot, an entry order
+  type, or a profit target. (The first draft also listed "a time limit for the failure" here and said the fragment
+  "will usually break within seven to ten days" had no readable subject; the checker found the full passage, above.)
 
 *Criteria from this source:* prior trend: an uptrend (top) or downtrend (bottom), in any time frame; shape: a new extreme
-past "the previous high" (or low); trigger: price back through the previous extreme; volume: quiet on the failure, heavier
-on the reversal; stop: get out if the market makes a new extreme again; target: none given.
+past "the previous high" (or low); trigger: price back through the previous extreme; time: the failure usually shows
+within one day (minor), three to five days (intermediate) or seven to ten days (major); volume: quiet on the failure,
+heavier on the reversal; stop: get out if the market makes a new extreme again; target: none given.
 
 ### 3.2 Sperandeo, *Trader Vic II: Principles of Professional Speculation* (1994) (originator, primary)
 
@@ -174,14 +201,18 @@ archive.org identifier `traderviconcommo0000sper`, full-text search, 2026-11-09.
   point" (the example continues with a price, 1,353.9).
 - **The loss rule.** "The most crucial part of the 2B rule is that you lose properly! If the market trades back above
   the new high, or below the new low, you need to admit defeat immediately and take the loss." (37 words.)
-- **Re-entry.** The next words are "You can go ahead and initiate" and the passage breaks at a page turn; I could not read
-  the rest, so I do not say what re-entry rule he gives.
+- **Re-entry.** The next words, across the page turn: "You can go ahead and initiate the position again if the market
+  once again" (cut there; the condition that follows was not read, so I do not state his re-entry rule).
+- **The time rule, restated.** "...or low should fail to follow through within a day or two. In the intermediate term,
+  it may take three to five days. And in the long-term, with major 2B signals, it could take up to 10 days." (The
+  subject of the first sentence, a short-term 2B, was cut off; the sense is clear from the 1993 wording in 3.1.)
 - He applies it to futures spreads too: "The 2B rule works with spreads, too". And he shows buy signals on futures: "A
   powerful 2B buy signal was given in May 2005" (rough rice, per the passage around it).
 
 *What 3.1 to 3.3 settle:* the trigger is a return through the old extreme, and the stop is beyond the new extreme. The
-1994 "immediately" says the failure should be quick. Nothing in what I read sets numbers for how quick,
-how old the previous extreme, or how far past it.
+failure should be quick: one day or less for a minor extreme, three to five days for an intermediate one, seven to ten
+days for a major one (1993, restated in 2008), and "immediately" (1994). Nothing in what I read sets numbers for how old
+the previous extreme must be or how far past it the new one may go.
 
 ### 3.4 Thomas Bulkowski, thepatternsite.com, "2B Pattern" (data source, secondary)
 
@@ -192,7 +223,9 @@ and short quotes, as allowed for this research; I did not copy the page.
 
 - **Credit.** "Victor Sperandeo in his book, Trader Vic--Methods of a Wall Street Master describes the 2B pattern this
   way." He then block-quotes the rule (the first words match the book: "In an uptrend, if a higher high is made but fails
-  to carry through,").
+  to carry through,"). His block quote runs on through the time rule and the volume note (the same sentences as 3.1; his
+  copy reads "down trends" as two words and "confirmation of a reversal"). His own summary of Sperandeo: "It is less a
+  pattern than it is a way for swing traders to take profits, according to Victor Sperandeo."
 - **His shape.** "I prefer to think of a 2B top as one in which price begins to form a double top." "In a 2B top, the
   right peak is above the left." "In a 2B bottom, the right valley is below the left."
 - **His view of what it is for.** "The 2B top can be valuable to exiting a long position in a timely manner but fake
@@ -262,9 +295,11 @@ words (section 5.3).
 - The Wiley Online Library page for the 2008 chapter: HTTP 403 (metadata taken from Crossref instead).
 - Bulkowski, *Trading Basics: Evolution of a Trader* (Wiley), chapter 5 on O'Reilly: HTTP 403.
 - *Working Money* article 677 (titled The Optimized Trader in search results): the server returned error 520.
-- IBD articles on the double bottom's undercut and on a shakeout-based early entry (syndicated on inkl.com): HTTP 403. These
-  matter because IBD's double bottom wants the second low to undercut the first, which is a 2B bottom inside a base; I
-  could not quote IBD's wording, so I do not.
+- IBD articles on the double bottom's undercut and on a shakeout-based early entry (syndicated on inkl.com): HTTP 403;
+  investors.com itself refuses our web tools, and a Nasdaq.com reprint timed out. They would matter if, as commonly
+  taught, IBD's double bottom wants the second low to undercut the first (which would make it a 2B bottom inside a
+  base). I could not open any IBD page to confirm that wording, so it is reported here as an unverified recollection,
+  not a sourced criterion.
 - *Street Smarts* (Connors and Raschke) itself, and Sperandeo's *New Market Wizards* interview (Schwager): not read.
 - Several *Stock Trader's Almanac* editions (Hirsch) quote Sperandeo's rule with "prices dip below the previous high",
   per archive.org search passages. The book says "drop". A small sign that secondary quotes of this rule drift.
@@ -278,7 +313,7 @@ words (section 5.3).
 | The level | "the previous high" (low) | same | same | the first peak (valley) | the prior 20-day low (high) | the range low (high) | a prior low, a range low, a moving average, a gap, last week's low |
 | Age of the level | not given | not given | not given | up to a year; median 10 days (tops), 21 (bottoms) | 3 or 4+ sessions (sources differ) | weeks to months (range) | not fixed |
 | How far past | not given | not given | not given | within 5% | any new 20-day low | "below the low of the TR" | "briefly", "slightly" |
-| Time to fail | not given | "immediately" | not given | none (two peaks) | same day, or next day (Plus One) | "reverses to close within the TR" | same day to a few days |
+| Time to fail | "within one day or less" (minor), "three to five days" (intermediate), "seven to ten days" (major) | "immediately" | "a day or two", "three to five days", "up to 10 days" | none (two peaks) | same day, or next day (Plus One) | "reverses to close within the TR" | same day to a few days |
 | Volume | failure on "low to normal", reversal on "higher" | not read | not read | none | none | volume read in context | not stated |
 | Trigger | back through the old extreme | same | same | none (exit tool) | buy stop at the old 20-day low | the close back inside | the reclaim; or the next hourly higher low |
 | Entry order | not given | not given | not given | none | stop order | not given | market order (house E57) |
@@ -291,8 +326,10 @@ words (section 5.3).
 1. **Reversal or exit signal?** Sperandeo: "the trend is apt to reverse". Bulkowski's data: most 2B tops lead to small
    declines; he presents it as a way of "exiting a long position in a timely manner". UCT: a reclaim after a dip in a leader,
    which is a resumption of the uptrend, not a change of trend.
-2. **How soon must it fail?** Not stated (1991), "immediately" (1994), same day or next day (Turtle Soup), "quickly"
-   (Wyckoff UT). Nobody gives a number of days except Turtle Soup.
+2. **How soon must it fail?** Sperandeo (1993, 2008): about a day for a minor extreme, three to five days for an
+   intermediate one, seven to ten days for a major one; "immediately" (1994); same day or next day (Turtle Soup);
+   "quickly" (Wyckoff UT). For a swing trade on a daily chart the intermediate figure (three to five days) is the one
+   that applies, and it agrees with Turtle Soup and with UCT's "same day to a few days".
 3. **Volume.** Sperandeo wants the failure on "low to normal volume". UCT's draft curriculum script says the opposite: "the
    heavy volume on the failed break IS the trapped crowd". My check (section 4) agrees with Sperandeo, weakly.
 4. **The level.** Any previous extreme (Sperandeo), the 20-day extreme (Turtle Soup), a range edge (Wyckoff), a peak or
@@ -471,6 +508,12 @@ commissions or slippage; events overlap in time (market-wide washouts produce hu
 independent; the bars are a sandbox copy with today's tickers only. It tests whether the shape is enough, not whether the
 owner's or Bracco's version works.
 
+**Checker's replication (2026-11-09).** A second reader re-implemented the same definition from the text above (own
+code, 350 random tickers with 2,500+ daily bars, same house filters and baseline): all liquid 2B bottoms 16,155 events,
+27.8% to 3R; house set 7,887, 27.4%; baseline 9,676, 27.7%; same-day reclaims 5R 19.2% versus 15.6% for 1-3 days;
+undercuts under 1% 3R 29.3% versus 15.0% for undercuts over 5%; median stop 2.10%, 67% within 3%. The table above was
+also recomputed from the writer's event files and transcribes exactly. The conclusions stand.
+
 ### 4.5 The 2Bs UCT named, on the same bars
 
 Bracco named HOOD, PLTR, NFLX, SPOT and GEV (the April 2025 lows) and ASTS and RKLB (the 2026-03-30 low) as 2B
@@ -482,16 +525,18 @@ reclaimed on 2026-03-24, so the table uses the 2026-02-27 low):
 |---|---|---|---|---|---|---|
 | HOOD | 2025-03-10, 35.23 | 2025-04-04 | 29.66 (4/7) | 15.8% | 2025-04-07 (1 session) | yes |
 | PLTR | 2025-03-10, 74.57 | 2025-04-04 | 66.12 (4/7) | 11.3% | 2025-04-07 (1 session) | yes |
-| NFLX | 2025-03-10, 85.45 (split-adjusted) | 2025-04-04 | 82.11 (4/7) | 3.9% | 2025-04-04 (same day) | yes |
+| NFLX | 2025-03-10, 85.45 (split-adjusted) | 2025-04-04 | 85.39 (4/4) on the first break; 82.11 on a second undercut (4/7) | 0.1%, then 3.9% | 2025-04-04 (same day); the 4/7 dip also closed back above the same day (86.78) | yes |
 | SPOT | 2025-03-10, 483.65 | 2025-04-07 | 475.01 | 1.8% | 2025-04-07 (same day) | yes |
 | GEV | 2025-03-10, 266.47 | 2025-04-04 | 252.25 | 5.3% | 2025-04-04 (same day) | **no** (close 271.48, 200-day 279.27) |
 | ASTS | 2026-02-27, 77.17 | 2026-03-30 | 71.85 | 6.9% | 2026-03-31 (1 session) | yes |
 | RKLB | 2026-02-27, 64.10 | 2026-03-27 | 56.13 (3/30) | 12.4% | 2026-03-31 (2 sessions) | yes, barely (close 64.22, 200-day 57.57) |
 
-Two lessons for the course. First, UCT's best-known 2Bs undercut their prior low by 1.8% to 15.8%, far more than my
-mechanical set's typical undercut (under 1% in more than half of the house set); a stop beyond the new extreme would have
-been roughly that far away, mostly far outside A13's "about 3%". (NFLX shows another wrinkle: it reclaimed on the break
-day, then undercut again the next session before turning.) The owner's own way around this is visible in his words: buy a later, tighter spot ("Next higher low on the
+Two lessons for the course. First, most of UCT's best-known 2Bs undercut their prior low by far more than my mechanical
+set's typical undercut (under 1% in more than half of the house set): SPOT 1.8%, GEV 5.3%, ASTS 6.9%, PLTR 11.3%, RKLB
+12.4%, HOOD 15.8%; a stop beyond the new extreme would have been roughly that far away, mostly far outside A13's "about
+3%". (NFLX is the exception and a wrinkle: its first break on 4/4 was only 0.1% deep and reclaimed the same day; it then
+undercut again on 4/7, 3.9% deep, and again closed back above the same day. The first draft's row merged the two.) The
+owner's own way around the wide stop is visible in his words: buy a later, tighter spot ("Next higher low on the
 hourly is actionable imo", section 6). Second, one of Bracco's seven (GEV) was below its 200-day on the reclaim day, so
 B26 would have skipped it.
 
@@ -594,9 +639,11 @@ the page (checked again 2026-11-09). Its note "Sperandeo's own text was not fetc
 **Searched:** all 103 posts in UCT's public Substack sitemap (https://unchartedterritoryy.substack.com/sitemap.xml, read
 2026-11-09), for "2B", "Sperandeo", "Trader Vic", "Turtle Soup", "1-2-3", "failed breakdown", "failed breakout",
 "bull trap", "bear trap", "trapped", "fake out", "sweep", "undercut", "shakeout" and "spring". Counts: "2B" as the setup
-2 posts (other "2B" hits were "$2B" dollar amounts); "Sperandeo", "Trader Vic", "Turtle Soup" 0; "failed breakdown" 23;
-"failed breakout" 13; "undercut" forms 116; "shakeout" forms 112. Every quote below was re-checked against a fresh copy of
-the post downloaded the same day.
+2 posts (other "2B" hits were "$2B" dollar amounts); "Sperandeo", "Trader Vic", "Turtle Soup" 0; "failed breakdown" 24
+occurrences in 16 posts; "failed breakout" 14 in 11; "undercut" forms 116 in 65; "shakeout" forms 112 in 47 (the
+checker's recount, body text plus title; the first draft had 23 and 13 for the first two). Every quote below was
+re-checked against a fresh copy of the post downloaded the same day, and again by the checker from a second fresh
+download, including which signed section each sits in.
 
 **The two posts that name the 2B.**
 - **Bracco**, Sunday Scans 2026-04-05 ([post](https://unchartedterritoryy.substack.com/p/sunday-scans-356)), on ASTS and
@@ -704,7 +751,7 @@ a 2B short on a stock in the public posts.
 | Rule | What it means for the 2B | Conflict? |
 |---|---|---|
 | A3, F62 stop a few cents under the day's or prior day's low | Sperandeo's stop is beyond the new extreme. On a same-day reclaim, the new extreme is the day's low, so the two agree. On a 1-3 day reclaim, the extreme may be an earlier day's low. | Small: name which low (question 6). |
-| A13 stop usually within about 3% | My check: median 2.1%, two thirds within 3%; under half when the reclaim is slow; none when the undercut is over 3%. UCT's named 2Bs undercut by 1.8% to 15.8%. | **Real.** Size down (A5), skip (A3), or wait for a tighter spot (question 6). |
+| A13 stop usually within about 3% | My check: median 2.1%, two thirds within 3%; under half when the reclaim is slow; none when the undercut is over 3%. Six of UCT's seven named 2Bs undercut by 1.8% to 15.8% (NFLX's first break was 0.1%). | **Real.** Size down (A5), skip (A3), or wait for a tighter spot (question 6). |
 | A4 the stop only moves up | Matches Sperandeo's "admit defeat immediately". | None. |
 | B26 no longs below the 200-day; shorts only below it | About half of all liquid 2B bottoms in my check were below the 200-day; the house skips them. One of Bracco's seven (GEV) was below it. The curriculum's SPY 2011 example was far below it. The owner wrote he does not generally take undercuts "below the MAs". | **Real filter.** Longs above the 200-day only; shorts (2B tops) only below it. |
 | C28 no chasing more than 4% past the buy point | The buy point is the broken low. A gap back more than 4% above it is skipped. | None. |
@@ -744,7 +791,8 @@ the 5 sessions on each side (the definition my check used).
   the stop fits A13. [house rule A13; my check: undercuts under 2% did best in R] Deeper undercuts are allowed only with a
   smaller size or a later, tighter entry (8.2). [my proposal]
 - **Time.** A close back above the prior low on the break day or within the next 3 sessions. Same day or next day is the
-  better grade. [originator: "immediately" (1994); Turtle Soup's same day or Plus One; my check]
+  better grade. [originator: "within one day or less" for a minor extreme, "three to five days" for an intermediate one
+  (1993), "immediately" (1994); Turtle Soup's same day or Plus One; my check]
 - **Volume.** Quiet on the break (at or under the 50-day average), heavier on the reclaim. A grade booster, not a gate.
   [originator; my check agrees, weakly]
 - **Leaders.** RS rating 80 or more, in a strong group. [house rule C31; UCT: "RS names"] (Question 5 asks whether the
@@ -786,7 +834,8 @@ the 5 sessions on each side (the definition my check used).
 ### 8.5 What invalidates it
 
 - A trade under the new low (the stop). [originator]
-- No close back above the broken low within 3 sessions: it is a breakdown, not a 2B. [my proposal; "immediately"]
+- No close back above the broken low within 3 sessions: it is a breakdown, not a 2B. [my proposal for the number;
+  originator: a minor 2B fails "within one day or less", an intermediate one "within three to five days"]
 - After the reclaim, a close back under the broken low within 2 sessions: tighten or exit; the failure has failed.
   [my proposal]
 - The reclaim day closes in the bottom half of its range. [my proposal; the house Undercut & Reclaim scanner requires the
@@ -830,7 +879,7 @@ the 5 sessions on each side (the definition my check used).
 | Question | Options | My recommendation and why |
 |---|---|---|
 | Which level? | any swing low (Sperandeo); 20-day low (Turtle Soup); range low (Wyckoff); any known level (UCT) | A 5-session swing low 5-60 sessions old with a 1 ATR rally between, plus the owner's named levels (last week's low, range low). Measurable, and it keeps the 2B distinct from the Oops (one-day) and the U&R (moving averages). |
-| How soon must it reclaim? | not given; "immediately"; same day or next day | Within 3 sessions; same day or next day grades higher. My check: same-day reclaims had tighter stops and more 5R wins. |
+| How soon must it reclaim? | one day (minor), 3-5 days (intermediate), 7-10 days (major) (Sperandeo 1993, 2008); "immediately" (1994); same day or next day (Turtle Soup) | Within 3 sessions; same day or next day grades higher. Sperandeo's intermediate window (3-5 days) is the one for a daily swing chart; my check: same-day reclaims had tighter stops and more 5R wins. |
 | How deep? | not given; within 5% (Bulkowski) | 3% or less for full size, because of A13; deeper only with a smaller size or a later entry. |
 | Volume | quiet failure (Sperandeo) vs heavy break (curriculum draft) | Teach Sperandeo's: his words, and my check leans his way. |
 | Entry | stop order at the level (Sperandeo, Turtle Soup); market order (house); next hourly higher low (owner) | Market order when it trades back above (E57); the hourly higher low as the tighter alternative. |
@@ -880,7 +929,8 @@ but not a top leader; the market is still mixed.
 4. **The entry.** (a) market order when it trades back above the old low; (b) only on a close above; (c) your AMD way,
    the next hourly higher low; (d) over the reclaim day's high.
 5. **RS rule.** Is a 2B a "mean-reversion" trade exempt from C31, or does it need RS 80+ like Bracco's "RS names"?
-6. **The stop when the undercut is deep** (Bracco's April 2025 and March 2026 names undercut by 1.8% to 15.8%): (a) stop under the new low and
+6. **The stop when the undercut is deep** (Bracco's April 2025 and March 2026 names undercut by up to 15.8%; only SPOT
+   and NFLX stayed under 4%): (a) stop under the new low and
    size down; (b) skip it; (c) wait for a tighter spot (hourly higher low, inside day) with its own stop. And on a 1-3 day
    reclaim, is the stop under the lowest low of the undercut, or under the day you buy?
 7. **The short side.** (a) teach 2B tops only below the 200-day; (b) do not teach 2B shorts on stocks at all, only as a
@@ -907,7 +957,7 @@ All read 2026-11-09 unless noted.
 
 | # | Source | Publisher / author | How read | Reliability |
 |---|---|---|---|---|
-| 1 | *Trader Vic: Methods of a Wall Street Master* (1991; printed copy 1993), https://archive.org/details/tradervicmethods0000sper and https://archive.org/details/tradervicmethods00vict | John Wiley & Sons; Victor Sperandeo with T. Sullivan Brown | archive.org full-text search passages, saved and checked by script | Originator, primary. Partial reading: rule, volume, loss rule; no chapter page confirmed. |
+| 1 | *Trader Vic: Methods of a Wall Street Master* (1991; printed copy 1993), https://archive.org/details/tradervicmethods0000sper and https://archive.org/details/tradervicmethods00vict | John Wiley & Sons; Victor Sperandeo with T. Sullivan Brown | archive.org full-text search passages, saved and checked by script; re-searched by the checker through `be-api.us.archive.org/fts/v1/search` | Originator, primary. Partial reading: rule, time rule, volume, loss rule. The book's index places the 2B rule at pages 78-81, 82, 178 and 181 (chapter 7, Figures 7.9-7.13). |
 | 2 | *Trader Vic II: Principles of Professional Speculation* (1994), https://archive.org/details/traderviciiprinc00vict_0 | John Wiley & Sons; Victor Sperandeo | same | Originator, primary. Partial. |
 | 3 | *Trader Vic on Commodities* (2008), ch. 4 "2B or Not 2B: A Classic Rule Revisited", pp. 23-34, https://archive.org/details/traderviconcommo0000sper | John Wiley & Sons; Victor Sperandeo | same; chapter data from Crossref, https://api.crossref.org/works/10.1002/9781119196792.ch4 | Originator, primary. Partial. |
 | 4 | "2B Pattern", https://thepatternsite.com/2B.html (page updated 6/10/25) | Thomas N. Bulkowski | web tool, four reads (plain download blocked, HTTP 406) | Best measured data; carries a notice against AI training (flagged in 3.4). Measures moves, not trades. |
@@ -921,7 +971,7 @@ All read 2026-11-09 unless noted.
 | 12 | `app/src/pages/modelbook/setupCatalog.js`, `SetupsView.jsx`; `app/src/constants/setupGroups.js`; `api/services/journal_two/coach_prompts.py`; `api/services/desk_session_insights.py`; `app/src/components/chart/engine/ast/starterScans.json` | this repo | read | House labels and text. |
 | 13 | `docs/curriculum/uct_method_{course,chapters,scripts}.json` (M10.L2); `docs/study/UNITS-method.md`; `docs/study/plan-review.html`; `docs/study/research/definitions.json`; `docs/study/levels/dossiers/oops.md` | this repo | read | Planning drafts; not the owner's words. |
 | 14 | My checks: mechanical 2B bottoms and tops, a random-day baseline, a replay of Chart IQ's rule, and Bracco's named examples, on the local sandbox daily bars | me | scratch scripts, not committed | Indicative only; limits in 4.4. |
-| 15 | *Stock Trader's Almanac* 2014 and 2015 (Hirsch), as seen in archive.org search passages | Hirsch (publisher not checked) | search passages only | Secondary; shows a drifted quote ("dip" for "drop"). |
+| 15 | *Stock Trader's Almanac* 2015 (Jeffrey A. Hirsch; archive.org item `stocktradersalma0000jeff`, dated 2014) and one more edition, as seen in archive.org full-text search passages | Wiley, per archive.org metadata | search passages only (re-found by the checker) | Secondary; shows a drifted quote ("dip" for "drop"). |
 | - | Not read (blocked or unavailable): Traders.com S&C articles (403); Wiley Online Library chapter page (403); O'Reilly, Bulkowski *Trading Basics* ch. 5 (403); *Working Money* 677 (520); IBD reprints on inkl (403); *Street Smarts*; *The New Market Wizards* interview | various | - | No wording from them is used. |
 
 ---
@@ -955,6 +1005,125 @@ twenty sessions later) had earnings 3 sessions later (2014-10-20 in the cache). 
 earnings day (2025-12-17 in the cache). Both "worked", but B22 forbids both buys.
 
 **Better first candidates: UCT's own.** Bracco's named 2Bs (section 4.5) are the examples with a house voice behind them:
-SPOT (April 2025: a 1.8% undercut, same-day reclaim, above the 200-day) fits these rules; NFLX (3.9%) is just over the
-3% depth line; HOOD, PLTR, ASTS and RKLB fit UCT's description but undercut about 7% to 16%, so they teach the
-deep-undercut problem (question 6); GEV was below its 200-day (B26). Chart images of the candidates are in my scratch folder, not in the repo.
+SPOT (April 2025: a 1.8% undercut, same-day reclaim, above the 200-day) fits these rules; NFLX fits on its first break
+(0.1%, same-day reclaim) and its second dip (3.9%) is just over the 3% depth line; HOOD, PLTR, ASTS and RKLB fit UCT's
+description but undercut about 7% to 16%, so they teach the deep-undercut problem (question 6); GEV was below its
+200-day (B26). Chart images of the candidates are in my scratch folder, not in the repo. The checker recomputed all ten
+rows from the bars (prior swing low, undercut, stop, break-day volume, 20-session return, sessions to 3R, 200-day) and
+the earnings dates named (META 2023-10-25, NFLX 2024-04-18, HOOD 2024-05-08, AAPL 2014-10-20, MU 2025-12-17) against the
+cache; all agree. The "SPY off its high" column differs by 0.1 to 0.3 points depending on whether the 52-week high is
+taken from closes or highs; treat it as approximate.
+
+---
+
+## Removed in checking
+
+Changes made by the cold check (2026-11-09). Nothing else in the first draft failed verification: every outside quote
+was found word for word on its page (Sperandeo through archive.org's full-text search, Bulkowski, TradingMarkets,
+ChartSchool), every one of the 36 Substack quotes was found in the named post on the named date and in the section
+attributed, every owner ruling quoted is in `owner_verdicts.jsonl`, every repo line cited reads as described, and the
+4.4, 4.5 and appendix numbers recompute.
+
+1. **Removed:** the claim (short answer 1, sections 3.1, 3.9, 3.10, 8.9) that Sperandeo gives no time window and that
+   "Nobody gives a number of days except Turtle Soup". The 1993 book gives one, by degree of trend: "within one day or
+   less" (minor), "within three to five days" (intermediate), "within seven to ten days" (major); the 2008 book repeats it
+   ("a day or two", "three to five days", "up to 10 days"). The fragment the writer could not place ("will usually break
+   within seven to ten days") is the third of those sentences. Fixed throughout, and the proposed 3-session window in
+   8.1 now carries an [originator] basis for its number.
+2. **Fixed:** section 1 said the 1994 and 2008 books "add" the sentence "The converse is true for downtrends." It is in
+   the 1993 book as well, directly after the rule.
+3. **Fixed:** the NFLX row in 4.5 merged two undercuts. The first break of the 85.45 low (2025-04-04) went 0.1% under
+   and closed back above the same day; the 3.9% dip to 82.11 was a second undercut on 2025-04-07, also reclaimed the same
+   day. The sentences built on that row (4.5, question 6, the appendix) were reworded.
+4. **Fixed:** the Substack term counts for "failed breakdown" and "failed breakout" (23 and 13 in the draft; the
+   checker's recount is 24 occurrences in 16 posts and 14 in 11; the "undercut" and "shakeout" counts of 116 and 112 were
+   confirmed as occurrence counts).
+5. **Reworded as unverified:** section 3.8's statement that IBD's double bottom requires the second low to undercut the
+   first. No IBD page could be opened by either reader, so it stands as a recollection, not a sourced criterion.
+6. **Added (not removed):** the 1993 index entries (2B rule, pp. 78-81, 82, 178, 181; 1-2-3 criterion, pp. 76-77,
+   178, 268), the chapter-7 figure references, the rest of the exit sentence ("when prices break past the new 2B high"),
+   the rest of the 50% sentence, the "stay at the table" clause, the start of the 2008 re-entry sentence ("initiate the
+   position again if the market once again"), Bulkowski's one-line summary of Sperandeo, the Almanac's publisher, and an
+   independent replication of the 4.4 test.
+
+---
+
+## 12. Examples (from our data)
+
+**The scan's rule (one paragraph).** Daily bars from the local sandbox, 1984 to 2026-11-06, the 2,630 names that ever
+met the house liquidity rule (the scan completed, 2,630 of 2,630, in about 7 minutes; nothing was cut for time; scratch
+script `scratchpad/setups/28-2b-reversal/scan_2b.py`, not in the repo). A 2B bottom follows section 8: the level is a
+swing low (no lower low in the 5 sessions on each side) made 6 to 60 sessions before the break, with a rally of at least
+1 ATR(14) off it; the break day is the FIRST session to trade under that low since it formed; the undercut's lowest low
+is 3% or less under the level; the trigger day is the first close back above the level, on the break day or within the
+next 3 sessions, and that day closes in the upper half of its range (8.5); close above the 200-day SMA (B26); close $10
+or more and 50-day average dollar volume $20 million or more (B23); the market-order fill is the level plus a cent when
+the day opened at or under the level (price traded back up through it), or the open when the trigger day opened above
+it, and no fill more than 4% over the level (C28) or more than 10% over the 10-day SMA (C29); stop 5 cents under the
+lowest low of the undercut (8.3). The 2B top (short) is the mirror with the close BELOW the 200-day (B26, D47). Break
+volume, reclaim volume, the close position, the age of the level and the rally size are recorded as grade cues, not
+gates. Not coded: the RS rating and group (C31), the market reading (8.7), earnings dates (B22; checked by hand for the
+10 examples), the "clean lead-in" and the trims. Outcome: from the day after the trigger, 60 sessions forward, the first
+of stop / 3R / 5R; a day that touches both counts as stopped.
+
+**Base rate.** 71,881 hits (44,919 longs, 26,962 shorts), 1988-07-12 to 2026-11-06. Longs: **42.7% reached 3R and
+30.2% reached 5R before the stop**; 81% were eventually stopped at the original stop inside the 60 sessions (that
+includes winners, since the stop never moves here) and 33.6% never reached 1R. Shorts (below the 200-day): 39.0% to
+3R, 26.5% to 5R. Among the long winners the median time to 3R was 3 sessions. **Caveats.** (1) Fixed stop, no trims,
+no breakeven move, no trail, no time stop: it measures how often the structure delivers 3R and 5R, not what the house
+trade earns. (2) The fill at the level plus a cent is the best case for a market order sent as price trades back
+through; with the stop a few cents under a shallow undercut, R is often under 1% of price, so 3R is close and slippage
+of a few cents matters more here than in any other setup. Section 4.4, which entered at the CLOSE of the reclaim day,
+found 27% to 3R; the gap between 27% and 43% is mostly that difference in fill (a later, higher fill with the same stop
+makes R larger and 3R farther away). (3) Survivorship: the universe is today's tickers. Cuts worth teaching (longs):
+a next-day reclaim (12,143 hits) did best, 47.9% / 33.6%, against 41.0% / 29.6% for a same-day reclaim and 39.5% / 26.0%
+for 2-3 days; a quiet break (volume at or under the 50-day average, 18,084 hits) 43.0% / 30.8% against 42.3% / 29.3% for
+a loud one (over 1.5x), so Sperandeo's preference holds, weakly; an undercut of 1% or less (25,434 hits) 44.4% / 32.6%,
+1-2% 41.4% / 28.7%, 2-3% 38.4% / 23.9%, so the shallower the undercut the better, as 8.1 proposes; stop distance under
+1% of price (9,932 hits) 55.5% / 43.5% against 34.7% / 22.0% for stops over 2%, but a sub-1% stop is also the one most
+exposed to slippage and noise, so teach it as "tight stops pay, when they are real". The age of the level (6-15 sessions
+against over 30) made no difference (42.3% against 44.1% to 3R).
+
+**The 10 examples** (8 longs above the 200-day, 2 shorts below it; one per name, ten different years; none within 3
+sessions of an earnings report before or after the entry, checked against the earnings table; every one reached 5R and
+was above 1R by the tenth session, so the time stop C33 would not have cut it; prices are split-adjusted as the
+database holds them, so check each level on a charting platform before use, INTC 2026 in particular, whose stored bars
+more than double in the following 20 sessions). Files: `scratchpad/setups/28-2b-reversal/final/NN_TICKER_DATE.png` and
+the phone sheets `sheet_1-4.png`, `sheet_5-7.png`, `sheet_8-10.png` (not in the repo). "Level" is the prior swing low
+(or high) and its date; "age" is sessions from the level to the break; "undercut" is how far under (over) the level the
+break went; "back in" is sessions from the break to the reclaim close; "break vol" is the break day's volume against the
+50-day average.
+
+| # | Ticker | Trigger | Side | Level (date, age) | Undercut / back in / break vol | Buy | Stop (risk) | Best R (3R on day) | Why it is textbook |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | GLW | 2008-08-12 | short | 21.55 (2008-07-29, 9) | 0.97% / 1 / 0.92x | 21.54 | 21.81 (1.25%) | 43.5R (1) | The 2B top in a bear market: a bounce under a falling 50- and 200-day poked 1% over the July high on quiet volume, closed back under the next day, and the stock lost a quarter of its value in 20 sessions. Shorts only below the 200-day (B26). |
+| 2 | RL | 2009-07-08 | long | 49.57 (2009-06-23, 9) | 0.75% / 1 / 0.73x | 49.58 | 49.15 (0.87%) | 67.4R (1) | The July 2009 market low: a pullback to a flattening 50-day undercut the June low by 0.75% on the lightest volume in weeks, closed back above the next day, 3R the day after, and the lowest low of the next 30 sessions was the level itself. |
+| 3 | DINO | 2018-03-01 | long | 42.88 (2018-02-09, 12) | 1.07% / 1 / 1.10x | 42.89 | 42.37 (1.21%) | 64.3R (2) | The February 2018 correction low retested: the second trip under the 50-day went 1% under the first, held, and the reclaim day closed on heavier volume (1.3x) than the break. Price went from the level to new highs in two months. |
+| 4 | SHOP | 2019-11-08 | long | 28.61 (2019-09-25, 31) | 1.39% / 1 / 0.92x | 28.62 | 28.16 (1.6%) | 45.4R (1) | Bracco's version of the setup: a leader down near its rising 200-day (6.9% above it at the trigger) undercuts a six-week-old low by 1.4%, closes back above the next day, and does not look back; the level held on every later test (30-session low 29.35). |
+| 5 | QCOM | 2020-09-21 | long | 109.62 (2020-09-08, 9) | 1.20% / 0 / 0.85x | 109.63 | 108.25 (1.26%) | 37.3R (1) | The September 2020 pullback (the appendix's TSM, MSFT and AMZN are the same week): an intraday undercut of the September 8 low, reclaimed the same session on quiet volume with a close in the top 6% of the range; 3R the next day. The same-day version of the trade. |
+| 6 | U | 2022-04-05 | short | 108.53 (2022-03-01, 24) | 1.35% / 1 / 0.85x | 108.00 | 110.04 (1.89%) | 38.7R (1) | The 2B top in the 2022 bear: a bounce to the falling 50-day pushed 1.4% over the March high, reversed the next day with a close in the bottom 2% of the range, and the stock fell 31% in 20 sessions. Below the 200-day (18.8% under it) as D46/B26 require. |
+| 7 | JBL | 2023-08-18 | long | 101.22 (2023-06-27, 37) | 1.03% / 0 / 0.64x | 101.23 | 100.13 (1.09%) | 36.5R (2) | The August 2023 pullback (the appendix's GOOGL is the same day): a seven-week-old low undercut by 1% on the quietest volume of the ten (0.64x), reclaimed the same day under the 50-day. Slower to pay (3R on day 2, +4% after 20 sessions) before the gap to 130: the case for the trims. |
+| 8 | MU | 2024-02-20 | long | 80.58 (2024-01-03, 31) | 1.77% / 1 / 1.07x | 80.59 | 79.10 (1.85%) | 33.5R (2) | A six-week shelf on a rising 50-day: the undercut of the January low ran 1.8% deep, the next day closed back above in the top 4% of its range, and the low of the next 30 sessions (79.94) sat 84 cents above the stop. A deeper-than-average undercut that still fit A13. |
+| 9 | MKSI | 2025-11-21 | long | 136.95 (2025-11-04, 13) | 1.61% / 0 / 0.67x | 138.24 | 134.69 (2.57%) | 37.1R (1) | A gap-reclaim: the break day undercut by 1.6% on light volume and closed back above; the next session opened 0.9% above the level, so the market order filled at the open (138.24), inside the 4% chase limit, with the stop still under the undercut low. Teaches C28 and the open fill. |
+| 10 | INTC | 2026-03-31 | long | 41.64 (2026-03-09, 15) | 2.43% / 1 / 0.81x | 41.95 | 40.58 (3.27%) | 72.6R (1) | The deepest undercut (2.4%) and the widest stop (3.3%, just over the A13 line, so half size or the hourly higher-low entry of 8.2): a quiet break of the March low, a next-day reclaim closing in the top 4% of the range, 3R the next day. Verify these stored prices before use. |
+
+Reviewed and dropped in the visual check (none failed the scan): AIG 2010-11-29 (a clean 0.49% undercut and 41.9R, but
+the chart that follows, a collapse through the level eight weeks later, distracts from the lesson), MGM 2013-11-21 (a
+0.49% undercut with a 0.81% stop, too small to see on a daily chart), VKTX 2024-08-05 (the August 5 2024 washout, but the
+stock had fallen from 80 to 48 under its 50-day first, so the "strong stock" condition of 8.1 was not met: a mean
+reversion, not a 2B in a leader). Also passed over: the top of the ranked list is full of hits with stops of 0.3-0.5% of
+price (BBY 2020-06-15, 137R on a 0.42% stop; MTN 2020-10-02, 128R on a 0.34% stop); they are real by the rule but a
+learner should not be shown a 0.4% stop as normal. BB 2007-06-27 fit the picture but had an earnings report within 3
+sessions after the entry (B22), so it was excluded.
+
+**Notable failures (in words).** NVDA 2024-04-18: the April 9 low (83.02) was undercut by 0.75% on April 17 and reclaimed
+on the 18th (close 84.67, upper half, stop 82.35); the next day, April 19, the stock opened 83.15 and fell to 75.61, a
+9% day through the stop with no warning on the daily chart. The market (and the chip group) was still making lower lows,
+the 8.7 condition the scan cannot read. AMD 2024-04-16: the same week, the same group; the February 21 low (161.81) was
+undercut 1.9% on April 15, reclaimed on the 16th (close 163.46), and the next day it fell 6% to 154.02, through the
+stop at 158.71. TSLA 2023-08-11: the June 26 low (240.70) was undercut 1.1% and reclaimed the same day (close 242.65);
+the next session gapped under the level and the stock fell for four more days to 219, a second, deeper break in which
+the "failure had failed" (8.5). All three were liquid leaders above the 200-day with quiet breaks; the common thread is
+a market still in its decline, which is why 8.7 ("the indexes are washing out ... and reclaiming them") is a gate, not a
+footnote, and why the stop is honoured at once (8.3). The scan's own numbers say the same: a third of all long hits
+never reached 1R.

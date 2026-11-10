@@ -1082,3 +1082,76 @@ and every UCT quote sits under the section heading of the writer it names. Remov
 
 Still unverified, and labelled so in the text: the Minervini quotes (repo record from an unofficial PDF of the book;
 the cold check could not reach a copy), the CBRE column's wording (reader tool only), and the TradingView post's date.
+
+---
+
+## 12. Examples (from our data)
+
+**The scan's rule (section 8 made measurable, plus the house rules).** The listing day is the ticker's first stored
+daily bar, accepted as a real listing only when it carries the listing-day signature (first-day volume at least 3 times
+the median of the next 30 sessions, and a first bar after mid-1995, so data backfills, de-SPACs and most ETFs drop out;
+the app's `first_trade_date` was not available in the sandbox). Inside the first 252 sessions, the IPO high is the
+highest high since listing and the base runs from that high to the trigger: at least 10 sessions long, at most 35% deep,
+its low above the listing-day low (the offer price is not in the bars, so the listing-day low stands in for the "IPO
+price" floor; whether the base also held the listing-day OPEN is recorded for grading), the last close in the top half
+of the base, no two 4% days in the last five sessions, up-close volume beating down-close volume on the right half,
+and the trigger-day close above the 10- and 21-day EMAs, the 50-day where it exists and the IPO anchored VWAP. House
+rules: price at least $10 and at least $20M a day over the base (leaving out the first three sessions after listing,
+B23); the buy is 10 cents over the IPO high as a market order when the stock trades through it (E57), or the open on a
+gap, skipped if more than 4% past the buy point (C28) or more than 10% above the 10-day average (C29); breakout volume at
+least 1.4 times the base's average (listing week left out); the stop a few cents under the lower of the breakout day's
+and prior day's lows, or under the breakout day's low alone when that is more than 8% away, skipped past 8% (8.3). The
+outcome is a fixed stop with no trims: the first of stop, 3R or 5R over the next 60 sessions, walking forward from the
+day after the entry. Not tested, because the data cannot: the market reading (D46), RS 80+ (C31, no benchmark series in
+the sandbox), earnings within 3 days (B22), fundamentals (D40), and the 200-day rule (B26), which a young IPO cannot meet
+(Q3). A full-day volume figure is used where a live trade would judge the pace at the time of the buy.
+
+**Base rate.** 2,630 of 2,630 liquid names scanned (the names that ever met the house liquidity rule since 2002; the
+scan took 103 seconds, so nothing ran out). 57 hits, 1999 to 2026 (most in 2013, 2020, 2021 and 2024): 26.3% reached 3R
+and 17.5% reached 5R before the stop; 48 of the 57 were a ticker's first base (12 reached 3R, 8 reached 5R); 36 were
+stopped before 3R. Caveat: this is a fixed stop with no trims, no breakeven move and no trail, over 60 sessions, so it
+understates what the house plan (B19, E51, E52) would keep on the winners and says nothing about the trims. The rule is
+strict (one hit per 46 liquid names ever), which is the point of the setup: a real listing, a first base at the IPO
+high, a clean right side and a breakout on volume do not line up often. Loosening the listing-day signature or the
+"two 4% days" line would raise the count and lower the rate.
+
+**The 10 examples** (charts and the three phone sheets are in the scratchpad at
+`_study-resume/scratchpad/setups/05-ipo-base/final/`; `examples.json` holds every number). Buy = the market-order fill
+(10 cents over the IPO high, or the open on a gap). Stop = under the lower of the two lows, with its distance. Best R =
+the best excursion before the stop within 60 sessions.
+
+| # | Ticker | Breakout | Listing, base | Structure | Buy | Stop | Vol | Best R | Why it is textbook |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | LULU | 2007-09-19 | listed 2007-07-27, day 37, first base | 5.8 weeks, 26% deep; IPO high 19.42, low 14.35, held the IPO open | 19.53 | 18.10 (7.3%) | 2.9x | 7.6R, 3R in 10 days | The classic shape: a hot listing, five weeks sideways under the first-week high, a quiet pullback, then the high taken on nearly three times the base's volume. The stop is wider than the house likes (7.3%); 8.3's ceiling still allows it. |
+| 2 | KRMN | 2025-09-05 | listed 2025-02-13, day 140, first base | 6.8 weeks, 22% deep; IPO high 57.32, low 44.43, held the IPO open | 57.42 | 56.05 (2.4%) | 2.2x | 22.9R, 3R the next day | A tight breakout day (2.4% stop) out of a seven-week base on the IPO high, in a hot theme (defence); the move that followed is the one the dossier's UCT quotes describe. The base is months after listing: the (b) window. |
+| 3 | VIK | 2024-06-28 | listed 2024-05-01, day 40, first base | 2.0 weeks, 9% deep; IPO high 33.28, low 30.42, held the IPO open | 33.38 | 32.62 (2.3%) | 2.8x | 5.1R, 3R in 10 days | The A+ version from 8.1: the base forms inside the first weeks, shallow, tight, with a 2.3% stop and the breakout on 2.8 times the base's volume. Reached 5R, then rolled over: the trail matters. |
+| 4 | LSPD | 2020-12-22 | listed 2020-09-11, day 71, first base | 2.4 weeks, 12% deep; IPO high 62.54, low 54.87, held the IPO open | 62.64 | 60.76 (3.0%) | 1.7x | 10.6R, 3R the next day | Two and a half weeks of tight sideways action under the high after a steady climb; a 3% stop and 3R the next day. Note: this first US bar is, as I understand it, the New York listing of a stock already trading in Toronto, an exchange cross-listing of the kind 8.1 counts (owner on GLXY); I could not verify that in this session. |
+| 5 | NET | 2020-06-15 | listed 2019-09-13, day 189, first base | 4.0 weeks, 16% deep; IPO high 30.78, low 25.85, held the IPO open | 30.88 | 28.76 (6.9%) | 3.0x | 6.8R, 3R in 3 days | The first real base at the high since listing, nine months in, with the right side above every average and the breakout on three times the base's volume. Shows the (b) window: the IPO high here is a high made in May 2020, not the first-day high. |
+| 6 | STX | 2003-05-28 | listed 2002-12-11, day 114, first base | 2.0 weeks, 10% deep; IPO high 14.22, low 12.83, held the IPO open | 14.32 | 13.28 (7.3%) | 2.1x | 8.1R, 3R in 14 days | A two-week shelf at the high since listing after the stock recovered its listing-day range; the breakout came at the start of the 2003 bull market (8.6: a market turning up after a correction). Short base, wider stop. |
+| 7 | FWONA | 2013-04-30 | listed 2013-01-10, day 75, first base | 2.4 weeks, 6% deep; IPO high 20.30, low 19.11, held the IPO open | 20.40 | 19.54 (4.2%) | 1.9x | 6.0R, 3R in 11 days | A spin-off listing (the first bar is the January 2013 Liberty Media separation; the ticker was renamed later, from memory, unverified), then 15 weeks flat within 6% before the high was taken. The flattest example: a learner can see the shelf at a glance. |
+| 8 | BSY | 2021-05-24 | listed 2020-09-23, day 167, first base | 17.8 weeks, 29% deep; IPO high 54.62, low 38.63, held the IPO open | 54.72 | 52.50 (4.1%) | 1.9x | 5.5R, 3R in 8 days | The long, deep end of the rule: 18 weeks and 29% from the IPO high, still inside 35%, with a rounded right side above the 50-day and a 4% stop. Teaches that the base can be long when the right side is orderly. |
+| 9 | AXTA | 2015-02-23 | listed 2014-11-12, day 68, first base | 6.4 weeks, 12% deep; IPO high 28.00, low 24.74, held the IPO open | 28.10 | 26.28 (6.5%) | 1.9x | 3.7R, 3R in 56 days | A plain six-week cup under the IPO high with a quiet right side; a slower winner that took 56 sessions to reach 3R and never saw 5R. Useful as the "ordinary" example beside the fast ones. |
+| 10 | SABR | 2015-03-19 | listed 2014-04-17, day 231, first base | 4.2 weeks, 8% deep; IPO high 22.71, low 21.00, held the IPO open | 22.81 | 21.73 (4.7%) | 1.6x | 3.7R, 3R in 39 days | Late in the first year (day 231), a four-week, 8% shelf at the high since listing in a steady uptrend; a steady mover where the 21-day trail (E52) fits better than the 10-day. The volume ratio (1.6x) is the minimum end of the rule. |
+
+Picking notes: one hit per ticker, winners of at least 3R, chosen for a clear shape; the two VIK hits are the same
+stock (the second, 2024-10-07, is a later base and was left out), and later bases (MRVI 2021-08-03 was a third base,
+ZIM 2021-08-25 a second) were set aside because 8.1 grades them lower. Years repeat (2015 twice, 2020 twice, 2021
+twice) because the rule finds few hits in any single year. No ETF or split problem was seen in the ten charts; every
+chart was looked at.
+
+**Notable failures (in words).**
+- MA 2007-01-17 (listed 2006-05-25, day 161): a 6.6-week, 17% base at the IPO high, breakout on 1.6 times the base's
+  volume, a 5% stop; stopped in the next sessions at 0R before the stock went on to a years-long advance. The textbook
+  stock, the textbook base, and still a stop: the rule is a probability, not a promise.
+- APTV 2012-11-02 (listed 2011-11-17, day 240): a 5.6-week, 10% base, breakout on 2.8 times the base's volume with a
+  tight 2.3% stop, stopped at 0R. The first APTV base in February 2012 had also stopped (0.99R). Two clean-looking
+  failures in a flat 2012 market: 8.6 (the market reading) is the missing line in the scan.
+- MDB 2018-07-24 (listed 2017-10-19, day 190): a 5.4-week, 20% base, 1.8 times volume, 6.7% stop, 0.6R and out. The stop
+  was near the 8% ceiling, which is the risk 8.3 warns about: a wide honest stop on a volatile new issue.
+- Also stopped at or near 0R: VRSK 2009-11-12 (a base inside the first 26 sessions whose low had undercut the listing-day
+  open), NAVN 2026-08-27 and BIRK 2024-02-21 (0.76R).
+
+**Data limits.** The listing day is inferred from the bars, not from the app's listing date, so a stock whose first
+stored bar is a later data start is excluded by the volume signature rather than by knowledge of its listing. The offer
+price is not in the data, so the listing-day low stands in for it. RS, the market reading, earnings dates near the
+trigger and fundamentals were not applied. The base rate counts a fixed stop with no trims over 60 sessions.

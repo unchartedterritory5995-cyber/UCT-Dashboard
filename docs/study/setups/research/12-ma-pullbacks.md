@@ -829,3 +829,89 @@ mega caps and index ETFs once price closes back above it (Beebe's AMZN). [my pro
     best traded using breakout methods"; Keller's entry and 50-day fallback; ChartSchool's "zones" and
     "self-fulfilling prophecy"; TSDR's own stop-trim-trail rule and trigger menu; that TSDR's section is now headed
     "Patrick (TSDR)" (question 13).
+
+---
+
+## 13. Examples (from our data)
+
+(Numbered 13 because this file already has a section 12. Produced 2026-11-09 from the local sandbox's daily bars, 1984 to
+2026, scanned over the 2,630 names that ever met the house liquidity rule. Scan script: scratchpad
+`setups/12-ma-pullbacks/scan12.py`; the charts and the three phone sheets are in `setups/12-ma-pullbacks/final/`.)
+
+**The rule the scan used (section 8 plus the house rules, long side only).** Liquidity: close at least $10 and at
+least $20 million traded a day over 50 days (B23). Trend: close within 25% of the 52-week high; 20 EMA above the 50 SMA
+above the 200 SMA and price above the 200 (B26); the 200 SMA higher than 21 sessions ago; the 20 EMA and the 50 SMA
+each higher than 10 sessions ago; the swing high the stock pulls back from is (within 3%) a 3-month high, standing in
+for "after a breakout or gap". Pullback: 2 to 8 sessions from that swing high; the touch day closes at least 1 ATR
+under the highest high of the last 11 sessions; no red day in the last 8 sessions with a range over 2 ATR; the 5-day
+average volume below the 50-day average and the touch day at most 1.5x the 50-day average. Touch: the day's low within
+1 ATR under to 0.25 ATR over the line, for each of three lines scanned separately: 10 EMA, 20 EMA, 50 SMA (the 200-day
+is not a buy, 8.7). Hold day: the touch day closes at or above the line, or (undercut and reclaim) the next day does.
+Trigger: the first day after the hold day that trades above the hold day's high; market-order entry at that price, or at
+the open if it gapped over it, skipped if the fill would be more than 4% past the trigger (C28). Stop: 5 cents under the
+lowest low of the touch, hold and trigger days; skipped if wider than 6% (the house default is about 3%, A13; the extra
+room let the scan record what a wider stop does, see below). RS rating, group strength and the market reading (C31,
+F65) are not in the sandbox and were NOT tested. One hit per 10 sessions per ticker. The outcome walks 60 trading days
+forward from the day after entry with a FIXED stop, no trims, no breakeven move and no trail: it reports whether 3R
+and 5R traded before the stop did.
+
+**Base rate (2,630 of 2,630 liquid names scanned, 1984-2026).** 60,464 hits; 27.7% reached 3R before the stop; 17.5%
+reached 5R; 84.1% eventually traded through the stop within the 60 days (a fixed stop with no trims, so most winners
+also end in that count). By line: 10 EMA 33,323 hits, 27.1% / 17.1%; 20 EMA 20,048, 28.4% / 18.2%; 50 SMA 7,093, 28.4% /
+17.2%. Cuts that mattered a little: a stop within 3% did better than a wider one (28.3% / 18.2% against 25.8% / 15.3%);
+a clean hold beat an undercut-and-reclaim at 5R (18.1% against 15.7%); pullbacks of 4 to 8 days edged 2 to 3 day ones
+(17.8% against 17.0% at 5R). Touch-day volume under 0.7x against over 1.0x made almost no difference (18.0% against 16.5%
+at 5R), nor did the era (since 2020: 26.7% / 16.9%). Caveats: this is a mechanical rule with no RS, group or market
+filter, no judgment of the chart, and a fixed stop; the house trade trims a third at 3R and 5R and trails the rest, so
+its expectancy is not this number. The 60-day "best R" figures below are the high-water mark with that fixed stop and
+say nothing about what a trailed exit would have kept.
+
+**The ten examples (one per ticker; all ten were clean holds, none an undercut; all reached 5R).**
+
+| # | Ticker | Trigger | Line | Pullback | Touch vol | Buy | Stop | Stop % | 3R on | 5R on | Best R (60d) | Why it is textbook |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | QCOM | 1999-10-04 | 20 EMA | 6 days, 1.17 ATR deep, 6.1% off the high | 0.52x | 23.62 | 22.79 | 3.5% | 10-08 | 10-11 | 71 | Every line stacked and rising for months; a quiet six-day drift onto the 20 EMA; the first touch after a new high; no earnings in the window. The 71R is the late-1999 run and is not the point; the entry is. |
+| 2 | CME | 2004-09-17 | 20 EMA | 5 days, 1.72 ATR, 5.1% off | 0.57x | 28.38 | 27.93 | 1.6% | 09-20 | 09-22 | 38 | A young, orderly uptrend (the stock was 2 years public); five quiet days into the line, a one-day hold, 3R the next session. Earnings came 10-26, well after 5R. |
+| 3 | ISRG | 2007-06-27 | 50 SMA | 7 days, 2.28 ATR, 7.2% off | 0.80x | 15.34 | 14.95 | 2.5% | 07-10 | 07-20 | 27 | The deeper variant: seven days down to a rising 50 SMA with the 200 far below. 3R came on 07-10 on its own; the 5R day (07-20) is the earnings reaction day, so the trade would have met B22 (hold through a report only past 5R) only barely. Prices are split-adjusted (3-for-1 in 2017, 3-for-1 in 2021). |
+| 4 | YELP | 2013-06-26 | 10 EMA | 4 days, 1.42 ATR, 5.7% off | 0.60x | 31.80 | 30.67 | 3.6% | 06-27 | 07-09 | 35 | The fast-leader variant: a stock that had ridden its 10 EMA since February; four quiet days to the line and 3R the next day. Earnings 08-01, after 5R. The stop is the widest of the ten and above the house 3%, so size would come down (A5). |
+| 5 | TRGP | 2014-03-28 | 20 EMA | 4 days, 1.50 ATR, 2.3% off | 0.52x | 97.99 | 96.51 | 1.5% | 04-01 | 04-04 | 43 | Within 3% of the high, four days of small bars on half the normal volume, the 10 and 20 EMA still rising; the 50 and 200 ruler-straight beneath. Earnings 05-01, after 5R. |
+| 6 | MOH | 2018-06-08 | 10 EMA | 6 days, 1.01 ATR, 7.8% off | 0.40x | 86.93 | 85.82 | 1.3% | 06-11 | 06-12 | 49 | Six days sideways on the lowest volume on the chart (0.4x), the line rising underneath; 3R in one session. It is the shallowest of the ten (1.01 ATR), right at the rule's edge, and shows why the depth rule is 1 ATR and not more. Earnings 08-01. |
+| 7 | BFAM | 2019-04-23 | 50 SMA | 3 days, 2.24 ATR, 2.8% off | 0.73x | 125.87 | 124.84 | 0.8% | 04-30 | 05-01 | 29 | A three-day drop onto the rising 50 SMA in a steady grinder; a sub-1% stop. 3R came 04-30; 5R (05-01) is the earnings reaction day, the same B22 note as ISRG. |
+| 8 | NVDA | 2023-05-05 | 20 EMA | 3 days, 1.75 ATR, 5.1% off | 0.70x | 27.87 | 27.19 | 2.4% | 05-17 | 05-18 | 30 | A leader two months into a stage-2 run; three red days to the 20 EMA on falling volume. 3R and 5R were both reached BEFORE the 05-25 earnings gap (which then added the rest of the 30R). Split-adjusted (10-for-1, 2024). |
+| 9 | WING | 2024-01-09 | 20 EMA | 7 days, 2.76 ATR, 5.2% off | 0.65x | 249.06 | 245.51 | 1.4% | 01-11 | 01-16 | 37 | The owner's preferred shape: a multi-day drift (seven days) rather than a sharp drop, onto a 20 EMA that had been respected since November; 3R in two days. Earnings 02-21, after 5R. The deepest of the ten (2.76 ATR). |
+| 10 | CAT | 2025-09-03 | 50 SMA | 6 days, 2.36 ATR, 5.7% off | 0.79x | 418.13 | 410.47 | 1.8% | 09-17 | 09-18 | 23 | A mega cap's first test of the rising 50 SMA after a 4-month run; six days down on sub-average volume, a tight hold, then a two-week grind to 3R (the slowest of the ten, 10 sessions). Earnings 10-29. |
+
+Also qualifying and clean, not charted (one example per ticker was the rule): META 2024-01-04 (20 EMA, 36R), IDCC
+2025-08-22 (20 EMA, 50R), FIX 2024-01-10 (50 SMA, 0.3x touch volume, 24R), TRGP 2024-05-28 (50 SMA, 26R), ERIC
+1999-10-20 (50 SMA, 45R).
+
+**Rejected after looking at the chart** (the scan passed them; a learner should not model them): SRPT 2012-09-27, where
+the "win" was a drug-data gap the week after entry, not the pullback; MSTR 2024-02-26, 15% off its high and already
+parabolic; TGT 2020-07-22 and HPE 2026-04-16, where price had only just reclaimed a flat 200-day (a recovery, not a
+leader's pullback); TEAM 2021-07-02, a flat shelf rather than a pullback, with the 5R delivered by an earnings gap; CINF
+2019-04-10, where 3R arrived only on the earnings reaction day. The scan also returned ETFs (TLT, IEF, LQD, IVV, SPY)
+with sub-0.5% stops and inflated R multiples; they were excluded because the setup is taught on single stocks.
+
+**Notable failures (in words, from the scan).**
+- NVDA 2024-04-03 (20 EMA): a five-day pullback on 0.8x volume, 8% off the high, stacked and rising averages, a 2.8%
+  stop: by the rule, as good as example 8. It triggered on 04-03, rolled over the next day and was stopped out for the
+  full 1R; the stock then fell to its 50 SMA (about 76) before the next leg. The lesson is that the rule cannot see the
+  market: the index was topping into a multi-week correction that started the same week. This is why F65 (market
+  reading) sits above the setup.
+- TSLA 2024-01-08 (50 SMA): the rule passed it because the 50 SMA was still (barely) above the 200 and the stock was
+  within 25% of its high; but it was 20.6% off that high, the 50 SMA was flat, the 200 was rising into it, and the
+  pullback was 3.6 ATR deep. It triggered, failed the same week and went from 240 to 170 in two months. A broken
+  leader's first touch of the 50 is a correction, not a pullback (common mistake 5, 8.9); the 25%-off-high allowance is
+  too loose on its own, and the owner may want to tighten it to 10 or 15% for this setup (question for him).
+- MU 2026-10-07 (20 EMA): a seven-day drift onto a rising 20 EMA with the 50 and 200 far below, but 16.7% off its high
+  and with a 5.9% stop (above the house 3%). The pullback failed on day two and the stock lost its 50 SMA within the
+  week. Both numbers were warnings the rule allowed; under A13 the trade would have been skipped or sized down.
+- The aggregate failure pattern: 84% of all hits eventually traded through a fixed stop within 60 days, and most of
+  the 3R winners did too, which is what the trims and the breakeven move (B19, E51) are for; the setup's edge in this
+  data is the roughly one-in-four chance of 3R and one-in-six chance of 5R, not a high hit rate.
+
+**Data limits.** Daily bars only; the hourly Go Signal and red-to-green variants (8.2) were not scanned. No RS rating,
+group rank or market reading in the sandbox, so C31 and F65 were not applied. Earnings dates were used only to read the
+ten examples (the earnings database is complete from about 2005; QCOM 1999 shows none for that reason). Prices are
+split-adjusted as the sandbox holds them. The scan is a mechanical stand-in for the owner's judgment, not a backtest
+of his trade.

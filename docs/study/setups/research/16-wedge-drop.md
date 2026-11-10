@@ -1230,3 +1230,72 @@ section 5 against the code (`v44_read.cycle_events` and `wedge_drop`, `v4_compos
 vocabulary entry, `starterScans.json`); the measurement tables in 4.3 (recomputed: all events -0.094R on 99,562 trades;
 under the 200-day with QQQ under its 50-day +0.287R on 9,197, -0.020R on 9,097 with the 2-day stop); the example
 numbers in 8.11 and the bar facts quoted in sections 3, 6 and 8; the Bulkowski statistics and the site's AI notice.
+
+## 13. Examples (from our data)
+
+(Numbered 13 because section 12 above is the checking log. Scan and charts: 2026-11-09, scratch folder
+`_study-resume/scratchpad/setups/16-wedge-drop/` (`scan_wd.py`, `chart_wd.py`, `final/hits.json`, `final/examples.json`,
+the ten PNGs and the three phone sheets `final/sheet_1-4.png`, `sheet_5-7.png`, `sheet_8-10.png`).)
+
+**The rule the scan used (section 8 as a house short).** Daily bars, the 2,630 names that ever met the liquidity rule.
+Trigger day t: the close is under both the 10- and 20-day EMAs and the day before was not; the close is in the lower 40%
+of the day's range; the close is under the 200-day SMA (B26); the price is $10 or more and the 50-day dollar volume $20
+million or more (B23); at least 8 of the 10 closes before t were above the 20-day EMA (the prior bounce); QQQ closed
+under its own 50-day SMA that day (8.7, item 19; the scan therefore starts 1999-04, when QQQ's bars allow it). The top is
+the highest high of the 20 sessions before t; the stall is the 3 to 10 sessions between the top and t, with every close
+within 1 ATR(14) of the 10-day EMA, no high in the last 3 sessions at or above the top, and the stall's up days on lighter
+average volume than its down days. The top must be an extension (a close at least 2.5 ATR over the 20-day EMA inside
+those 20 sessions), a lower high (the top is under the highest high of the 60 sessions before it) or a failed push (the
+top day cleared the prior day's high and closed back under it). The close must be under the stall low (the pivot), not
+more than 4% under it (C28 mirrored) and not more than 10% under the 10-day EMA (C29 mirrored). Entry: a market order at
+the trigger day's close (E57). Stop: $0.03 over the higher of the trigger day's high and the day before; if that is over
+3% away, $0.03 over the trigger day's high; if still over 3%, no trade (A13). Volume on the trigger day is recorded, not
+required (8.2, item 7). Outcome: a fixed stop, no trims, no breakeven move, walked forward up to 60 sessions; "best R" is
+the deepest point reached before the stop, so it is not a realised result.
+
+**Base rate.** 618 hits across all 2,630 names (the scan finished in 304 s, nothing skipped), 1999-04 to 2026-11.
+**24.3% reached 3R and 14.7% reached 5R before the stop**; 542 of 618 (87.7%) were stopped within 60 sessions; the mean
+best R before the stop was 2.3. 37.9% closed back above both EMAs within 3 sessions, the same shakeout rate section 4.3
+found for the app's own events (38%). The busiest year was 2022 (92 hits). Splits, for grading, not as rules: lower-high
+tops 483 hits, 25.3% to 3R; extension tops 120 hits, 15.0%; failed-push-only tops 58 hits, 25.9%; trigger volume 1.5x or
+more 39 hits, 25.6% (no better than the rest, as section 4.3 also found); a falling 200-day 437 hits, 26.5%. Caveats:
+fixed stop and no trims (the house trade trims at 3R and 5R and trails the rest, so it keeps less of a 14R move and
+loses less on a stop moved to breakeven); best-R excursion, not P&L; some same-day clusters (2011-08-02, 2022-06-08 to
+06-10) are one market event counted many times; the QQQ regime filter was applied to every hit, so the rate says nothing
+about Wedge Drops in a strong market.
+
+**The ten examples** (one per ticker, ten different years; all stocks, all reached 5R; "vs 200d" is the trigger close
+against the 200-day SMA; entry is the short at the trigger close; the trigger level is the stall low).
+
+| # | Ticker, date | Top type | Stall (days, width) | vs 200d | Trigger level | Entry | Stop (dist.) | Trigger vol. | Best R (3R on day) | Why it is textbook |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | WHR 2002-08-29 | lower high | 4 d, 6.0% | -19.4% | 55.55 | 55.16 | 56.28 (2.0%) | 1.1x | 14.2R (9) | A bear-market bounce makes a lower high at the falling 20-day EMA, stalls four days and drops; the 200-day is falling. |
+| 2 | PCG 2007-12-14 | lower high | 3 d, 3.2% | -2.3% | 46.09 | 45.96 | 46.89 (2.0%) | 0.8x | 10.4R (10) | The bounce stops exactly under the flat 200-day and the 50-day, a tight three-day stall, then a steady slide. |
+| 3 | CAH 2009-02-17 | lower high + failed push | 5 d, 7.1% | -19.5% | 37.02 | 36.65 | 37.22 (1.6%) | 0.8x | 15.6R (6) | A rally to the 50-day inside a 2008-09 downtrend, the last push fails, five-day stall, drop on a gap. |
+| 4 | GS 2011-08-02 | lower high | 4 d, 4.4% | -15.1% | 133.13 | 131.23 | 134.79 (2.7%) | 1.2x | 13.2R (4) | Kell's "faster rallies that would put in a lower high": the bounce dies at the falling 50-day; the whole move follows the averages down. Part of the August 2011 cluster. |
+| 5 | EXP 2015-09-18 | lower high + failed push | 6 d, 4.6% | -0.8% | 79.29 | 78.94 | 80.77 (2.3%) | 1.2x | 11.0R (3) | A lower high just under the 200-day, a six-day stall with the EMAs flattening, 3R in three sessions. |
+| 6 | CAT 2018-10-09 | extension | 3 d, 5.3% | -0.3% | 150.88 | 149.46 | 153.69 (2.8%) | 1.1x | 8.8R (7) | The dossier's own candidate 15: a 3.9-ATR extension over the 20-day EMA, three-day stall, then the drop. 3R came on day 7, before the earnings reaction of 2018-10-23 (day 10), which added the gap. |
+| 7 | TSM 2022-06-09 | lower high + failed push | 4 d, 4.8% | -18.8% | 91.77 | 90.85 | 93.53 (3.0%) | 0.8x | 6.4R (9) | The 2022 bear: a bounce into the falling 20-day EMA and 50-day, four-day stall, gap down through the stall low. Same cluster as the dossier's QQQ and SMH 2022-06-09. |
+| 8 | INCY 2023-08-17 | failed push | 4 d, 2.7% | -11.5% | 64.63 | 64.21 | 65.66 (2.3%) | 1.0x | 9.6R (21) | The tightest stall of the ten (2.7%) and the slowest payoff: a grind down the 10-day EMA, 3R only on day 21. No earnings in the window. |
+| 9 | GEN 2025-12-31 | lower high + failed push | 7 d, 2.9% | -3.0% | 27.31 | 27.19 | 27.69 (1.8%) | 0.4x | 18.0R (12) | Seven days of narrowing range on the averages, then a gap under the stall low on light holiday volume; the volume caveat of 8.2 item 7 in one chart. 3R on day 12, before the 2026-02-06 earnings reaction. |
+| 10 | DXCM 2026-03-05 | lower high + failed push | 7 d, 4.9% | -3.9% | 70.81 | 70.69 | 72.79 (3.0%) | 1.0x | 6.7R (6) | The bounce tops where the 50-day meets the flat 200-day, seven-day stall, close under the pivot; the stop sits right at the 3% limit. |
+
+All ten have QQQ under its 50-day on the trigger day (the scan required it). Candidates checked and rejected on the
+chart: HOG 2003-01-17 (the payoff is the 2003-01-21 earnings reaction, -8.7% on 8.4x volume two sessions after the trigger, not the stall giving way), EOG
+2019-09-24 (the top is the oil-price spike of 2019-09-16 and the stall is 8.4% wide), MELI 2026-02-03 (a 9.8% stall:
+wide and loose), VALE 2026-09-14 (a rising 200-day), KSS 2016-05-03 (the payoff comes from the 2016-05-12 earnings gap),
+plus the ETFs in the top of the list (SPXU, SDS, SPXS, QID, IVV, SPY, EWY, EWT, EWJ, JNK, IBB, RWM).
+
+**Notable failures (from the same scan).**
+- **GOOGL 2019-01-14.** A lower-high top, a three-day stall 3.4% wide, a 2.1% stop. Stopped the next session with 0R
+  of progress; twenty sessions later the close was 56.38, 7.2% above the 52.58 entry. The trigger came a few weeks after
+  the December 2018 market low, with QQQ still under its 50-day: the "early in new bull markets" case the originator warns
+  about (8.7, item 21).
+- **DXCM 2022-04-18.** An extension-plus-failed-push top, an 8-day stall 9.6% wide (the wide, loose kind section 9 grades
+  down), a 2.4% stop. Stopped the next session at 0R, then the stock fell 37% within 20 sessions, a slide that ran
+  through the 2022-04-29 earnings reaction (that day itself was only -1.1%). The lesson of 8.8: a stop that fits 3% can be the wrong stop in a volatile name, and the
+  move you then miss is not evidence the entry was right.
+- **DIS 2006-01-26.** A failed-push top, a three-day stall, and trigger volume of 3.3x the 50-day average, the "strong
+  form". It never got past 0.34R, was stopped on day 8 (2006-02-07, its earnings reaction day) and closed 11.6% above the
+  entry twenty sessions later. Heavy volume is a grading cue, not a gate, and an earnings date inside the first two weeks
+  belongs in the checklist.

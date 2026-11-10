@@ -7,6 +7,14 @@ titles and terms, one JavaScript string that the source splits across two lines,
 line-break hyphen ("combin-ing"). Nothing here is a ruling. Where I could not read a source, I say so and give no wording
 from it.
 
+**Cold check (2026-11-09, a second reader).** Every web source, PDF and Substack post named below was downloaded again and
+every quoted string was re-checked by a second, independent script (204 quoted segments found verbatim, whitespace and
+curly quotes ignored; the only misses were titles, the term "Open-Drive" and the hyphen-broken word above). Every
+publish date, page number, journal issue, table figure and KB number was checked against its page or file; the detector
+code, the scan wiring in `api/main.py`, the registry, the router, the Model Book card, the playbooks, the journal tags
+and the rulebook rule numbers were read against the text here; the own count in section 4.8 was re-run on the same
+database and reproduced every figure. The corrections made are listed in section 12, "Removed in checking".
+
 Tags used in section 8: **[source consensus]** several outside sources agree; **[originator]** the named author's own
 words; **[UCT]** the owner's verdict log or UCT's published posts; **[house rule]** the account rulebook,
 `docs/study/sizing_rule.md` section 9; **[my proposal]** my recommendation, for the owner to accept or change;
@@ -34,7 +42,7 @@ through the ORL. **LOD / HOD**: low / high of the day so far. **R**: the risk on
    US stocks, 2016-2023) found the plain 5-minute ORB on all stocks earned 3.2% a year (Sharpe 0.48, below the S&P 500's
    0.78). Limited to the 20 "Stocks in Play" with the highest opening relative volume it earned 41.6% a year (Sharpe
    2.81). Their **30-minute** version on the same Stocks in Play made only 21% in eight years (Sharpe 0.21). My own count
-   on 1,000 liquid US stocks (59 sessions, Aug-Nov 2026) found no edge in an unfiltered 30-minute ORB long: the average
+   on 999 liquid US stocks (59 sessions, Aug-Nov 2026) found no edge in an unfiltered 30-minute ORB long: the average
    first break closed the day at -0.05R and was positive after 5 sessions only 26% of the time. All of these are day
    trades or short holds, not our swing use; none tests the ORB as an entry on a selected setup.
 4. **Stops are tight on normal days and wide on gap days.** The natural stop (a few cents under the day's low, usually the
@@ -100,7 +108,8 @@ the broad index futures of his time, "you'll often find that the odds are in you
   pp. 366-368); Part 3 doji lines (V.6:12, Dec 1988, pp. 462-465); Part 4 inside days (V.7:2, Feb 1989, pp. 47-49);
   Part 5 NR4 (V.7:4, Apr 1989, pp. 119-120); Part 6 ID/NR4 (V.7:5, May 1989, pp. 161-163); Part 7 bear hook (V.7:6,
   June 1989, pp. 188-189); Part 8 bull hook (V.7:7, July 1989, pp. 208-210). The book followed: *Day Trading with Short
-  Term Price Patterns and Opening Range Breakout* (Traders Press, Greenville, 1990), out of print per StockCharts.
+  Term Price Patterns and Opening Range Breakout* (Traders Press, 1990; publisher per Wikipedia, year also per
+  StockCharts), out of print per StockCharts.
   Steenbarger: "The first extensive presentation of this idea came in Toby Crabel's book". **I did not read the book.**
 - **Precursor: range expansion off the open.** Raschke credits Larry Williams with popularising entries a set amount
   above or below the open: "Though Toby Crabel also described this concept in his book, it was really popularized by
@@ -286,9 +295,9 @@ level, stop LOD, else a VWAP retest or undercut-and-hold mid morning. Bracco: bu
 "on the ORB highs"; for parabolic shorts he waits for a break of VWAP, the opening range low or the low of the day.
 
 ### 3.12 Read, but not used as a definition, or not readable
-- Investopedia: the "openingrange.asp" URL I tried returned a not-found page. The Study bank already quotes an
-  Investopedia definition (first 15 minutes) from a different URL (`docs/study/research/definitions.json`); I did not
-  re-check it.
+- Investopedia: the "openingrange.asp" URL I tried returned a not-found page (402 on the cold check). The Study bank
+  already quotes an Investopedia definition (first 15 minutes) from a different URL, `.../terms/o/opening-range.asp`
+  (`docs/study/research/definitions.json`); I did not re-check it.
 - Edgeful's "opening range breakout report" page: product marketing, no numbers.
 - MarketGauge, "Timing Swing Trade Entries with The O.R." (23 Feb 2015): a video; I did not watch it.
 - Not found in my searches, so no quote: an ORB post on Pradeep Bonde's Stockbee blog; Brian Shannon in his own words on
@@ -351,12 +360,13 @@ level, stop LOD, else a VWAP retest or undercut-and-hold mid morning. Bracco: bu
 - **Who and how:** Crabel; the same ORB taken after each pattern and on any day (the control); entry at fixed
   distances from the open; exit at the same day's close (Part 5 abstract). As I read it, the percentages are how often
   the trade followed through to the close.
-- **Limits:** futures (bonds, S&P, grains, cattle in the abstracts), the 1980s, no costs stated, a fixed distance off
+- **Limits:** futures (the abstracts name Treasury bonds, the S&P, soybeans and cattle), the 1980s, no costs stated, a fixed distance off
   the open rather than our range, same-day trades, and I could not check the tables in the book.
 - His observation (not a test) from Part 2: early entry days "may occur only 10% of the time"; 70% to 80% of days rotate.
 
 ### 4.2 Zarattini, Barbon and Aziz (2024): 5-minute ORB on US stocks, 2016-2023
-Source: the paper's PDF (University of St. Gallen repository; SSRN 4729284; Swiss Finance Institute paper 24-98).
+Source: the paper's PDF (University of St. Gallen repository; SSRN 4729284; Swiss Finance Institute Research Paper
+24-98, a number that appears on the RePEc listing, source 42, not in the PDF text itself).
 | Version | Total return | Annual | Sharpe | Hit ratio | Max drawdown |
 |---|---:|---:|---:|---:|---:|
 | 5-min ORB, all eligible stocks | 29% | 3.2% | 0.48 | 41.4% | 13% |
@@ -390,8 +400,8 @@ only (paywalled).
 ### 4.5 Gao, Han, Li and Zhou (2018): the first half hour predicts the last half hour
 Journal of Financial Economics 129(2), 394-414, abstract: "the first half-hour return on the market as measured from the
 previous day’s market close predicts the last half-hour return." The effect "is stronger on more volatile days, on higher
-volume days, on recession days, and on major macroeconomic news release days." Limits: the market ETF (SPY) and ten other
-ETFs, 1993-2013; a return-sign effect, not a range break. It supports the idea that the first 30 minutes carry
+volume days, on recession days, and on major macroeconomic news release days." Limits: the S&P 500 ETF and "ten other
+most actively traded domestic and international ETFs", 1993-2013; a return-sign effect, not a range break. It supports the idea that the first 30 minutes carry
 information; it does not test an ORB.
 
 ### 4.6 Bysshe's statistic
@@ -403,15 +413,17 @@ Through Zarattini et al.: Tsai et al. (2018/2019) found "the most significant pr
 length is within 5 minutes from the open" on index futures; Lundström (2017) found ORB profitability grows with
 volatility. I did not read either paper.
 
-### 4.8 My own count: the 30-minute opening range on 1,000 liquid US stocks (not a test of any UCT setup)
-**Data:** a shared scratch database of Yahoo 5-minute bars (regular hours, unadjusted) for the 1,000 most liquid names
-in the sandbox universe (price ≥ $10 and ≥ $20M a day, B23), 59 sessions from 2026-08-17 to 2026-11-06, 56,302 complete
-stock-days; daily closes for the 50/200-day filters built from the same source's 60-minute bars back to 2023-12.
+### 4.8 My own count: the 30-minute opening range on 999 liquid US stocks (not a test of any UCT setup)
+**Data:** a shared scratch database of Yahoo 5-minute bars (regular hours, unadjusted) for the most liquid names
+in the sandbox universe (price ≥ $10 and ≥ $20M a day, B23; 999 tickers with 5-minute bars), 59 sessions from
+2026-08-17 to 2026-11-06, 56,302 complete stock-days; daily closes for the 50/200-day filters built from the same source's 60-minute bars back to 2023-12.
 **Method:** OR = the six 5-minute bars from 9:30 to 9:55. Long: the first bar after 10:00 whose high trades a cent over
 the ORH; entry a cent over the ORH (or the bar's open if it opened above); stop two cents under the day's low so far
 (house F62). Short mirrored. Same day: whether the stop or +1R / +2R came first, bar by bar (a bar touching both counts
 as the stop). Five sessions: the stop stays; a later open below the stop exits at that open; otherwise the close of the
-fifth session. No slippage, no commissions. The script sits in my research scratch folder, not in the repo.
+fifth session. No slippage, no commissions. The script sits in my research scratch folder, not in the repo. (Cold
+check: re-run on the same database on 2026-11-09; every figure below reproduced exactly. 54.9% of the first long breaks
+came by 10:30.)
 
 | Measure | All stock-days | Long, prior close above 50 and 200-day | Long, gap up ≥ 3% | Short, prior close below 200-day | Short, gap down ≥ 3% |
 |---|---:|---:|---:|---:|---:|
@@ -501,9 +513,11 @@ bullish) and `opening_range_breakdown.py` (`opening_range_breakdown`, bearish, a
 
 ### 5.2 How the live scan calls them (`api/main.py`)
 - `_run_patterns_leaders_scan` runs on an `IntervalTrigger(hours=1)`, so once an hour, not on the clock. Its intraday
-  pass runs only Monday to Friday 9:30 to 16:00 ET, only for the leader universe, only from 5-minute bars already in the
-  local SQLite store (no fetch), and slices today's session (a gap of more than 4 hours starts a new session). It needs
-  at least 9 bars (10:15).
+  pass runs only Monday to Friday 9:30 to 16:00 ET, only for the leader universe (`api/data/leader_universe.json`), only
+  from 5-minute bars already in the local SQLite store (no fetch), and slices today's session (a gap of more than 4
+  hours starts a new session). It needs at least 9 bars (10:15) and at least 30 daily bars for context. The pass has a
+  kill switch, `PATTERNS_INTRADAY_SCAN_ENABLED` (default on). A comment in `main.py` records that the whole pass was
+  deleted on 2026-05-21 and restored on 2026-07-23, so no intraday detections were stored for two months.
 - Because the trigger must be in the last three 5-minute bars, a break is seen only if the hourly run lands within
   15 minutes after it. Most breaks will never be stored.
 - Study notes say intraday bars exist for about 7% of symbols (`docs/study/UNITS-foundations.md`).
@@ -561,7 +575,7 @@ The narratives are shown to members with each detection. None of these appear in
 | "Crabel's published failure-rate statistics by stage: ORBs in Stage 2 uptrends fail roughly 30-35%" (then Stage 1 about 40%, Stage 4 about 55-60%) | Crabel did not use Weinstein's stages in anything I read. **Almost certainly fabricated.** |
 | Breitstein: "the opening drive into 10:30 follow-through is the highest-edge intraday setup" | No page found with this wording. **Unverified quote.** |
 | "Breitstein's published statistical work at SMB shows that ORBs with breakout-bar volume >=1.5x OR-bar average produce continuation roughly 65-70% of the time" (and about 40% below 1.0x) | No such publication found. His firm was Trillium (Chat With Traders). **Unverified.** |
-| Breitstein's "never take more than 3 ORB trades per session" and his 10:30 / 11-14:00 / after-14:00 timing tiers | Not found. |
+| Breitstein's "never take more than 3 ORB trades per session" and his timing tiers (the long text: "the first 10-30 minutes after the range closes"; the short text: "9:45-10:30 ET"; then "11:00-14:00" mid-edge and "after 14:00" lower-edge) | Not found. |
 | "Lance Breitstein (SMB Capital)" | Chat With Traders: Senior Trader at Trillium. An SMB role is claimed only by summary sites I did not trust. |
 | Stockbee "treats the ORB as the cash-equity analogue of the futures Episodic Pivot" | Not found; the EP is Bonde's stock catalyst setup. |
 | ORB "does NOT extend to overnight holds" (Crabel) | His tests closed at the end of the day, which is not the same as a finding. Raschke says the opposite for breakout systems. |
@@ -693,7 +707,8 @@ paraphrases with the KB number. None was re-checked against Discord. The knowled
     remounting (or moving 2 to 3 days later); he planned to buy the undercut of the ORB low or the VWAP remount instead.
   - KB 10831 (2024-12-20, QQQ): a 15-minute opening range on a gap down, an undercut of its low, then a reclaim and break
     of its high.
-  - KB 12294 (2026-01-27, RDW): a Kicker that held its gap and ran from the opening range.
+  - KB 12294 (desk log dated 2026-01-23, covering 01-23 to 01-28; RDW): a Kicker that held its gap and ran from the
+    opening range on 01-27.
 - **Bracco:** KB 11270 (2024-07-27): bought ASTS on the **15-minute** ORB of its EP day (2024-05-16) and trailed the
   20-day EMA. KB 12242 (2026-01-08): an opening range breakout is a pattern, not an indicator. KB 10975 and 11232
   (2024-11, 2025-02): on a parabolic climax day, short the opening range low or a VWAP failure, and cover toward the
@@ -749,7 +764,7 @@ the parabolic setting.
 | B23 $10 and $20M a day | Applies. APPS ($7.11) would now be out. | No. |
 | B26 the 200-day, hard rule | ORB longs only above the 200-day; ORB breakdown shorts only below it, except parabolic shorts (Bracco's ORL). | No. |
 | C28 no chasing past 4% | The buy point is the ORH; a fill more than 4% above it is a chase. Rare at a trade-through; real after a fast spike. | No. |
-| C29 skip a long more than 10% above the 10-day | Many earnings and EP gap days open more than 10% above the 10-day (GRRR gapped 15%). | **Yes.** Question 9. |
+| C29 skip a long more than 10% above the 10-day | Many earnings and EP gap days open more than 10% above the 10-day (the owner's GRRR post: "Gapping up 15% in after hours following their earnings report."). | **Yes.** Question 9. |
 | C30 no time-of-day rule | The ORB is defined by the clock (the first 30 minutes). | **Yes, in spirit.** Read C30 as no rule about when you may trade; the 30 minutes is part of the trigger's definition. Question 2. |
 | C31 RS 80+ (shorts RS 20 or less) | Applies; the ORB is not a mean-reversion trade. | No. |
 | C33 time stop: under 1R after 10 days | Applies. | No. |
@@ -773,27 +788,31 @@ the parabolic setting.
 2. **The opening range:** the high and low of the first 30 minutes of regular trading, 9:30 to 10:00 ET (the first
    30-minute candle). [UCT: Kicker ruling] [originator: Bysshe; Qullamaggie's first 60-minute candle] Other windows
    (5 or 15 minutes) only if the owner approves them (question 1).
-3. **Prior trend:** whatever the parent setup requires, and at least: the prior close above the 50-day and the 200-day
-   [house rule B26] [originator: Bysshe's rising 20 and 50-day]; RS 80 or more [house rule C31].
+3. **Prior trend:** whatever the parent setup requires, and at least: the prior close above the 200-day [house rule
+   B26]; RS 80 or more [house rule C31]. Also above the 50-day [my proposal; the nearest source is Bysshe, who wants
+   the 20 and 50-day rising and the stock above the 20-day].
 4. **Structure:** none of its own. Grade higher when the ORH is well defined (tested more than once, or a tight
    consolidation just under it). [originator: Bysshe]
-5. **Length:** 30 minutes. The trigger stays valid for the rest of that session. [UCT] [house rule C30] Later triggers
-   are graded lower (section 9). [my proposal]
+5. **Length:** 30 minutes [UCT: the Kicker ruling]. The trigger stays valid for the rest of that session [my proposal;
+   house rule C30 sets no time-of-day rule, and no UCT text names a cut-off]. Later triggers are graded lower
+   (section 9). [my proposal]
 6. **Depth (risk):** the distance from the trigger to a few cents under the day's low must be 3% or less [house rule
    A13]; on a Kicker, up to 3.5% under the entry [UCT]. If it is wider, skip the ORB (or, if the owner allows, use the
    previous-day-high trigger or a tighter intraday swing low; question 5). [my proposal; Bysshe]
 7. **Volume:** the first 15 or 30 minutes must trade clearly more than normal for that window. [UCT: "Relative volume in
    the first 15 min"] [measured: Zarattini, below 100% relative volume the ORB lost] Proposed number: first-30-minute
    volume at least 1.5 times its 20-day average for the same window. [my proposal; the number needs the owner, question 6]
-8. **Location versus the averages:** above the 50 and 200-day [house rule B26; Bysshe]; not more than 10% above the
-   10-day at the trigger [house rule C29], unless the owner exempts gap-day EPs (question 9). The 21-day matters only
+8. **Location versus the averages:** above the 200-day [house rule B26]; above the 50-day [my proposal; Bysshe asks
+   for the 20-day, with the 20 and 50-day rising]; not more than 10% above the 10-day at the trigger [house rule C29],
+   unless the owner exempts gap-day EPs (question 9). The 21-day matters only
    for the trail.
 9. **Liquidity:** $10 or more and $20 million a day [house rule B23]; the position at most 1% of the day's volume
    [house rule D42].
 
 ### 8.2 The buy
 1. **Trigger:** price trades at least one cent above the 30-minute high after 10:00 ET. Not a close. [source consensus:
-   Crabel's stops, Trade-Ideas, Qullamaggie, Zarattini] [UCT: "a cent over" style]
+   Crabel's stops, Raschke's stops, Trade-Ideas, Qullamaggie, Zarattini] [UCT: the JBI ruling, 11.05 over an 11.04
+   high; "Breaking opening highs"]
 2. **Order:** a market order the moment it trades through (E57). [house rule]
 3. **Chasing:** no fill more than 4% above the 30-minute high [house rule C28]. If you missed it, wait for a pullback to
    the ORH that holds, or the owner's alternative, a VWAP retest or undercut-and-hold mid morning. [UCT] [originator:
@@ -858,7 +877,8 @@ the parabolic setting.
 5. Buying a sloppy range with no clear high. [originator: Bysshe]
 6. Waiting for a 5-minute close (late fills, wider risk). [source consensus]
 7. Treating the opening minutes as the trade: buying before 10:00 because it is running. The ORB waits for the range.
-   [UCT] (`docs/study/bank/course.f8.json` drills the same discipline.)
+   [my proposal; the owner's Kicker ruling names the 30-minute ORB, and his gap-down rule lets "the first 30 min"
+   play out] (`docs/study/bank/course.f8.json` drills the same discipline: "Wait for the opening range to form".)
 8. Ignoring the daily chart (Bysshe's NTES versus SOHU example: same news, different daily trends, different results).
    [originator: Bysshe]
 9. Taking the ORB after an expansion day. [originator: Crabel]
@@ -875,7 +895,7 @@ from the sources, offered as a guide, not a checklist.
 
 | Grade | What you can see |
 |---|---|
-| **A+** | A real daily setup in a leader (RS 80+, top group), above a rising 50-day and the 200-day [house; Bysshe]. A catalyst or clear news, with the first 15 to 30 minutes on several times normal volume; the best trade their average daily volume in the first 15 to 30 minutes [UCT; Qullamaggie; Zarattini]. A tight, well-defined range with the price holding near the ORH [Bysshe]. The ORH at or above the prior day's high and a key daily level [Bysshe; UCT]. Stop 2% or less [my proposal; A13 caps it near 3%]. A quick, clean break that holds above the ORH for about 15 minutes [Bysshe's half-the-range-time rule]. Green market, indexes also taking out their opening ranges [UCT]. Contraction the day before (inside day, NR7, tight base) [Crabel; Raschke]. Early trigger (by about 10:30). |
+| **A+** | A real daily setup in a leader (RS 80+, top group), above a rising 50-day and the 200-day [house; Bysshe]. A catalyst or clear news, with the first 15 to 30 minutes on several times normal volume; the best trade their average daily volume in the first 15 to 30 minutes [UCT; Qullamaggie; Zarattini]. A tight, well-defined range with the price holding near the ORH [Bysshe]. The ORH at or above the prior day's high and a key daily level [Bysshe; UCT]. Stop 2% or less [my proposal; A13 caps it near 3%]. A quick, clean break that holds above the ORH for about 15 minutes [Bysshe's half-the-range-time rule]. Green market, indexes also taking out their opening ranges [UCT]. Contraction the day before (inside day, NR7, tight base) [Crabel; Raschke]. Early trigger, by about 10:30 [my proposal; measured: 55% of first long breaks in my count came by 10:30]. |
 | **A** | Most of the above; volume clearly above normal but not exceptional; stop up to 3%. |
 | **B** | A good daily setup but an average-volume open; a range that is wide or loose; the ORH below the prior day's high or into nearby resistance; a trigger late in the day; Yellow market. |
 | **B-** | Any of: stop over 3% (skip under A13 unless the owner approves an exception); range low broken first; a sloppy range with no clear high; below-normal opening volume [Zarattini: negative]; an expansion day before [Crabel]; a counter-trend break; a big-volume reversal at the ORH already printed [Bysshe]. |
@@ -969,3 +989,63 @@ script against that text.
 | 39 | Discord knowledge-base extracts | UCT, repo | `docs/study/levels/brain_kb_rules_2026-11-06.json`, `brain_kb_2026-11-06.json`, `brain_kb_cycle_2026-11-06.json` | House summaries of private messages; paraphrased only; some dates wrong |
 | 40 | JBI 30-minute bars, 2023-12-13 to 12-14 | UCT, repo | `docs/study/workbench/walkthrough/data/JBI_2023-12-14_30m.json` | House data (site's bars route) |
 | 41 | Shared intraday scratch database (Yahoo 5-minute and 60-minute bars) | built in this session's research scratch area | not in the repo | Third-party data, used for aggregate counts only (section 4.8) |
+| 42 | Swiss Finance Institute Research Paper Series 24-98 (RePEc listing of source 21) | RePEc / EconPapers | https://econpapers.repec.org/RePEc:chf:rpseri:rp2498 | Added in the cold check; confirms the SFI paper number, which the PDF text does not carry |
+| 43 | Crossref record for source 25 (DOI 10.1109/ACCESS.2019.2899177) | Crossref API | https://api.crossref.org/works/10.1109/ACCESS.2019.2899177 | Added in the cold check; confirms IEEE Access, 2019, authors Tsai, Wu, Syu, Lei, Wu, Ho |
+
+---
+
+## 12. Removed in checking (cold check, 2026-11-09)
+
+Checked and **confirmed without change**: all 8 S&C volume, issue and page citations; every quote from Crabel's
+abstracts, the Time Price Research blog, StockCharts, Steenbarger (page dated Tuesday, March 20, 2007), Raschke
+(TradersLog `datePublished` 2025-02-11), Bysshe (First Edition 1.06, © 2009, "Now, 14 years", the 35% and 8%
+figures, 2:1, the NTES-versus-SOHU charts of 6 Oct 2003 in Figure 5-8), Qullamaggie (published 2021-01-08, modified
+2021-04-28), Zarattini et al. (dated February 16, 2024; every figure in the 4.2 table, the universe filters, the 1% /
+4x / $0.0035 settings, the -0.02R / 0.08R / 0.38R relative-volume figures, the "unclear and warrants" sentence),
+Concretum (1,484% versus 169%, 33% alpha, SSRN 4416622), Holmberg et al. (FRL 10(1), 27-33), Gao et al. (JFE 129(2),
+394-414), Bulkowski's chapter 11 contents, Trade-Ideas, the Wiley text (1st edition August 2002), Wikipedia (Market
+Profile, 1985, Steidlmayer; Crabel's book 1990, Traders Press), the Everand listing (Feb 9, 2022; the Trillium
+sentence) and the Bear Bull slides. Every Substack quote in section 6 is on its page, under the section the dossier
+names (the NBIS and CRCL lines sit under an inline "Charts Covered" label inside TSDR's section; Trade Updates opens
+"Bracco here"; the Parabolic Short's subtitle is "Bracco (@braczyy on X)"); every publish date matches the post's
+`datePublished` in US Eastern time; the TMDX post's subtitle does read "February 24th, 2025" while the post is dated
+2026-02-25 UTC. All 22 KB numbers in section 6.6 exist in the three KB files and their paraphrases match the stored
+summaries; KB 5060 and 6021 are indeed filed under "sunday_scans_2026-02-21". The verdict-log line numbers (318, 323,
+340, 344, 549) and all 34 rulebook rule numbers cited in section 7 match `sizing_rule.md` section 9 (71 rules). The
+detector constants, the search window (`max(_OR_BARS, last_idx - 2)`), the levels, the score weights, the Stage 2
+penalty of 5 in the breakdown, the hourly `IntervalTrigger`, the 4-hour session split, the 9-bar minimum, the
+`DISPLAY_INTRADAY_ONLY` registry comment, the router category "uct", the Model Book essence lines, the playbook texts
+and the journal tags all read as the dossier says. Every narrative claim in the 5.5 table is in the detector code word
+for word. The JBI arithmetic in 4.9 reproduces from the bars file. The own count in 4.8 re-ran and matched exactly.
+
+Changed:
+1. Section 2, Crabel's book: removed "Greenville". Only the anonymous blog gives the city; Wikipedia gives the publisher
+   (Traders Press) and StockCharts the year.
+2. Section 4.1 limits: "bonds, S&P, grains, cattle" became "Treasury bonds, the S&P, soybeans and cattle", the markets
+   the abstracts actually name (Parts 4 and 7).
+3. Section 4.5 limits: "the market ETF (SPY)" became the abstract's own wording (the S&P 500 ETF and "ten other most
+   actively traded domestic and international ETFs"); the abstract does not say "SPY".
+4. Sections "Read this first" 3 and 4.8: "1,000 liquid US stocks" became 999, the number of tickers with 5-minute bars
+   in the script's output.
+5. Section 4.2: the SFI paper number 24-98 is not in the PDF text; it is confirmed by the RePEc listing, now source 42.
+6. Section 5.5: the Breitstein timing tiers are now quoted as the code states them (the long text says the first 10-30
+   minutes after the range closes; the short text says 9:45-10:30 ET), instead of a rounded "10:30".
+7. Section 5.2: added the leader-universe file, the 30-daily-bar minimum, the `PATTERNS_INTRADAY_SCAN_ENABLED` kill
+   switch and the code comment recording the pass's two-month deletion in 2026 (all from `api/main.py`).
+8. Section 6.6, KB 12294: the desk log is dated 2026-01-23 (covering 01-23 to 01-28); the RDW run from the opening
+   range was 01-27. The dossier had given the event date as the KB date.
+9. Section 7, C29 row: "GRRR gapped 15%" is now the owner's own sentence from the post ("Gapping up 15% in after
+   hours"), because the 15% is his after-hours figure, not a measured open.
+10. Section 8 basis tags corrected where they overstated a source: 8.1.3 and 8.1.8 (the 50-day is my proposal; B26 is
+    the 200-day only; Bysshe asks for the 20-day with the 20 and 50-day rising); 8.1.5 (an all-session trigger is my
+    proposal, C30 only says there is no time-of-day rule; no UCT text names a cut-off); 8.2.1 (the UCT basis is the
+    JBI ruling and "Breaking opening highs", not a quoted phrase "a cent over"; Raschke added to the consensus); 8.8.7
+    (tagged my proposal with the UCT texts that imply it, and the course.f8 item quoted); section 9 A+ "early trigger"
+    now carries its tag and the measured 55%.
+11. Section 3.12: added the 402 status of the cold-check fetch and the bank's actual Investopedia URL.
+
+Not independently re-checked (kept as the writer's statements): the "102 public" of 103 sitemap posts (the sitemap
+count of 103 was confirmed); that the writer's web-search budget ran out before a second Stockbee search; and that the
+Trade-Ideas trigger "fires once a day" (the page says "the first time price trades above that high", which implies it).
+James Dalton's "Open-Drive" is confirmed only by secondary summaries of *Mind Over Markets* (the dossier already says
+so); no Dalton text was read.

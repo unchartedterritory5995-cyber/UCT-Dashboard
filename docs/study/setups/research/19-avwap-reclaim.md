@@ -1069,3 +1069,86 @@ were removed or corrected because the source did not say them, or said something
     and the AVWAP from ATHs", is a third. Corrected to "at least three times".
 22. **SNOW and CRWV quotes without their context** (6.1). SNOW's "taken out" is flagged as most likely a break under;
     CRWV's AVWAP quote now carries the sentence before it, which places the bear gap, not the AVWAPs, overhead.
+
+---
+
+## 12. Examples (from our data)
+
+**The scan's rule (one paragraph).** Daily bars from the local sandbox, 1984 to 2026-11-06, over the 2,630 names that
+ever met the house liquidity rule (the scan completed: 2,630 of 2,630 scanned in 258 seconds, nothing cut for time).
+It codes the core variant of section 8.1, the anchor *from the high*: on each session the anchor is the highest high of
+the previous 150 sessions that is at least 20 sessions old (item 1); the AVWAP is typical price x volume summed from the
+anchor day, on daily bars (an approximation of the intraday line, 8.8 item 8); the anchor high minus the lowest low since
+the anchor is at least 4 ATR(14) (item 8); the 15 closes before the reclaim day all closed under the line, on average at
+least 0.2 ATR under, and none of those days' highs went more than 0.25 ATR over it (item 9); at most 2 closes above the
+line since 3 sessions after the anchor and at most 2 crossings in the 30 sessions before (item 10); the line fell less
+than 0.5 ATR over the 10 sessions before the reclaim (item 11); the reclaim day closes 0.3 to 1.0 ATR above the line
+and did not open more than 0.5 ATR above it (item 12); close above the 200-day SMA (B26), close $10 or more and 50-day
+average dollar volume $20 million or more (B23), close not more than 10% above the 10-day average (C29). The buy is
+the recommended trigger of 8.2: a market order one cent over the reclaim day's high in one of the next 3 sessions
+(the open when it gapped over), abandoned if a close came back at or under the line first (8.5) or the fill was more
+than 4% over the trigger (C28). Stop 3 cents under the reclaim day's low (8.3), the trade skipped if that was more
+than 5% under the fill (A13 says about 3%; the cut at 3% is reported below). One hit per name per 20 sessions. Not
+coded: the RS rating and group (C31; a proxy is given for the 10), the earnings blackout (B22; checked by hand for the
+10), the market reading, the trims. Outcome: from the day after the fill, 60 sessions forward, the first of stop / 3R /
+5R; both on one day, the stop wins. Volume on the reclaim day is recorded, not gated (item 13). Scripts:
+`scratchpad/setups/19-avwap-reclaim/scan19.py` and `chart19.py` (not in the repo).
+
+**Base rate.** 1,128 hits (1,069 on stocks, 59 on ETFs), 1996-08-02 to 2026-11-05. Of the stock hits, **25.7% reached
+3R and 15.2% reached 5R before the stop**; 81% were eventually stopped at the original stop inside the 60 sessions
+(winners included, since the stop never moves here) and 51% never reached 1R. Among the winners the median time to 3R
+was 12 sessions. **Caveat:** this is a fixed stop with no trims, no breakeven move, no trail and no time stop, so it
+measures how often the structure delivers 3R and 5R, not what the house trade earns. Cuts (stocks only, same scan):
+the stop's size mattered most: stops of 2% or less, 26.5% / 17.5% (3R / 5R); 2-3%, 29.3% / 17.0%; over 3%, 22.5% /
+12.3% (A13's "about 3%" earns its place); a fill the very next session (967 hits) did better than a fill on day 2 or 3
+(102 hits): 26.2% / 15.5% against 21.6% / 11.8%, which sides with "the next session" over the 3-session grace the scan
+allowed; a deeper fall (8 ATR or more, 627 hits) reached 5R more often, 16.7% against 12.9%; the 200-day rising over
+20 sessions (877 hits) helped only at 5R, 15.8% against 12.0%. Reclaim-day volume did NOT help: 1.5x the 50-day average
+or more (139 hits) 22.3% / 10.8%, under 1.5x 26.2% / 15.8%, and under 1.0x (562 hits) 27.0% / 17.1%. That sides with
+item 13 (volume is not a gate) and argues against making it a grade marker for this setup until the owner has looked.
+How far the reclaim close sat over the line (0.3-0.5 ATR against 0.5-1.0 ATR) and how long the stock had been under
+(30 sessions or fewer against more) made no difference.
+
+**The 10 examples** (all stocks, one per name, ten different years, every one reached 5R; prices split-adjusted as
+the database holds them; none of the buys fell inside the 3 sessions before an earnings reaction day (B22), checked
+against the earnings table, and none of the anchors is an earnings day, so all ten are the *from the high* variant,
+not the earnings-gap variant). Files: `scratchpad/setups/19-avwap-reclaim/final/NN_TICKER_DATE.png` and the phone
+sheets `sheet_1-4.png`, `sheet_5-7.png`, `sheet_8-10.png` (not in the repo). "RS" is the 12-month weighted price-change
+proxy of `01-flat-base/rs_proxy.py` on the reclaim day (not IBD's rating). "Under" is the number of closes under the
+line between the anchor and the reclaim.
+
+| # | Ticker | Reclaim / buy | Anchor high | Fall | Under | Reclaim close / volume | Buy | Stop (risk) | Best R (3R on day) | RS | Why it is textbook |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | MAR | 2004-09-14 / 09-16 | 2004-06-09, 24.00 | 13.3 ATR (12.7%) | 66 | +0.70 ATR / 0.38x | 22.93 | 22.68 (1.1%) | 21.5R (10) | 51 | Three months under a flat line, a slow base along the 200-day, then one close over and a tight stop; no trigger on day 1, filled on day 2. The quiet version. |
+| 2 | CAT | 2005-05-17 / 05-18 | 2005-03-04, 49.98 | 10.6 ATR (17.4%) | 49 | +0.41 ATR / 0.78x | 46.04 | 45.02 (2.2%) | 9.4R (15) | 68 | An undercut of the 200-day in April, then the reclaim with the 50-day just overhead (8.8 item 5); it paused two weeks under 48 before running. |
+| 3 | EPC | 2006-12-27 / 12-28 | 2006-10-26, 59.63 | 15.8 ATR (18.7%) | 42 | +0.86 ATR / 0.89x | 52.67 | 51.99 (1.3%) | 18.9R (6) | 66 | The deepest fall of the ten; the line flattened for a month at 52 before the reclaim; 3R in six sessions. Stop 1.3%. |
+| 4 | BX | 2013-09-10 / 09-11 | 2013-07-23, 23.86 | 7.2 ATR (12.4%) | 34 | +0.32 ATR / 0.60x | 22.43 | 21.97 (2.1%) | 14.1R (5) | 83 | The one with RS over 80. A modest close (+0.32 ATR) on light volume, a gap open over the trigger (filled at the open, 22.43 against 22.38); 3R in five sessions. |
+| 5 | WMB | 2014-04-16 / 04-17 | 2014-03-07, 42.94 | 4.8 ATR (8.5%) | 27 | +0.54 ATR / 0.42x | 41.37 | 40.74 (1.5%) | 29.1R (9) | 47 | The minimum structure: the smallest fall (4.8 ATR), the shortest time under, the lightest volume, and the biggest result. The later gap in June is unrelated news; the setup itself was at 5R before it. |
+| 6 | NOW | 2017-04-19 / 04-20 | 2017-02-15, 18.94 | 7.4 ATR (11.9%) | 40 | +0.31 ATR / 0.92x | 17.70 | 17.50 (1.1%) | 24.5R (5) | 76 | A rising 200-day, a two-month fall, a flat line, a 1.1% stop; 3R in five sessions, with the report reaction day (04-27) landing after the first trim was due. |
+| 7 | HLF | 2018-01-19 / 01-22 | 2017-10-09, 39.82 | 12.1 ATR (19.3%) | 66 | +0.76 ATR / 1.19x | 36.61 | 35.76 (2.3%) | 18.7R (3) | 57 | The anchor is a gap-up spike high; the line fell for a month then went flat for two; the reclaim day closed +0.76 ATR and 3R came in three sessions. |
+| 8 | AJG | 2021-02-19 / 02-22 | 2020-12-17, 129.12 | 8.0 ATR (12.5%) | 41 | +0.58 ATR / 1.08x | 120.84 | 118.83 (1.7%) | 16.5R (10) | 33 | A steadily rising 200-day; the fall was shallow and the line flat for six weeks. Lowest RS proxy of the ten (33): a reclaim in a lagging name that still worked. |
+| 9 | JPM | 2023-11-14 / 11-15 | 2023-07-31, 159.38 | 10.6 ATR (15.2%) | 74 | +0.81 ATR / 1.03x | 149.26 | 146.49 (1.9%) | 10.5R (11) | 62 | Three and a half months under; the October low undercut the 200-day; the reclaim closed +0.81 ATR. The 50-day was overhead and gave way. |
+| 10 | MAS | 2024-07-12 / 07-15 | 2024-03-28, 78.94 | 9.2 ATR (19.2%) | 70 | +0.49 ATR / 1.34x | 71.15 | 69.53 (2.3%) | 8.4R (8) | 55 | A long, flat line at 70 after a 19% fall; the reclaim day, the 50-day and the trigger all within one ATR; 3R in eight sessions, the report reaction day (07-25) came after the first trim. |
+
+Replaced in the visual review: CDW 2019-02-05 (a clean 22.4R reclaim, but the buy came two sessions before its
+earnings reaction day, 02-07, so B22 forbids it) and TPR 2025-05-05 (18.4R, the April-2025 low reclaimed, but the
+report reaction day was 05-08, three sessions after the buy, inside the B22 blackout); both are worth showing as
+"what the rule stops you from doing". ENVA 2026-04-13 (17.1R; the trigger took three sessions, the one cut that did
+worse in the data) and O 2020-01-16 (reached 5R, then fell from about 80 to under 40 inside the 60-session window in
+March 2020: a chart for the trims-and-trail lesson, not for the entry) were set aside. AME 2009-09-09 was rejected
+because its anchor is a one-day spike, not a high the eye reads as the top.
+
+**Relative strength (a proxy).** Nine of the ten score under 80 on the proxy (33 to 76); only BX scores 83. That is not
+an accident of the picks: the setup requires a fall of at least 4 ATR from a high, which pulls a 12-month rating down.
+Applied literally, C31 (RS 80+) would remove most of these trades; the AVWAP reclaim may belong with the parabolic and
+mean-reversion exceptions C31 already names, or the owner may want the RS test read on the stock's standing *before*
+the fall. This is a question for him (add it to section 10), not a rule I have changed.
+
+**Three notable failures, in words.** (1) AMZN, reclaim 2026-10-09, buy 2026-10-12: the AVWAP from the 2026-08-03 high
+reclaimed after a 7.6 ATR fall and 47 closes under, a +0.42 ATR close, stop 2.6%; the stock never traded above the
+fill again and was stopped (0.0R). Everything in the picture was right and it still failed: the stop, not the pattern,
+is the protection. (2) DIS, reclaim 2021-07-12, buy 07-13: 86 closes under the line from the 2021-03-08 high, the
+reclaim on 2.47x volume, the heaviest of any failure here; stop 4.1%; stopped at 0.17R. The loud volume did not help,
+which matches the base-rate cut above. (3) TMO, reclaim 2022-03-18, buy 03-22: a +0.78 ATR close on 1.54x volume
+after a 9.6 ATR fall, in a year the broad market fell; stopped with 0.0R. A reminder of 8.7: the index's own standing
+matters, and the scan did not read it.

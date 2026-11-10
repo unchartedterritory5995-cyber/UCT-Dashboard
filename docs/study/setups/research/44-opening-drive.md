@@ -6,10 +6,19 @@ saved copy of that source. Quotes keep the writer's own spelling (including typo
 could not read a source, I say so and give no wording from it. The app's scanner calls this setup "Lance Opening
 Drive"; section 2 explains why that name does not hold up.
 
+**Cold check (2026-11-09, second reader).** A second reader re-opened every web source below live (plain curl, not the
+writer's saved copies) and tested 127 quoted strings word for word: 118 matched exactly; the other nine were spaces
+left by stripped formatting tags, an auto-transcript's spelling ("dr. s"), or an edited reprint, each now noted in
+place. The scanner summary (section 5) was re-read against the code, the measurement summaries behind section 4.5 were
+re-read, the ten model examples (8.9) were re-derived from the same bar database, and the Zarattini PDF was matched
+byte for byte (SHA-256) against the University of St. Gallen's open-access copy. One quote whose page could not be
+re-opened and one wrong publisher were removed or fixed; they are listed under "Removed in checking" at the end.
+
 **Who is who in UCT quotes.** The owner is Patrick (TSDR). He writes "TSDR's Weekly Outlook & Watchlist" in the Sunday
 Scans, the "TSDR Trading" part of "The Rest of the Week", the "TSDR WATCHLIST" part of the mid-week updates, and
 intros he signs "-Patrick". Bracco writes "Bracco's Breakdown & Top Ideas", "Bracco's Market Health Tracker" and "The
-Parabolic Short" (the rulebook, B26, names him as its author). Dates are Substack post dates (UTC). The Substack byline
+Parabolic Short" (the rulebook, B26, names him as its author). Dates are Substack post dates (UTC); SMB dates are the
+dates the blog prints (US), whose page metadata runs up to a day later in UTC. The Substack byline
 is always "Uncharted Territory", so I tell the authors apart by the signed section a passage sits in. A few owner
 quotes come from the brain KB extract already in this repo (`docs/study/levels/brain_kb_cycle_2026-11-06.json`,
 `docs/study/levels/brain_kb_rules_2026-11-06.json`); I quote only the parts that the file marks as the trader's own
@@ -46,7 +55,7 @@ drive is set in the first minutes.
 
 **The psychology.**
 - **Big buyers cannot finish in five minutes.** SMB Capital's desk explains early heavy volume as institutions leaving
-  "footprints": a fund that wants a large position after news has to keep buying for hours or days. In one of its
+  a "footprint": a fund that wants a large position after news has to keep buying for hours or days. In one of its
   videos the trader says the volume "in the first five minutes right on the open in FedEx or ten times relative to how
   it normally trades" was the signal (SMB, 2019-12-20). The same idea drives the academic "stocks in play" filter in
   section 3.5: the first minutes show the day's supply and demand imbalance, and an unusual imbalance tends to persist.
@@ -73,15 +82,18 @@ drive is set in the first minutes.
   and drives strongly in one direction during the first few minutes of the Open." Mike Bellafiore, 2009-11-02, titled
   "Opening Drive (HGSI)": "The Opening Drive is a play that momentum traders crush". SMB calls its version "The Opening
   Drive Play" and teaches it as a named strategy: "It is one of ten specific trades that we teach in The Winning
-  Trader" (SMB blog, 2017-10-23). TraderLion's summary of Bellafiore's *The PlayBook* (Wiley, 2013) says chapter 9
-  features "Iceman’s Opening Drive trade" (I did not read the book).
+  Trader" (SMB blog, 2017-10-23). Bellafiore's *The PlayBook* (FT Press, published 2013-07-09, copyright 2014; not
+  Wiley, as an earlier draft said) has a chapter 9 titled "Iceman: No Guts,No Glory" in the publisher's table of
+  contents (InformIT), and SMB's own page for the book says it "covers support plays, bull-and-bear flags, opening
+  drives, important intraday levels" among its setups. I did not read the book.
 - **The Market Profile name is "Open-Drive".** James Dalton, Eric Jones and Robert Dalton, *Mind Over Markets*
   (second edition, Traders Press, 1999, per the review below; I did not confirm the first edition's year) classify
   four kinds of open. Brenda Jubin's review lists them as "the open-drive, open-test-drive, open-rejection-reverse, and
   open-auction" (Reading the Markets, 2009-10-16). I did not read the book, so I give no wording of Dalton's own.
 - **Lance Breitstein did not name a three-bar "Opening Drive" setup in anything I could read.** He is a former
   Trillium prop trader ("I am a verified 8-figure trader who was Trillium’s Top Trader in 2020 and 2021", his origin
-  page) who has been "serving as an Advisor to Trader Education at SMB Capital" since 2022. In the 96 posts on his
+  page, whose metadata dates it 2024-07-18) who has been "serving as an Advisor to Trader Education at SMB Capital"
+  since 2022. In the 96 posts on his
   site (blog posts and monthly newsletters, read through the site's own post index), "opening drive" appears twice: as
   one stage of the day's rhythm ("Opening drive", "Midday consolidation", "Afternoon continuation", 2026-02-02), and
   as the last day of his exhaustion-gap short ("A grand finale capitulatory exhaustion gap-up day with a euphoric
@@ -93,7 +105,7 @@ drive is set in the first minutes.
 - **Other names for the same or nearby things.** "Gap and Go" (SMB, 2019-12-23 and earlier); "Gap, Battle and Go" (a
   gap that holds a contested level, then drives; SMB, 2011-05-09); "Opening Drive continuation" (buy the first
   pullback after the drive; SMB, 2021-04-26); the "Dr. S" pattern (heavy volume and a strong directional drive in the
-  first minutes; SMB, 2019); "Spencer Special" (a drive, then a tight horizontal consolidation, then continuation;
+  first minutes; SMB, 2019; the auto-transcripts spell it "dr. s" and "doctor s", so the capitalised form is mine); "Spencer Special" (a drive, then a tight horizontal consolidation, then continuation;
   SMB, 2012-01-22); "opening range highs" or "ORH" entries (Kullamägi, 2021); "Order Flow Off the Open" (Breitstein,
   2025). UCT's own people say "ORB", "opening range break", "opening range highs" or "ORB highs" (section 6); none of
   them, in anything I read, calls it an "opening drive". The repo's vocabulary file agrees: for
@@ -109,7 +121,8 @@ drive is set in the first minutes.
 ### 3.1 SMB Capital (Mike Bellafiore, Steve Spencer and their traders): the Opening Drive Play (originator of the equity-desk name)
 
 Sources: the SMB Capital blog, smbtraining.com/blog. Its own post search for "opening drive" returned 147 posts
-(2009-2026); I saved all 147 and read the ones below in full. Author names come from the blog's own author records
+(2009-2026); I saved all 147 and read the ones below in full (the 147 count is the writer's record; the checker
+re-opened every cited post live but could not re-run the blog search, whose WordPress search API answers 404). Author names come from the blog's own author records
 ("Bella" is Bellafiore, "sspencer" is Spencer). Several 2019-2021 posts are auto-transcripts of desk videos; their
 wording is spoken and unedited.
 
@@ -123,7 +136,8 @@ wording is spoken and unedited.
   https://www.smbtraining.com/blog/using-unusual-trading-volume-to-find-a-profitable-gap-and-go-and-pullback-trade).
 - **Timing.** "Generally when there is going to be a good opening drive it happens right away." And "It is unusual for
   there to be a delay of 5-6 minutes." (Bellafiore, 2012-07-25, https://www.smbtraining.com/blog/the-opening-drive-play-ua;
-  the same answer ran on MoneyShow on 2012-07-27 as "Trade Example: Handling an Unusual Open").
+  a lightly edited reprint ran on MoneyShow on 2012-07-27 as "Trade Example: Handling an Unusual Open"; it reads
+  "It is unusual for there to be a delay of five to six minutes.").
 - **Volume.** "You should see a price surge and elevated volume right after the opening bell rings." (Bellafiore,
   2018-09-04, https://www.smbtraining.com/blog/how-to-buy-a-stock-you-think-will-trade-higher). A desk transcript
   defines the term the same way: "by strong opening drive we mean a nice move in terms of price to the upside and volume
@@ -194,7 +208,9 @@ restatement. Neither is Dalton's own wording on the open-drive, so treat both as
 ### 3.3 Lance Breitstein: what he actually wrote about the drive (the trader the app credits)
 
 Sources: his own site, theonelanceb.com (origin page; 96 posts, blog and newsletter, read through the site's own post
-index, dated 2025-03-10 to 2026-11-06); Chat With Traders episodes 228, 229 and 236 (show notes only). I found no
+index, dated 2025-03-10 to 2026-11-06; the checker re-opened the twelve posts cited here live and confirmed the two
+"opening drive" hits in the saved index, but did not re-crawl the index); Chat With Traders episodes 228, 229 and 236
+(show notes only; all three name Breitstein as the guest, 2022). I found no
 Breitstein text that defines a three-bar opening drive, a 1% gap rule, a 2x volume rule, a 3x first-bar target or a
 success rate.
 - **The day has a rhythm.** In "How to Avoid False Breakouts in Trading" (2026-02-02,
@@ -249,7 +265,10 @@ https://qullamaggie.com/my-3-timeless-setups-that-have-made-me-tens-of-millions/
 
 Source: "A Profitable Day Trading Strategy For The U.S. Equity Market", Concretum Research, University of St. Gallen
 and Peak Capital Trading / Bear Bull Traders, 2024-02-16, https://ssrn.com/abstract=4729284 (I read a copy of the PDF
-saved in this session; it carries that SSRN address on every page). A working paper, not peer reviewed in what I saw.
+saved in this session; it carries that SSRN address on every page; the checker found it byte-identical, by SHA-256, to
+the open-access copy in the University of St. Gallen repository,
+https://www.alexandria.unisg.ch/entities/publication/ab50f49b-4d5c-4aa8-aaa1-af7a4c131008, and re-checked every
+quote and number below in that copy). A working paper, not peer reviewed in what I saw.
 - **The direction comes from the first five minutes.** "If the first 5-minute candlestick was bearish (meaning it closed
   below its opening price), our system would only take a short position." The mirror holds for a green first candle.
   That is an opening-drive filter in all but name.
@@ -272,8 +291,9 @@ sibling research task; the PDF names www.marketgauge.com). A vendor's book.
 ### 3.7 Not read: Crabel, Connors and Raschke, Fisher, Dalton's book, Bellafiore's books
 
 - Crabel (1990): see section 2 for the one-line description from Zarattini et al.
-- Connors and Raschke, *Street Smarts* (1995): Zarattini et al. say it introduced "Momentum Pinball", a 60-minute
-  opening range break filtered by a 3-day RSI. I did not read it.
+- Connors and Raschke, *Street Smarts* (1995): Zarattini et al. say it introduced "Momentum Pinball", "combining a
+  60-minute ORB with a 3-day Relative Strength Index (RSI) of a 1-day rate of change", tested on futures. I did not
+  read it.
 - Mark Fisher, *The Logical Trader* (ACD method): not read.
 - Dalton's and Bellafiore's books: not read (sections 3.1, 3.2 use their blog and secondary material).
 - Brian Shannon: his site's own search (alphatrends.net) returned no post with "opening drive".
@@ -470,7 +490,7 @@ and looks only at the first three bars of the last session. It fires when all of
   seed list" to be replaced by a generated list.
 - It feeds the detector up to 5,000 five-minute bars per ticker from the local bar store (so the 15- and 30-minute
   versions in the docstring do not run live) and stores the detection with `tf = "5"`.
-- `registry.py` lists it in `DISPLAY_INTRADAY_ONLY`, so the chart overlay never draws it on daily, weekly or monthly
+- `detectors/registry.py` lists it in `DISPLAY_INTRADAY_ONLY`, so the chart overlay never draws it on daily, weekly or monthly
   charts. (On daily bars it cannot fire anyway: every daily bar is more than 4 hours from the next, so each is its own
   one-bar "session".)
 - Worth an engineering check, not verified by me: if the 5-minute store ever holds pre-market bars, the 4-hour session
@@ -641,8 +661,9 @@ question 2 of section 10.
 
 - **Daily setup first.** The stock is on the focus list with a named daily setup: a base breakout, Kicker, EP, Power
   Earnings Gap, news gap or a 20-day reclaim. [UCT: every owner ORB entry I read sits on a named daily setup (Kicker,
-  earnings gap, base breakout); source consensus: Kullamägi, and the SMB trader who wants it "preferably with a daily
-  chart set"]
+  earnings gap, base breakout); source consensus: Kullamägi, and the SMB trader Rodney, whose opening-drive plays
+  "have a daily chart setup as well" and who wants his midday trades "preferably with a daily chart set" (Bellafiore,
+  "Let Rodney Be Rodney", 2013-11-19)]
 - **Prior trend and location.** Price above a rising 200-day SMA (B26) [house rule]; RS 80+ in a strong group (C31)
   [house rule]; not more than 10% above the 10-day average at the buy (C29) [house rule]. Not on day 3-5 of a
   parabolic burst (Bracco's five boxes, B26) [UCT; originator: Breitstein's euphoric drive].
@@ -720,12 +741,15 @@ question 2 of section 10.
 ### 8.7 Best market conditions
 
 - A Green market reading [house B18]; the Nasdaq trending above its rising 10- and 20-day averages, the first of the
-  four "WHEN" tests in the owner's 2026-03-08 intro, which he credits to Kullamägi [UCT].
+  four "WHEN" tests in the owner's 2026-03-08 intro: "The simple one made notorious by Quallamaggie is a market that
+  the Nasdaq is trending higher above a rising 10 and 20 period moving average." (his spelling; the other three are
+  the watchlist, the groups and the past 20 trades) [UCT].
 - Earnings season and big news days, when many stocks are in play [originator: SMB "during earnings season"].
 - Strong groups gapping together (CRWD, OKTA and FTNT, all software, on 2026-09-14) [my proposal, from the check B
   data and section 8.9].
-- A broad gap-up with strong breadth at the open helps: Bracco's 2026-09-20 note on the highest Nasdaq advance-decline
-  print at the open [UCT].
+- A broad gap-up with strong breadth at the open helps: Bracco, 2026-09-20: "At the open we saw the highest Nasdaq
+  advance decline print since the gap up (ceasefire day) on April 8th earlier this year."
+  (https://unchartedterritoryy.substack.com/p/sunday-scans-bc2) [UCT].
 
 ### 8.8 Common mistakes
 
@@ -744,7 +768,9 @@ question 2 of section 10.
 ### 8.9 Ten model examples to study (for the owner to approve)
 
 Facts from the Yahoo bars in section 4.5 (prices unadjusted; "range" = the day's high-low). I did not check the news
-behind any gap; that, and the daily chart, need the owner's eye before any of these is used.
+behind any gap; that, and the daily chart, need the owner's eye before any of these is used. The checker re-derived
+every figure below from the same database and all hold (for CRWD the stop under the first bar's low sits 3.2% under a
+5-minute ORH entry and 6.8% under the first-hour close; OKTA's gap was 3.8% and opened inside the prior day's range).
 
 **Models**
 1. **LRCX 2026-09-18.** Gap +1.4% (open 273.24). Low of the day 272.80 in the first 5-minute bar; up to 279.66 by
@@ -868,9 +894,9 @@ paper; C = secondary or vendor; R = repo file.
 | 21 | https://www.smbtraining.com/blog/using-unusual-trading-volume-to-find-a-profitable-gap-and-go-and-pullback-trade | SMB desk video transcript | 2019-12-23 | A/C: auto-transcript |
 | 22 | https://www.smbtraining.com/blog/how-to-use-a-key-piece-of-information-institutional-ownership-when-stock-trading | SMB desk video transcript | 2020-01-24 | A/C: auto-transcript |
 | 23 | https://www.smbtraining.com/blog/prop-trader-details-a-stock-trade-you-can-make-right-on-the-open | SMB trader video transcript | 2021-04-26 | A/C: auto-transcript |
-| 24 | SMB blog post search for "opening drive" (147 posts) and for "Breitstein" (4 posts), smbtraining.com/blog | SMB | 2009-2026 | Used to find and save the posts above |
+| 24 | SMB blog post search for "opening drive" (147 posts) and for "Breitstein" (4 posts), smbtraining.com/blog | SMB | 2009-2026 | Used to find and save the posts above (writer's record; not re-run by the checker) |
 | 25 | https://www.smbtraining.com/blog/wall-streets-top-trader-invites-me-to-his-penthouse-show-notes | SMB | 2022-12-06 | C: show notes of an interview with Breitstein; nothing on the open |
-| 26 | https://theonelanceb.com/story/ | Lance Breitstein | undated, read 2026-11-09 | A: career facts |
+| 26 | https://theonelanceb.com/story/ | Lance Breitstein | page metadata 2024-07-18, read 2026-11-09 | A: career facts |
 | 27 | https://theonelanceb.com/blog/mastering-easy-money-trades/ | Breitstein | 2025-03-31 | A |
 | 28 | https://theonelanceb.com/blog/steady-strong-vs-capitulatory-price-action/ | Breitstein | 2025-09-11 | A. The best Breitstein text on drives |
 | 29 | https://theonelanceb.com/blog/do-you-wait-before-you-enter-or-exit-a-trade/ | Breitstein | 2025-09-30 | A |
@@ -888,13 +914,13 @@ paper; C = secondary or vendor; R = repo file.
 | 41 | *Trading the 10 O'clock Bulls*, MarketGauge (PDF) | Geoff Bysshe | 2009 | C: vendor book; copy saved in this session by a sibling task, not downloaded by me |
 | 42 | https://www.marketcalls.in/market-profile/market-profile-open-type-and-confidence.html | marketcalls; Rajandran R | 2015-08-01 | C: educator's restatement of Dalton's open types |
 | 43 | https://readingthemarkets.blogspot.com/2009/10/dalton-jones-mind-over-markets.html | Reading the Markets; Brenda Jubin | 2009-10-16 | C: book review quoting *Mind Over Markets* |
-| 44 | https://traderlion.com/trading-books/the-playbook-summary/ | TraderLion | 2025-07-23 | C: summary of *The PlayBook* |
+| 44 | https://traderlion.com/trading-books/the-playbook-summary/ | TraderLion | 2025-07-23 | C: summary of *The PlayBook*; the checker could not re-open it (403 live, no archived copy), so its quote was removed (section 12) and rows 59-60 replace it |
 | 45 | https://stockbee.blogspot.com/search?q=%22opening+drive%22 | Stockbee; Pradeep Bonde | read 2026-11-09 | Nothing on this setup |
 | 46 | alphatrends.net post search for "opening drive" | Brian Shannon | read 2026-11-09 | No results |
 | 47 | Crossref record for doi 10.1016/j.jfineco.2018.05.009 | Gao, Han, Li, Zhou, "Market intraday momentum", JFE 129(2) | 2018 | Title only; the paper (403) was not read |
 | 48 | https://unchartedterritoryy.substack.com/p/the-parabolic-short | UCT; Bracco | 2025-06-13 | UCT |
 | 49 | https://unchartedterritoryy.substack.com/p/market-update-and-watchlist | UCT; TSDR WATCHLIST | 2025-06-20 | UCT |
-| 50 | https://unchartedterritoryy.substack.com/p/sunday-scans , -744 , -0d2 , -6ef , -b99 , -d6a , -249 , -dcf , -a43 , -bcc , -1ad | UCT Sunday Scans; owner and Bracco sections as marked | 2025-06-08 to 2026-08-09 | UCT. All 103 posts in the sitemap were searched |
+| 50 | https://unchartedterritoryy.substack.com/p/sunday-scans , -744 , -0d2 , -ae1 , -6ef , -b99 , -d6a , -249 , -dcf , -a43 , -bcc , -1ad , -bc2 | UCT Sunday Scans; owner and Bracco sections as marked | 2025-06-08 to 2026-09-20 | UCT. All 103 posts in the sitemap were searched (the checker counted 103 /p/ entries in the live sitemap and confirmed each quote sits in the signed section it is credited to) |
 | 51 | https://unchartedterritoryy.substack.com/p/the-rest-of-the-week-757 , -9c9 , -b24 | UCT; TSDR Trading | 2025-10-29 to 2026-02-25 | UCT |
 | 52 | `docs/study/levels/brain_kb_cycle_2026-11-06.json` (KB 12544, 12555), `brain_kb_rules_2026-11-06.json` (KB 10088, 10111) | repo | extracted 2026-11-06 | R: the owner's words as the file records them |
 | 53 | `docs/study/audits/2026-10-24/owner_verdicts.jsonl` | repo; the owner | 2026-11-02 to 2026-11-09 | R |
@@ -903,9 +929,45 @@ paper; C = secondary or vendor; R = repo file.
 | 56 | `app/src/pages/modelbook/setupCatalog.js`; `app/src/constants/setupGroups.js`; `docs/wisdom/vocabulary/setup-vocabulary-v1.json` | repo | current branch | R |
 | 57 | `tests/pattern_engine/detectors/test_group1_narrative_truthfulness.py`; `docs/superpowers/phase-reports/2026-05-18-phase-7-verification.md` | repo | 2026-09-03; 2026-05-18 | R |
 | 58 | Yahoo Finance intraday bars (5-minute and 60-minute) in the shared scratchpad database | Yahoo, via yfinance | downloaded 2026-11-09 | Data for section 4.5 and 8.9; unadjusted, regular hours |
+| 59 | https://www.informit.com/store/playbook-an-inside-look-at-how-to-think-like-a-professional-9780132937641 | Pearson (InformIT), publisher's listing of *The PlayBook* | published 2013-07-09, read 2026-11-09 by the checker | B: publisher FT Press, ISBN 978-0-13-293764-1, table of contents (chapter 9 "Iceman: No Guts,No Glory") |
+| 60 | https://www.smbtraining.com/blog/the-playbook | SMB Capital | read 2026-11-09 by the checker | A: SMB's own page for the book ("opening drives" among the setups it covers) |
+| 61 | https://www.alexandria.unisg.ch/entities/publication/ab50f49b-4d5c-4aa8-aaa1-af7a4c131008 | University of St. Gallen repository; open-access PDF of source 40 | record dated 2024-11-26, read 2026-11-09 by the checker | B: byte-identical (SHA-256) to the saved PDF |
 
 Not read (tried or known, see the opening limits): Dalton, Jones and Dalton, *Mind Over Markets*; Bellafiore, *One
 Good Trade* (2010) and *The PlayBook* (2013); Crabel (1990); Connors and Raschke, *Street Smarts* (1995); Fisher, *The
 Logical Trader*; the Benzinga interview with Bellafiore (2014, 403); the SlideShare *PlayBook* deck (2013, 410);
 Breitstein's X posts, videos and paid course; the Gao et al. paper; the "Market Wizards" book a 2026-06-28 Sunday Scans
-giveaway describes as "Featuring chapters from Quallamaggie, Lance Breitstein, and TheShortBear".
+giveaway describes as "Featuring chapters from Quallamaggie, Lance Breitstein, and TheShortBear"
+(https://unchartedterritoryy.substack.com/p/sunday-scans-ae1).
+
+---
+
+## 12. Removed in checking
+
+The cold check (2026-11-09, second reader) changed the following. Everything else in the dossier was confirmed against
+its source as described in the opening note.
+
+1. **Removed:** the TraderLion quote that chapter 9 of *The PlayBook* features "Iceman's Opening Drive trade" (section
+   2). TraderLion's page answers 403 to a plain fetch and has no archived copy, so the quote could not be confirmed.
+   Replaced by the publisher's own table of contents (chapter 9 "Iceman: No Guts,No Glory", source 59) and SMB's own
+   page saying the book covers "opening drives" (source 60). Whether the Iceman chapter reviews an opening drive is
+   therefore not claimed here.
+2. **Fixed:** *The PlayBook*'s publisher. The draft said Wiley; the publisher is FT Press (Pearson), published
+   2013-07-09, copyright 2014 (source 59). Bellafiore's earlier *One Good Trade* (2010) is the Wiley title.
+3. **Fixed:** "footprints" (section 1) to the transcript's singular "footprint".
+4. **Fixed:** the MoneyShow reprint of the 2012-07-25 UA answer is lightly edited ("five to six minutes"), not the
+   same text (section 3.1).
+5. **Fixed:** the 8.7 Kullamägi credit now quotes the owner's sentence exactly, with his spelling "Quallamaggie", and
+   the 8.7 Bracco breadth note now carries its quote and URL (sunday-scans-bc2, 2026-09-20).
+6. **Fixed:** the 8.1 "preferably with a daily chart set" line is now attributed to the trader Rodney in Bellafiore's
+   2013-11-19 post, with its URL in the sources; the "algorithmic trading programs" sentence in that post is
+   Bellafiore's, as the dossier had it.
+7. **Noted, not changed:** the "Dr. S" name is the auto-transcript's "dr. s" / "doctor s", capitalised here; the
+   Breitstein stop and trailing quotes in section 3.3 carry a stray space before a colon or full stop on the live page
+   where a bold tag ends ("Prior bars : Holding...", "...bar closes . Not for entries."), which is formatting, not
+   wording; the 147-post and 4-post SMB search counts and the 96-post Breitstein index are the writer's records and
+   were not re-run (the cited posts themselves were all re-opened live).
+8. **Checked and kept:** every PROPOSED RULE line in section 8 is measurable (a bar, a percentage, a moving average, a
+   count of days, a market reading) and every [source consensus] tag rests on at least two named sources; the [my
+   proposal] tags mark the lines that are the writer's own (the 5-minute window, the 2x first-bar volume floor, the
+   day-1 close check, the group test).

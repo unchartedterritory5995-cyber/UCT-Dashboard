@@ -14,6 +14,21 @@ in the file or code named. The 16 kept Kickers were re-checked against a second 
 `yfinance`); they agree with the stored prices to the cent. Corrections are made in place; anything removed is listed
 under "Removed in checking" at the end.
 
+**Third pass (resumed cold check, 2026-11-09, a third reader).** Everything was opened again from scratch rather than
+trusting the second reader's notes: every outside page re-downloaded with a plain client (TA-Lib and `ta_global.c` raw
+source, Schwab, TradingMarkets, CQG, Working Money, the S&C abstract, Kell's Weeklies Watch, Stockbsessed, Qullamaggie,
+the Dahlquist and Bauer and CMT PDFs, the Fidelity-hosted S&C PDF, Amphibian, The Right Trader, StockCharts,
+QuantifiedStrategies; Bulkowski and TraderLion again from the Internet Archive, since the live pages answered 406 and a
+browser check); 157 outside quotes, dates, bylines and numbers matched word for word (the only misses were the words the
+dossier says are absent: no "kicker" on Qullamaggie's or Kell's interview page, no kicking entry at StockCharts). The
+Dahlquist and Bauer Table 2 and Table 6 figures were re-read in the PDF text. All 48 UCT quotes re-matched exactly against
+the 29 posts, with each quote's section heading and each post's publish date re-read; the sitemap still lists 103 posts.
+The 16 kept Kickers were re-pulled from Yahoo (daily bars, unadjusted) and every number in 4.5 and section 9 recomputed:
+they agree with the stored bank prices within a cent and with the figures printed here, including the TA-Lib test (none
+pass). The detector, the other eight Kicker rules in 5.3, the fixtures, the finders, the replay code, the KB entries, the
+verdict-log lines and all 35 rulebook ids cited in section 7 were re-read in the files. Three small corrections were
+made (listed at the end); nothing had to be removed.
+
 Tags used in section 8: **[source consensus]** several outside sources agree; **[originator]** the named author's own
 words; **[UCT]** the owner's verdict log, his desk logs, or UCT's published posts; **[house rule]** the account rulebook,
 `docs/study/sizing_rule.md` section 9; **[my proposal]** my recommendation, for the owner to accept or change.
@@ -263,7 +278,8 @@ Full detail in section 6. In one place:
 ### 3.9 Read and not used as sources
 - Amphibian Trading (Substack, byline "Brandon", 8 Sep 2022): defines the Kicker bar as a gap "above the opening price
   of the 'set up' candle", in a strong stock in a leading group forming "a proper basing structure" (its EQT example
-  drifted to the 21 EMA and 50 SMA); the stop at the setup bar's close. A practitioner blog with no full author name,
+  was a cup with handle whose handle "drifted down on light volume towards the 21ema and 50sma"); the stop at the
+  setup bar's close ("a stop loss at the previous days close"). A practitioner blog with no full author name,
   so not relied on.
 - The Right Trader ("By The Right Trader", no author): no named author; its useful line is honest: "There is no
   reliable published figure for a bullish kicker win rate that covers every market, timeframe, and exit rule."
@@ -551,7 +567,8 @@ E49).
 - `docs/study/UNITS-method.md` SET.23: "a catalyst gap that closes above that day's high and traps the shorts; the
   cleanest RED TO GREEN entry" and "place the stop under the gap". "Catalyst" and "red to green" pull against his
   "short term positioning" and his separate "Red to Green" tag; "under the gap" is not his stop.
-- `docs/study/OWNER_PRINCIPLES.md` rule 8 carries his entry and stop words correctly.
+- `docs/study/OWNER_PRINCIPLES.md` rule 8 carries his entry and stop words correctly, except that it silently spells
+  "kciker" (his typo, twice in the log) as "kicker" inside the quotation marks.
 
 ### 5.7 The in-house levels dossier and knowledge-base extract: accuracy warnings
 `docs/study/levels/dossiers/kicker.md` relies on `docs/study/levels/brain_kb_rules_2026-11-06.json`. Checked against the
@@ -804,7 +821,7 @@ owner's JOBY, "If it holds this and breaks it opening range tomorrow this is act
 - **Volume:** Kicker-day volume at least 1.5 times the 50-day average (judge it by the run rate before the trigger).
   [UCT: his desk logs name relative volume as the key (KB 10303); Dahlquist and Bauer; floor from the finders, my proposal: question 6]
 - **Length and depth:** two daily candles on top of the base; the red day's body typically 1% to 5.5% (kept range 0.07%
-  to 5.27%; 1.26% to 5.27% without ISRG, GS and RCUS, section 4.5). [measured on the kept examples]
+  to 5.27%; 1.01% (IMAX) to 5.27% without ISRG, GS and RCUS, section 4.5). [measured on the kept examples]
 
 ### 8.2 The buy
 - **A. Over the red day's high.** A buy-stop (market) one cent over the red day's high, on the Kicker day only. If it
@@ -1086,6 +1103,16 @@ re-read in Discord.
 19. In 8.5, the quote "my stop is my stop": it cut his sentence short; his words are "my stop is my stop most of the
     time" (2026-11-09). Restored with its source.
 
+**Corrected in the third pass (2026-11-09; nothing removed):**
+20. In 8.1 "Length and depth", the kept red-day body range without ISRG, GS and RCUS read "1.26% to 5.27%"; IMAX's
+    body is 1.01%, so the floor is 1.01% (IMAX), not 1.26% (JBTM). The 1.26% figure is right only for his eight greats
+    (section 9).
+21. In 3.9, Amphibian Trading's EQT example was paraphrased as "drifted to the 21 EMA and 50 SMA"; the page's words are
+    a cup with handle whose handle "drifted down on light volume towards the 21ema and 50sma", and its stop is "a stop
+    loss at the previous days close". Replaced with the page's wording.
+22. In 5.6, `OWNER_PRINCIPLES.md` rule 8 was said to carry his words "correctly"; it quotes them with his typo "kciker"
+    silently corrected to "kicker". Noted, since the file presents the text in quotation marks.
+
 **Added in checking:** Bulkowski's third tip and bearish sample size; Bigalow's inconsistent entry line (2008) and his
 Trend Kicker, 50-day and chasing lines (2023); Kell's NFLX context; the TraderLion Kell AMD entries (AMD 2023-12-07 was
 an AI-chip news day); Qullamaggie's 9:30-10:00 window; the detector's confidence floor (it never removes a Kicker);
@@ -1093,3 +1120,75 @@ the pass-2 and pass-4 finders' liquidity and forward rules; the deep scan's miss
 "+20 sessions"; the META fixture's bad bars; KB 7004's mis-credit; public opening-range Kicker entries (TEM, JOBY);
 the second-source facts on all 16 kept (red-day close position, body, drop, volume; JBI's 24-million-share red day;
 none passes TA-Lib); question 5's GS and RCUS conflict.
+
+---
+
+## 12. Examples (from our data)
+
+Scanned 2026-11-09 on the local sandbox's daily bars (3,897 names, 1984 to 2026); the scan covered all 2,630 names that
+ever met the house liquidity rule (complete, 161 seconds). Scripts and every hit: `_study-resume/scratchpad/setups/26-kicker/`
+(`kicker_scan.py`, `final_kicker.py`, `final/hits.json`, `final/examples.json`); charts in `final/` (10 PNGs and three
+phone sheets `sheet_1-4.png`, `sheet_5-7.png`, `sheet_8-10.png`). Nothing here is from a book or a web page; it is our
+own replay of the section 8 rules.
+
+**The rule as coded (section 8 plus the house rules).** Red day: close below open; body at least 1% of price *or* a
+close at least 1% under the prior close; close in the lowest 35% of its range; range at most 3 ATR(14); close above the
+200-day SMA; 50-day SMA at least 99.5% of its value 20 sessions earlier; the last 20 closes span 15% or less; the close
+within 1.5 ATR of the 21-day EMA or the 50-day SMA, or at or under the lowest low of the prior 5 sessions (plus 1%);
+close at least $10 and 50-day dollar volume at least $20 million. Kicker day: opens at least 1.5% above the red close;
+trades above the red high; never trades back down to the red close; closes above the red high in the top 20% of its
+range; volume at least 1.5 times the 50-day average. Neither day is an earnings reaction day (the sandbox's Yahoo + SEC
+dates; names with no dates were kept and flagged). Entry (E57, market): one cent over the red high if the open is at or
+under it, else the open; skipped if that fill is more than 4% over the red high (C28; those would need the 30-minute
+entry, which daily bars cannot test) or more than 10% over the 10-day SMA (C29). Stop: a fill at the open has no low yet,
+so the rule's own first stop, 3.5% under the fill; a trigger during the day gets 5 cents under the Kicker day's low or
+3.5% under the entry, whichever is closer (that uses the day's *final* low, which a live trader does not know; flagged).
+Outcome: fixed stop, no trims, no breakeven, 60 sessions forward, first touch of the stop, 3R or 5R wins (same day:
+stop first).
+
+**Not applied (the data cannot):** RS 80+ (C31; the sandbox has no RS rating), the market reading (F65, D46), position
+size, the 30-minute-bar stop raise at 10:00 (8.3), and the B20 gap rule.
+
+**Base rate.** 669 hits in 2,630 names; 48.0% reached 3R and 32.3% reached 5R before the first stop; 77.9% touched the
+stop within 60 sessions (most after a win: the median hit reached 3R in 2 sessions). Stocks only (595 hits; 74 were
+ETFs, ARKF, GDX, SH, XOP and the spot-bitcoin funds among them): 47.7% to 3R, 32.6% to 5R. By entry type: fill at the
+open (266) 41.0% / 25.2%; trigger during the day (329) 53.2% / 38.6%. The in-day group is flattered by the final-low
+stop: the 64 stock hits with a stop under 1% reached 3R 84% of the time, the 531 with a stop of 1% or more 43.3% / 27.3%.
+Names with earnings dates (516) 49.8% / 33.9%; without (79) 34.2% / 24.1%, so some of those are undetected earnings gaps.
+Since 2010 (434): 47.2% / 32.7%, the same as the whole. Medians: gap 2.3%, Kicker-day gain 5.7%, volume 1.9x, stop 3.5%
+(the cap). Read all of it as a fixed-stop, no-trim, no-RS, no-market-filter number; the 2R-breakeven and 3R/5R trims of
+the rulebook would change it.
+
+**The 10 textbook examples** (one per ticker, ten different years; each chart was looked at; the red day is down on
+the day in all ten; no ETFs). Columns: red day = change on the day / body / close position in its range; Kicker day =
+gap over the red close / change on the day / close position / volume vs 50-day; span = range of the prior 20 closes.
+
+| # | Ticker | Kicker day | Red day | Kicker day | Span | Buy (how) | Stop | Best R | Why it is textbook |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | MS | 1997-07-01 | -1.3% / -1.9% / 0% | +1.6% / +4.3% / 100% / 1.9x | 11.0% | 22.17 (red high +0.01) | 21.76 (1.8%) | 16.8R, 3R in 2d | Pullback to a rising 21-day EMA, the red day closes on its low, the Kicker opens over it and closes on its high; the stock never looks back. |
+| 2 | CSCO | 1999-11-10 | -1.4% / -3.0% / 22% | +4.0% / +7.1% / 92% / 2.2x | 11.7% | 38.59 (open, 1.1% over the red high) | 37.24 (3.5%) | 17.9R, 3R in 5d | A five-month staircase above the 50-day; the red day sits on the 21-day EMA; the Kicker gaps clean over the red high (fill at the open, 3.5% stop) and starts the late-1999 run. |
+| 3 | UNH | 2003-11-19 | -1.5% / -1.6% / 10% | +1.6% / +5.0% / 91% / 1.9x | 13.0% | 25.02 (red high +0.01) | 24.70 (1.3%) | 17.2R, 3R in 3d | The "almost failed breakdown": the red day undercuts the base lows and the 50-day, the Kicker gaps back above both; the trap holds and the base resolves up. |
+| 4 | AXON | 2004-11-04 | -1.1% / -3.7% / 28% | +2.5% / +13.2% / 97% / 2.4x | 14.5% | 21.44 (red high +0.01) | 20.70 (3.5%) | 16.2R, 3R in 1d | Tight 6-week shelf over the 21-day EMA; a real red body, then a 13% Kicker on 2.4x volume that closes near its high; 3R the next day. |
+| 5 | BBY | 2013-07-01 | -1.8% / -1.3% / 2% | +2.1% / +8.8% / 92% / 1.9x | 6.2% | 27.97 (red high +0.01) | 27.67 (1.1%) | 37.7R, 3R in 1d | A 6% tight range into the 21-day EMA, red day closes at its low, Kicker closes near its high; the cleanest "two candles on a base" of the set. |
+| 6 | SWKS | 2014-06-03 | -0.6% / -1.9% / 9% | +3.7% / +6.0% / 85% / 2.3x | 6.4% | 44.79 (red high +0.01) | 44.20 (1.3%) | 19.1R, 3R in 1d | A flat 6-week base on a rising 50-day; the red day is small on the day (-0.6%) but a full red body closing near its low; the Kicker breaks the base. |
+| 7 | BOOT | 2020-12-28 | -0.8% / -1.8% / 24% | +1.6% / +7.0% / 86% / 1.6x | 9.7% | 41.42 (red high +0.01) | 40.67 (1.8%) | 37.0R, 3R in 1d | A 4-week flat shelf under $44; the red day leans on the 21-day EMA; the Kicker opens over the red close and takes the red high; the stock runs 40% in six weeks. |
+| 8 | BEN | 2021-03-10 | -1.6% / -1.7% / 2% | +2.6% / +9.8% / 93% / 2.5x | 8.8% | 26.90 (red high +0.01) | 26.51 (1.4%) | 22.8R, 3R in 1d | A pullback that closes right on the 50-day SMA on its low; the Kicker gaps 2.6% and closes +9.8% on 2.5x volume. |
+| 9 | AMD | 2023-12-07 | -1.3% / -3.3% / 7% | +3.4% / +9.9% / 97% / 2.2x | 8.4% | 122.84 (red high +0.01) | 119.51 (2.7%) | 27.6R, 3R in 2d | A 3-week flag on the 10-day EMA after the November run; the red day closes near its low, the Kicker gaps 3.4%, takes the red high and closes at its high (the chart the owner's kept examples look like). |
+| 10 | SMTC | 2024-03-26 | -2.8% / -1.9% / 19% | +4.4% / +13.0% / 82% / 3.5x | 14.2% | 23.24 (open, 1.3% over the red high) | 22.43 (3.5%) | 29.2R, 3R in 1d | Red day back to the 21-day EMA under a flattening 200-day; the Kicker opens over the red high (fill at the open, 3.5% stop) and closes +13% on 3.5x volume; the base turns into a 70% run. |
+
+Not used on purpose: APP 2024-09-11 (a famous Kicker and a 253R replay, but the red day was only -0.09% on the day and
+the 1.4% stop sits on the day's final low; shown to the owner as an extra if he wants it), TSLA 2020-11-18 (the red day
+was a +8% gap-up that faded, so not a pullback red day), GFI 2005-11-16 (red body 6.8%, outside the typical 1% to 5.5%),
+HOG 2010-05-10 (a topping pattern, messy), and every ETF.
+
+**Notable failures (from the same scan):**
+- **GOOGL 2020-02-03 and AVGO 2024-03-07: the Kicker day was the report day.** Both reported after the close of the
+  Kicker day itself. The scan's earnings test only excludes a reaction on the red day or the Kicker day, so a report
+  after the Kicker's close slipped through; both gapped down the next morning and hit the stop with 0R. The lesson is
+  B22 (no new trade into a report) and a fix for the scanner: also exclude a report within the next session.
+- **AVGO 2025-10-13: a shock-day reversal.** The red day (2025-10-10) fell 6% with a 7.8% range; the Kicker opened 8.7%
+  above the red close (1% over the red high, so a fill at the open with the 3.5% stop) and closed +9.9% on 2x volume.
+  The next day's low was under the stop: 0R. A giant red bar from a one-day market shock is not an orderly pullback.
+- **CSCO and MA, both 2018-10-12: a bounce day in a breaking market.** Both printed Kickers on the first up day after
+  the 10-11 October 2018 break (CSCO best 0.7R, MA 1.1R, both stopped within weeks). Under the rulebook neither is a
+  trade in a Red market (D46); the pattern alone is not enough.

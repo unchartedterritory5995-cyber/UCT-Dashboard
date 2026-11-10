@@ -1054,3 +1054,72 @@ of a filter, and on a broken down line becoming support (3.2); the CMT tutorial'
 Bulkowski's long-trade test on rising lines (4.2) and his flag note (4.4); a realistic-entry stop check on the 23
 judged charts (4.7, 8.2); the owner's APPN post, Bracco on mean-reversion turns, and TINY TRADES' LOAR (6); the verdict
 log's rule that examples must work after the trigger, and the UTC date note (6, 10).
+
+## 12. Examples (from our data)
+
+**The scan's rule (daily bars, 2000-01-03 to 2026-11-04, the 2,630 names that ever met the house liquidity rule, all
+scanned).** A falling line on a log chart over the daily highs of a pullback: anchor 1 is the pullback's highest high
+(a swing high that no later high exceeds before the break); anchor 2 is the later swing high, at least 5 sessions on,
+that gives the steepest line still clearing every high in between (so no close, and no wick, crosses the line before
+the trigger: a first, clean break). Span 15 to 120 sessions; slope no steeper than 0.15 ATR a session; the lowest low
+under the line no more than 35% below anchor 1; at least 2 swing highs within 0.25 ATR of the line; the 5 closes before
+the trigger within 5% under the line with a smaller average range than the prior 20 sessions. The trigger day trades
+above the line's value for that day AND the prior day's high, closes above the line, in the upper half of its range,
+above the 10- and 21-day EMAs, above a 200-day SMA that is higher than 20 sessions earlier, on at least 1.2 times the
+50-day average volume, not more than 10% above the 10-day average (C29), $10 or more with $20 million a day traded
+(B23), no earnings report in the next 3 sessions (B22). Entry is a market order at the higher of the line and the
+prior day's high (the open on a gap), within 4% or 1.5 ATR of the line (C28); the stop is 5 cents under the trigger
+day's low (A3), stops over 5% skipped; one trigger per name per 20 sessions. RS rating (C31) and the market reading
+(F65) are NOT in the scan: the sandbox has no RS data, so section 8.1 item 2 is unchecked here.
+
+**Base rate (fixed stop, no trims, no breakeven, 60-session window).** 9,961 triggers; 54.2% reached 3R and 41.5%
+reached 5R before the stop; 78.8% were eventually stopped inside the window (the fixed stop never moves, so most
+winners are stopped later too); median best excursion 3.6R. Caveats: (1) the stop is tiny (median 1.17% of the entry),
+so 3R is often a 3 to 4% move; the 4,171 triggers with a stop under 1% reached 3R 67.7% of the time and the 5,790
+with a stop of 1% or more only 44.4% (5R: 30.2%), which is the more honest figure for a member who buys during the
+day; (2) 2,306 of the triggers were gap opens above the trigger (allowed by the 4% limit) and those read 70% to 3R,
+again helped by tiny stops; (3) splits: lines with 3 or more touches (4,507) did 54.6% / 42.3% versus 53.8% / 40.8% for
+2 touches; slope 0.10 ATR or less 53.7% / 41.0% versus 56.4% / 43.9% for steeper; volume 1.5x or more 57.2% / 44.8%;
+spans of 40 sessions or more 53.5% / 40.5% versus 54.7% / 42.3% for shorter; so in this data the extra "quality"
+filters in 8.1 (touches, slope, span) add little to the hit rate, while volume and a wider honest stop matter more.
+Prices below are split-adjusted as the sandbox holds them.
+
+Scratch work: `C:/Users/pgosz/uct-worktrees/_study-resume/scratchpad/setups/09-trendline-break/` (tl_scan.py, tl_chart.py,
+final/hits.json, final/examples.json, the 10 charts and the three one-column sheets sheet_1-4.png, sheet_5-7.png,
+sheet_8-10.png in final/). Every chart was looked at; rejected on sight: flat (slope 0.00) lines that are really a
+horizontal resistance break (CAT 2006-01-06, HRI 2012-11-28, EPC 2011-07-15), short 21 to 35 session lines (NFLX
+2017-12-28, BX 2017-12-21, FRT 2015-03-16, SITE 2026-01-05), and SOHU 2014-02-27 (a textbook break that ran to 16R and
+then collapsed inside the chart window, confusing for a learner).
+
+| # | Ticker | Trigger day | Line: touches / span / slope (ATR per day) / depth | Anchor-1 high | Line at trigger | Buy | Stop (%) | Volume | Best R (sessions to 3R) | Why it is textbook |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | COST | 2001-05-31 | 6 / 69 / 0.066 / 25% | 44.25 | 37.97 | 37.98 | 36.70 (3.4%) | 2.8x | 5.3R (12) | Long falling line after a 25% pullback, break back over the 200-day and the 50-day in one day on 2.8x volume; the widest stop of the ten (only COST and HLF are over 3%) |
+| 2 | BDX | 2003-11-21 | 5 / 120 / 0.028 / 16% | 31.29 | 29.39 | 29.40 | 28.99 (1.4%) | 1.9x | 21.8R (2) | The longest line allowed (120 sessions), five touches, a tight drift under the line into the break, then a steady trend up the 10-day |
+| 3 | NUE | 2006-10-05 | 8 / 106 / 0.044 / 26% | 60.30 | 50.47 | 50.48 | 49.20 (2.5%) | 1.8x | 13.3R (6) | Eight touches over five months: the clearest line of the set; the break came off a higher low above the 200-day and the stock never looked back |
+| 4 | HLF | 2008-02-19 | 6 / 87 / 0.052 / 23% | 11.44 | 10.25 | 10.26 | 9.91 (3.4%) | 2.3x | 7.2R (11) | A clean six-touch line broken on 2.3x volume while the general market was weak (early 2008); passes the $10 rule only in split-adjusted prices, so a note for the owner |
+| 5 | MSFT | 2012-01-04 | 6 / 112 / 0.024 / 16% | 28.15 | 26.89 | 26.97 | 26.73 (0.9%) | 1.6x | 24.9R (1) | A mega-cap drifting tightly under a five-month line; 3R came the next day; shows how small the honest stop can be when the break is bought during the day |
+| 6 | BHC | 2013-12-16 | 4 / 39 / 0.070 / 11% | 115.40 | 109.22 | 109.23 | 106.79 (2.2%) | 1.9x | 18.0R (9) | A shorter (39 session) line in a leader riding its 50-day; shallow 11% pullback, the break over the line and the prior day's high together, then a 30% run |
+| 7 | NEM | 2019-12-03 | 4 / 67 / 0.049 / 12% | 41.23 | 39.25 | 39.26 | 38.84 (1.1%) | 1.6x | 28.8R (6) | The line breaks the same day price reclaims the 50-day; a quiet, shallow 12% pullback above a rising 200-day (gold leader of the time) |
+| 8 | COR | 2022-10-21 | 4 / 46 / 0.052 / 12% | 153.35 | 144.70 | 144.71 | 142.42 (1.6%) | 1.6x | 13.1R (2) | A bear-market (2022) example: the stock had held its rising 200-day while the market fell, four touches, and the break came with the 50-day reclaim |
+| 9 | EHC | 2024-01-05 | 5 / 87 / 0.047 / 20% | 71.83 | 67.68 | 67.69 | 66.82 (1.3%) | 1.7x | 18.4R (6) | A 20% pullback that bottomed in a V, then eight weeks of higher lows rising UNDER the line before the break; a good "patience" chart |
+| 10 | MCK | 2025-02-25 | 5 / 61 / 0.024 / 12% | 632.59 | 609.83 | 609.84 | 601.40 (1.4%) | 1.7x | 14.4R (3) | A high-priced leader: a shallow, slow line (0.024 ATR a day) with five touches; the break ran straight to new highs; shows the R maths does not care about the share price |
+
+Eight of the ten were never stopped inside the 60-session window; COST and HLF were, after reaching 5R and 7R, which is
+what a fixed stop without trims does and why the house trims a third at 3R and 5R and trails the rest.
+
+**Notable failures (from the same scan; charts in the scratch folder's fails/).**
+- LBTYA 2014-09-19: the best-looking line of the failures, 8 touches over 83 sessions, slope 0.022, but the break came
+  on only 1.25x volume and closed just 0.39% above the line; the next day closed back under it and the stop (1.35%)
+  traded on day 4. Lesson: a weak-volume break that barely clears the line is Murphy's "intraday penetration" dressed
+  as a close.
+- TMUS 2014-03-21: 6 touches over 51 sessions, closed a full 2% above the line, then three flat closes and a drop
+  through the 0.9% stop on day 4 without ever making a higher high. Lesson: no follow-through within 3 sessions is
+  itself the signal; the time stop (C33) exists for this.
+- IFF 2020-08-10: 5 touches, 62 sessions, slope 0.077, a 1.4% close over the line on 1.36x volume; one more up day,
+  then a reversal to the stop (1.7%) on day 2 and a further 4% slide. Lesson: the overhead supply at anchor 1 and the
+  50-day just above the break are the places a learner should expect a fight (8.8 item 10).
+
+What this section cannot settle: RS 80+ and the market reading were not tested; the scan uses the close-above-the-line
+version of the trigger (the dossier's "alternative" in 8.2) to pick textbook days, with the entry priced at the
+intraday trigger, so the base rate counts only days that also closed above the line, and the real intraday trigger
+would add false starts that never closed above it (section 8.2's trade-off).

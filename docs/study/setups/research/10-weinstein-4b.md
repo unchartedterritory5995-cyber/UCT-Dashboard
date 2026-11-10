@@ -829,3 +829,75 @@ Each item below was in the first draft and was wrong, or could not be confirmed.
     top. Two rows were not measurable as written ("still honest" stop, "wide-range break"; "first overhead resistance";
     "group is basing") and now have tests; "cycle low" is now defined.
 15. **"None was checked against price data" for the examples.** Rows 1, 2 and 18 now are (8.10).
+
+---
+
+## 12. Examples (from our data)
+
+Added 2026-11-09 from the local sandbox's daily bars (3,897 names, 1984 to 2026; the scan covered the 2,630 names that
+ever met the house liquidity rule, all of them, in 176 seconds). Scripts and the pictures sit outside the repo in the
+helper's scratchpad (`setups/10-weinstein-4b/`: `scan4b.py`, `chart4b.py`, `final/hits.json`, `final/sheet_*.png`).
+
+**The rule the scan ran (section 8.1 and 8.2 made mechanical, plus the house rules).** Trigger day t: the stock has
+closed above its 50-day SMA for 2 to 40 sessions in a row (the "pause"), and on day t trades above the highest high of
+that pause; market order at the pause high plus a cent, or the open if it gapped over it (E57), skipped if that is more
+than 4% past the pause high (C28) or more than 10% above the 10-day average (C29). The cycle low is the lowest low of the
+252 sessions before t, 15 to 130 sessions back (an early turn, not a late Stage 2), at least 30% under the highest high
+of the 252 sessions before it; on the cycle low's date the 150-day SMA was lower than 20 sessions earlier and the close
+was under it (Stage 4). Between the low and the pause, fewer than half the closes were above the 50-day. A higher low:
+the lowest low from 10 sessions after the cycle low to t is at least 3% above it, with a rally of 5%+ before it; the
+down days of the week into that higher low averaged less volume than the 50-day average. The 50-day is no more than 1%
+lower than 10 sessions earlier. RS line (stock / SPY) higher at the higher low than at the cycle low, or above its own
+50-day average. Room: at least 3R to the nearest of the 150-day, the 200-day and the highest close of the 60 sessions
+before the cycle low, counting only levels above the entry. No report in the next 3 sessions (B22, from the earnings
+table; thin before 2005). Liquidity: prior close $10+, $20M+ a day (B23). Stop: a few cents under the pause low if that
+is within 5% of entry, else the house default, a few cents under the lower of the trigger day's and the prior day's lows;
+over 5%, no trade. The pause-low stop fitted only 104 of 2,016 hits; 1,912 used the day-low stop (median stop 3.3%,
+A13's "about 3%"). Each hit is tagged Version H (prior close above the 200-day, B26) or Version W (under it); one hit
+per name per 20 sessions. Not tested: the group and market readings (no group data in the sandbox) and the time option
+of 26 of 39 weeks. The outcome is a fixed stop with no trims, no breakeven move, no time stop, 60 sessions forward: the
+first of the stop, 3R and 5R reached.
+
+**Base rate (1997-05-30 to 2026-11-05, 2,630 of 2,630 liquid names).** 2,016 hits; 25.7% reached 3R before the stop
+and 15.1% reached 5R; 85.8% were eventually stopped inside 60 sessions (a fixed stop with no trims, so a trade that hit
+5R and then came back to the stop counts in both). Version H (above the 200-day, the one we teach as a trade): 1,110
+hits, 22.2% to 3R, 13.9% to 5R, median 11 sessions to 3R for those that got there. Version W (Weinstein's, under the
+200-day, B26 forbids it): 906 hits, 30.1% to 3R, 16.7% to 5R, better than H on this fixed-stop test, which is worth
+knowing when the owner answers question 2. Splits inside H: a 5-to-10-day pause 25.9% / 15.4%, 11 to 20 days 23.1% /
+16.2%, 21 to 40 days 21.3% / 12.4%, a bare 2-to-4-day pause 15.7% / 11.8%; stops of 3% or less 24.4% / 15.0% against
+20.4% / 13.0% for wider ones. The hit count is high because the rule fires on most 50-day-pause breakouts after any
+30% decline; the 10 below were picked from the 5R winners by eye, so they say what a textbook one looks like, not
+how often it comes. The named examples: DXCM 2024-11-12 fired as Version W (best 5.2R; the dossier's 8.10 entry was
+the next day); NFLX 2022-07 did not fire (the 1% flattening and B22, as 8.10 says); RDDT 2025-11 did not fire (not a
+Stage 4 stock, section 6).
+
+**The 10 examples (all Version H: prior close above the 200-day).** Pictures: `final/sheet_1-4.png`, `sheet_5-7.png`,
+`sheet_8-10.png`. "Best R" is the best excursion before the stop within 60 sessions, fixed stop, no trims.
+
+| # | Ticker | Trigger | Cycle low, % under 52-wk high | Higher low | Sessions off the low / pause over 50-day | Buy point / entry | Stop (%) | Best R | Why it is textbook |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | SNPS | 1998-10-28 | 12.25, 48% | +9.9% | 41 / 9 | 19.53 / 19.54 | 18.76 (4.0%) | 14.2 | A sharp autumn-1998 Stage 4, a higher low in October, then the pause sits right on the 150- and 200-day lines and the break clears all three averages at once; 3R in 2 sessions. (SNPS is also on the GTA's March 2005 4B- list, 8.9, a different year.) |
+| 2 | FDX | 2001-11-06 | 26.71, 34% | +10.1% | 33 / 8 | 34.97 / 34.98 | 34.06 (2.6%) | 10.8 | The September 2001 low, a quiet higher low, an 8-day pause tucked between the 50-day and the 200-day, then a clean break of the pause high; the 10-day EMA stayed above the 21-day all the way to 5R. |
+| 3 | NTAP | 2004-09-13 | 15.92, 40% | +21.6% | 22 / 17 | 22.61 / 22.62 | 21.51 (4.9%) | 10.4 | Seven months under a falling 30-week line, a V low in August with a heavy-volume reversal day, a 17-day pause riding the 50-day, and the trigger bar closes above the 200-day. The widest stop of the ten (4.9%), question 4 material. |
+| 4 | NUS | 2013-04-18 | 32.36, 48% | +17.2% | 78 / 19 | 49.98 / 49.99 | 49.05 (1.9%) | 31.9 | The longest base here: a December capitulation low, a February higher low, three months of flat 150- and 200-day lines, then a 19-day pause above a turning 50-day (up 2.2% in 10 sessions) and a tight 1.9% stop. The best outcome in the set. |
+| 5 | NDSN | 2016-03-02 | 51.89, 39% | +9.1% | 29 / 11 | 73.24 / 73.25 | 71.47 (2.4%) | 8.8 | Half a year of lower highs under the 30-week line, a January low, and a steady 11-day pause that lifts through the 150-day and 200-day before the trigger; volume on the way down into the higher low was below average. |
+| 6 | AMD | 2018-05-15 | 9.04, 42% | +5.8% | 29 / 10 | 12.36 / 12.37 | 12.06 (2.5%) | 25.2 | An April low after a six-month slide, a shallow higher low (+5.8%, the smallest here), and a 10-day pause with every close above the 50-day; the break clears the 200-day with room of 4.4R to the old closes. 3R in 4 sessions. |
+| 7 | PENN | 2019-11-05 | 16.72, 53% | +7.7% | 57 / 17 | 22.11 / 22.12 | 21.49 (2.8%) | 15.7 | The picture-book shape: a long Stage 4 under a falling 30-week line, an August low, an October higher low, a 17-day pause above a 50-day that has turned up (+3.7%), and the trigger above the 200-day (the prior close 5.8% over it). |
+| 8 | SAM | 2020-04-27 | 290.02, 35% | +19.5% | 29 / 12 | 439.42 / 444.00 | 428.39 (3.5%) | 14.2 | The March-2020 low, a quick higher low, a 12-day pause above the 50-day and the trigger gapped over the pause high (entry at the open, 1% past the buy point, inside C28). A V-shaped turn, so the "Stage 4" lasted only weeks: Weinstein's own examples (8.10) were like this too. |
+| 9 | URI | 2022-11-08 | 230.54, 44% | +3.8% | 96 / 10 | 326.68 / 326.69 | 316.54 (3.1%) | 13.7 | A June-to-October double bottom (the second low 3.8% above the first; the September-October lows sit higher still), a 10-day pause pinned between the 50-day and the 150-day, and the trigger clears the 200-day with 3.8R of room to the August closes. 3R in 3 sessions. |
+| 10 | DY | 2025-05-08 | 131.37, 37% | +14.4% | 22 / 11 | 186.40 / 186.41 | 182.62 (2.0%) | 22.5 | A spring 2025 washout to 131, a higher low at 150, an 11-day pause that walks up through the 50-, 150- and 200-day lines, a 2% stop and a run to 5R in 8 sessions. The most recent clean example in the data. |
+
+Caveats on the examples: five of the ten (SNPS, FDX, SAM, URI, DY) are turns after a market-wide selloff (1998, 2001,
+2020, 2022, 2025), which is the setting the sources describe (8.7); none has a group or market reading attached; prices
+are split-adjusted by the data vendor (AMD, NUS, SNPS, NTAP and FDX trade at much higher prices now than then); SNPS and
+FDX predate the earnings table, so B22 could not be checked for them.
+
+**Notable failures (Version H, stopped under 1R).**
+- META 2020-05-11 and again 2020-06-10: after the March 2020 low it reclaimed the 50-day and then the 200-day, paused
+  13 and later 34 sessions, broke the pause high, and was stopped without trading above the entry both times (best 0.0R each); the real move came
+  later from a third base. A 4B- after a V bottom can fail twice before it goes; the rule re-arms on a new pause (8.5).
+- MSFT 2001-05-07 and 2001-06-05: a 66% Stage 4 decline from the 2000 top, a long base, 18- and 38-day pauses above the
+  50-day, both breaks stopped (0.3R, 0.6R) under a 200-day that was still falling. Room to run passed on paper, but a
+  falling long average over the trade is a different picture from PENN's or NUS's flat ones; a grading cue (section 9).
+- TGT 2008-09-03 and 2009-04-30: two 4B- triggers in the 2008-2009 bear, each under a falling 200-day, each stopped without ever trading above the entry (0.0R). The market
+  reading, which the scan could not test, is the missing filter (B18, F65, "forest to the trees").

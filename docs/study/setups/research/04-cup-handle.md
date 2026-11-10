@@ -977,3 +977,77 @@ withdrawal; Kuhn's follow-up article (not read).
   only source is one post describing one chart. Kept only as that.
 
 Nothing else had to be removed: every other quote in this file was found word for word on its page, in context.
+
+---
+
+## 12. Examples (from our data)
+
+**The scan's rule (section 8 made mechanical, plus the house rules).** Daily bars from the local sandbox (3,897 names,
+1984-2026), scanned over the 2,630 names that ever met the house liquidity rule, trigger days from 2000-01-01 on. A hit
+needs: a left-side high that is the highest high of the prior 120 sessions and at least 30% above the lowest low of
+those 120 sessions (8.1 prior trend); a cup of 35 to 325 sessions (7 to 65 weeks) from that high to the trigger, 12% to
+35% deep, with its low in the middle 60% of the cup, at least 30% of the cup's bars with lows in the bottom quarter (the
+U-not-V test) and at most two 5-session blocks with a 10% or wider range; a right rim within 10% below (or 5% above) the
+left-side high; a handle of 5 to 30 sessions whose highs all sit under the right rim, 3% to 12% deep, midpoint above the
+cup's midpoint, a flat-or-down line through its lows, average volume below the cup's, and no close below the 50-day SMA;
+the trigger is the first day the high trades above the handle high (the pivot) with the close above the 200-day SMA
+(B26), price $10 or more and 50-day dollar volume $20M or more (B23); market-order fill at the pivot plus a cent, or at
+the open when it gaps over the pivot (E57), no fill more than 4% over the pivot (C28) or more than 10% over the 10-day
+SMA (C29); stop 5 cents under the lower of the trigger day's and the prior day's low, or under the trigger day's low
+alone if that is wider than 3%, and skip if still wider than 3% (A13, F62); no trigger in the 3 sessions before an
+earnings report (B22). The 3% minimum handle depth and the middle-60% cup-low test are the scanner's own additions (a
+shallower dip is a flat shelf, not a handle). Not coded: base count, RS 80+ and group strength, the market reading,
+the 2.5x-the-index depth ceiling, the bear-market 50% allowance. One hit per name per 30 sessions.
+
+**Base rate (fixed stop, no trims, no breakeven move, no trail).** 2,630 of 2,630 liquid names scanned (full
+coverage, about 4 minutes). 428 hits (first 2001-02-21, last 2026-11-02); 12 were ETFs and 13 more triggered on an
+earnings-reaction day. Of the 403 stock hits not on an earnings-reaction day: **30.3% reached 3R and 22.6% reached 5R
+before the stop** within 60 trading days; 85% touched the stop at some point in the 60 days (342 of 403), 197 of them
+without ever reaching 1R; the median best excursion was 1.1R. All 416 stock hits: 30.8% / 23.1%. The 274 hits that
+also passed the tightness proposal (last 5 handle closes within 3%) did a little better: 32.1% / 24.8%. Read these
+numbers as a floor for the house trade: a stop this tight (median about 2.3%) is hit by normal noise, and the house
+plan trims a third at 3R, a third at 5R and trails the rest, which the fixed-stop count does not credit; the count
+also ignores RS, group, base count and market reading, which the owner reads before any buy.
+
+**The 10 examples** (charts in `scratchpad/setups/04-cup-handle/final/`, one per name, ten different years; "best R"
+is the highest excursion before the stop within 60 sessions; buy and stop in dollars; structure numbers from the scan):
+
+| # | Ticker | Trigger | Cup (weeks / depth / prior run) | Handle (days / depth / vol vs cup) | Buy / stop (risk) | Breakout vol | Best R | Why it is textbook |
+|---|---|---|---|---|---|---|---|---|
+| 1 | GWW | 2004-09-29 | 10.4 wk / 14.6% / +31% | 7 d / 3.3% / 0.66x | 56.61 / 55.27 (2.4%) | 0.73x | 7.3R | A smooth U of the right depth after a 6-month run; a one-week handle that drifts down on light volume and holds the 50-day. The one flaw: breakout volume was below average, so it is the example for "weak volume is a warning, not an exit". |
+| 2 | EFX | 2007-05-04 | 11.0 wk / 14.5% / +35% | 7 d / 3.0% / 0.85x | 40.98 / 40.25 (1.8%) | 0.78x | 7.3R | A textbook rounded bottom (two months of lows in the bottom quarter), a right side that climbs straight back to the rim, a shallow 7-day handle. Also a light-volume breakout that worked. |
+| 3 | MCO | 2012-09-06 | 21.6 wk / 21.3% / +40% | 19 d / 6.7% / 0.77x | 40.76 / 39.73 (2.5%) | 1.6x | 8.5R | The long version: a 5-month cup with a 4-week handle. Shows that a handle can run almost a month and still work if its lows drift down, volume dries up and the 50-day holds. 3R in 4 sessions. |
+| 4 | RRC | 2013-02-05 | 15.2 wk / 17.5% / +39% | 6 d / 4.6% / 0.97x | 69.20 / 67.35 (2.7%) | 1.3x | 7.5R | A rounded 15-week cup with its low near the middle; the handle forms just under the rim in the upper third of the base. Handle volume barely below the cup's (0.97x): the grading cue at its weakest acceptable. |
+| 5 | FFIV | 2014-01-13 | 15.6 wk / 17.5% / +40% | 7 d / 4.2% / 0.74x | 91.29 / 90.67 (0.7%) | 2.71x | 41R | The cleanest of the ten: symmetric cup, quiet handle, breakout on 2.7x volume, 3R the next day. The 0.7% stop (a tight trigger day) makes the R count huge; the dollar move was about 20% in 6 weeks. |
+| 6 | WB | 2017-05-08 | 10.4 wk / 19.4% / +47% | 6 d / 6.5% / 0.74x | 57.48 / 56.70 (1.4%) | 2.99x | 32R | A 10-week U above a rising 200-day, a 6-day handle, a 3x-volume breakout; the stock then gapped higher the next week. Shows why the house holds the last third through 5R. |
+| 7 | CNC | 2018-04-16 | 10.6 wk / 13.2% / +39% | 6 d / 3.5% / 0.63x | 54.57 / 52.94 (3.0%) | 1.45x | 7.0R | The shallow version near the 12% floor: a 13%-deep cup in a steady uptrend, the driest handle of the ten (0.63x). The stop sits exactly at the 3% limit, so it is the example for "stop within about 3%" (A13). Slow mover: 3R took 29 sessions. |
+| 8 | AAPL | 2021-11-17 | 10.2 wk / 12.1% / +32% | 7 d / 3.1% / 0.72x | 152.21 / 149.29 (1.9%) | 1.17x | 10.5R | A mega-cap cup a learner can check anywhere: 12% deep, handle under the rim, breakout on modest volume, 3R in two sessions. The 60-day window ends inside the January 2022 market break, which the fixed stop survived. |
+| 9 | WPM | 2025-12-10 | 7.6 wk / 19.1% / +52% | 6 d / 6.4% / 0.75x | 111.61 / 108.76 (2.6%) | 1.08x | 19R | The short cup near the 7-week minimum, in a leader above a rising 200-day; handle lows drift down for 6 days. Volume at the breakout was only average: the move came in the following weeks. |
+| 10 | AX | 2026-01-05 | 16.6 wk / 20.2% / +72% | 5 d / 4.9% / 0.89x | 89.22 / 86.95 (2.5%) | 1.48x | 5.6R | The most recent: a 4-month U after a 72% run, a 5-day handle (the IBD minimum), a 1.5x breakout. Reached 5R in about 7 weeks, then rolled over below the pivot: the example for trailing the last third under the 21-day. |
+
+All ten reached 5R. Charts: `01_GWW_2004-09-29.png` to `10_AX_2026-01-05.png`, sheets `sheet_1-4.png`, `sheet_5-7.png`,
+`sheet_8-10.png` (one column, phone size), `examples.json` (the numbers), `hits.json` (every hit with its outcome).
+
+**Notable failures (all met every rule above):**
+- **BX 2019-11-26.** A 10-week, 18%-deep cup, a 5-day handle, breakout on 4.9x volume, the heaviest of any winner or
+  loser in the scan. It reached 2.4R on the second session, then a one-day dip on the fifth session touched the stop (1.2% under
+  the buy) and the stock went on to make new highs without us. Lesson: a very tight trigger-day stop is cheap but fragile; the house
+  answer is the breakeven move at 2R to 5R (B19), not a wider stop.
+- **ULTA 2016-12-16.** A 16-week, 19%-deep cup after a 76% run with an 8-day handle: at a glance it looked like the
+  FFIV chart. Inside the cup were two heavy-volume weeks (the two 10%-range weeks the rule allows), and the breakout
+  faded within days to the stop with a best of 0.9R. Lesson: the "at most two wide weeks" ceiling is the maximum, not
+  the grade; a cup with two violent weeks inside it is a B- base.
+- **WDAY 2021-09-22.** A 30-week, 23%-deep cup with an 8-day handle sitting on the 50-day; the breakout day closed
+  near its high, then the stock fell straight through the stop in the following sessions (best 0.0R). It later broke
+  out again from a lower pivot and ran. Lesson: a cup over 6 months old with the handle resting on the 50-day (not
+  well above it) is a late, tired base; the owner's base-count rule (first or second base) is the filter the scan
+  cannot apply.
+- Also seen in the hits: **SCHW 2024-11-06** and **KMI 2016-09-08** gapped over the pivot at the open, filled at the
+  open and never traded above that fill on any later day in the window (best 0.0R). A gap-up through a cup pivot without follow-through is the
+  pattern the chase limit (C28) and the 30-minute gap rule (B20) are there for.
+
+**Limits.** Daily bars only; weeks counted as 5 sessions. No RS rating, group rank, base count or market reading in
+the scan. Stops are evaluated on daily lows (a stop touched intraday counts as hit). Best R is the high before the stop,
+not a realised trade. The scan ran once, in full, within its 420-second budget (about 240 seconds used); nothing was
+charted from a partial scan. ARCB 2023-07-18 (18-week cup, 3.6x breakout, best 78R) was left out of the ten because its
+trigger-day stop was 0.29% under the buy, which makes the R count meaningless for a learner.

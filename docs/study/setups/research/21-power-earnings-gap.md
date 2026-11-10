@@ -1004,3 +1004,74 @@ notes) and the owner's TWLO "undercut of the previous day and reclaim" buy (6.2,
 **Still unverified** (kept, flagged): the gap-down count of 1,238 (no saved script; a recount found 1,272 with the same
 percentages); the "machine-distilled" description of the brain template (not traced in this check);
 the TradingView script's credited research; anything on Twitter, TraderLion, IBD and in the 2010 book.
+
+## 12. Examples (from our data)
+
+Added 2026-11-09 from the local sandbox's daily bars (3,897 names, 1984-2026) and its report-date cache (Yahoo plus SEC
+8-K Item 2.02, complete from about 2005). Scan script: `_study-resume/scratchpad/setups/21-power-earnings-gap/peg_scan.py`
+(scratch, not in the repo); charts and the full hit list in its `final/` folder.
+
+**The rule scanned** (section 8 plus the house rules, in one paragraph). A PEG day is the first regular session after a
+quarterly report (the cache's reaction day; a gap on a day with no report in the cache is not counted, so the scan starts
+2005-01-01 and the 467 liquid names with no cached report dates yield nothing), whose open is at least 4% over the prior
+close and at least 0.75 x the 40-day ATR over it, on volume at least 1.5x the 50-day average, closing green (close at or
+over the open), over the prior day's high and in the top half of its range, over the 200-day SMA, on a stock that was $10+
+and traded $20M+ a day before the gap (B23). The buy is the **pause buy** (8.2 A): a pause of at least 2 sessions after
+the PEG day that holds the PEG-day low and never trades back to the prior close (no gap fill), then a market order the
+first day price trades over the pause high (if it opens above it, the open), within the 4% chase limit (C28), not more
+than 10% over the 10-day SMA (C29), over the 200-day (B26), trigger within 11 sessions of the gap. The stop is 5 cents
+under the lower of the trigger day's and prior day's lows (the trigger day's low alone if that is wider than 3%), and the
+trade is skipped if the stop is wider than 3% (A13). The day-one buy (8.2 B) cannot be seen on daily bars, so it is proxied
+by the PEG-day close when a stop under the PEG-day low is within 3% and the close is within 10% of the 10-day; these are
+counted separately below and none of the ten examples uses it.
+
+**Base rate.** 2,630 of 2,630 liquid names scanned (full coverage; 270 seconds). 1,516 hits from 2005 to 2026: **31.0%
+reached 3R and 20.0% reached 5R before the stop**; 80.7% were stopped within the 60-session window (the rest ended the
+window open), and the median best excursion was 1.1R. By entry: pause buys 1,086 hits, 30.9% to 3R, 20.7% to 5R; day-one
+proxies 430 hits, 31.2% to 3R, 18.1% to 5R. The grading cues the course proposes, on this sample: gaps of 10%+ (122 hits)
+34.4% / 23.0%; volume 3x+ (899) 30.7% / 19.9%; not up more than 30% in the prior 65 sessions (1,446) 31.3% / 20.2%. So the
+volume and run-up cues did not move the rate here and the gap size moved it a little. The median winner took 10
+sessions to reach 3R. **Caveats:** a fixed stop with no trims, no breakeven move, no trail and no time stop, scored over
+60 sessions from the day after the buy, with a same-day stop-and-target tie going to the stop; the window can run into
+the next report, which house rule B22 would sell before (Genpact 2024-08-15, cut below, took its "15R" from the next
+earnings gap on day 60); the stop is the plan's default, not a sized one; and the report-date cache's time of day can be
+wrong (the cache puts PANW's 2020-11-16 report "before the open", which would make the market-wide gap of 16 Nov its PEG
+day; PANW's own reaction bar is 17 Nov, so that hit was dropped from the examples, and the report time should be checked
+before any gap is called a PEG). Prices are split-adjusted, so the dollar levels below are on today's share basis
+(AMZN 2017 at $56).
+
+**The ten examples** (all pause buys; all earnings gaps per the cache, report time as cached; "pause" = sessions between
+the PEG day and the trigger; "best" = the best excursion before the stop, in R, inside the 60-session window).
+
+| # | Ticker | Report (time) | PEG day | Buy day | Gap | ATR40 | Vol | Close in range | Pause | Buy over | Stop | Stop % | Best | Why it is textbook |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | BIDU | 2010-02-09 (after close) | 2010-02-10 | 2010-02-16 | +8.5% | 2.6x | 3.0x | 0.95 | 2 days, 0.3% deep | 48.93 | 48.20 | 2.1% | 27.7R | Four-month flat shelf, the gap clears it, two tight days, then a 10-week run up the 10-day EMA. |
+| 2 | ILMN | 2013-04-22 (after close) | 2013-04-23 | 2013-04-29 | +8.9% | 4.4x | 6.5x | 0.64 | 3 days, 3.2% deep | 61.35 | 60.21 | 1.9% | 17.0R | 6.5x volume out of a tight uptrend; the three-day pause holds the PEG-day close; 3R in 5 sessions. |
+| 3 | BURL | 2016-05-26 (before open) | 2016-05-26 | 2016-06-01 | +7.1% | 2.3x | 3.5x | 0.75 | 2 days, 1.1% deep | 61.01 | 59.70 | 2.2% | 17.0R | Gap off a pullback to the 50-day, two-day pause, then a stair-step up the 10-day; shows a pre-open report (PEG day = report day). |
+| 4 | AMZN | 2017-10-26 (after close) | 2017-10-27 | 2017-11-06 | +8.8% | 6.0x | 5.5x | 0.92 | 5 days, 1.7% deep | 56.14 | 55.39 | 1.4% | 24.7R | The classic: a 6-ATR gap on 5.5x volume out of a five-month base, five flat days, breakout, 3R in 13 sessions, then a trend. |
+| 5 | LULU | 2018-03-27 (after close) | 2018-03-28 | 2018-04-05 | +7.0% | 2.3x | 6.2x | 0.59 | 4 days, 1.9% deep | 90.25 | 88.19 | 2.3% | 19.1R | 6.2x volume out of a 10-week flat base; a four-day pause above the gap; the close at 0.59 of range is the weakest of the ten (a B cue). |
+| 6 | GM | 2020-11-05 (before open) | 2020-11-05 | 2020-11-10 | +4.7% | 1.4x | 2.4x | 0.94 | 2 days, 0.6% deep | 39.72 | 38.58 | 2.9% | 14.8R | The smallest gap of the ten (4.7%, just over the floor) with a 0.94 close; shows a stop near the 3% limit and a 34% prior run (over the 30% A-grade cue, so a B). |
+| 7 | DOCU | 2021-06-03 (after close) | 2021-06-04 | 2021-06-11 | +7.8% | 1.9x | 7.7x | 0.93 | 4 days, 1.8% deep | 246.80 | 242.43 | 1.8% | 15.5R | 7.7x volume, a 20% PEG day through the 50-day out of a four-month correction; four-day pause; 3R the day after the buy. |
+| 8 | LOGI | 2023-10-23 (after close) | 2023-10-24 | 2023-10-31 | +10.4% | 5.2x | 5.4x | 0.95 | 4 days, 2.4% deep | 78.20 | 77.34 | 1.2% | 18.9R | A 10%+ A-grade gap closing at 0.95 of range, four quiet days, then a two-month trend; the least liquid of the ten ($30M a day). |
+| 9 | GLW | 2025-07-29 (before open) | 2025-07-29 | 2025-08-05 | +6.2% | 3.7x | 3.8x | 0.80 | 4 days, 2.4% deep | 63.91 | 62.60 | 2.1% | 21.2R | Gap out of a tight three-month channel, four-day flag holding the PEG-day close, then a steady run that never lost the 10-day. |
+| 10 | COCO | 2026-04-29 (before open) | 2026-04-29 | 2026-05-08 | +17.4% | 3.3x | 4.0x | 0.98 | 6 days, 5.1% deep | 69.58 | 68.27 | 1.9% | 12.3R | The biggest gap (a 30% day closing at 0.98), six-day flag, 5R in two weeks; the late-June shakeout under the buy point shows why the rest trails under the 10-day after 5R. |
+
+Years 2010, 2013, 2016, 2017, 2018, 2020, 2021, 2023, 2025, 2026; one per ticker; all ten are stocks, none an ETF. Three
+were cut after looking at the charts: VSAT 2019-02-13 (the gap launched from under a falling 200-day, the owner's open
+question 9), G 2024-08-15 (the window's best came from the next earnings gap, and the trade sat under 3R for weeks) and
+PANW 2020-11-23 (the report-time doubt above). Sheets: `final/sheet_1-4.png`, `final/sheet_5-7.png`, `final/sheet_8-10.png`.
+
+**Notable failures** (hits that met every rule and were stopped):
+- **NVDA 2024-03-04** (PEG day 2024-02-22, +11.2% gap, 1.9x volume, close at 0.99 of range, up 36% in the prior 65
+  sessions): bought over the pause high at 84.13 on a gap-open with a stop only 0.5% away; the stock stalled and the stop
+  went that week, 0.0R best. The lesson is the stop, not the gap: a 0.5% stop under the trigger day's low on a stock that
+  moves 3% a day is not a stop, and a 36% run before the gap is past the A-grade cue.
+- **CELH 2023-05-18** (PEG day 2023-05-10, +10.6% gap, 7.5x volume, close at 0.61): a seven-day pause, buy over 45.07 with a
+  2.9% stop, straight down to the stop, 0.0R. A big-volume gap that closed only just inside the top half and then needed
+  seven days to trigger; the pause was already a drift by the time it broke out.
+- **ELF 2023-06-06** (PEG day 2023-05-25, +10.7% gap, 4.6x volume, close at 0.98, up 18% in 65 sessions): bought the
+  eighth-day break at 107.16, stop 2.6% away, stopped without reaching 1R. Textbook gap, textbook pause, still lost: the
+  base rate above (about seven in ten stopped at a fixed stop) is why the plan sizes by the stop (A5), not a sign the rule
+  is wrong.
+- Also stopped: AAPL 2018-08-06 and 2022-02-02, MSFT 2015-04-29, NFLX 2023-01-25, ZM 2025-12-02. Mega-caps gapping 4-5% on
+  2-3x volume gave the thinnest follow-through in the sample.
