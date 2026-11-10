@@ -2407,6 +2407,28 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       if (format === 'xlsx' && serverExport) return downloadExport(`/api/exports/watchlists/${encodeURIComponent(titleMenuList.id)}`, { format: 'xlsx' })
       return null
     },
+    // UCT Agent (watchlist group C / B, widgets/widgetControls.js): the ⚙ panel's own appearance writer (patchSettings), its
+    // look templates (apply / save / delete, as its Templates menu does) and, on the Flagged list, the title menu's Rename
+    read: () => ({
+      showLogos: !!wlSettings.showLogos, tint: !!wlSettings.tintEnabled, canvasColor: wlSettings.bgMode === 'solid' ? wlSettings.bg : null,
+      textColor: wlSettings.textColor, gainColor: wlSettings.upColor, lossColor: wlSettings.downColor,
+      look: wlTemplates.find(t => t.settings && Object.entries(t.settings).every(([k, v]) => JSON.stringify(wlSettings[k]) === JSON.stringify(v)))?.id ?? null,
+      looks: wlTemplates.map(t => ({ id: t.id, name: t.name })),
+      ...(titleMenuList?.id === 'flagged' ? { flaggedName: flaggedName || 'Flagged' } : {}),
+    }),
+    options: () => ({ look: wlTemplates.map(t => ({ value: t.id, label: t.name })) }),
+    write: (key, value) => {
+      if (key === 'look') { const tpl = wlTemplates.find(t => t.id === value); if (tpl) applyWlTemplate(tpl); return }
+      if (key === 'looks') {
+        if (value?.op === 'create' && value.name) saveWlTemplate({ name: value.name, settings: wlSettings })
+        if (value?.op === 'delete' && value.id) removeWlTemplate(value.id)
+        return
+      }
+      if (key === 'flaggedName') { if (titleMenuList?.id === 'flagged') renameFlagged(String(value || '')); return }
+      const field = { showLogos: 'showLogos', tint: 'tintEnabled', textColor: 'textColor', gainColor: 'upColor', lossColor: 'downColor' }[key]
+      if (key === 'canvasColor') patchSettings({ bgMode: 'solid', bg: value })   // the panel's solid canvas swatch
+      else if (field) patchSettings({ [field]: value })
+    },
   }))
 
   // Column header. Labels click to sort / right-click to hide-show. Gridlines are

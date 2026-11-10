@@ -190,6 +190,7 @@ const controlWord = (f) => {
   if (f.type === 'set') return `${f.key}(+/-${list ? ` ${list}` : ' member'})`
   if (f.from === 'door') return `${f.key}(ask widget.readOptions)`
   if (f.type === 'action') return `${f.key}(run: its own button)`
+  if (f.type === 'color') return `${f.key}(#rrggbb)`
   return `${f.key}(${f.type === 'enum' ? list : f.type === 'boolean' ? 'on/off' : f.type === 'day' ? 'YYYY-MM-DD, today, tomorrow' : f.type === 'text' ? 'words, or empty to clear' : `${f.min}–${f.max}`})`
 }
 // ── The `widgetControls` context section: sent only on a turn that may need it ──
@@ -208,7 +209,7 @@ function namedHere(type, said) {
 // round 3 (C3-174): a widget's own list of the member's items, renamed or deleted through its door (widget.setOption, below)
 const itemWords = (t, doors, ids) => (ITEM_LISTS[t] || []).map(l => {
   const names = [...new Set(ids.flatMap(id => (doors?.[id]?.[l.key] || []).map(x => x.name)))]
-  return `${l.key}(${l.ops.map(o => (o === 'rename' ? 'rename:<name>=><new>' : o === 'create' ? 'create' : `${o}:<name>`)).join('|')}${names.length ? `; yours: ${names.join(', ')}` : ''})`
+  return `${l.key}(${l.ops.map(o => (o === 'rename' ? 'rename:<name>=><new>' : o === 'create' ? (l.named ? 'create:<name>' : 'create') : `${o}:<name>`)).join('|')}${names.length ? `; yours: ${names.join(', ')}` : ''})`
 })
 function widgetControlSection(s, message, whole) {
   const said = new Set(wordsOf(message))
@@ -1182,6 +1183,13 @@ export function registerBoardCapabilities() {
       const t = String(raw ?? '').replace(/\s+/g, ' ').trim()
       return t.length > (f.max || 80) ? { why: `“${f.key}” takes at most ${f.max || 80} characters.` } : { value: t }
     }
+    // a colour, as the widget's own swatch stores it: #rrggbb (a #rgb is spelled out); a colour name is the planner's to convert
+    if (f.type === 'color') {
+      const m = /^#?([0-9a-f]{6}|[0-9a-f]{3})$/i.exec(String(raw ?? '').trim())
+      if (!m) return { why: `“${f.key}” is a colour as #rrggbb — not “${raw}”.` }
+      const h = m[1].toLowerCase()
+      return { value: `#${h.length === 3 ? [...h].map(c => c + c).join('') : h}` }
+    }
     // an `action` row is the widget's own button: "run" (or true) presses it once; there is no off
     if (f.type === 'action') {
       const s = norm(raw)
@@ -1225,6 +1233,8 @@ export function registerBoardCapabilities() {
     // round 6 (C3-202): CREATE through the widget's own New control: a new blank item, opened as the control opens it
     if (io.op === 'create') {
       if (!l.ops.includes('create')) return `The ${label(t.type)} can't create a ${l.noun} from here.`
+      // a NAMED item (a saved look): the name is the member's, said; one of the same name is replaced, as the widget's own Save does
+      if (l.named && !String(io.item || '').trim()) return `Say the name to save the ${l.noun} as.`
       return doorFor(env, t) ? null : `The ${label(t.type)} isn't showing right now, so I can't reach its New control.`
     }
     const r = itemCheck(st, { widget: t.id, list: key, item: io.item }, env, io.op)
@@ -1242,8 +1252,9 @@ export function registerBoardCapabilities() {
       // ONE operation, as the widget's own New control does it (AUDIT S1-A): read back by a new item appearing
       const l = listFor(t, key)
       const items = itemsNow(st, t, l)
-      const op = { widget: t.id, key: l.key, op: 'create', id: null, name: l.blank || 'Untitled', was: null, label: l.blank || 'Untitled', ids: items.map(x => x.id) }
-      return { ...st, doors: { ...st.doors, [t.id]: { ...st.doors[t.id], [l.key]: [...items, { id: null, name: l.blank || 'Untitled' }] } }, itemOps: [...(st.itemOps || []), op] }
+      const name = l.named ? String(io.item).trim() : (l.blank || 'Untitled')
+      const op = { widget: t.id, key: l.key, op: 'create', id: null, name, was: null, label: name, ids: items.map(x => x.id) }
+      return { ...st, doors: { ...st.doors, [t.id]: { ...st.doors[t.id], [l.key]: [...items.filter(x => !(l.named && norm(x.name) === norm(name))), { id: null, name }] } }, itemOps: [...(st.itemOps || []), op] }
     }
     const { l, items, it } = itemCheck(st, { widget: t.id, list: key, item: io.item }, env, io.op)
     const name = io.op === 'rename' ? String(io.name).trim() : null
@@ -1310,7 +1321,7 @@ export function registerBoardCapabilities() {
       if (l) {
         const io = itemOp(value)
         if (same(b.doors?.[o.id]?.[key], a.doors?.[o.id]?.[key]) || !io) return null
-        if (io.op === 'create') return `The ${nameOf(o, b.board)}: created a new blank ${l.noun} and opened it, as its New control does`
+        if (io.op === 'create') return l.named ? `The ${nameOf(o, b.board)}: saved its current ${l.noun} as “${String(io.item).trim()}”` : `The ${nameOf(o, b.board)}: created a new blank ${l.noun} and opened it, as its New control does`
         // ⛔ AUDIT S1-B: the item the words RESOLVED to ("mine" → "Mine growth"), as the card and the receipt must name it
         const it = pickItem(itemsNow(b, o, l), io.item).item
         const what = it ? it.name : io.item

@@ -2,7 +2,7 @@
 // widget.setOption validates, writes and reads back. It sits beside widgets/registry.js, not inside it, because the registry
 // is in the Notebook's first-open bytes and only the Agent reads this. Metadata only.
 //
-//   { key, type: 'enum'|'boolean'|'number'|'day'|'set'|'action', options|min+max+integer, default, clears,
+//   { key, type: 'enum'|'boolean'|'number'|'day'|'set'|'color'|'action', options|min+max+integer, default, clears,
 //     path:    where it lives in `opts` ('filters.cp'); default: key
 //     from:    'door' = its choices are the mounted widget's own right now (pages/charts/widgetDoors.js)
 //     door:    true = the widget's own writer, not `opts` (its state lives in the widget, or the write is more than one key);
@@ -28,6 +28,17 @@ const REFRESH_WORDS = ['refresh', 'reload', 'rerun', 'update']
 const OWN = {
   // C3-112 the scan's own Refresh (ScannerResults footer)
   scanner: [{ key: 'refresh', type: 'action', words: REFRESH_WORDS }],
+  // watchlist group C (pl-widget): the ⚙ Watchlist Settings panel's own appearance writer (patchSettings → this widget's
+  // opts.settings), and its look templates (C3-103 / C3-104). A colour is #rrggbb. Undo puts the widget's opts back whole.
+  watchlist: [
+    { key: 'showLogos', type: 'boolean', default: true, door: true, inOpts: true },
+    { key: 'tint', type: 'boolean', default: true, door: true, inOpts: true, words: ['flash'] },
+    { key: 'canvasColor', type: 'color', door: true, inOpts: true, words: ['background'] },
+    { key: 'textColor', type: 'color', door: true, inOpts: true },
+    { key: 'gainColor', type: 'color', door: true, inOpts: true },
+    { key: 'lossColor', type: 'color', door: true, inOpts: true },
+    { key: 'look', type: 'enum', from: 'door', door: true, inOpts: true, words: ['template'] },
+  ],
   // C3-208 the ranking's own Refresh (PeriodSortResults footer)
   periodsort: [{ key: 'refresh', type: 'action', words: REFRESH_WORDS }],
   themes: [

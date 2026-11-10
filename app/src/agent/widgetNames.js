@@ -29,9 +29,15 @@ export const AGENT_CONTROLS = {
     words: ['leave', 'picker', 'back', 'exit'], write: (opts) => ({ ...(opts || {}), scanKey: null, scanName: null }) }],
   // C3-201: open one of the member's notes in a Notebook widget, as its own rows do (opts.noteId); the choices are the widget's own
   notebook: [{ key: 'note', type: 'enum', from: 'door', path: 'noteId' }],
-  // C3-065 (round 6): a Watchlist widget on the member's Flagged list, as its picker's Flagged row sets it (watchKey 'flagged')
-  watchlist: [{ key: 'source', type: 'enum', options: ['flagged'], path: 'watchKey',
-    write: (opts) => ({ ...(opts || {}), watchKey: 'flagged', watchName: 'Flagged', watchTab: 'mine' }) }],
+  watchlist: [
+    // C3-065 (round 6): a Watchlist widget on the member's Flagged list, as its picker's Flagged row sets it (watchKey 'flagged')
+    { key: 'source', type: 'enum', options: ['flagged'], path: 'watchKey',
+      write: (opts) => ({ ...(opts || {}), watchKey: 'flagged', watchName: 'Flagged', watchTab: 'mine' }) },
+    // C3-074 (pl-widget): rename the Flagged list, as its title menu's Rename does (useFlagged renameFlagged); only while the
+    // widget shows Flagged (the menu is there only then). Undo renames it back.
+    { key: 'flaggedName', type: 'text', door: true, max: 60, words: ['rename'],
+      when: (_opts, door) => (door && 'flaggedName' in door ? null : 'This Watchlist widget isn’t showing your Flagged list, so its Rename isn’t here. Switch it to Flagged first.') },
+  ],
   chart: [
     { key: 'companyTab', type: 'enum', options: COMPANY_TABS.map(t => t.key), default: 'overview', path: 'dock.tab',
       when: (opts) => (normalizeDock(opts?.dock).company ? null : DOCK_WHY),
@@ -117,6 +123,9 @@ export function controlledWidgetTypes(message, types, surfaceWord) {
 // widget even when the widget is not named. ──
 export const ITEM_LISTS = {
   themes: [{ key: 'themeSets', noun: 'theme set', nouns: ['set', 'preset'], ops: ['rename', 'delete'] }],
+  // C3-104 (pl-widget): a Watchlist widget's saved looks (the ⚙ panel's Templates menu): save the current look under a name, or
+  // delete one. Applying one is the `look` control.
+  watchlist: [{ key: 'looks', noun: 'look', nouns: ['look', 'template'], ops: ['create', 'delete'], named: true }],
   // C3-202: the Notebook widget's notes; its New control creates a blank one and opens it
   notebook: [{ key: 'notes', noun: 'note', nouns: ['note', 'notebook', 'blank', 'new'], ops: ['create'], blank: 'Untitled note' }],
 }
