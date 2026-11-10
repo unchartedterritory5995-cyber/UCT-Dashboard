@@ -1198,7 +1198,7 @@
     "From the 200-day to the low"
    ],
    "answer": "Pattern high to flag low, on price",
-   "why": "On price, from the pattern's highest high to the flag's lowest low, divided by the high. Kuhn measures on the advance instead, which makes a flag read shallower.",
+   "why": "On price, from the pattern's highest high to the flag's lowest low, divided by the high. Kuhn measures on the advance instead, which gives a bigger number for the same flag.",
    "lesson_line": "Depth is high to low on price. Measure it; do not eyeball it.",
    "facts": [
     "c02",
@@ -1206,7 +1206,7 @@
     "i02"
    ],
    "wrong": {
-    "As a share of the pole's height": "That is Kuhn's way, on the advance. On a big pole it makes a deep flag look shallow.",
+    "As a share of the pole's height": "That is Kuhn's way, on the advance. For the same flag it gives a bigger number, so it rejects flags IBD accepts.",
     "From the first close to the last": "That is drift, not depth. Depth runs from the highest high to the lowest low.",
     "From the 200-day to the low": "The 200-day is a context line, not part of the flag."
    },
@@ -1654,7 +1654,7 @@
    "criterion": "htf.not_stretched",
    "q": "The 10-day average is 50.00. Above what price is a buy too stretched?",
    "answer": 55.0,
-   "why": "55.00. Skip a long more than 10% above its 10-day average. A short, deep flag after a fast pole can leave the pivot that far out.",
+   "why": "55.00. Skip a long more than 10% above its 10-day average. About 5% over it is the A+ zone.",
    "lesson_line": "Read the stretch in percent before you read the pattern.",
    "facts": [
     "h13",
@@ -1707,7 +1707,7 @@
    "format": "scenario",
    "criterion": "htf.earnings_window",
    "q": "Buy the break today?",
-   "story": "The pole came off a report six weeks ago. The flag is 12 sessions old and tight. The next report is in 2 sessions.",
+   "story": "The pole came off a report. The flag is 12 sessions old and tight. The next report is in 2 sessions.",
    "choices": [
     "No; a report is too close",
     "Yes; the flag is tight",
@@ -1743,7 +1743,7 @@
     "No stop until it recovers"
    ],
    "answer": "The first 30-minute low",
-   "why": "The first 30-minute low is the new stop. A gap against the stop: the first 30 minutes of the gap-down day decide. That low is under 2R from the fill.",
+   "why": "The first 30-minute low is the new stop. A gap against the stop: the first 30 minutes of the gap-down day decide. The loss at that low is inside the 2R ceiling.",
    "lesson_line": "On a gap through the stop, let the first 30 minutes set the new stop.",
    "facts": [
     "h06",
@@ -2120,7 +2120,7 @@
     "A flat base"
    ],
    "answer": "A bull flag",
-   "why": "A bull flag. Measure the pole: a bull flag follows a 20% to 30% run. A tight flag that never doubled is a bull flag, however tight.",
+   "why": "A bull flag. Measure the pole: this one never doubled. A tight flag that never doubled is a bull flag, however tight.",
    "lesson_line": "Doubled and paused is the rare one. Ran and paused is the common flag.",
    "facts": [
     "c32",
@@ -2147,7 +2147,7 @@
     "Bull flag; it is tight"
    ],
    "answer": "Flat base; the rest is too long",
-   "why": "The flat base. Count the rest. IBD's flag forms over the next three to five weeks; Bulkowski avoids flags that are too long.",
+   "why": "The flat base. Count the rest. IBD's flag forms over the next three to five weeks, and 38 sessions is far past that.",
    "lesson_line": "A flag is a few weeks. A rest of months is a different base, graded as that base.",
    "facts": [
     "c02",
@@ -2485,7 +2485,7 @@
     "Buy with a wider stop"
    ],
    "answer": "Pass; too far over the 10-day",
-   "why": "Pass. Skip a long more than 10% above its 10-day average. A short, deep flag after a fast pole leaves the pivot too far out.",
+   "why": "Pass. Skip a long more than 10% above its 10-day average, even at the pattern high.",
    "lesson_line": "If the averages have not caught up, the flag is not done.",
    "facts": [
     "h13",
@@ -2742,7 +2742,423 @@
   "Fundamentals (htf.fundamentals, D-140, settled as preferred not required) and the catalyst grade (htf.catalyst, proposed): q21 and q57 key the card's A+ and B- context rows; owner principle 7 prefers examples that are not news-driven while many poles are (D-007). The examples used here are mostly earnings-driven (SRPT, SOFI); BIDU had no report in its pole.",
   "The base rate (d23: 29.6% to 3R, 22.2% to 5R) is a fixed stop with no trims, no breakeven and no trail, over 54 hits with 42 from 2020 on; q61 uses it only against the vendors' 85%, never as our expected win rate.",
   "UCT has used 'high tight flag' for any tight flag near highs in a leader, ETFs included (TAN, XLV, XHB, IGV). D-002 settles it per the card: this unit is the near-double pattern; every other tight flag is a Bull Flag.",
-  "The short mirror is not taught (D-001; the card has none)."
+  "The short mirror is not taught (D-001; the card has none).",
+  "Cold check 2026-11-10: 67 pass (7 fixed, the 3 walk-throughs included), 1 fix, 1 cut. Cut: q02 (same fact as q16). Fix: q55 (key rests on the dossier-only 21-day EMA test and a 99% pole inside the pending D-048 band). Fixed in place: q09 (the why and a wrong note said Kuhn's advance measure makes a flag look shallower; it gives a bigger number for the same flag), q28 and q58 (an unsourced sentence about short deep flags removed), q30 (a report six weeks ago cannot be followed by one in 2 sessions), q31 (the 2R wording), q45 (the why said a bull flag follows 20% to 30% against a 45% story), q46 (the why credited Bulkowski with a flag-length rule b05 does not state). Note: the earlier conflicts claim that no key uses a pole between 90% and 100% is false for q55 (99%) and the w2 walk-through (SOFI 91%). TraderLion (t02) is unreachable to the script and to a fetch (403); the sentence is verbatim in dossier section 3 and no key rests on it alone. The owner should look first at: (1) D-048, the 90% or 100% pole, which decides whether SOFI (w2), CRNC and TMDX count as examples and settles q55; (2) q52, where a trade that reached 2R and was stopped is called not a mistake while the why says breakeven from 2R would have made it a scratch; (3) whether a 21-day EMA undercut is allowed in the flag (q55, c14). The hidden-ticker charts (q65, q66) were not viewed; the numbers match the dossier."
  ],
- "verify": {}
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "SRPT 2015-06-10 numbers verbatim in dossier section 13 (+129% in 14 sessions, 14 d / 15.0% / 0.66x, buy 27.50, stop 26.59, 3R on day 5; the +60% day after the 2015-05-07 report). Every sentence 22 words or fewer.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "SOFI 2024-11-20 numbers verbatim (+91% in 28 sessions, 7 d / 9.9%, high 14.44, open fill 14.65 = 1.45% past the high, stop 14.24 = 2.8%, 3R on day 3). The 91% pole sits inside the pending D-048 band (90% or 100%); a walk-through is not scored, but if the owner picks 100% SOFI is no longer an example.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "BIDU 2021-02-05 numbers verbatim (+100% in 36 sessions, 12 d / 13.2%, 264.95 / 255.06, 3R day 2, about 354, under the flag low by late March).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "Key by the card's pattern line and lookalikes; IBD i01/i02 found on the page. The IBD 100% to 120% in the why is a source figure, not a gate.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "cut",
+   "notes": "near-duplicate of q16: the same fact (the stop is a few cents under the day's low, the flag low is not the stop) asked as a true/false and as a multiple choice; q16 also covers Bulkowski's flag-bottom stop and IBD's 8% as wrong choices.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "Settled entry: c05 (market order as it trades through), IBD i04 and Bulkowski b04 found on the pages. 'The peak of the pole' is 'usually' the pattern high (card trigger line); fine for a fill.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "Key c07 (proposed); IBD i03 and Bulkowski b03 found.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "Kuhn g01 and Bulkowski b10/b11 found on the pages. Key is a context cue (proposed).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "Bulkowski b17 found on his page ('often not a flag at all'); b02 and IBD i08 found.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "IBD i15 (via Bonde) found; d24 verbatim (12 liquid hits in 36 years before 2020).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "Key c47 (the card's lookalike rule) and TSLA d18 verbatim. 30% is under every pole_size option.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "Measure (pattern high to flag low, on price) is the card's htf.flag_depth measure, the same in both D-050 options. The why and a wrong note said Kuhn's advance measure makes a flag look shallower; it gives a bigger number for the same flag (a 15% flag after a double is 30% of the pole), which is why the card says it rejects IBD's own examples. Fixed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "Key c09 (last 5 closes within 10%, proposed); IBD i06 found ('relatively tight closes'). 4% apart is inside the line.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "Key c16 (proposed) verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "Key c15 (proposed) and Bulkowski b08 found. t02 (TraderLion) is unreachable by script and by WebFetch (403) but the sentence is verbatim in dossier section 3; the key does not rest on it alone.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "Settled: C33 verbatim (h15) and the card's time stop (c22).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "Settled: D41 verbatim (h18) and c05.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "Key c08 (proposed, 60% or less is the A grade) verbatim; c07 is the gate.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "Settled stop (c03, F62); Bulkowski b19 and IBD i17 found for the wrong notes; A13 for the 3%.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "Key c26/c25 and A4: the stop is the exit; light volume is a grade cue (D-006 never a gate here).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "Key c19 (Bulkowski's half-pole measure is a reference) and b09 found; trims are B19/E51.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "Settled: B19 verbatim (a third at 3R is the hard rule).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "Re-derived: 27.50 + 3 x (27.50 - 26.59) = 30.23. SRPT d01 verbatim (3R on day 5).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "Key c12 (proposed) and Kuhn g01 found; c39 (seven of ten examples had a report inside the pole) is on the card.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "Settled: htf.above_200 and B26 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "Re-derived: 26.00 / 12.40 - 1 = 109.7%. IBD 100% to 120% and Bulkowski 90% are quoted as sources only; the pole_size options (D-048) are not keyed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "Re-derived: (100 - 84) / 100 = 16.0%. Measure is on price (same in both D-050 options); 16% is inside every band.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "Re-derived: (14.65 - 14.24) / 14.65 = 2.80%. SOFI d03 verbatim; the 3% line is A13.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "Re-derived: (314.40 - 264.95) / (264.95 - 255.06) = 49.45 / 9.89 = 5.0R. BIDU d05 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "Re-derived: 100,000 x 0.5% = 500; 500 / (132.97 - 128.10) = 102.7, rounded down 102. TMDX d07 verbatim; the position (about 13,600) is under the 40% cap.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "Re-derived: 50.00 x 1.10 = 55.00. The why's last sentence ('a short, deep flag after a fast pole can leave the pivot that far out') had no source; replaced with the card's 5% A+ zone (c30). Fixed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "Re-derived: 63.30 / 60.00 - 1 = 5.5%, past the C28 4% line (settled).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "Settled B22. The story said the pole came off a report six weeks ago and the next report is in 2 sessions, which cannot happen on a quarterly cycle; 'six weeks ago' removed (the card's own seed wording). Fixed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "Settled B20. Re-derived: R = 1.00; the gap open 50.40 is 1.6R, the first 30-minute low 50.10 is 1.9R, inside the 2R ceiling. The why said 'under 2R from the fill', which reads as a price; reworded to 'the loss at that low is inside the 2R ceiling' (no uncalculated number). Fixed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "Key c31 (proposed, UCT basis) verbatim; FSLR d12 closed at its low.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "Settled A4 and the card's throwback line (c27, two in three winners).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "Settled C33 (under 1R after 10 days); TMDX d07/c40 verbatim (3R on day 23, above 1R by day 10).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "Re-derived: 3R = 40.00 + 3 x 1.00 = 43.00; the open 43.60 is past it. Settled F63 (h25) verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "Settled: breakeven between 2R and 5R, at the first trim by default (c21, B19).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "Re-derived: 1% of 3,000,000 = 30,000. Settled D42 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "Settled B23 verbatim ($10 and $20 million); 8.40 fails the price test.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "Settled: F65/D46 Red = mostly cash; Bulkowski b13 found.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "Settled C31 (RS 80 or more); IBD i12 found (Taser 98 RS).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "Key c33 (the card's VCP tell) verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "Key c11 (not up more than 200% in the 6 months before the pole, proposed) and Bonde p03 found.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "Bulkowski b04/b14 found on his pages; c36 is the card's named mistake; b21 (close above the peak confirms) found.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "Re-derived: 17.00 + (20.00 - 10.00) / 2 = 22.00. Bulkowski b09 found; the card says reference only.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "Key c32/c47 and TSLA d18. The why said 'a bull flag follows a 20% to 30% run' while the story has a 45% run (the bull flag pole is 20% or more, 30%+ A+); rewritten to the sourced point that this pole never doubled. Fixed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "Key c02/c32 and the card's flat-base lookalike (a rest of 25+ sessions in a box 15% or less); 38 sessions is past every source's maximum (IBD 3 to 5 weeks, Kuhn 3 to 6), so no pending flag_length number is keyed. The why said 'Bulkowski avoids flags that are too long', which b05 does not say; removed. Fixed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "Key c18/c42 (proposed parabolic-top test) verbatim; the burst description matches B26. The Bulkowski 45-degree line is a loose support, not the key.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "Key c34 and Kullamagi k01 found (a 30% to 100% move in the past 1 to 3 months).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "Key c10 (not a V, proposed) and Bulkowski b10 found; the 45% fall is over the card's 30%.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "SRRK d15/d16 verbatim (291% in 34 sessions, 6-day flag, a tenth of average volume, stopped next session). The key is only that the stop is the exit (A4), so D-006's gate option does not change it.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "FSLR d11/d12 verbatim. Re-derived: 125.50 / 121.91 - 1 = 2.9%, inside the C28 4% line; 118.13 is under the 120.92 stop.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "pass",
+   "notes": "MRVL d10 verbatim (175.81 / 168.86, best 2.35R, day 3). Reasoning rests on B19 ('ideally' 2R to 5R) and the first trim at 3R; the card's own note and the conflicts line flag the owner question (breakeven at 2R as default).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "MDB d13/d14 verbatim (101% pole, 15-day flag 8.5%, 1.48x, best 1.66R, stopped day 7); IBD i05 found.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "PDD d19/d20 verbatim (1.27x); key c17 (proposed).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "fix",
+   "notes": "the key (a base that loses the 21-day EMA is a flat base or a cup) rests on the dossier's own proposal (no outside HTF source asks for it; the owner once preferred a 20 EMA shakeout), and the story's 99% pole sits inside the pending D-048 band (90% or 100%), though the conflicts line says no key does. SE d21/d22 numbers are verbatim. Needs the owner's rulings on whether a 21-day undercut is allowed and on D-048; then keep, or change the pole to a clear double.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "Key c08 (60% or less, proposed); CRNC d08/d09 verbatim (0.95x).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "Key c12 (proposed) verbatim; Bonde p04 found.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "Settled C29. The why's last sentence (a short deep flag leaves the pivot too far out) had no source; removed. Fixed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "Settled C34 (a judgment call); B26's burst shape; Bulkowski b15 found.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "BIDU d05/d06 verbatim. The key names no average, so the pending D-024 (10-day or 20 EMA) does not matter. Bulkowski's 6% doubled is the card's c37.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "Key c38 verbatim (85% is 100 minus a 15% break-even failure rate); d23 verbatim (29.6% to 3R).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "Bonde p03/p04/p05 found; the reader's 'good short scan' is on the same Stockbee page (checked by reading the page text).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "Settled B22: hold through a report only if up 5R; 3.5R is under it.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "Settled B21 (h28); the E56 limit of 3 tries a week is not breached.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "SRPT d01/d02 verbatim; trigger 2015-06-10 follows chart date 2015-06-09. 15.0% is inside IBD's 10% to 20%. Chart not viewed (no browser).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "TSLA d17/d18 verbatim (+78% in 40 sessions, best 1.88R); trigger 2023-07-14 follows chart date 2023-07-13. 78% fails both pole_size options. Chart not viewed.",
+   "fixed": false,
+   "by": "checker"
+  }
+ }
 }

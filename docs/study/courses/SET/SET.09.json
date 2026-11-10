@@ -1318,7 +1318,7 @@
     "Halfway back is enough": "Halfway is the cup's midpoint. The handle has to sit above it."
    },
    "answer": "Within about 10%",
-   "why": "Within about 10%. Zanger puts the handle about 5% below the old high and calls a lower one riskier.",
+   "why": "Within about 10%. Our card has the right side climb back to within about 10% of the left-side high before the handle starts. Zanger puts the handle about 5% below the old high and calls a lower one riskier.",
    "lesson_line": "The right side comes back up near the old high. Only then does a handle start.",
    "facts": [
     "c08",
@@ -1952,7 +1952,7 @@
     "Take it; the handle is 5 days": "The handle is long enough, but it sits on a V."
    },
    "answer": "Pass; a V, not a U",
-   "why": "Pass. That is a V, not a U: only 12% of the cup's bars had lows in the bottom quarter, and the card needs 30%. IBD: V-shaped patterns are less reliable.",
+   "why": "Pass. That is a V, not a U. Only 12% of the cup's bars had lows in the bottom quarter, and the card needs 30%. IBD: V-shaped patterns are less reliable.",
    "lesson_line": "A cup spends time at the bottom. A straight drop and a straight climb is a V.",
    "facts": [
     "c06",
@@ -2265,7 +2265,7 @@
     "Yes; sell on any mid-range close": "A weak close is a warning, not an exit by itself."
    },
    "answer": "No; a planned loss at the stop",
-   "why": "No. The stop is the exit, and the loss was the plan. The cup held a 10%-range week and heavy-volume days, a B- base, so it should have been sized down.",
+   "why": "No. The stop is the exit, and the loss was the plan. A cup with a 10%-range week and heavy-volume days grades B-, and a B- base earns a smaller size.",
    "lesson_line": "A loss at the stop is the system working. The grade decides how big it is.",
    "facts": [
     "h02",
@@ -2447,7 +2447,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "ch.handle_position",
-   "q": "Hidden ticker, the day before the breakout. Is this handle high in the base and drifting down? Take it or pass.",
+   "q": "Hidden ticker, the day before the breakout. Judge the handle's place in the base and its drift. Take it or pass.",
    "choices": [
     "Take it; a high, quiet handle",
     "Pass; the handle sits too low",
@@ -2490,7 +2490,7 @@
     "Take it; it is near the highs": "Near the highs is the place. The wedge is the problem."
    },
    "answer": "Pass; the handle's lows rise",
-   "why": "Pass. Six days of rising lows into the pivot is a wedging handle with no shakeout. It was stopped at a best of 0.0R.",
+   "why": "Pass. Six days of rising lows into the pivot is a wedging handle with no shakeout. It never traded above its fill before the stop (best 0.0R).",
    "lesson_line": "The cup can be fine and the handle still wrong. Rising lows, I pass.",
    "facts": [
     "c24",
@@ -2670,7 +2670,7 @@
    ],
    "wrong": {
     "Skip the trade": "Skipping is always allowed when the honest stop does not fit.",
-    "Wait for a tighter spot": "Waiting for a tighter spot is allowed. Pulling the stop in is not."
+    "Wait for a tighter spot": "Waiting is always allowed. No rule makes you buy this breakout. Pulling the stop in is not allowed."
    },
    "answer": "Pull the stop in to 3% to fit",
    "why": "Pulling the stop in to fit. Stop first; the size comes from the stop; if the honest stop does not fit the risk, skip the trade.",
@@ -2727,7 +2727,423 @@
   "Chart items: q57 FFIV asof 2014-01-10 (the Friday before the 2014-01-13 trigger) is the 'take it'; q58 AAPL asof 2021-04-28 (the day before the 2021-04-29 near-miss date) is the 'pass'. The keys rest on the dossier's reads (d02, d30), not on reading the picture. AAPL also appears as a winner (2021-11-17); only the April 2021 chart is shown.",
   "IBD's profit rule (take most at 20% to 25%) and the measured-move target are contrasted in q62 and never taught as ours; our trims are B19 and E51.",
   "Bulkowski's site carries a notice against using it to train AI systems; only short quotes with links are used, as the dossier did.",
-  "The short mirror, the inverted cup (dossier 8.6), is not taught (D-001)."
+  "The short mirror, the inverted cup (dossier 8.6), is not taught (D-001).",
+  "Cold check 2026-11-10: 67 pass (6 fixed), 0 fix, 2 cut. Cut: q35 (same AAPL wedge as q58), q52 (a third 'the stop is the exit' story after q31 and q50). Fixed in place: q13 (why now leads with the card's 10%), q38 (24-word sentence), q50 (why no longer says a no-mistake loss 'should have been' smaller), q57 (the question gave its own answer), q58 (0.0R wording), q65 (a wrong note leaned on pending ch.stop_width). No key rests on a pending-owner number: q25, q47, q64 use depths that are inside or outside every ch.cup_depth option; q02 mentions IBD's 10 cents only inside ch.pivot. The owner should look first at: (1) ch.base_count against the flat-base pilot (q16, q41); (2) q30, which reuses MCO's buy and stop in a made-up story while MCO itself hit 3R in 4 sessions; (3) q42, which reads the Orange guide (F65, a guide under A10) as a rule. The hidden-ticker charts (q57, q58) were not viewed; the numbers match the dossier."
  ],
- "verify": {}
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "FFIV 2014-01-13 numbers verbatim in dossier section 12 (15.6 wk, 17.5%, +40%, 7 d / 4.2% / 0.74x, 91.29 / 90.67, 2.71x, 3R the next day); c03/c06/c10/c38 verbatim on the card; h05/h22/h24 in sizing_rule.md section 9. Every sentence 22 words or fewer.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "MCO 2012-09-06 numbers verbatim in dossier section 12 (21.6 wk, 21.3%, 19 d / 6.7% / 0.77x, 40.76 / 39.73, 1.6x, 3R in 4 sessions); c11/c13 on the card.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "AX 2026-01-05 numbers verbatim in dossier section 12 (72% run, 16.6 wk, 20.2%, 5 d, 89.22 / 86.95, 1.48x, 5R in about 7 weeks then a roll-over, the 21-day trail); breakeven at the first trim is B19 and the card's default.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "Key by the card's pattern line and lookalikes (c28-c30); IBD tea-cup and Zanger quotes found on the pages. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "Key c01 (ch.pivot, proposed). The 10 cents line is c02 inside ch.pivot, not the pending-owner buy_point_offset (D-003); no choice depends on it.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "Settled: ch.stop, F62 and A3 verbatim in sizing_rule.md section 9.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "Key by c06 (proposed) plus IBD and StockCharts quotes found on their pages.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "Key c09 (proposed, 5 sessions) and IBD 'if it's shorter than five days, it's not a handle', found on the page.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "Key i14/b03 (upper half) found on the pages; AAII a01 found. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "Key c12 (proposed, average below the cup's) verbatim on the card; IBD quote found.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "Settled trigger (c03, E57, E58). The Bulkowski close-above-the-rim entry (b06) is a different convention and the wrong note says so.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "Key c05 (proposed, 35 sessions / 7 weeks, handle included); IBD i07/i08 found on the pages.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "IBD i06 and AAII a03 found on the pages; c04 verbatim. The 30% is common to every option of ch.prior_trend.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "Key c11 (proposed) and IBD wedging-handle quotes i22/i23 found on the pages.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "Key c23/c13 (ch.inv_close_under_50, proposed) verbatim on the card; IBD i17 'generally' found.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "Key c08 (proposed, within about 10%). The why did not mention the 10%; rewritten to lead with the card's line and keep Zanger's 5%. Fixed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "c17 verbatim (Bulkowski 62%; dossier section 4 'Throwback rate: 62%', 913 trades). 'Most' is true at 62%.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "Key c16 (ch.stop_outer_limit, proposed); Bulkowski b04 found. 65 weeks is a bit over a year, true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "Key c19 (ch.base_count, proposed) and IBD i31/i32 found. The base-count conflict with the flat-base pilot stands for the owner.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "Key c07 (proposed, at most two 10% weeks); IBD i02/i03 found. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "Re-derived: 91.29 + 3 x (91.29 - 90.67) = 93.15. FFIV numbers verbatim (d01); the 3R rule is B19.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "Key c26 (proposed) verbatim; IBD i13 found ('1-1/2 to 2-1/2 times the market averages').",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "Key c25 (proposed) and IBD i12 found.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "Key c22 (ch.inv_volume_rises, proposed) and IBD i25 found.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "IBD i09 found ('many forming over three to six months'); c37 grades that range best (proposed). 65 weeks is a bit over a year.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "Settled: B22 verbatim (no new buys in the 3 days before a report); the report is 2 sessions out in the story.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "Re-derived: 40.50 / 30.00 - 1 = 35.0%. 30% is common to every ch.prior_trend option.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "Re-derived: (80 - 58) / 80 = 27.5%. Computes the depth only; every ch.cup_depth option (D-052) measures from the left-side high, and 27.5 sits inside every band.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "Re-derived: (50 + 38) / 2 = 44.00. Key c10/i15 (handle midpoint above the cup's midpoint, proposed).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "Re-derived: handle midpoint (47.00 + 39.50) / 2 = 43.25, under the cup midpoint 44.00. Key rests on the midpoint test (proposed), not on the pending handle_depth number.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "Re-derived: (56.61 - 55.27) / 56.61 = 2.37%. GWW stop 2.4% verbatim (d10); the 3% line is A13 (settled).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "Re-derived: 62.70 / 60.00 - 1 = 4.5%, past the C28 4% line (settled).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "Settled A4 (stop only moves up); 62% throwback verbatim. The story reuses MCO's buy and stop (d04) as a hypothetical; MCO itself reached 3R in 4 sessions, but the story does not name it.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "Settled: c18 (a close back into the handle is a warning, not an exit) and A4; 'no adding' is in A5.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "Settled B20 with the 2R ceiling. Re-derived: R = 54.57 - 52.94 = 1.63; the loss to 52.10 is 2.47 = 1.52R, inside 2R.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "Re-derived: (54.58 - 53.11) / (53.11 - 52.49) = 1.47 / 0.62 = 2.37R. BX d22/d23 verbatim; breakeven from 2R is B19.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "Re-derived: 40,000 x 0.75% = 300; 300 / (40.76 - 39.73) = 291.26, rounded down 291. The position is about 11,861, under the 40% cap (A7).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "cut",
+   "notes": "duplicate of q58: the same AAPL 2021-04-29 wedging handle (six days of rising lows, best 0.0R) asked as a story and as the member's own chart; q58 is kept as the chart format. The term itself is also taught in q11.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "MPWR d29 verbatim (four-week dip and recovery after a 64% run, 7-day handle, too short for a cup). Key c05 (7 weeks, proposed).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "PEP d28/d28b verbatim (6.6% deep, 8.4 weeks, 9-day handle). 6.6% is under 12% in every ch.cup_depth option.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "META d31/d32 verbatim (11 weeks, 22%, 12% of bars against 30%). The why had a 24-word sentence; split in two. Fixed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "Key c09 (5 sessions, proposed) and IBD 'if it's shorter than five days, it's not a handle'; c31 is a named mistake.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "c33 (A+ cue, dries up sharply) and RRC d13 (0.97x, the weakest acceptable) verbatim; c12 is the gate.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "Key c19/c35 (proposed) and D38 (B- sized down). The base-count conflict with the flat-base pilot is in conflicts.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "Key h26 (F65, a guide under A10). The question reads it as the rule; fine as a guide.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "Settled: C29 (10% over the 10-day) and C28 (4%); 3% and 12% in the story are both read correctly.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "Key c23 (one close under the 50-day, proposed) and IBD 'generally'. A trader may call one close a warning, but the card says it ends the setup; kept as the card.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "Key c14 (last 5 closes within about 3%, proposed) verbatim; IBD i26 found.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "Key c36/c45 (grade cues, proposed); Zanger z05 found.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "21% is outside a flat base (15% or less) and inside every ch.cup_depth option (12 to 33, 12 to 35, 20 to 35). c28 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "Key c29 verbatim (one rounded decline and one handle against two or more shrinking pullbacks); 18%, 9%, 4% shrink.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "Key c30; a 95% run in 7 weeks meets the card's high tight flag line (90% in 8 weeks or less) and a 9-session pause is inside 5 to 30.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "ULTA d20/d21 verbatim (260.96 / 257.75, 4 sessions, 10%-range week, B- base). The why said the base 'should have been sized down', which contradicts 'no mistake' for a story that gives no size; reworded to say a B- base earns a smaller size. Fixed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "BX d22/d23 verbatim (53.11 / 52.49, 4.9x, 2.37R on session two, stopped on session five). Key c39/B19. 2.37R re-derived in q33.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "cut",
+   "notes": "near-duplicate of q50 and q31: the stop is the exit and is not lowered, asked a third time; the WDAY late-base lesson in the why is never asked (the answer is the same whatever the base age).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "Re-derived: 74.57 / 72.58 - 1 = 2.74%, inside the 4% line; stop 73.36 and the no-follow-through gap verbatim (d26/d27). A gap fill inside 4% is not a rule break.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "Key c16 (IBD 7% to 8% is a reference, not ours) and A13; IBD i30 found.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "Key h21 (E52) and AX d07 verbatim; the story names the 21-day.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "Re-derived: the dossier stop is 5 cents under the lower low, so 90.72 - 0.05 = 90.67; R = 0.62, 3R = 93.15. Key F62/B19.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "FFIV d01/d02 verbatim; trigger 2014-01-13 follows chart date 2014-01-10. The question asked 'is this handle high in the base and drifting down?', which restated its own answer; reworded to 'judge the handle's place in the base and its drift'. Fixed. Chart not viewed (no browser); the numbers back the picture.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "AAPL d30 verbatim (six days of rising lows, best 0.0R); trigger 2021-04-29 follows chart date 2021-04-28. The why said 'stopped at a best of 0.0R', which reads as stopped at breakeven; reworded to 'never traded above its fill'. Fixed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "Settled: inv_market_red, D46 and F65 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "Key F68 and Zanger z07 found. 'Add as they work' means more positions, not adds to one trade.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "Settled B22: hold through a report only if up 5R.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "Key E51/B19/E52; IBD i35 and Bulkowski 61% (c32) verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "Key c21 (ch.inv_stale_handle, proposed, 30 sessions) verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "Key c20 (deeper than 35% outside a bear market, proposed); 42% is outside every ch.cup_depth option's ceiling. IBD i12 and Zanger z02 found.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "Re-derived: (48.60 - 46.40) / 48.60 = 4.5%. Key A3, A4 and c42: the initial stop is a few cents under the day's low. The wrong note for 'wait for a tighter spot' leaned on the pending-owner ch.stop_width options; reworded to 'waiting is always allowed'. Fixed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "Key C34 ('a judgment call') and B26's burst description verbatim.",
+   "fixed": false,
+   "by": "checker"
+  }
+ }
 }
