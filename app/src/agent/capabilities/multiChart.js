@@ -423,7 +423,7 @@ export function registerMultiChartCapabilities() {
     target: 'multiChart',
     surfaces: ['charts'],
     available: (ctx) => ctx.surface === 'charts',
-    summary: 'Change the Multi Chart GRID as a whole, exactly as its Multi Charts menu does: open it and set its shape (layout, rows × columns), go back to the Charts board (exit), crosshair or time-range sync across every cell, Groups mode on/off, fill the grid with a named group (pickGroup) or the previous / next group (stepGroup) or refresh the loaded group, open / save / delete a saved grid, open the grid’s Shared Chart Settings, or un-maximize (restoreGrid). Undo restores the grid exactly.',
+    summary: 'Change the Multi Chart GRID as a whole, as its Multi Charts menu does: open it at a shape (layout rows × columns) or exit to the Charts board, crosshair / time-range sync, Groups mode, load / step / refresh a group, open / save / delete a saved grid, open Shared Chart Settings, restore a maximized grid. Undo restores the grid exactly.',
     hints: 'target = the multiChart ref. rows/cols only with op layout (both null = open Multi Chart as it was); on only with the sync / groupsMode ops; name = the group (pickGroup) or saved grid (applySaved / saveGrid / deleteSaved) as the member said it; direction only with stepGroup. ONE chart’s ticker / timeframe / style is a chart.* action on that cell, not this. Maximizing one cell or resetting one cell to the member’s own chart is multiChart.cell.',
     shape: '{"op":"layout","rows":2,"cols":3,"on":null,"name":null,"direction":null}',
     args: { type: 'object', additionalProperties: false,
