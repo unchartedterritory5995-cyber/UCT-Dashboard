@@ -203,3 +203,74 @@ describe('barsStreamManager', () => {
     expect(s.delivering).toBe(false)  // a dropped feed must not read as delivering
   })
 })
+
+describe('barsStreamManager — optional `final` / `trade_ts` bar fields', () => {
+  it('a FINAL bar dispatches immediately and is never coalesced away by a straggler', () => {
+    const got = []
+    bars.subscribe('AAPL', '5', { onBar: d => got.push(d.bar) })
+    flush()
+    const es = MockES.instances[0]
+    es._open()
+    es._emit('bar', { sym: 'AAPL', tf: '5', bar: { t: 1, o: 1, h: 2, l: 1, c: 1.5, v: 10 } })
+    es._emit('bar', { sym: 'AAPL', tf: '5', bar: { t: 1, o: 1, h: 2, l: 1, c: 1.6, v: 12, final: true, trade_ts: 1500 } })
+    expect(got.length).toBe(1)                       // dispatched without waiting for the throttle
+    expect(got[0]).toMatchObject({ final: true, trade_ts: 1500, c: 1.6 })
+    es._emit('bar', { sym: 'AAPL', tf: '5', bar: { t: 301, o: 1.6, h: 1.6, l: 1.6, c: 1.6, v: 1 } })
+    bars._flushBars()
+    expect(got.map(b => b.t)).toEqual([1, 301])      // the superseded non-final frame was dropped
+  })
+
+  it('absent fields: legacy {t,o,h,l,c,v} frames pass through unchanged', () => {
+    const got = []
+    bars.subscribe('AAPL', '5', { onBar: d => got.push(d.bar) })
+    flush()
+    const es = MockES.instances[0]
+    es._open()
+    es._emit('bar', { sym: 'AAPL', tf: '5', bar: { t: 1, o: 1, h: 2, l: 1, c: 1.5, v: 10 } })
+    bars._flushBars()
+    expect(got).toEqual([{ t: 1, o: 1, h: 2, l: 1, c: 1.5, v: 10 }])
+  })
+})
+
+describe('barsStreamManager — session (60m alignment, per connection)', () => {
+  it('ETH 60m rides its own ?session=eth connection; 1-30m and RTH share the default one', () => {
+    const rth = []; const eth = []
+    bars.subscribe('AAPL', '60', { onBar: d => rth.push(d), session: 'rth' })
+    bars.subscribe('AAPL', '60', { onBar: d => eth.push(d), session: 'eth' })
+    bars.subscribe('MSFT', '5', { session: 'eth' })   // non-60m normalizes to the default connection
+    flush()
+    expect(MockES.instances.length).toBe(2)
+    const [a, b] = MockES.instances
+    expect(a.url).toContain('AAPL:60'); expect(a.url).toContain('MSFT:5'); expect(a.url).not.toContain('session=')
+    expect(b.url).toContain('bars=AAPL:60'); expect(b.url).toContain('session=eth'); expect(b.url).not.toContain('@')
+    a._open(); b._open()
+    b._emit('bar', { sym: 'AAPL', tf: '60', bar: { t: 1, o: 1, h: 1, l: 1, c: 1, v: 1, session: 'eth' } })
+    bars._flushBars()
+    expect(eth.length).toBe(1)
+    expect(rth.length).toBe(0)
+    expect(bars.getStatus('AAPL', '60', 'eth').delivering).toBe(true)
+    expect(bars.getStatus('AAPL', '60', 'rth').delivering).toBe(false)
+  })
+})
+
+describe('barsStreamManager — protocol v2 per-key t ordering', () => {
+  it('opts in with v=2', () => {
+    bars.subscribe('AAPL', '1', {})
+    flush()
+    expect(MockES.instances[0].url).toContain('v=2')
+  })
+  it('drops a NON-final frame older than the newest seen; dispatches an older-t FINAL correction', () => {
+    const got = []
+    bars.subscribe('AAPL', '5', { onBar: d => got.push(d.bar) })
+    flush()
+    const es = MockES.instances[0]
+    es._open()
+    es._emit('bar', { sym: 'AAPL', tf: '5', bar: { t: 600, o: 1, h: 1, l: 1, c: 1, v: 1 } })
+    bars._flushBars()
+    es._emit('bar', { sym: 'AAPL', tf: '5', bar: { t: 300, o: 1, h: 2, l: 1, c: 2, v: 9 } })   // straggler
+    bars._flushBars()
+    es._emit('bar', { sym: 'AAPL', tf: '5', bar: { t: 300, o: 1, h: 2, l: 1, c: 1.5, v: 9, final: true } })
+    bars._flushBars()
+    expect(got.map(b => [b.t, !!b.final])).toEqual([[600, false], [300, true]])
+  })
+})

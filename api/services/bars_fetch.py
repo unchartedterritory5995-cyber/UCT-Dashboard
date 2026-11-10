@@ -121,6 +121,38 @@ def _px(value) -> float:
     return round(float(value), PRICE_DP)
 
 
+def _safe_volume(value) -> int:
+    """A provider volume as a non-negative int. None / NaN / junk → 0, never a raise.
+
+    ⛔ ONE NULL VOLUME USED TO DROP A WHOLE DELTA. `int(b.get("v", 0))` only defaults
+    on a MISSING key; a present `None` raised TypeError (and a NaN ValueError) inside a
+    list comprehension, so the whole fetched window — every bar of it — was lost to the
+    caller's `except`, and the tail stayed stale until the next poll hit the same bar."""
+    try:
+        f = float(value)
+    except (TypeError, ValueError):
+        return 0
+    if f != f or f < 0 or f == float("inf"):
+        return 0
+    return int(f)
+
+
+def _massive_bar_row(bar) -> dict | None:
+    """One raw Massive agg (`t` in ms) → a store row, or None for an unusable bar.
+
+    Per-bar, so a single malformed agg (null price, missing key) is skipped instead of
+    raising out of the loop and discarding every other bar in the delta."""
+    try:
+        return {
+            "t": int(bar["t"] / 1000),
+            "o": _px(bar["o"]), "h": _px(bar["h"]),
+            "l": _px(bar["l"]), "c": _px(bar["c"]),
+            "v": _safe_volume(bar.get("v")),
+        }
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return None
+
+
 # ── In-flight deduplication ───────────────────────────────────────────────────
 # Prevents N concurrent requests for the same key from each making a separate
 # Massive API call.  The first thread that arrives becomes the "fetcher" and
@@ -390,8 +422,24 @@ def _is_market_open() -> bool:
         return False
     if _is_nyse_holiday(int(now.strftime("%Y%m%d"))):
         return False
-    hm = now.hour * 100 + now.minute
-    return 930 <= hm < 1600
+    # ⛔ A HALF-DAY CLOSES AT 13:00 ET (nyse_calendar's early closes, read through
+    # `_session_close_minutes` — the same authority the completeness rail uses). This
+    # said `< 1600` on every weekday, so on Black Friday / Christmas Eve the store
+    # treated 13:00-16:00 as live RTH and kept re-fetching a settled session.
+    minutes = now.hour * 60 + now.minute
+    return 570 <= minutes < _session_close_minutes(int(now.strftime("%Y%m%d")))
+
+
+def _prior_session_iso(now=None) -> str:
+    """ISO date (YYYY-MM-DD) of the trading session BEFORE today's ET date — skips
+    weekends and NYSE full closures (half-days are sessions). Pure calendar walk."""
+    now = now or datetime.now(_ZI("America/New_York"))
+    d = now.date() - timedelta(days=1)
+    for _ in range(14):
+        if d.weekday() < 5 and not _is_nyse_holiday(int(d.strftime("%Y%m%d"))):
+            break
+        d -= timedelta(days=1)
+    return d.isoformat()
 
 
 def _week_key_yyyymmdd(ymd: int) -> int:
@@ -860,7 +908,18 @@ def _mark_history_complete(ticker: str, tf: str) -> None:
     name with only 6800 to its IPO) would fail the ``len >= bars*0.9`` cache
     gate on EVERY poll and re-trigger a full yfinance/Massive fetch forever.
     The marker says "this is all there is — serve it, only delta from here."
-    6h TTL so a long-open chart refreshes the full pull at most once per 6h."""
+    6h TTL so a long-open chart refreshes the full pull at most once per 6h.
+
+    ⛔ NEVER ON A FALLBACK INTRADAY ANSWER. yfinance serves 7 days of 1m and FMP a
+    shallow RTH-only window; marking either "complete" told the cache gate "this is
+    all there is" and locked the truncated depth in for 6h, so the deep Massive pull
+    never re-ran even after Massive recovered."""
+    if tf in ("1", "5", "15", "30", "60") and _last_intraday_fetch_was_fallback():
+        import logging as _log_hc
+        _log_hc.getLogger(__name__).info(
+            "[bars] %s tf=%s: fallback (%s) answer NOT marked history-complete",
+            ticker, tf, last_intraday_source())
+        return
     try:
         cache.set(f"histfull_{ticker}_{tf}", True, ttl=21600)
     except Exception:
@@ -1230,6 +1289,13 @@ def _fmt_sqlite_bars(rows: list[tuple], tf: str, ticker: str | None = None) -> l
             out = sanitize_daily_bars(ticker, out, tf)
         except Exception:
             pass  # best-effort: never let normalization blank a chart
+    if ticker and not date_tf and len(out) > 1:
+        # Intraday split cliff → bounded background DETECT + LOG, no writes (cache reads only here).
+        try:
+            from api.services import intraday_split_heal as _ish
+            _ish.note_served(ticker, tf, out)
+        except Exception:
+            pass
     return out
 
 
@@ -1479,9 +1545,11 @@ def _fetch_intraday_fmp(ticker: str, tf: str, max_bars: int) -> list[dict]:
                     "h": _px(bar["high"]),
                     "l": _px(bar["low"]),
                     "c": _px(bar["close"]),
-                    "v": int(bar.get("volume", 0)),
+                    # ⛔ `int(bar.get("volume", 0))` raised TypeError on a present-but-null
+                    # volume — not caught below, so ONE null bar emptied the whole payload.
+                    "v": _safe_volume(bar.get("volume")),
                 })
-            except (KeyError, ValueError):
+            except (KeyError, ValueError, TypeError):
                 continue
         return bars[-max_bars:]
     except Exception as _e:
@@ -1511,6 +1579,11 @@ def _fetch_intraday_yfinance(ticker: str, tf: str, max_bars: int) -> list[dict]:
             yf_sym,
             period=config["period"], interval=config["interval"],
             prepost=True,  # Include premarket (4-9:30 AM) + after-hours (4-8 PM)
+            # ⛔ SAME BASIS AS MASSIVE (`adjusted=true` = SPLIT-only). yfinance's
+            # default `auto_adjust=True` also back-adjusts DIVIDENDS, so a fallback
+            # answer landed on a different price scale than the Massive rows around
+            # it — a small cliff at every seam. Yahoo's raw OHLC is split-adjusted.
+            auto_adjust=False,
         )
         if df is None or df.empty:
             return []
@@ -1527,13 +1600,22 @@ def _fetch_intraday_yfinance(ticker: str, tf: str, max_bars: int) -> list[dict]:
             if getattr(ts, "tzinfo", None) is None:
                 # pandas Timestamp lacks `.replace`; use tz_localize on the value
                 ts = ts.tz_localize(_ET_YF)
+            try:
+                o, h, l, c = (float(row["Open"]), float(row["High"]),
+                              float(row["Low"]), float(row["Close"]))
+            except (KeyError, TypeError, ValueError):
+                continue
+            if any(x != x for x in (o, h, l, c)):   # NaN row (Yahoo pads gaps): skip, never crash
+                continue
             bars.append({
                 "t": int(ts.timestamp()),  # unix seconds (UTC), tz-correct
-                "o": _px(row["Open"]),
-                "h": _px(row["High"]),
-                "l": _px(row["Low"]),
-                "c": _px(row["Close"]),
-                "v": int(row.get("Volume", 0)),
+                "o": _px(o),
+                "h": _px(h),
+                "l": _px(l),
+                "c": _px(c),
+                # ⛔ `int(row.get("Volume", 0))` raised ValueError on a NaN volume and the
+                # outer except emptied the WHOLE payload over one padded row.
+                "v": _safe_volume(row.get("Volume")),
             })
         return bars[-max_bars:]
     except Exception as _e:
@@ -1562,6 +1644,62 @@ def _is_intraday_stale(bars: list[dict], max_age_days: int = 5) -> bool:
     last_ts = bars[-1]["t"]  # unix seconds
     age_days = (datetime.utcnow().timestamp() - last_ts) / 86400
     return age_days > max_age_days
+
+
+# ── Which provider answered the last intraday fetch ON THIS THREAD ────────────
+# `fetch_with_validation` returns a bare bar list, and every persist site runs on the
+# same thread right after the fetch — so a thread-local is the narrowest way to let
+# the store tell a Massive answer from a fallback one without changing the return
+# shape every caller (and test double) relies on.
+_intraday_src = _threading.local()
+
+#: Sources whose intraday answer is a FALLBACK: shallower (yfinance 1m = 7 days) and/or
+#: a different session coverage (FMP RTH-only). Never "the whole history".
+_FALLBACK_INTRADAY_SOURCES = frozenset({"fmp", "yfinance"})
+
+
+def _set_intraday_source(source) -> None:
+    _intraday_src.name = source
+
+
+def last_intraday_source():
+    """'massive' | 'fmp' | 'yfinance' | None for the latest `fetch_with_validation`
+    on the CALLING thread (None = nothing chosen / no fetch yet)."""
+    return getattr(_intraday_src, "name", None)
+
+
+def _last_intraday_fetch_was_fallback() -> bool:
+    return last_intraday_source() in _FALLBACK_INTRADAY_SOURCES
+
+
+def _payload_has_extended_hours(payload) -> bool:
+    """True when ANY bar starts outside 09:30-16:00 ET (pre- or post-market).
+
+    A multi-session Massive / yfinance(prepost) answer for any traded name carries
+    04:00-20:00 bars; an FMP answer with none is the RTH-only series."""
+    et = _ZI("America/New_York")
+    if isinstance(payload, dict):
+        payload = payload.get("bars")
+    if not isinstance(payload, (list, tuple)):
+        return True               # unknown shape: abstain (never demote on a guess)
+    for b in payload:
+        try:
+            dt = datetime.fromtimestamp(int(b["t"]), et)
+        except (KeyError, TypeError, ValueError, OverflowError, OSError):
+            return True           # unreadable bar: abstain
+        m = dt.hour * 60 + dt.minute
+        if m < 570 or m >= 960:
+            return True
+    return False
+
+
+def _put_fetched_intraday(ticker: str, tf: str, bars: list) -> int:
+    """Persist a FULL intraday fetch. A fallback answer is ADD-ONLY: it may fill rows
+    the store lacks but never overwrites a Massive row (different volume basis, and an
+    RTH-only FMP series would otherwise replace good bars with its own)."""
+    if _last_intraday_fetch_was_fallback():
+        return _sqlite.put_bars(ticker, tf, bars, date_tf=False, on_conflict="ignore")
+    return _sqlite.put_bars(ticker, tf, bars, date_tf=False)
 
 
 def _payload_last_session_yyyymmdd(payload) -> int:
@@ -1609,6 +1747,7 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
     """
     import logging as _log
     _logger = _log.getLogger(__name__)
+    _set_intraday_source(None)    # never inherit a previous fetch's source on this thread
     prior_close = _last_known_close(ticker, tf)
     # Latest session that should have bars — drives staleness escalation so a
     # valid-but-lagging Massive payload yields to a fresher FMP/yfinance one.
@@ -1910,6 +2049,12 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int, status: "dict | None" = 
     # last_ts==0 (cold) → floor 0 → return everything fetched (full populate).
     heal_floor = max(0, last_ts - _DELTA_HEAL_WINDOW_SECONDS) if last_ts else 0
     from_date = (datetime.utcnow() - timedelta(days=gap_days)).strftime("%Y-%m-%d")
+    # ⛔ "2 CALENDAR DAYS" IS NOT "TODAY AND YESTERDAY'S SESSION". On a Monday (or the
+    # day after a holiday) the 1m cap of 2 days reached back to Saturday, so a hole in
+    # FRIDAY's 1m session was outside every heal window and froze. Always reach the
+    # PRIOR TRADING SESSION, whatever the calendar says.
+    if gapfill_on:
+        from_date = min(from_date, _prior_session_iso())
     to_date   = datetime.utcnow().strftime("%Y-%m-%d")
 
     # Timestamps already stored in (roughly) the fetched window. A re-fetched bar
@@ -1917,7 +2062,8 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int, status: "dict | None" = 
     # None = gap-fill disabled (kill-switch or cold) → trailing-only behaviour.
     stored_ts: "set | None" = None
     if gapfill_on:
-        _window_start = int(_time.time()) - gap_days * 86400 - 86400
+        _window_start = min(int(_time.time()) - gap_days * 86400 - 86400,
+                            int(datetime.strptime(from_date, "%Y-%m-%d").timestamp()) - 86400)
         try:
             stored_ts = {int(r[0]) for r in _sqlite.get_bars_since(ticker, tf, _window_start)}
         except Exception:  # noqa: BLE001 — a read failure just disables gap-fill this cycle
@@ -1935,11 +2081,10 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int, status: "dict | None" = 
                 f"/{from_date}/{to_date}"
                 f"?adjusted=true&sort=asc&limit=50000&apiKey={client._api_key}"
             )
-            bars_src = [
-                {"t": int(b["t"] / 1000), "o": _px(b["o"]), "h": _px(b["h"]),
-                 "l": _px(b["l"]), "c": _px(b["c"]), "v": int(b.get("v", 0))}
-                for b in _paginate_massive_aggs(client, url)
-            ]
+            # ⛔ Per-bar parse: `int(b.get("v", 0))` raised on a null volume and lost
+            # the WHOLE 60m delta (see `_safe_volume`).
+            bars_src = [r for r in map(_massive_bar_row, _paginate_massive_aggs(client, url))
+                        if r is not None]
             # Filter shifted from strict > to >= on 2026-05-23. Original concern
             # was REST stepping on the WS-painted live bar; that's now mooted by
             # Phase 4's bar_broadcaster owning the developing-bar timeline AND
@@ -1973,7 +2118,10 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int, status: "dict | None" = 
         )
         new = []
         for bar in _paginate_massive_aggs(client, url):
-            ts = int(bar["t"] / 1000)
+            row = _massive_bar_row(bar)
+            if row is None:
+                continue          # one malformed agg must not drop the whole delta
+            ts = row["t"]
             # `>=` (was strict `>`) so the most recent stored bar gets
             # re-fetched and updated with Massive's authoritative values.
             # This heals the "partial in-progress bar got stored, then
@@ -1984,12 +2132,7 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int, status: "dict | None" = 
             # `_delta_keep_bar` also restores interior holes (missing from
             # stored_ts) anywhere in the fetched window, not just the tail.
             if _delta_keep_bar(ts, heal_floor, stored_ts):
-                new.append({
-                    "t": ts,
-                    "o": _px(bar["o"]), "h": _px(bar["h"]),
-                    "l": _px(bar["l"]), "c": _px(bar["c"]),
-                    "v": int(_bar_volume(bar)),
-                })
+                new.append(row)
         if status is not None:
             status["ok"] = True   # the provider ANSWERED (an empty answer included)
         return new
@@ -2867,7 +3010,10 @@ def _do_cold_fetch(ticker_up: str, tf: str, bars: int, date_tf: bool) -> None:
             else:
                 raw = _fetch_daily(ticker_up, bars, deep=_deep)
         if raw and (date_tf or not _is_intraday_stale(raw)):
-            _sqlite.put_bars(ticker_up, tf, raw, date_tf=date_tf)
+            if date_tf:
+                _sqlite.put_bars(ticker_up, tf, raw, date_tf=date_tf)
+            else:
+                _put_fetched_intraday(ticker_up, tf, raw)   # fallback = add-only
             if _deep:
                 _mark_history_complete(ticker_up, tf)
         elif not raw and _faults.clean:
@@ -3017,8 +3163,8 @@ def _bounded_fetch_intraday(ticker_up: str, tf: str, bars: int,
         try:
             raw = _fetch_intraday(ticker_up, tf, bars)
             if raw and not _is_intraday_stale(raw):
-                _sqlite.put_bars(ticker_up, tf, raw, date_tf=False)
-                _mark_history_complete(ticker_up, tf)
+                _put_fetched_intraday(ticker_up, tf, raw)   # fallback = add-only
+                _mark_history_complete(ticker_up, tf)       # refuses a fallback answer
         except Exception as _e:           # noqa: BLE001
             import logging as _log_bf
             _log_bf.getLogger(__name__).warning(
@@ -3640,7 +3786,10 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                             # intraday fallback (yfinance returning hours-old
                             # data) since it'd be served as fresh next time.
                             if new and (_dtf or not _is_intraday_stale(new)):
-                                _sqlite.put_bars(_sym, _tf, new, date_tf=_dtf)
+                                if _dtf:
+                                    _sqlite.put_bars(_sym, _tf, new, date_tf=_dtf)
+                                else:
+                                    _put_fetched_intraday(_sym, _tf, new)   # fallback = add-only
                                 # Mark full history loaded so a request larger
                                 # than the stock's lifetime doesn't re-fetch every
                                 # poll (the len>=bars*0.9 gate would never pass).
@@ -4023,21 +4172,28 @@ def fetch_with_validation(
     """
     from api.services import source_circuit_breaker as _scb
 
-    best_stale = None  # (last_session_yyyymmdd, payload) — freshest valid fallback
+    best_stale = None  # (last_session_yyyymmdd, payload, source) — freshest valid fallback
+    _set_intraday_source(None)
+    # ⛔ An FMP payload with NO extended-hours bar is RTH-only; Massive (and yfinance
+    # with prepost) carry 04:00-20:00. Accepting it first would persist a series whose
+    # pre/post sessions are silently empty. Held back until yfinance has been asked.
+    fmp_rth = None
 
-    def _accept(payload):
+    def _accept(payload, source="massive"):
         """Return payload if it's fresh enough to short-circuit; else stash it
         as a stale fallback candidate and return None to keep escalating."""
         nonlocal best_stale
         if expected_session is None:
+            _set_intraday_source(source)
             return payload  # legacy: first valid wins
         if not payload:
             return None
         sess = _payload_last_session_yyyymmdd(payload)
         if sess >= expected_session:
+            _set_intraday_source(source)
             return payload  # valid AND fresh — best case
         if best_stale is None or sess > best_stale[0]:
-            best_stale = (sess, payload)
+            best_stale = (sess, payload, source)
         return None
 
     # Primary: Massive
@@ -4064,8 +4220,10 @@ def fetch_with_validation(
             payload = _fetch_intraday_fmp(ticker, tf, bars)
             valid = _payload_passes_validation(payload, prior_close)
             _scb.record_attempt("fmp", success=valid)
-            if valid:
-                chosen = _accept(payload)
+            if valid and not _payload_has_extended_hours(payload):
+                fmp_rth = payload          # RTH-only: yfinance first, this only if it fails
+            elif valid:
+                chosen = _accept(payload, "fmp")
                 if chosen is not None:
                     return chosen
             elif payload:
@@ -4083,7 +4241,7 @@ def fetch_with_validation(
             valid = _payload_passes_validation(payload, prior_close)
             _scb.record_attempt("yfinance", success=valid)
             if valid:
-                chosen = _accept(payload)
+                chosen = _accept(payload, "yfinance")
                 if chosen is not None:
                     return chosen
             elif payload:
@@ -4094,10 +4252,18 @@ def fetch_with_validation(
     else:
         _note_provider_fault()       # breaker open: the source was never asked
 
+    if fmp_rth is not None:
+        chosen = _accept(fmp_rth, "fmp")
+        if chosen is not None:
+            return chosen
+
     # No source reached the expected session — return the freshest valid
     # payload we saw (better a few sessions behind than a blank chart). The
     # caller's _is_intraday_stale guard still rejects absurdly old (>5d) data.
-    return best_stale[1] if best_stale else None
+    if best_stale:
+        _set_intraday_source(best_stale[2])
+        return best_stale[1]
+    return None
 
 
 def fetch_minute_snapshot(ticker: str, minute_ts: int) -> dict | None:
