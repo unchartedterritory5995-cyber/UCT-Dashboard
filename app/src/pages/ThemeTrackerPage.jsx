@@ -14,7 +14,7 @@ import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
 import { TAG_BY_KEY } from '../constants/tagColors'
 import { prefetchBar, prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent, prewarmVisibleList } from '../utils/prefetchBars'
-import { sessionState } from '../lib/marketClock/marketClock'
+import { sessionState, nextBoundary } from '../lib/marketClock/marketClock'
 import { useNeighborWarm } from '../hooks/useNeighborWarm'
 import { fetchTf } from '../components/chart/timeframes'
 import TickerActionsMenu, { useTickerActions } from '../components/TickerActions'
@@ -73,9 +73,19 @@ function fmtEtTime(iso) {
 // session only. The clock is read at each tick (a page left open across the bell speeds up without a
 // re-render), and this stays one module-level function because SWR restarts its timer whenever the
 // interval's identity changes. `computing` is a short first-build state, so it keeps its own retry.
-function themePerformanceRefreshMs(d) {
+//
+// Outside the session the timer also stops at the next session boundary, so the first poll of the
+// session lands at the bell instead of up to a full slow interval later. `pollFactor` is useMobileSWR's
+// touch multiplier: it is applied to the value returned here, so the boundary is divided by it.
+const THEME_PERF_SLOW_MS = 120_000
+const THEME_PERF_MIN_MS = 1_000
+function themePerformanceRefreshMs(d, pollFactor = 1) {
   if (d?.status === 'computing') return 15_000
-  return sessionState(new Date()).isOpen ? 10_000 : 120_000
+  const now = new Date()
+  if (sessionState(now).isOpen) return 10_000
+  const boundary = nextBoundary(now)
+  const untilBoundary = boundary ? Math.ceil((boundary.at.getTime() - now.getTime()) / pollFactor) : Infinity
+  return Math.max(THEME_PERF_MIN_MS, Math.min(THEME_PERF_SLOW_MS, untilBoundary))
 }
 
 // The most rows one list prewarm may request from the open theme group.
