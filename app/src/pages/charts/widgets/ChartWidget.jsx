@@ -21,6 +21,8 @@ import ChartTabStrip from './ChartTabStrip'
 import { prefetchReplayTimeframes } from '../../../utils/prefetchBars'
 import { fetchTf } from '../../../components/chart/timeframes'
 import useSymbolHandoff from '../../../hooks/useSymbolHandoff'
+import useSymbolSettle from '../../../hooks/useSymbolSettle'
+import { memHas } from '../../../utils/barsMemCache'
 import {
   sanitizeChartTabs, chartTabList, addChartTab, closeChartTab,
   setActiveChartTab, renameChartTab, patchChartTab,
@@ -29,6 +31,7 @@ import { buildWidgetEmbedAttrs } from '../../journal-2-0/lib/widgetEmbedCore'
 import { kickSnapshotWarm } from '../../journal-2-0/lib/embedArchive'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
 import { useWidgetDoor } from '../widgetDoors'
+import { PanelSlotContext } from '../panelSlot'
 import { chartJournalCapture } from './chartJournalCapture'
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 import { WORKSPACE_PICKER_TYPES, labelMap, catalogMeta } from '../../../widgets/registry'
@@ -98,26 +101,18 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     ? null
     : (isMainTab || !activeExtra ? chartId : `${chartId}:${activeExtra.id}`)
 
-  // Debounce the linked ticker (~90ms): during a fast arrow-scan through a watchlist,
-  // the group sym changes many times/sec — without this every intermediate ticker
-  // runs the full StockChart fetch/framing pipeline and the charts fall behind. The
-  // chart settles on the ticker you land on when the scan pauses.
+  // The settled request: which symbol the member has landed on. A single switch
+  // applies in the same commit; a burst of arrow keys resolves to the last one
+  // (useSymbolSettle). This is still a derived view of the colour group, the one
+  // writable symbol authority.
   const groupSym = groupSyms[activeColor] || 'SPY'
-  // The SETTLED request: which symbol the member has landed on. (The debounce
-  // above stops a fast arrow-scan running the full pipeline per intermediate
-  // ticker.) This is still a derived view of the colour group — the group
-  // remains the one writable symbol authority.
-  // A host may set its own wait (chartHostOverlay.js): the screener sets 0, because it already
-  // warms the rows on screen into memory and a pause there is only latency on every step.
+  // A host may turn the wait off (chartHostOverlay.js): the screener sets 0, because it
+  // already warms the rows on screen into memory and a pause there is only latency.
   const hostOverlay = useContext(ChartHostOverlayContext)
+  const panelSlotReady = useContext(PanelSlotContext)
   const symDebounceMs = Number.isFinite(hostOverlay?.symbolDebounceMs) ? hostOverlay.symbolDebounceMs : 90
-  const [debouncedSym, setDebouncedSym] = useState(groupSym)
-  useEffect(() => {
-    if (symDebounceMs <= 0) return undefined
-    const t = setTimeout(() => setDebouncedSym(groupSym), symDebounceMs)
-    return () => clearTimeout(t)
-  }, [groupSym, symDebounceMs])
-  const requestedSym = symDebounceMs <= 0 ? groupSym : debouncedSym
+  const symIsWarm = useCallback((s) => memHas(s, fetchTf(tf)), [tf])
+  const requestedSym = useSymbolSettle(groupSym, { debounceMs: symDebounceMs, isWarm: symIsWarm })
 
   // ⭐⭐ ATOMIC SYMBOL HANDOFF. `sym` is what the chart DISPLAYS, and it only
   // advances to the request once current-enough data for it exists — so the
@@ -671,6 +666,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
           // `stockChartProps` onto `StockChart`, which forwards it to
           // `ChartToolbar` → `IndicatorAlertPopover` → the `?scope=` request.
           chartId: paneChartId,
+          // The workspace's mount queue: this panel's bars are up, so the next queued one may
+          // start. Once per mount (StockChart's latch); null outside the main board.
+          onBarsReady: panelSlotReady || undefined,
           // Custom-Period Sort: drag-to-highlight mode + the completed selection,
           // tagged with THIS chart's symbol for the config popover's % readout.
           periodSelect: !!periodSortMode,

@@ -415,13 +415,46 @@ const _RTH_OPEN_MINUTES = 570        // 09:30 ET
 const _EXT_OPEN_MINUTES = 240        // 04:00 ET
 const _EXT_CLOSE_MINUTES = 1200      // 20:00 ET
 
-function _etMinutesOfUnix(unixSec) {
-  const s = new Date(unixSec * 1000).toLocaleString('en-US', {
-    timeZone: 'America/New_York', hour12: false, hour: '2-digit', minute: '2-digit',
-  })
-  const [h, m] = s.split(':').map(Number)
-  return h * 60 + m
+// ⛔ ONE TIMEZONE LOOKUP PER DAY, NOT PER BAR. A per-bar `toLocaleString` was the
+// single largest cost of rendering an intraday chart (2,852 bars: ~290 ms of main
+// thread, measured on production). The ET offset can only change inside a UTC day
+// on a DST transition day, so a day with one offset at both ends uses it directly;
+// a transition day asks per minute-bucket the slow way, and stays exact.
+const _etFmt = typeof Intl !== 'undefined'
+  ? new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hourCycle: 'h23', hour: '2-digit', minute: '2-digit' })
+  : null
+function _etWallMinutes(unixSec) {
+  const parts = _etFmt.formatToParts(new Date(unixSec * 1000))
+  let h = 0, m = 0
+  for (const p of parts) {
+    if (p.type === 'hour') h = Number(p.value)
+    else if (p.type === 'minute') m = Number(p.value)
+  }
+  return (h % 24) * 60 + m
 }
+const _ET_DAY_CACHE_MAX = 4000
+const _etDayOffset = new Map()   // UTC day -> minutes ET differs from UTC, or null on a transition day
+function _etOffsetAt(unixSec) {
+  const utc = Math.floor((((unixSec % 86400) + 86400) % 86400) / 60)
+  const et = _etWallMinutes(unixSec)
+  return ((et - utc + 1440) % 1440)
+}
+export function etMinutesOfUnix(unixSec) {
+  const sec = Math.floor(unixSec)
+  const day = Math.floor(sec / 86400)
+  let off = _etDayOffset.get(day)
+  if (off === undefined) {
+    const a = _etOffsetAt(day * 86400)
+    const b = _etOffsetAt(day * 86400 + 86399)
+    off = a === b ? a : null
+    if (_etDayOffset.size >= _ET_DAY_CACHE_MAX) _etDayOffset.clear()
+    _etDayOffset.set(day, off)
+  }
+  if (off === null) return _etWallMinutes(sec)
+  const utcMin = Math.floor((sec - day * 86400) / 60)
+  return (utcMin + off) % 1440
+}
+const _etMinutesOfUnix = etMinutesOfUnix
 
 /**
  * Start instant of the bucket containing `unixSec`.

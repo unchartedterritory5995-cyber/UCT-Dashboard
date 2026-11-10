@@ -72,7 +72,7 @@ import VersionHistoryPanel, { VersionHistoryMenuItem, useVersionHistoryAvailable
 import vhStyles from './VersionHistory.module.css'
 import { recordBoardWrites, replayBoardWrites, applyColumnsSteps, boardDocumentPatch, commitBoardDocument, planColumnsFold } from './boardDocument'
 import { isWorkspaceDocArmed } from '../../lib/workspaceDoc'
-import { addWidgetTab } from './widgetTabs'
+import { addWidgetTab, resolveActiveTab } from './widgetTabs'
 import { createEmptyNamedLayout } from './dockCreate'
 import { computeRowHeight as rowHeightFor, FIXED_ROWS as _FIXED_ROWS, MARGIN_Y as _MARGIN_Y, BODY_PAD as _BODY_PAD } from './rowHeight'
 import { WIDGET_REGISTRY, WORKSPACE_PICKER_TYPES, labelMap, menuGroups, catalogMeta } from '../../widgets/registry'
@@ -121,6 +121,14 @@ const WATCH_KEY_RE = /^(flagged|user:[A-Za-z0-9_-]+|community:[A-Za-z0-9_-]+|tag
 // question, GATE-S1-CP3 §6), so this starts at the Multi-Chart Grid's own proven
 // default and is tunable in one place without a schema change.
 export const PANEL_MOUNT_CAP = 3
+// A chart panel holds its slot until it reports bars (the 5 s default is its dead-symbol safety);
+// any other panel has no ready signal, so it frees its slot after this short pause instead of
+// that 5 s timer -- the cap still paces them, at this rate, rather than blanking them for 5 s.
+const NON_CHART_SLOT_MS = 300
+// Every panel type joins the board at most this often, whatever released its slot: a chart reports
+// ready when IndexedDB answers, with its fetches still pending, so readiness alone would let a
+// warm board mount all at once.
+const PANEL_ADMIT_INTERVAL_MS = 300
 // Smart adaptive placement (docs/superpowers/plans/2026-08-23-smart-adaptive-
 // widget-placement.md). When true, a newly ADDED widget is positioned/sized by
 // planPlacement (region + type affinity, fill-empty-then-resize) instead of the
@@ -1148,7 +1156,14 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   )
   // Hidden, nothing is on the main board: an empty list purges the mounted set, so the return staggers
   // the widgets back in through the same cap instead of mounting them all at once.
-  const { mountedIds: mainBoardMountedIds } = useStaggeredMount(boardHidden ? NO_MAIN_BOARD_WIDGETS : mainBoardWidgetIds, { limit: PANEL_MOUNT_CAP })
+  const { mountedIds: mainBoardMountedIds, release: releaseMainBoardSlot } = useStaggeredMount(boardHidden ? NO_MAIN_BOARD_WIDGETS : mainBoardWidgetIds, {
+    limit: PANEL_MOUNT_CAP,
+    minAdmitIntervalMs: PANEL_ADMIT_INTERVAL_MS,
+    slotTimeoutFor: (id) => {
+      const w = layout.widgets.find(x => x.id === id)
+      return w && resolveActiveTab(w).type !== 'chart' ? NON_CHART_SLOT_MS : undefined
+    },
+  })
 
   const widgetCanvasByType = useMemo(() => {
     // Resolve like the widgets themselves (resolveGlobalPrefSettings) so the FRAME
@@ -3721,6 +3736,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
               // `mainGridHandlers` — a popped-out board's `renderGrid` call omits
               // both, so `isMainBoard` never mis-caps a secondary monitor's board.
               mounted={h.onPopOut ? mainBoardMountedIds.has(w.id) : true}
+              onPanelReady={h.onPopOut ? releaseMainBoardSlot : undefined}
               onRemove={() => h.onRemove(w.id)}
               onColorChange={(c) => h.onColorChange(w.id, c)}
               onOptsChange={(opts) => h.onOptsChange(w.id, opts)}
