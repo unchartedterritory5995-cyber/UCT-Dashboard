@@ -38,6 +38,9 @@ import { setObjectRenderDrops, objectRenderDropsFor, resetObjectRenderDrops } fr
 import { withRenderDrops, collectorFamiliesSentence, DRAWING_NOTE_NAME } from '../ast/objectLoss'
 import AttachedPineDisclosures from '../../pane/AttachedPineDisclosures'
 import { compareObjects } from '../../../../../../tools/vendor_harness/compare.mjs'
+import { buildRuntimeIr } from '../ast/pineRuntimeFrontend.js'
+import { lowerIrProgram } from '../runtime/lowerIr.js'
+import { execute } from '../runtime/vm.js'
 
 const LF = String.fromCharCode(10)
 const Q = String.fromCharCode(34)
@@ -288,13 +291,13 @@ describe('⭐ the member is told, by name', () => {
   })
 
   it('the store keeps an entry that names families with nothing dropped, and clears when neither is left', () => {
-    setObjectRenderDrops('x', 0, 0, '', ['line'])
+    setObjectRenderDrops('x', 0, 0, '', { families: ['line'] })
     expect(objectRenderDropsFor('x')).toEqual({ dropped: 0, held: 0, families: ['line'] })
-    setObjectRenderDrops('x', 0, 0, '', [], ['box'])
+    setObjectRenderDrops('x', 0, 0, '', { familiesAll: ['box'] })
     expect(objectRenderDropsFor('x')).toEqual({ dropped: 0, held: 0, familiesAll: ['box'] })
     setObjectRenderDrops('x', 2, 4)
     expect(objectRenderDropsFor('x')).toEqual({ dropped: 2, held: 4 })
-    setObjectRenderDrops('x', 0, 4, '', [])
+    setObjectRenderDrops('x', 0, 4, '', {})
     expect(objectRenderDropsFor('x')).toBe(null)
   })
 })
@@ -359,5 +362,48 @@ describe('⭐ the vendor harness grades a family withheld by name as a gap, neve
     expect(compareObjects(vendor, ours()).verdict).toBe('DIVERGE')
     const v = compareObjects(vendor, ours({ withheldFamilies: ['line'], counts: { ...ours().counts, labels: 128 } }))
     expect(v.verdict).toBe('DIVERGE')
+  })
+})
+
+// ─── ⭐ r5 (N-g) — a COLLECTION-held object the collector reaches: BOTH lanes withhold the family WHOLE ───
+// objectPool.js C7: whether TradingView's collector spares an object held only in an
+// array is unmeasured. The runtime lane withholds the family when its collector
+// reaches one (`runtime/objectStore.js::collect`); the host lane now does the same,
+// under `withheldBy['objects:collector-all']` (the whole-family sentence).
+describe('⭐ r5 (N-g) — a `var` array of lines pushed past the cap: the line family is withheld WHOLE on BOTH lanes', () => {
+  const NB = 300
+  const days = Array.from({ length: NB }, (_, i) => new Date(Date.UTC(2021, 0, 4) + i * 86400000))
+  const px = (i) => 100 + i * 0.05
+  const PRODUCT = days.map((d, i) => ({ t: d.toISOString().slice(0, 10), o: px(i) - 0.5, h: px(i) + 1, l: px(i) - 1, c: px(i), v: 1000 }))
+  const RT_BARS = days.map((d, i) => ({ t: Math.floor(d.getTime() / 1000), o: px(i) - 0.5, h: px(i) + 1, l: px(i) - 1, c: px(i), v: 1000 }))
+  const SERIES = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(RT_BARS.map((b) => b[k])))
+  const src = (hold) => ['//@version=6', 'indicator("t", overlay = true, max_lines_count = 5)',
+    ...(hold ? ['var lines = array.new_line()', 'if close > open', '    lines.push(line.new(bar_index, close, bar_index + 1, close))']
+      : ['if close > open', '    line.new(bar_index, close, bar_index + 1, close)']), ''].join(LF)
+  const hostLane = (hold) => {
+    const t = translatePine(src(hold))
+    expect(t.objects, 'the host lane carries the program').toBeTruthy()
+    const reader = objectReaderFor({ objects: t.objects }, PRODUCT, { tf: 'D', newestBarIsForming: false })
+    return evaluateObjects(reader.program, { barCount: NB, readNode: reader.readNode, readTime: reader.readTime, readUnknown: reader.readUnknown })
+  }
+  const runtimeLane = (hold) => {
+    const b = buildRuntimeIr(src(hold), { bars: RT_BARS, inputs: {}, objectsInRun: true, tf: 'D', basePeriod: 'D' })
+    if (!b.ok) throw new Error(`refused: ${b.refusal.guard} — ${b.refusal.message}`)
+    const p = lowerIrProgram(b.ir)
+    return execute(p, { bars: NB, series: SERIES, columns: p.columns, confirmed: true, barTimes: RT_BARS.map((x) => x.t) }).objects.finish()
+  }
+
+  it('held in an array: the host lane withholds lines WHOLE (collector-all), the runtime lane withholds them too', () => {
+    const host = hostLane(true)
+    expect(host.withheldBy).toEqual({ 'objects:collector-all': ['line'] })
+    expect(host.live.filter((o) => o.family === 'line')).toEqual([])
+    expect(runtimeLane(true).withheld.line).toMatch(/held in an array or a user type/)
+  })
+
+  it('⛔ CONTROL: the same lines held by nothing — the collector is measured, both lanes draw and name nothing', () => {
+    const host = hostLane(false)
+    expect(host.withheldBy).toBeUndefined()
+    expect(host.live.filter((o) => o.family === 'line').length).toBeGreaterThanOrEqual(5)
+    expect(runtimeLane(false).withheld.line).toBeUndefined()
   })
 })

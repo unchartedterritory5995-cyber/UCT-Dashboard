@@ -1126,12 +1126,13 @@ export function createBinder({ chart, LWC, scope = '' }) {
   // (`objectRuntime.js`, `withheldBy['objects:collector']`), said by name in the
   // same note.
   // `familiesAll`: those withheld WHOLE (`withheldBy['objects:collector-all']`).
-  const publishDrops = (instanceId, state, families = null, familiesAll = null) => {
+  const publishDrops = (instanceId, state, { families = null, familiesAll = null } = {}) => {
     const n = state ? renderDroppedCount(state) : 0
     const fams = Array.isArray(families) ? families : []
     const all = Array.isArray(familiesAll) ? familiesAll : []
     if (!n && !fams.length && !all.length && !dropsPublished.has(instanceId)) return
-    attempt(() => setObjectRenderDrops(instanceId, n, state ? renderHeldCount(state) : 0, noticeScope, fams, all))
+    attempt(() => setObjectRenderDrops(instanceId, n, state ? renderHeldCount(state) : 0, noticeScope,
+      { families: fams, familiesAll: all }))
     if (n || fams.length || all.length) dropsPublished.add(instanceId)
     else dropsPublished.delete(instanceId)
   }
@@ -1380,8 +1381,10 @@ export function createBinder({ chart, LWC, scope = '' }) {
           meta.stats.dropped = hstate.dropped
         } else markersCleared()
       }
-      publishDrops(inst.instanceId, hstate, (built.value.run.withheldBy || {})['objects:collector'] || null,
-        (built.value.run.withheldBy || {})['objects:collector-all'] || null)
+      publishDrops(inst.instanceId, hstate, {
+        families: (built.value.run.withheldBy || {})['objects:collector'] || null,
+        familiesAll: (built.value.run.withheldBy || {})['objects:collector-all'] || null,
+      })
       if (!attempt(() => layer.set(hstate, sig + markSig, meta)).ok) markersCleared()
     }
     for (const [id, layer] of objectLayers) {

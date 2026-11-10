@@ -477,6 +477,24 @@ describe('C33 (8) — a guard with a term nothing reads, gated by an input', () 
     expect(r.withheldBy).toEqual({ 'objects:collector': ['line'] })
   })
 
+  it('⛔ W-C22-DEL r5 (N-g) — with a LIST of the family in the program, the maybe-creates withhold the family WHOLE (whether a list member is spared is unmeasured)', () => {
+    const body = (list) => ['//@version=5', 'indicator("t", overlay=true, max_lines_count=5)',
+      'gate = input.bool(true, "G")',
+      ...(list ? ['var line[] keep = array.new_line()', 'if close < 0', '    array.push(keep, line.new(0, 7.5, 1, 7.5))'] : []),
+      'if gate and dayofweek(time, "GMT+10") == dayofweek.monday',
+      '    line.new(bar_index, low, bar_index + 1, low)',
+      'line.new(bar_index, high, bar_index + 1, high)'].join(LF)
+    const t = host(body(true))
+    expect((t.objects.colls || []).filter((c) => c.family === 'line')).toHaveLength(1)
+    const r = run(t, 20)
+    expect(r.live.filter((o) => o.family === 'line')).toEqual([])
+    expect(r.withheldBy).toEqual({ 'objects:collector-all': ['line'] })
+    // CONTROL: no list ⇒ the per-object rule, the newest lines drawn
+    const c = run(host(body(false)), 20)
+    expect(c.live.filter((o) => o.family === 'line').length).toBeGreaterThan(0)
+    expect(c.withheldBy).toEqual({ 'objects:collector': ['line'] })
+  })
+
   it('⛔ a program whose EVERY create stands under such a guard is no program: the door keeps its own sentence', () => {
     const t = host(src(5, 'gate = input.bool(true, "G")',
       'if gate and dayofweek(time, "GMT+10") == dayofweek.monday',

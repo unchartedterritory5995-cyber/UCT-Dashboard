@@ -39,7 +39,9 @@ const emit = () => { for (const fn of [...listeners]) { try { fn() } catch { /* 
 
 /** Record (or clear, with a zero count) what ONE instance's render state dropped
  *  out of the objects its program held on the last bar. Emits only on a change. */
-export function setObjectRenderDrops(instanceId, dropped, held, scope = '', families = [], familiesAll = []) {
+/** `opts`: NAMED, so later fields merge by name (r5 N-h) — `families` (partly held
+ *  back, `withheldBy['objects:collector']`), `familiesAll` (withheld whole). */
+export function setObjectRenderDrops(instanceId, dropped, held, scope = '', { families = [], familiesAll = [] } = {}) {
   if (!instanceId) return
   const d = Number.isInteger(dropped) && dropped > 0 ? dropped : 0
   const h = Number.isInteger(held) && held >= d ? held : d

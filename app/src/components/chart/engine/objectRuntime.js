@@ -398,6 +398,8 @@ export function beginObjects(program, ctx) {
    *  `na` whatever the collector did). */
   const unknownCreates = Object.fromEntries(OBJECT_FAMILIES.map((f) => [f, 0]))
   const collectorUnknown = new Set()
+  /** ⭐ r5 (N-g) — families whose collector reached an object a collection held. */
+  const collectorInCollection = new Set()
   /** Per family: this run's creates so far (an object's `seq` is its place in it). */
   const familySeq = Object.fromEntries(OBJECT_FAMILIES.map((f) => [f, 0]))
   /** Per family: at each create Pine MAY have made, how many this run had made
@@ -716,6 +718,13 @@ export function beginObjects(program, ctx) {
     for (const inst of live.values()) {
       if (counts[family] <= cap) break
       if (inst.family !== family || inst.createdBar === bar || held.has(inst.id)) continue
+      // ⭐ W-C22-DEL r5 (N-g) — an object held only in a COLLECTION is the case no
+      // capture separates (C7: "unmeasured"): the collector reaching one makes the
+      // family's held set unknown, so it is withheld WHOLE (`finish`), as the runtime
+      // lane's collector already does (`runtime/objectStore.js::collect`).
+      if (!collectorInCollection.has(family)) {
+        for (const list of colls.values()) if (list.includes(inst.id)) { collectorInCollection.add(family); break }
+      }
       reap(inst)
       evicted += 1
       collectedBy[family] += 1
@@ -2093,6 +2102,16 @@ export function beginObjects(program, ctx) {
   for (const fam of Object.keys(POOL_LIMITS)) {
     if (collectedBy[fam] > 0 && (lost.has(fam) || lost.has('*'))) withheldFams.add(fam)
   }
+  // ⭐⭐ W-C22-DEL r5 (N-g) — AND WHOLE where a COLLECTION may hold the family:
+  // either this run's collector reached a collection-held object, or TradingView's
+  // collector may have been further on (C33) while a list of the family exists —
+  // whether it spares a list member is unmeasured (C7), so no rank bound holds.
+  // ⛔ A list whose family the converter could not name counts for every family.
+  {
+    const listFams = new Set((program.colls || []).map((c) => (c && c.family) || '*'))
+    for (const fam of collectorInCollection) withheldFams.add(fam)
+    for (const fam of collectorUnknown) if (listFams.has(fam) || listFams.has('*')) withheldFams.add(fam)
+  }
   // ⭐⭐ W-C22-DEL — the lost-create rule above withholds a family WHOLE (how many
   // creates it lost is not counted, so no object's rank is bounded:
   // `withheldBy['objects:collector-all']`); the C33 rule below withholds per object
@@ -2109,6 +2128,8 @@ export function beginObjects(program, ctx) {
   // — never only the ones holding an older object at the end of this run.
   // ⚰️ r3 left P out: cap 5, var-held A, L1..L15, one maybe-create M ⇒ TradingView
   // keeps A, L13, L14, M, L15 and r3 drew L12 (bound 5).
+  // ⚠️ N-i: P over-counts (a block-local register is counted as if it held a line
+  // for good) — conservative, left so.
   // Held when 1 + later + maybe-later + P > cap.
   const collectorHeld = new Set()
   {
