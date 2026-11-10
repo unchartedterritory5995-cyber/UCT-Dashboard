@@ -67,6 +67,30 @@ def find_job(jobs_json: dict, name_fragment: str):
     return None
 
 
+def job_never_started(job: dict) -> bool:
+    """True when the runner NEVER picked this job up: no runner assigned, no step started.
+
+    ⛔⛔ **A CANCELLED-WHILE-QUEUED JOB IS "NOT RUN" — NOT A RESULT AND NOT A TIMEOUT.**
+    The workflow's `concurrency` group keeps `cancel-in-progress: false`, so a newer run
+    QUEUES behind the running one. But GitHub keeps only ONE pending run per group: a third
+    trigger cancels the run that was already waiting. That run's jobs report
+    `conclusion: cancelled` having executed nothing, and `cancelled` is also what a job cut
+    at its cap reports. ⭐ So "cancelled" alone is two facts; a job with no runner and no
+    started step is the one that never ran, and it must never be read as either a red
+    result or a timeout.
+    """
+    if not isinstance(job, dict):
+        return False
+    if job.get("runner_name") or job.get("runner_id"):
+        return False
+    for st in job.get("steps") or []:
+        if st.get("started_at"):
+            return False
+        if (st.get("conclusion") or st.get("outcome")) not in (None, "", "skipped", "cancelled"):
+            return False
+    return True
+
+
 def test_step_outcome(job: dict, step_name: str = "Run"):
     """The `outcome` of the step that actually ran the suite.
 
@@ -88,11 +112,20 @@ def fields(jobs_json, job_name_fragment, needs_result, timeout_minutes, step_nam
         "timeout_minutes": timeout_minutes,
         "timed_out": False,
         "timed_out_basis": "",
+        # ⛔ False only for a job the runner never started (see `job_never_started`).
+        "ran": UNREADABLE if job is None else True,
     }
     if job is None:
         out["timed_out_basis"] = ("no job matching %r in the jobs payload — UNREADABLE, "
                                   "not false" % job_name_fragment)
         out["timed_out"] = UNREADABLE
+        return out
+
+    if out["job_result"] == "cancelled" and job_never_started(job):
+        out["ran"] = False
+        out["timed_out"] = False
+        out["timed_out_basis"] = ("NOT RUN — cancelled before any runner picked it up (no "
+                                  "runner, no started step); not a result, not a timeout")
         return out
 
     out["test_step_outcome"] = test_step_outcome(job, step_name)
@@ -179,6 +212,18 @@ def _self_check() -> int:
     f = fields({}, "pytest", None, 45)
     show("EMPTY jobs JSON: job_result UNREADABLE", f["job_result"], UNREADABLE)
     show("EMPTY jobs JSON: timed_out UNREADABLE, never False", f["timed_out"], UNREADABLE)
+
+    # 7 ⛔ CANCELLED WHILE QUEUED — the single-pending-slot shape: never started.
+    nr = {"jobs": [{"name": "vitest — shard-1", "status": "completed", "conclusion": "cancelled",
+                    "runner_name": None, "runner_id": 0, "steps": [],
+                    "started_at": "2026-09-15T05:00:00Z", "completed_at": "2026-09-15T05:00:00Z"}]}
+    f = fields(nr, "vitest", "cancelled", 60)
+    show("NEVER STARTED: ran is False", f["ran"], False)
+    show("...and it is NOT a timeout", f["timed_out"], False)
+    show("...and the basis says NOT RUN", f["timed_out_basis"].startswith("NOT RUN"), True)
+    # ⛔ CONTROL: a job cut at its cap is still a timeout, not "not run".
+    j = jobs("pytest — all files", "2026-09-15T05:00:00Z", "2026-09-15T05:45:16Z", "cancelled")
+    show("CONTROL: a cap cut still RAN", fields(j, "pytest", "cancelled", 45)["ran"], True)
 
     # ok() semantics
     good = {"totals_line_found": True, "collected": 10, "failed": 0}

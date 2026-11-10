@@ -693,6 +693,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* the title's own TEXT takes a right-click or a long-press (the list menu); the full-width label around it stays
+   pointer-events: none, so ‹ Lists and the buttons beside it keep their presses */
+.pickTitleHit { pointer-events: auto; }
 
 /* Single-list pick mode: the pick header already names the list, so hide the
    group's own accordion header (the redundant second row); drop the group indent

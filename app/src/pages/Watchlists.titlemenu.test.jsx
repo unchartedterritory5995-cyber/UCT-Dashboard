@@ -1,7 +1,15 @@
 // Watchlists — the list menu from the TITLE in the Charts watchlist widget (owner GO 2026-11-09).
+//
+// ⛔ RAIL-WIDE RULE (AUDIT 2026-11-09): jsdom does no layout, so nothing here proves a REAL press reaches a control. A press
+// dispatched to an element here proves only what that element does once it has the press. Whether a real right-click,
+// long-press or click at a point REACHES it (pointer-events, stacking, hit-testing) is proved only in a real browser:
+// testing/agent/acceptance/watchlistTitleHit.mjs and the RAW artifact cited in docs/agent/program/PR-watchlist-title-hit.md.
+// The structural rail below is labelled STRUCTURAL ONLY.
 import { render, screen, waitFor, fireEvent, act, cleanup } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { vi, beforeEach, afterEach, test, expect, describe } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 
 // ── Heavy leaves that never render in embedded mode but cost real import time ──
@@ -194,7 +202,7 @@ describe('the list menu from the title', () => {
     cleanup(); fetchMock.mockClear()
     renderPick()
     // the original trigger: right-click the list's own name (in the header pick mode hides)
-    const name = [...document.querySelectorAll('span')].find(s => s.textContent === 'Momentum Plays' && s !== titleEl())
+    const name = [...document.querySelectorAll('span')].find(s => s.textContent === 'Momentum Plays' && !s.contains(titleEl()))
     fireEvent.contextMenu(name, { clientX: 40, clientY: 20 })
     fireEvent.click(screen.getByRole('button', { name: 'Rename' }))
     const box2 = await screen.findByDisplayValue('Momentum Plays')
@@ -233,6 +241,30 @@ describe('the list menu from the title', () => {
     expect(names).toContain('Copy list to clipboard')
     expect(names).toContain('Save to My Lists…')
     for (const n of ['Rename', 'Export CSV', 'Import tickers', 'Share with community']) expect(names).not.toContain(n)
+  })
+})
+
+describe('STRUCTURAL ONLY (not a hit test): the title\'s text is the element that takes the list-menu presses', () => {
+  const css = readFileSync(resolve(process.cwd(), 'src/pages/Watchlists.module.css'), 'utf8')
+  const rule = (name) => (new RegExp(`\\.${name}\\s*\\{([^}]*)\\}`).exec(css) || [])[1] || ''
+  test('the full-width label stays pointer-events: none; the inner text span is pointer-events: auto and carries the anchor', () => {
+    expect(rule('pickTitle')).toMatch(/pointer-events:\s*none/)
+    expect(rule('pickTitleHit')).toMatch(/pointer-events:\s*auto/)
+    renderPick()
+    const hit = titleEl()
+    expect(hit.className).toMatch(/pickTitleHit/)
+    expect(hit.parentElement.className).toMatch(/pickTitle/)
+    expect(hit.parentElement.getAttribute('data-guide')).toBeNull()
+    expect(hit.textContent).toBe('Momentum Plays')
+  })
+  test('the inner span adds only the list-menu presses: no click handler, so a left click on it bubbles as before', () => {
+    renderPick()
+    const hit = titleEl()
+    const props = Object.entries(hit).find(([k]) => k.startsWith('__reactProps'))?.[1] || {}
+    expect(typeof props.onContextMenu).toBe('function')
+    expect(typeof props.onPointerDown).toBe('function')   // the long-press (touch only; a mouse returns at once)
+    expect(props.onClick).toBeUndefined()
+    expect(props.onMouseDown).toBeUndefined()
   })
 })
 
