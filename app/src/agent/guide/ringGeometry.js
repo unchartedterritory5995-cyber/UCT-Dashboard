@@ -21,6 +21,10 @@ export const RING = Object.freeze({
 const TRANSITIONS = ['transitionrun', 'transitionstart', 'transitionend', 'transitioncancel']
 /** Frames with no change before the loop stops (and an event starts it again). */
 export const STILL_FRAMES = 6
+/** After a board change (a resize, a style write, a transition), how long the loop keeps measuring every frame (the grid's
+ *  re-layout debounce and a transition's last frame land inside it). */
+export const TAIL_MS = 450
+const now = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now())
 
 const CLIPS = /hidden|clip|auto|scroll/
 const overflowOf = (node) => {
@@ -127,18 +131,25 @@ export function trackRing(el, onRing, { holder = null } = {}) {
     const moved = measure()
     still = moved ? 0 : still + 1
     if (last === null && el.isConnected === false) return   // gone: no more frames for it
-    if (dragging || still < STILL_FRAMES || animating()) frame = raf(loop)
+    if (dragging || still < STILL_FRAMES || animating() || now() < tailUntil) frame = raf(loop)
   }
   const kick = () => { if (stopped) return; still = 0; if (frame == null) frame = raf(loop) }
-  // the window's own resize lays the board out again: measure at once (same frame), then follow
-  const onResize = () => { if (stopped) return; measure(); kick() }
-  // a transition beginning or ending anywhere above the control: follow it
-  const onTransition = (e) => { if (!stopped && e.target?.contains?.(el)) kick() }
+  // ⭐ a TAIL after a board change: the grid re-lays itself out on a debounce after a resize, and a transition's last frame
+  // can land just after it ends (pl-auto round 4: one 2.5–4.8 px frame inside or just after the 200 ms transition, or after
+  // the debounce). The loop keeps measuring every frame for TAIL_MS after the last such event, then stops if still
+  let tailUntil = 0
+  const tail = () => { tailUntil = now() + TAIL_MS; kick() }
+  // the window's own resize lays the board out again: measure at once (same frame), then follow, with the tail
+  const onResize = () => { if (stopped) return; measure(); tail() }
+  // a transition beginning or ending anywhere above the control: follow it, with the tail
+  const onTransition = (e) => { if (!stopped && e.target?.contains?.(el)) tail() }
+  // a scroll moves the control in the scroll's own frame: measure then, synchronously (capture phase, any scrolling box)
+  const onScroll = () => { if (stopped) return; measure(); kick() }
   const onDown = () => { dragging = true; kick() }
   const onUp = () => { dragging = false; kick() }
   let ro = null
   if (typeof ResizeObserver === 'function') {
-    ro = new ResizeObserver(() => { if (stopped) return; measure(); kick() })
+    ro = new ResizeObserver(() => { if (stopped) return; measure(); tail() })
     try { ro.observe(el) } catch { /* not observable */ }
     for (const box of new Set([holder, holder?.parentElement, el.offsetParent].filter(b => b && b !== el && b !== document.body))) {
       try { ro.observe(box) } catch { /* not observable */ }
@@ -151,8 +162,9 @@ export function trackRing(el, onRing, { holder = null } = {}) {
   // paint, so the ring is measured and written in the SAME frame, and the loop runs on until still.
   let mo = null
   if (typeof MutationObserver === 'function') {
-    mo = new MutationObserver(() => { if (stopped) return; measure(); kick() })
-    for (const box of new Set([el, holder, holder?.parentElement].filter(b => b && b !== document.body))) {
+    mo = new MutationObserver(() => { if (stopped) return; measure(); tail() })
+    // every box from the control up to the board (the grid writes a cell's transform; a layout above may write its own)
+    for (const box of new Set([...boxes, holder, holder?.parentElement].filter(b => b && b !== document.body))) {
       try { mo.observe(box, { attributes: true, attributeFilter: ['style', 'class'] }) } catch { /* not observable */ }
     }
   }
@@ -160,7 +172,7 @@ export function trackRing(el, onRing, { holder = null } = {}) {
   const onMove = () => { if (dragging) kick() }
   const opts = { capture: true, passive: true }
   if (typeof window !== 'undefined') {
-    window.addEventListener('scroll', kick, opts)
+    window.addEventListener('scroll', onScroll, opts)
     window.addEventListener('resize', onResize, opts)
     for (const t of TRANSITIONS) window.addEventListener(t, onTransition, opts)
     window.addEventListener('pointerdown', onDown, opts)
@@ -179,7 +191,7 @@ export function trackRing(el, onRing, { holder = null } = {}) {
       ro?.disconnect()
       mo?.disconnect()
       if (typeof window !== 'undefined') {
-        window.removeEventListener('scroll', kick, opts)
+        window.removeEventListener('scroll', onScroll, opts)
         window.removeEventListener('resize', onResize, opts)
         for (const t of TRANSITIONS) window.removeEventListener(t, onTransition, opts)
         window.removeEventListener('pointerdown', onDown, opts)
