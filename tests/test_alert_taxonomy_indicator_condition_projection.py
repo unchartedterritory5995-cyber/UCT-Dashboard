@@ -12,6 +12,7 @@ import tempfile
 
 import pytest
 
+from api.services import alert_rs_series as _rs
 from api.services.alert_taxonomy import indicator_condition_compare as _cmp
 from api.services.alert_taxonomy import indicator_condition_projection as proj
 from api.services.canonical import indicator_axis as _axis
@@ -45,7 +46,13 @@ def test_the_one_renamed_pair_is_comparable():
 def test_the_other_thirty_are_not_comparable():
     census = proj.comparability_census()
     assert census["n_comparable"] == 1, census["comparable"]
-    assert census["n_not_comparable"] == 31, sorted(census["not_comparable"])  # 2026-11-04: +ma_cross
+    # 31 = the thirty F-S7-IC-1 predicates + ma_cross (2026-11-04). The RS
+    # partition (2b-05 eleven rs_line.*, 2b-06 rs_line.rating) adds every
+    # address in alert_rs_series.RS_ADDRESSES, all NOT comparable (no book form);
+    # derived from the RS catalog so a new rs_line.* address moves this pin.
+    rs = set(_rs.RS_ADDRESSES)
+    assert rs <= set(census["not_comparable"]), sorted(rs - set(census["not_comparable"]))
+    assert census["n_not_comparable"] == 31 + len(rs), sorted(census["not_comparable"])
     assert "rsi" in census["not_comparable"]
     assert "bb.upper" in census["not_comparable"]
 

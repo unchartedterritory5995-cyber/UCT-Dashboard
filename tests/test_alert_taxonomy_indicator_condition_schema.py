@@ -800,15 +800,38 @@ def test_this_type_is_wired_in_main_because_CP3_IS_SIGNED_and_nowhere_else():
     assert "indicator_condition" not in alerts, "it leaked into the feed bridge"
 
 
-def _modules_naming(needle: str) -> set:
-    """Every module under `api/` whose STRIPPED code names `needle`."""
+def _imports_module(tree: ast.AST, module: str) -> bool:
+    """True iff the tree IMPORTS `alert_taxonomy.<module>` — an `import` or a
+    `from ... import` naming the module itself, never a substring of it.
+
+    ⛔ 2026-11-10: this was a raw substring scan, so a TABLE NAME
+    (`indicator_condition_comparison_spans` in alert_erasure / dark_report) or a
+    sibling module (`indicator_condition_compare`) read as a caller of the type
+    module. A caller is a module reference, not a spelling."""
+    dotted = f"alert_taxonomy.{module}"
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            if any(a.name == dotted or a.name.endswith("." + dotted) for a in node.names):
+                return True
+        elif isinstance(node, ast.ImportFrom):
+            mod = node.module or ""
+            if mod == dotted or mod.endswith("." + dotted):
+                return True
+            if (mod == "alert_taxonomy" or mod.endswith(".alert_taxonomy")) and any(
+                    a.name == module for a in node.names):
+                return True
+    return False
+
+
+def _modules_naming(module: str) -> set:
+    """Every module under `api/` that IMPORTS `alert_taxonomy.<module>`."""
     out = set()
     for path in sorted((_REPO / "api").rglob("*.py")):
         try:
-            code = _code_only(path)
+            tree = ast.parse(path.read_text(encoding="utf-8"))
         except SyntaxError:                                  # pragma: no cover
             continue
-        if needle in code:
+        if _imports_module(tree, module):
             out.add(path.name)
     return out
 
