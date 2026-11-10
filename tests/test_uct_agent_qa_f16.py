@@ -134,7 +134,13 @@ def test_no_order_asked_means_market_cap_desc_never_the_composite():
 # Re-pinned 2026-11-08 (RS 9M component rank, landed via PR #961): 9c3f881e2c changes rs_history.py on
 # purpose (the 9M component rank in the rating history + a fill-only backfill mode). It is the only
 # Screener file changed since deb8078927 (`git diff --name-only deb8078927...origin/master -- <paths>`).
-SCREENER_PIN = "9c3f881e2c17d05ba37f1317cf1c2ecd942f1bd6"
+# Re-pinned 2026-11-10 (Pine engine 44, VAR-OFF, PR #1017): e98a7ffa8e changes api/services/screener/scan_evaluator.py
+# on purpose (passes varOriginAbsolute so a scan on a `var` that began before the loaded bars is refused by name;
+# review GO-WITH-NOTES, dsk/reviews/VAR-OFF.md). The pin is the merge commit that brought it to master.
+# Re-pinned 2026-11-10 (Screener speed, batch speed-2): e1a715868b and 966bca5191 change query.py and snapshot_builder.py on
+# purpose (the stale-row gate is computed once per snapshot, and a failed read is never kept; results pinned equal; independently
+# reviewed). The pin is that work's last Screener commit; no other Screener file changed since d72c0e62f2.
+SCREENER_PIN = "966bca5191e36158883076e14ec6ae0c00f78029"
 SCREENER_PATHS = ("api/services/screener", "api/routers/screener.py", "api/routers/scan_results.py")
 
 
@@ -183,7 +189,7 @@ def test_the_guard_can_say_no():
         pytest.skip("the pinned commit %s is not in this checkout" % SCREENER_PIN)
     r = _screener_diff(SCREENER_PIN + "~1", SCREENER_PIN)
     assert r.returncode == 0, r.stderr
-    assert "api/services/screener/rs_history.py" in r.stdout.split()  # the file the pinned commit changed (the RS 9M component rank)
+    assert "api/services/screener/snapshot_builder.py" in r.stdout.split()  # the file the pinned commit changed (a failed stale-gate read is never kept)
 
 
 def test_no_UCT_weight_or_formula_is_named_in_the_models_instructions():

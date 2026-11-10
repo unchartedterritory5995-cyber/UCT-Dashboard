@@ -143,3 +143,37 @@ describe('⛔ a paint mints no parameter id', () => {
     expect(b.inputParams.map((p) => p.id)).toEqual(a.inputParams.map((p) => p.id))
   })
 })
+
+// ⭐ DIV-4 — `offset` is a `simple int` (Pine v5/v6 reference, `barcolor` / `bgcolor`:
+// "Shifts the color series to the left or to the right on the given number of bars").
+// An offset that folds to a whole number before bar 0 is carried as that number,
+// through the fold a plot's `offset` uses; `na` and a per-bar value stay withheld.
+describe('⭐ DIV-4: a non-literal `offset` that folds to a whole number', () => {
+  const one = (body) => paintsOf(host(v5(`plot(close)\n${body}`)))[0]
+  it('an input at its default, and arithmetic on literals, are carried as the number', () => {
+    const a = one('sh = input.int(-2, "Shift")\nbarcolor(close > open ? color.red : na, offset = sh)')
+    expect(a.withheld).toBeUndefined()
+    expect(a.offset).toBe(-2)
+    const b = one('bgcolor(color.red, offset = 1 + 2)')
+    expect(b.withheld).toBeUndefined()
+    expect(b.offset).toBe(3)
+    expect(one('n = 3\nbarcolor(color.red, offset = n - 3)').offset).toBeUndefined()
+  })
+  it('⛔ `offset = na` is withheld by name, saying so; a value that reads a bar is withheld', () => {
+    const a = one('barcolor(color.red, offset = na)')
+    expect(a.withheld.code).toBe('paint:offset')
+    expect(a.withheld.reason).toContain('`offset = na`')
+    const b = one('barcolor(color.red, offset = bar_index % 2)')
+    expect(b.withheld.code).toBe('paint:offset')
+    expect(b.withheld.reason).toContain('does not fold to a whole number')
+    expect(one('barcolor(color.red, offset = 1.5)').withheld.code).toBe('paint:offset')
+  })
+  it('⛔ the input an offset folds is displacement-bound (never a knob that moves nothing)', () => {
+    const t = translatePine(v5('plot(close)\nsh = input.int(2, "Shift")\nbarcolor(color.red, offset = sh)'),
+      { strict: true, declareInputs: 'all' })
+    const bound = (paintsOf(t)._colourInputs || []).filter((e) => e.name === 'sh')
+    expect(paintsOf(t)[0].offset).toBe(2)
+    expect(bound.length).toBe(1)
+    expect(bound[0].windowBound).toBe(true)
+  })
+})

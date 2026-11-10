@@ -480,6 +480,11 @@ def _live_overlay(conn) -> _Overlay:
 # statement, and an ordinary night costs one MIN/MAX read and nothing else.
 # ═══════════════════════════════════════════════════════════════════════════
 
+# (fingerprint, threshold) -> the gate for that snapshot; one entry, since a pod
+# reads one snapshot. See `stale_gate`.
+_STALE_GATE_MEMO = None
+
+
 def stale_gate(conn):
     """The stale-row exclusion for THIS database, or ``None`` when no row is
     behind (or the table cannot say).
@@ -492,9 +497,32 @@ def stale_gate(conn):
     saved-scan sweep (``scan_evaluator``), which must not import this SQL builder
     (``test_the_evaluator_never_NAMES_the_overlay__BY_AST``). One implementation,
     asked from both doors; this name is kept so every caller and rail is unchanged.
+
+    ⭐ COMPUTED ONCE PER SNAPSHOT. The MIN/MAX behind this is a full-table read that
+    every /scan and /count paid, for an answer that only moves when the nightly
+    table is rewritten. It is kept against `live_tier._anchor_fingerprint`, the stamp
+    the sweeper and the count cache already trust (every `upsert_rows` write moves
+    `MAX(rowid)`; `bars_asof` has no other writer), plus the builder's threshold so a
+    change to that knob is still honoured. A fingerprint it cannot read turns the memo
+    off for that call, and a failed read is never kept. The caller gets a copy.
     """
-    from . import snapshot_builder
-    return snapshot_builder.stale_row_gate(conn, table=_ROWS)
+    global _STALE_GATE_MEMO
+    import copy
+    from . import live_tier, snapshot_builder
+    try:
+        key = (live_tier._anchor_fingerprint(conn), snapshot_builder.stale_price_sessions())
+    except Exception:  # noqa: BLE001 -- no fingerprint only costs the full read
+        key = None
+    memo = _STALE_GATE_MEMO
+    if key is not None and memo is not None and memo[0] == key:
+        return copy.deepcopy(memo[1])
+    try:
+        gate = snapshot_builder.stale_row_gate(conn, table=_ROWS, strict=True)
+    except snapshot_builder.StaleGateUnreadable:
+        return None  # what the gate answers for a failed read; never kept, so the next request reads again
+    if key is not None:
+        _STALE_GATE_MEMO = (key, copy.deepcopy(gate))
+    return gate
 
 
 def _ymd_text(v) -> str:

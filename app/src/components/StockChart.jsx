@@ -1478,7 +1478,7 @@ import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, idbDelete, mergeDelta, _closeMismatch, _findRecentBarByT } from '../utils/barsIDB'
 import { memPeek, memPut, memPeekSavedAt } from '../utils/barsMemCache'
 import { timingStart, timingMark, timingMarkPaint, timingMarkEmpty } from '../utils/intradayTiming'
-import { classifyIntradayTail, isCurrentEnoughForPaint, isDailyTodayCloseProvisionalForPaint, isDailyTodayBarStaleForPaint, dailyMissingSessionsForPaint, isTradingSessionTodayET, isHolidayISO, intradayBarCurrentness, isCurrentnessSettled } from '../utils/marketSession'
+import { etMinutesOfUnix, classifyIntradayTail, isCurrentEnoughForPaint, isDailyTodayCloseProvisionalForPaint, isDailyTodayBarStaleForPaint, dailyMissingSessionsForPaint, isTradingSessionTodayET, isHolidayISO, intradayBarCurrentness, isCurrentnessSettled } from '../utils/marketSession'
 import { createTailPollState, nextTailPollMs, tailRetriesExhausted, watchdogGapMs, intradayDedupMs, liveBadgeState } from '../utils/intradayTailPoll'
 import { resample, resampleForSpec } from '../utils/resampleBars'
 import { isNativeTf, fetchTf, resampleSpec, parseTf } from './chart/timeframes'
@@ -9548,16 +9548,9 @@ export default function StockChart({
   const sessionBars = useMemo(() => {
     if (!bars || !_intradayLike || showExtended) return bars
 
-    const getETMins = (t) => {
-      const d = new Date(t * 1000)
-      const etStr = d.toLocaleString('en-US', { timeZone: 'America/New_York', hour12: false, hour: '2-digit', minute: '2-digit' })
-      const [h, m] = etStr.split(':').map(Number)
-      return h * 60 + m
-    }
-
     return bars.filter(b => {
       if (typeof b.t !== 'number') return true
-      const mins = getETMins(b.t)
+      const mins = etMinutesOfUnix(b.t)
       // All intraday RTH: 9:30 AM (570 min) to 4:00 PM (960 min) ET
       return mins >= 570 && mins < 960
     })

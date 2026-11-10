@@ -551,8 +551,49 @@ def presentation_errors(definition: Mapping[str, Any]) -> list:
         _check_plot_colour_fields(plot, path, fp, out)
         _check_color_mode(plot, path, fp, columns, out)
         _check_ohlc(plot, path, fp, columns, out)
-    _check_paints(definition.get("paints"), columns, out)
+    # DIV-4 -- a PAINT (never a plot) may also name a colour column the per-bar run computes
+    run_keys = _check_runtime_colours(definition, columns, out)
+    _check_paints(definition.get("paints"), columns | run_keys, out)
     return out
+
+
+def _check_runtime_colours(definition: Mapping, plot_keys: set, out: list) -> set:
+    """DIV-4 -- ``compute.runtimeColours = {source, at, keys}``: colours a HOST document
+    reads from the per-bar run. The mirror of the client's ``defSchema.validateRuntimeColours``,
+    rule for rule: only on an ``ast`` definition; one key per value; a key unique, a
+    non-empty string, and never a plot's key; each ``at`` a colour asked for at a statement
+    (``{line, column, node, kind: "colour"}``). Returns the keys a paint may name: none when
+    absent or malformed (the paint naming one is then refused as an undeclared column)."""
+    compute = definition.get("compute")
+    if not isinstance(compute, Mapping) or "runtimeColours" not in compute:
+        return set()
+    rc = compute.get("runtimeColours")
+    path = "compute.runtimeColours"
+    fp = "runtimeColours:" + _canon(rc)
+    if compute.get("kind") != "ast":
+        _err(out, path, "runtime-colours",
+             f"{path}: only an \"ast\" definition reads colours from the per-bar run, got kind {compute.get('kind')!r}", fp)
+        return set()
+    at = rc.get("at") if isinstance(rc, Mapping) else None
+    keys = rc.get("keys") if isinstance(rc, Mapping) else None
+    if (not isinstance(rc, Mapping) or not _is_str(rc.get("source")) or not rc.get("source")
+            or not isinstance(at, list) or not isinstance(keys, list) or not at or len(at) != len(keys)):
+        _err(out, path, "runtime-colours", f"{path}: expected {{source, at, keys}} with one key per value", fp)
+        return set()
+    seen: list = []
+    for i, k in enumerate(keys):
+        if not _is_str(k) or not k or k in seen or k in plot_keys:
+            _err(out, f"{path}.keys[{i}]", "runtime-colours",
+                 f"{path}.keys[{i}]: expected a unique key no plot declares, got {k!r}", fp)
+            return set()
+        spec = at[i]
+        if (not isinstance(spec, Mapping) or not _is_int(spec.get("line")) or not _is_int(spec.get("column"))
+                or spec.get("kind") != "colour" or not isinstance(spec.get("node"), Mapping)):
+            _err(out, f"{path}.at[{i}]", "runtime-colours",
+                 f"{path}.at[{i}]: expected a colour asked for at a statement ({{line, column, node, kind: \"colour\"}})", fp)
+            return set()
+        seen.append(k)
+    return set(seen)
 
 
 def new_presentation_errors(definition: Mapping[str, Any],
