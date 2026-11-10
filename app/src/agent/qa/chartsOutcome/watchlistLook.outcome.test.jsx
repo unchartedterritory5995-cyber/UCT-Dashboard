@@ -11,7 +11,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { open, outcomeSuite, afterEachOutcome, chart, must, waitFor, proposalsNow, refusals } from './outcomeHarness'
+import { open, outcomeSuite, afterEachOutcome, chart, must, waitFor, proposalsNow, refusals, screen, fireEvent } from './outcomeHarness'
 import { WidgetDoorContext, mountedWidgetDoor } from '../../../pages/charts/widgetDoors'
 import { WorkspaceContext } from '../../../pages/charts/WorkspaceContext'
 import { AuthContext } from '../../../context/AuthContext'
@@ -101,12 +101,19 @@ const ready = (id = 'wa') => waitFor(() => expect(readOf(id).looks).toBeTruthy()
 afterEach(() => { afterEachOutcome(); cleanup() })
 
 describe('C3-103: the list\'s appearance, through the ⚙ panel\'s own writer (this widget\'s opts.settings)', () => {
-  it.each(APPEARANCE_HELD_OUT.map(c => [c.text, c]))('held-out "%s": the widget reads it back; the other Watchlist widget is untouched; Undo restores the opts exactly', async (text, c) => {
+  // Two Watchlist widgets showing the same list, and held-out words that name neither ("my watchlist"): under the which-widget
+  // rule (AUDIT #1027 F1, agent/whichWidget.js) the member is ASKED first and nothing is written; they pick the left one, and only
+  // then is the look written there. (Before F1 the plan's pick was acted on with no question; that is u18-look-07's bug.)
+  it.each(APPEARANCE_HELD_OUT.map(c => [c.text, c]))('held-out "%s": asked which first (nothing written), then the picked widget reads it back; the other Watchlist widget is untouched; Undo restores the opts exactly', async (text, c) => {
     const m = board([wl('wa', MINE), wl('wb', { ...MINE }, 18)])
     await ready(); await ready('wb')
     const was = JSON.stringify(optsOf(m)), other = JSON.stringify(optsOf(m, 'wb'))
     const seen = {}
-    await m.say(text, setOption(c.args, seen))
+    const out = await m.say(text, setOption(c.args, seen))
+    expect(out, 'a question').toMatch(/Which Watchlist/)
+    expect(JSON.stringify(optsOf(m)), 'nothing written before the answer').toBe(was)
+    expect(JSON.stringify(optsOf(m, 'wb'))).toBe(other)
+    fireEvent.click(screen.getAllByRole('button', { name: /Watchlist \(left\)/ }).at(-1))
     await waitFor(() => expect(readOf()).toMatchObject(c.want))
     expect(optsOf(m).settings, 'written into this widget\'s own opts.settings').toBeTruthy()
     expect(JSON.stringify(optsOf(m, 'wb'))).toBe(other)
