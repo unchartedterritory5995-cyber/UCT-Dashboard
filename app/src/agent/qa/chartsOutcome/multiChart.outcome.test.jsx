@@ -259,21 +259,75 @@ describe('Multi Chart execution family — rows an existing capability executes 
     expect(othersOf('c0')).toBe(before)
   }, 30000)
 
-  it('C3-062 "alert me when the top-right chart goes above 250": alert.create on that cell\'s symbol; proposed, then Apply puts exactly that alert in the book; Undo deletes it; the grid is untouched', async () => {
-    const { say, apply, undo } = mount()
+  // ── C3-062: the alert lands on the NAMED cell's symbol, at the level and direction asked, and nothing else ──
+  // The product's own door, the cell's right-click "Set alert @ price" (GridChartCell.jsx:353-360), is NOT exercised here:
+  // these cases prove the Agent's route to the same outcome (one price alert on that cell's symbol).
+  const SEED_BOOK = () => [{ id: 's1', sym: 'SPY', target_price: 100, direction: 'below', alert_type: 'price', is_active: true, triggered_at: null }]
+  const libRef = (ctx) => must(ctx.alertLibrary?.[0]?.ref, 'alert library')
+  const ALERT_TEXT = 'alert me when the top-right chart goes above 250'
+  /** the planner's job: the symbol comes from the cell the WORDS name, found in the request's context by position */
+  const namedCellPlan = (ctx) => [{ action: 'alert.create', target: libRef(ctx), args: { symbol: cellAt(ctx, 'top-right').symbol, price: 250, direction: 'above' } }]
+  /** the failure the control exists to catch: the symbol taken from the clicked (selected) cell instead */
+  const activeCellPlan = (ctx) => [{ action: 'alert.create', target: libRef(ctx), args: { symbol: must((ctx.charts || []).find(c => c.selected), 'selected cell').symbol, price: 250, direction: 'above' } }]
+  const rowOf = (a) => `${a.sym} ${a.direction} ${a.target_price}`
+  /** what Apply added to the book, as the server holds it (not the plan) */
+  const added = (book0) => H.alerts.filter(a => !book0.some(b => b.id === a.id)).map(rowOf)
+  /** (a)+(b)+(c): exactly one alert added, on the named cell's symbol read from the GRID STATE, at 250, above; none on any other cell's symbol */
+  const outcomeIsNamedCell = (book0, namedId) => {
+    const named = at(namedId).sym
+    const rows = added(book0)
+    const otherSyms = cells().filter(c => c.id !== namedId && c.sym).map(c => c.sym)
+    return rows.length === 1 && rows[0] === `${named} above 250` && !H.alerts.some(a => !book0.some(b => b.id === a.id) && otherSyms.includes(a.sym))
+  }
+  async function runAlert({ clickFirst = null, plan }) {
+    H.alerts = SEED_BOOK()
+    const m = mount()
+    if (clickFirst) click(clickFirst)
+    const book0 = JSON.parse(JSON.stringify(H.alerts))
+    const bytes0 = JSON.stringify(H.alerts)
     const grid = JSON.stringify(cells())
-    await say('alert me when the top-right chart goes above 250', (ctx) => [{
-      action: 'alert.create', target: must(ctx.alertLibrary?.[0]?.ref, 'alert library'),
-      args: { symbol: cellAt(ctx, 'top-right').symbol, price: 250, direction: 'above' },
-    }], 'propose')
-    expect(H.alerts).toEqual([])                                     // nothing is written before Apply
-    await apply()
-    await waitFor(() => expect(H.alerts.map(a => `${a.sym} ${a.direction} ${a.target_price}`)).toEqual(['AMD above 250']))
-    expect(H.alertCalls.filter(([m]) => m === 'POST')).toHaveLength(1)
+    let ctxSeen = null
+    await m.say(ALERT_TEXT, (ctx) => { ctxSeen = ctx; return plan(ctx) }, 'propose')
+    expect(JSON.stringify(H.alerts)).toBe(bytes0)                    // nothing is written before Apply
+    await m.apply()
+    await waitFor(() => expect(added(book0)).toHaveLength(1))
+    expect(H.alertCalls.filter(([meth]) => meth === 'POST')).toHaveLength(1)
     expect(JSON.stringify(cells())).toBe(grid)
-    await undo()
-    await waitFor(() => expect(H.alerts).toEqual([]))
-    expect(JSON.stringify(cells())).toBe(grid)
+    return { ...m, book0, bytes0, grid, ctxSeen }
+  }
+  const click = (id) => fireEvent.pointerDown(document.querySelector(`[data-grid-cell-id="${id}"]`).parentElement)
+
+  it('C3-062 "alert me when the top-right chart goes above 250": alert.create on the NAMED cell\'s symbol (AMD, read from the grid), at 250, above; exactly one alert added; Undo leaves the book byte-identical; the grid is untouched', async () => {
+    const r = await runAlert({ plan: namedCellPlan })
+    expect(at('c1').sym).toBe('AMD')
+    expect(added(r.book0)).toEqual(['AMD above 250'])
+    const made = H.alerts.find(a => !r.book0.some(b => b.id === a.id))
+    expect(made.target_price).toBe(250)
+    expect(made.direction).toBe('above')
+    expect(outcomeIsNamedCell(r.book0, 'c1')).toBe(true)
+    await r.undo()
+    await waitFor(() => expect(JSON.stringify(H.alerts)).toBe(r.bytes0))
+    expect(JSON.stringify(cells())).toBe(r.grid)
+  }, 30000)
+
+  it('C3-062 CONTROL: the member clicked the top-left cell (NVDA), the words name the top-right one (AMD): the alert is AMD\'s, none is NVDA\'s; Undo leaves the book byte-identical', async () => {
+    const r = await runAlert({ clickFirst: 'c0', plan: namedCellPlan })
+    // the control is real only if the request marked a DIFFERENT cell active than the one named
+    expect(r.ctxSeen.charts.find(c => c.selected)?.symbol).toBe('NVDA')
+    expect(cellAt(r.ctxSeen, 'top-right').symbol).toBe('AMD')
+    expect(added(r.book0)).toEqual(['AMD above 250'])
+    expect(H.alerts.some(a => a.sym === 'NVDA')).toBe(false)
+    expect(outcomeIsNamedCell(r.book0, 'c1')).toBe(true)
+    await r.undo()
+    await waitFor(() => expect(JSON.stringify(H.alerts)).toBe(r.bytes0))
+  }, 30000)
+
+  it('C3-062 CONTROL (the check has teeth): the same setup with a plan that alerts the ACTIVE cell\'s symbol is rejected by the same outcome check', async () => {
+    const r = await runAlert({ clickFirst: 'c0', plan: activeCellPlan })
+    expect(added(r.book0)).toEqual(['NVDA above 250'])                 // what a wrong run does
+    expect(outcomeIsNamedCell(r.book0, 'c1')).toBe(false)              // …and the check the real cases use fails it
+    await r.undo()
+    await waitFor(() => expect(JSON.stringify(H.alerts)).toBe(r.bytes0))
   }, 30000)
 })
 

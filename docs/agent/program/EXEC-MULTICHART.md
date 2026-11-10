@@ -63,9 +63,9 @@ The C3-044 to C3-062 notes in `CHARTS_EXECUTION_STATUS.md` say: "Only exists in 
 | C3-059 | Reset a cell to my chart | product writes `settings: null` (GridChartCell.jsx:228-231); `chart.resetDefaults` writes CHART_DEFAULTS into a fork instead | none that matches | GAP |
 | C3-060 | Maximize or restore a cell | `maxId` is local `useState` (MultiChartGrid.jsx:104); `gridBoard.maximized()` is read-only | none | GAP |
 | C3-061 | Open shared grid settings | dialog opener only (`mc.setSettingsOpen`, useMultiChartState.js:61) | none (no capability opens a dialog, like C1-127) | GAP |
-| C3-062 | Set an alert from a cell | proposed; nothing written before Apply; Apply → exactly one POST, the book holds `AMD above 250` (the top-right cell's symbol); grid byte-identical; Undo deletes it | alert.create (alertLibrary target, not refused in grid) | **PASS** (see caveat) |
+| C3-062 | Set an alert from a cell | proposed; nothing written before Apply; Apply → exactly one POST; exactly one alert added: `AMD above 250`, the NAMED top-right cell's symbol read from the grid, none on another cell's symbol; CONTROL with the top-left cell (NVDA) clicked gives the same result, and a negative control (an active-cell plan) is rejected by the same check; Undo → book byte-identical (seeded); grid byte-identical; the right-click "Set alert @ price" entry point is NOT exercised | alert.create (alertLibrary target, not refused in grid) | **PASS** (see caveat) |
 
-**PASS: 4 rows (C3-056, 057, 058, 062) in 6 cases. GAP: 16 rows. BLOCKED-owner: 1 row (C3-054).**
+**PASS: 4 rows (C3-056, 057, 058, 062) in 8 cases. GAP: 16 rows. BLOCKED-owner: 1 row (C3-054).**
 
 In `CHARTS_EXECUTION_STATUS.md`, under AUDIT's rule (VERIFIED only when the test reads back the real persisted outcome), these become: C3-056, C3-057 and C3-062 VERIFIED (SIMULATED outcome test, scripted model, jsdom), with C3-062 carrying its route/stub note; C3-058 PARTIAL (SIMULATED). See "Update 2026-11-10: Multi Chart (pl-auto)" there.
 
@@ -114,7 +114,7 @@ Totals line (**vitest, scripted model (jsdom/panel), not a real browser**):
 
 ```
 Test Files  1 passed (1)
-     Tests  6 passed | 17 todo (23)
+     Tests  8 passed | 17 todo (25)
 ```
 
 ## Caveats
@@ -122,5 +122,5 @@ Test Files  1 passed (1)
 - The model is scripted. These cases prove two things: the request carries enough to name the cell, and a correct plan reaches the right state, with Undo. They do not prove the paid model picks that plan.
 - jsdom, with `StockChart` stubbed. "The cell draws X" means the props the real `GridChartCell` hands its canvas, not pixels.
 - C3-058 (D/W/M): the session view is the cell's local state (`GridChartCell.jsx:107`) and is not persisted, so the read-back is the canvas prop. The intraday case reads the persisted cell settings.
-- C3-062: the product's own door is the cell's right-click "Set alert @ price" (`GridChartCell.jsx:353-360`), which picks the price under the cursor and infers the direction. The Agent's path creates the same kind of price alert on the cell's symbol at a stated price and direction. The outcome (an alert in the book) is the same; the door is not. The alert book is a stateful fetch fake, not the fixture server.
+- C3-062: the product's own door is the cell's right-click "Set alert @ price" (`GridChartCell.jsx:353-360`), which picks the price under the cursor and infers the direction. The Agent's path creates the same kind of price alert on the cell's symbol at a stated price and direction. The outcome (an alert in the book) is the same; the door is not. The alert book is a stateful fetch fake, not the fixture server. Cell resolution is proven at scripted-model level by a CONTROL case: the clicked cell (NVDA) differs from the named one (AMD), and a negative control alerting the active cell fails the same check. The right-click entry point itself is NOT exercised.
 - No row here was run in a real browser.

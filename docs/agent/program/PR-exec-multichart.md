@@ -45,7 +45,7 @@ This PR covers the Multi Chart rows C3-042 to C3-062 in `docs/agent/CHARTS_EXECU
 | C3-059 | Reset a cell to my chart | none that matches | it.todo | BLOCKED (unchanged), gap list |
 | C3-060 | Maximize or restore a cell | none | it.todo | BLOCKED (unchanged), gap list |
 | C3-061 | Open shared grid settings | none | it.todo | BLOCKED (unchanged), gap list |
-| C3-062 | Set an alert from a cell | alert.create | PASS: proposed, Apply → exactly one alert on the cell's symbol in the book, Undo deletes it, grid untouched | **VERIFIED (SIMULATED …)**, with a note on the route and the stub |
+| C3-062 | Set an alert from a cell | alert.create | PASS (3 cases): exactly one alert added, on the NAMED cell's symbol at 250 above, none on another cell's symbol; CONTROL with a different cell clicked; a negative control (an active-cell plan) fails the same check; Undo → book byte-identical; grid untouched | **VERIFIED (SIMULATED …)**, with a note: cell resolution is proven by the control; the right-click "Set alert @ price" entry point is NOT exercised; the alert book is a stub |
 
 ## Gap list (for pl-exec; each needs product code)
 
@@ -108,14 +108,14 @@ This is one run of the file, under the shared suite lock, at below-normal priori
 cd C:/w/pl-auto-mc && BN_CWD='C:\w\pl-auto-mc\app' timeout 900 python C:/w/pl-auto/tools/agent_suite_lock.py run --who pl-auto -- powershell -NoProfile -ExecutionPolicy Bypass -File "<scratchpad>\pl-auto\bn.ps1" node node_modules/vitest/vitest.mjs run src/agent/qa/chartsOutcome/multiChart.outcome.test.jsx
 ```
 
-Totals (vitest, scripted model (jsdom/panel), not a real browser): **6 passed + 17 todo** (`Tests 6 passed | 17 todo (23)`, 1 file passed).
+Totals (vitest, scripted model (jsdom/panel), not a real browser): **8 passed + 17 todo** (`Tests 8 passed | 17 todo (25)`, 1 file passed).
 
 ## Caveats
 
 - **The model is scripted.** These tests prove two things: the request carries enough to name the cell, and a correct plan reaches the right state, with Undo. They do not prove the paid model picks that plan.
 - **`StockChart` is stubbed** (jsdom). "The cell draws X" means the props the real GridChartCell hands its canvas, not pixels.
 - **C3-062: route and stub.**
-  - Route: the product's door is the cell's right-click "Set alert @ price" (`GridChartCell.jsx:353-360`), which uses the cursor price and infers the direction. The Agent's route creates the same kind of price alert at a stated level on the cell's symbol. The outcome is the same; the door is not.
+  - Route: the product's door is the cell's right-click "Set alert @ price" (`GridChartCell.jsx:353-360`), which uses the cursor price and infers the direction. The Agent's route creates the same kind of price alert at a stated level on the cell's symbol. The outcome is the same; the door is not. The right-click entry point is NOT exercised. Cell resolution is proven at scripted-model level by a CONTROL case: the member clicked a cell holding a different symbol, and a plan alerting the active cell fails the same check.
   - Stub: the alert book is a stateful `/api/watchlist-alerts` stub (GET, POST, DELETE) in the test file. It is not the shared fixture server and not a real backend.
 - **C3-058**: the D/W/M session view is not persisted by the product, hence PARTIAL.
 - No row was run in a real browser. Nothing was pushed.
