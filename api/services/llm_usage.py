@@ -464,7 +464,9 @@ def _forward(rows: list[dict]) -> bool:
     try:
         req = urllib.request.Request(url, data=json.dumps({"rows": rows}).encode("utf-8"), method="POST",
                                      headers={"Content-Type": "application/json",
-                                              "Authorization": f"Bearer {secret}"})
+                                              "Authorization": f"Bearer {secret}",
+                                              # Cloudflare 1010-blocks the default Python-urllib agent
+                                              "User-Agent": "UCT-llm-usage/1.0"})
         with urllib.request.urlopen(req, timeout=10) as r:
             return 200 <= r.status < 300
     except Exception:  # noqa: BLE001

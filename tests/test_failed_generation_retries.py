@@ -20,7 +20,7 @@ SYM = "ZZTEST"
 
 
 def _msg(text):
-    return MagicMock(content=[MagicMock(text=text)])
+    return MagicMock(content=[MagicMock(type="text", text=text)])  # real SDK blocks carry a type
 
 
 @pytest.fixture
