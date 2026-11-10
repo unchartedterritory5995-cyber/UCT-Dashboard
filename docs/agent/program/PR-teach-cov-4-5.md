@@ -54,3 +54,16 @@
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 
 https://claude.ai/code/session_01Dhm4qhJhGoto7iixuJEEzM
+
+## On the combined head `966576e270` (master `18a3fee48a` via packet A; SIMULATED)
+- **Merges:** packet A, carrying master `18a3fee48a` (#1005, #1006, #1008) and the `/screener` flake fix, was merged in
+  as merge commits (`f890153194`, `7d37437af4`, `966576e270`). No conflicts.
+- **Related tests** (guide, contracts, Sat1 requests, AgentPanel, useAgent): 1151 passed.
+  - In one earlier run under load, `agentGuideWatchlistCreate` "Cancel on the form" failed once. It passed 45/45 when
+    re-run alone.
+- **Bytes:** 2,252,617 B, +9 B against master. That is packet A's minifier naming in the entry chunk; no text is added.
+- **One locked full suite** at `966576e270`:
+  - `Test Files 3 failed | 305 passed | 5 skipped (313)`, `Tests 4 failed | 9821 passed | 14 skipped (9839)`.
+  - 3 are the pre-existing `src/pages/command` reds.
+  - The 4th is `agentBreadthTiming` "well under 300 ms", a wall-clock limit under full-suite load. This branch does not
+    touch that file, and it passed 2/2 when re-run alone right after.
