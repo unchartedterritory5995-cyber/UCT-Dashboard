@@ -20,6 +20,8 @@ import { stepsFor, titleFor } from '../guide/slots'
 import { readControl, askWhich } from '../guide/controls'
 import { catalogRows } from '../../components/chart/indicatorCatalog'
 import { namedChart } from '../guide/namedChart'
+import { releasedOnly } from '../guide/releases'
+import { splitParts, carried } from '../guide/sequence'
 import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
 
 /** The first few studies of the chart's own quick set (its right-click "Indicators" toggles: `meta.quickMenu` not
@@ -62,10 +64,37 @@ export function mineOnly(steps, host) {
   return steps.map(s => (s.mine === 'layout' ? { ...s, target: own.map(e => ({ within: 'workspace.layouts', attr: 'title', value: e.name })), text: `Right-click one of your own layouts on the bar, such as “${own[0].name}”.` } : s))
 }
 
+/** The walkthrough these words get from one feature: its steps and its title. */
+export function guideSteps(f, words = '') {
+  // ⭐ a two-part ask (guide/sequence.js): the first part's steps, then the second's, as one walkthrough. The first part's
+  // controls no longer end it, so the member is walked on into the second
+  const two = f && twoParts(words, surfaceOf(f))
+  if (two && two.first.id === f.id) {
+    const a = stepsFor(f, two.words[0]).map(s => ({ ...s, endsOnClick: false }))
+    const b = stepsFor(two.second, two.words[1]).map(s => ({ ...s, part: 2 }))
+    const t2 = titleFor(two.second, two.words[1])
+    return { steps: [...a, ...b], title: `${titleFor(f, two.words[0])}, then ${t2.charAt(0).toLowerCase()}${t2.slice(1)}` }
+  }
+  return { steps: stepsFor(f, words), title: titleFor(f, words) }
+}
+/** Both parts of "X then Y" reach a walkthrough → { first, second, words: [x, y carrying x's thing] }, else null. */
+function twoParts(words, surface) {
+  const parts = splitParts(words)
+  if (!parts) return null
+  const first = matchFeature(parts[0], null, surface)
+  const said = carried(parts[1], parts[0])
+  const second = first && matchFeature(said, null, surface)
+  return first && second ? { first, second, words: [parts[0], said] } : null
+}
+
 /** Start the walkthrough for one feature → the sentence the member reads (never claims what is not on screen). */
 export function showFeature(f, host, words = '') {
   if (!f) return 'I don’t have a walkthrough for that yet — ask me what it does instead.'
-  const steps = mineOnly(stepsFor(f, words), host)
+  // a control behind a release switch that is off is said, never rung (guide/releases.js)
+  const walk = guideSteps(f, words)
+  const released = releasedOnly(walk.steps, words)
+  if (typeof released === 'string') return released
+  const steps = mineOnly(released, host)
   if (typeof steps === 'string') return steps
   const needsChart = steps.some(s => scoped(s.target))
   // the chart the words name wins over the clicked one; a chart they name that is not here is said, never swapped for another
@@ -83,7 +112,9 @@ export function showFeature(f, host, words = '') {
   // ⭐ CONTEXT-AWARE: where the member already is. A step whose control is on screen BECAUSE the step before it was
   // done (Chart settings is open → its Indicators tab; the Indicators tab is open → its search box) is where the
   // walkthrough starts — never "open the gear" when the settings are already open. The steps before it stay in the list.
-  const from = startIndex(all, { chartRef })
+  // a two-part walkthrough starts within its first part: the second part's controls being on screen skip none of the first
+  const second = all.findIndex(s => s.part === 2)
+  const from = startIndex(second > 0 ? all.slice(0, second) : all, { chartRef })
   const first = all[from]
   if (!first || !(findTarget(first.target, { chartRef }) || unclip(first.target, { chartRef }))) {
     // ⭐ Multi Chart: a cell carries its ticker and timeframe controls only; the rest of a chart's header is not on it
@@ -91,7 +122,7 @@ export function showFeature(f, host, words = '') {
     return `I can’t see ${f.control || 'that control'} on your screen right now — ${chart ? `${chart.label} may be scrolled out of view or covered by a panel` : 'a panel may be covering it'}. ${f.explain}`
   }
   if (guideState()) endGuide('replaced')
-  startGuide({ ...f, title: titleFor(f, words) }, { chartRef, chartLabel: chart?.label || null, steps: all, index: from })
+  startGuide({ ...f, title: walk.title }, { chartRef, chartLabel: chart?.label || null, steps: all, index: from })
   const where = chart && chartsOf(host).length > 1 ? ` on ${chart.label}` : ''
   const already = from > 0 ? ' You’re already part of the way there, so I started from where you are.' : ''
   const note = asked?.note ? `${asked.note} ` : ''
@@ -198,6 +229,9 @@ export function registerGuideCapabilities() {
       const q = String(raw || '').trim()
       if (!SHOW.test(q)) return null
       const here = host?.surface || 'charts'
+      // a two-part ask ("X, then Y") starts at its first part's walkthrough, when both parts reach one
+      const two = twoParts(q, here)
+      if (two) return { feature: two.first.id, detail: q }
       const f = matchFeature(q, null, here)
       // ⭐ words only a control in a place they did not name fits: never shown straight away, asked about (answer)
       if (!f && here === 'charts' && (readControl(q)?.say || readControl(q, { weak: true }))) return { feature: 'control', detail: q }

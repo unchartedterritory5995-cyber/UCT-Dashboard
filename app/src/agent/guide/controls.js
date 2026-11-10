@@ -174,6 +174,8 @@ const ROWS = [
   w('optionsflow', '', { guide: 'flow.filter.cp' }, 'Calls / Puts', 'All, Calls or Puts: which side of the tape shows.', { id: 'flow.cp', any: ['~call', '~put'], label: 'Options Flow: calls or puts', open: [{ target: { widgetType: 'optionsflow', guide: 'flow.filters' }, name: 'the funnel', text: 'Click the funnel to open the filters.', waitFor: { widgetType: 'optionsflow', guide: 'flow.filterStrip' } }] }),
   w('optionsflow', '', { guide: 'flow.filter.type' }, 'Sweep / Block', 'Any, Sweep or Block: which kind of print shows.', { id: 'flow.type', any: ['~sweep', '~block'], label: 'Options Flow: sweeps or blocks', open: [{ target: { widgetType: 'optionsflow', guide: 'flow.filters' }, name: 'the funnel', text: 'Click the funnel to open the filters.', waitFor: { widgetType: 'optionsflow', guide: 'flow.filterStrip' } }] }),
   w('optionsflow', '', { guide: 'flow.filter.dir' }, 'Bull / Bear', 'All, Bull or Bear: which direction shows.', { id: 'flow.dir', any: ['~bull', '~bear', '~bullish', '~bearish'], label: 'Options Flow: bullish or bearish', open: [{ target: { widgetType: 'optionsflow', guide: 'flow.filters' }, name: 'the funnel', text: 'Click the funnel to open the filters.', waitFor: { widgetType: 'optionsflow', guide: 'flow.filterStrip' } }] }),
+  // ── cov-5: the background's own control on the Canvas tab (ChartSettingsModal: Background, Solid / Gradient and its swatch) ──
+  { id: 'settings.background', place: 'settings:canvas', tabLabel: 'Canvas', need: 'background', not: ['~gradient', '~swing', '~label', '~text', '~note', '~font', '~logo', '~logos', '~widget', '~watchlist', '~signal', '~palette', '~intensity'], target: { within: 'chartSettings', label: 'Background' }, name: 'Background', say: 'Background sets the chart’s colour: Solid and its swatch for one colour, or Gradient for two.', label: 'The chart’s background' },
   // ── round 3: a list's columns, the Scanner's picker, nudging a drawing, Volume Surge logos, a headline on the chart ──
   { id: 'list.colResize', place: 'list', need: 'column', also: 'ticker', any: ['~resize', '~wider', '~widen', '~narrow', '~narrower', '~stretch', '~width', 'size'], target: { widgetType: WL, attr: 'title', value: 'Drag to resize column' }, name: 'the column’s edge', say: 'Drag this edge between two column titles to make the column wider or narrower.', label: 'Resizing a list’s column' },
   { id: 'list.colReset', place: 'list', need: 'reset column', also: 'ticker', open: [{ target: { widgetType: WL, nameRe: '^Sort by ' }, name: 'the column titles', text: 'Right-click any column title.', waitFor: 'watchlist.colMenu' }], target: { within: 'watchlist.colMenu', label: 'Reset columns' }, name: 'Reset columns', say: 'Click Reset columns to go back to the default columns.', label: 'Resetting a list’s columns' },
@@ -208,7 +210,13 @@ const DOES = {
   'Save as default': { need: 'save drawing', any: ['reset', '~setting', '~style', '~next', '~new'] },
   // it sets an exact price: "flatten it" is Make horizontal
   'Set level…': { need: 'drawing', any: ['~exact', '~exactly', '~number'], also: 'flatten' },
+  // cov-5: a drawing has no clipboard copy, so "copy that line" is Duplicate
+  Duplicate: { need: 'drawing', any: ['duplicate', 'copy'] },
+  // cov-5: "show the price on my line" is the price label, said without the word label
+  'Show price label': { need: 'price drawing', any: ['label', '~show', '~display', '~see'] },
 }
+// cov-5: a control only the Text Note has: "the note" is that drawing (a note is an object; here it is the one it acts on)
+const textOnly = (tools) => tools.length > 0 && tools.every(t => t === 'text')
 const a = (tools) => tools.map(t => toolLabel[t]).filter(Boolean)
 const listOf = (xs) => (xs.length <= 2 ? xs.join(' or ') : `${xs.slice(0, -1).join(', ')} or ${xs[xs.length - 1]}`)
 for (const row of byLabel.values()) {
@@ -216,8 +224,9 @@ for (const row of byLabel.values()) {
   const every = names.length >= DRAWING_TOOLS.length - 3
   // the label's own words, less "show" (a toggle's verb); "Set level…" reads as the level itself
   const need = String(row.label).replace(/^Show /, '').replace(/…$/, '')
+  const onText = textOnly(row.tools) ? { need, any: ['drawing', '~note'], also: `hide colour note ${names.join(' ')}` } : {}
   ROWS.push({
-    id: row.id, place: 'drawing', need: `${need} drawing`, also: `hide colour ${names.join(' ')}`, tools: row.tools, ...DOES[row.label],
+    id: row.id, place: 'drawing', need: `${need} drawing`, also: `hide colour ${names.join(' ')}`, tools: row.tools, ...onText, ...DOES[row.label],
     on: every ? 'a drawing' : `a ${listOf(names)}`,
     target: DRAW_MENU(row.label), name: row.label, label: `A drawing’s ${row.label.replace(/…$/, '')}`,
     say: SAY[row.label] || `${row.label.replace(/…$/, '')} is here, on this drawing’s menu.`,
