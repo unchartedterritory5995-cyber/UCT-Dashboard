@@ -74,4 +74,15 @@ describe('the keys UCT Agent can press on a widget', () => {
       try { expect(cap.check(st, { widget: 'x', key: 'refresh', value: 'run' }, env), String(effect)).toMatch(/can't press/) } finally { row.effect = was }
     }
   })
+  it('AUDIT #1027 (3): a button is pressed at most ONCE per widget per request (a second press in the same plan is refused)', async () => {
+    await registerBuiltins()
+    const cap = getCapability('widget.setOption')
+    const env = { target: { doorOf: () => ({ act: () => Promise.resolve() }) } }
+    const st0 = { board: [{ id: 'x', type: 'scanner', opts: { scanKey: 'ipo-1y' } }, { id: 'y', type: 'scanner', opts: { scanKey: 'ipo-1y' } }], doors: {}, acts: [] }
+    const a = { widget: 'x', key: 'refresh', value: 'run' }
+    expect(cap.check(st0, a, env)).toBe(null)
+    const st1 = cap.apply(st0, a, env)
+    expect(cap.check(st1, a, env)).toMatch(/already being pressed once/)
+    expect(cap.check(st1, { ...a, widget: 'y' }, env)).toBe(null)          // another widget's own button is its own press
+  })
 })

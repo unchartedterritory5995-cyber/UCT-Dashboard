@@ -1300,6 +1300,9 @@ export function registerBoardCapabilities() {
       if (f.type === 'action' && typeof door.act !== 'function') return `The ${label(t.type)} has no ${f.key} button right now.`
       // AUDIT #1027: only a button that READS (re-reads, keeps nothing) is pressed; one that writes or destroys has no Undo here
       if (f.type === 'action' && f.effect !== 'read') return `I can't press the ${label(t.type)}'s ${f.key} for you — use the button on the widget itself.`
+      // AUDIT #1027 (3): one press of a widget's button per request — a Refresh re-reads a server scan (cached server-side: 60 s for
+      // a preset scan, 300 s for a period ranking), so a request never asks the server for it more than once
+      if (f.type === 'action' && (st.acts || []).some(x => x.id === t.id && x.key === f.key)) return `The ${label(t.type)}'s ${f.key} is already being pressed once in this request.`
       if (f.from === 'door' && !choicesOf(f, door).length) return `The ${label(t.type)} has nothing to choose for ${f.key} yet.`
       return coerced(st, t, f, value, env).why || null
     },
