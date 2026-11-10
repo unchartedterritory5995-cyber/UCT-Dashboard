@@ -20,7 +20,9 @@ A new canonical inventory of what a member can do on desktop /charts. It does **
 | … of which walkthrough-VERIFIED (at least one of its rows VERIFIED; phrasings never add) | **268** (62.2%) |
 | Confirmed additions (new canonical operations, no walkthrough record yet) | 29 (C1 13, C2 2, C3 14) |
 | **Canonical unique operations, v2** (UNIQUE + confirmed additions) | **460**, of which VERIFIED **268** (58.3%) |
-| VALID rows kept apart (read-only state, admin-only, Agent-only, no human control): not member operations | 27, of which VERIFIED 13 |
+| VALID rows (not member operations; never added to the 460) | 27, of which VERIFIED 13 |
+| … **READ-ONLY TEACHING** (locate / inspect / understand: member-facing readouts, labels and panels), its own category | **17** (C1 0, C2 5, C3 12), of which VERIFIED **12** |
+| … excluded (admin-only, Agent-panel-only, nonexistent, irrelevant), each with its reason below | 10, of which VERIFIED 1 |
 
 **Reconciling the 295.** VERIFIED rows by class: UNIQUE 267, DUPLICATE 10, ALTERNATE ROUTE 3, VALID 13, NOT ON DESKTOP /CHARTS 2. Folding duplicates and alternate routes into their operation gives 268 verified operations: 1 operation(s) are verified only through a folded row.
 
@@ -29,7 +31,41 @@ A new canonical inventory of what a member can do on desktop /charts. It does **
 - DUPLICATE: the same operation on the same control as another row (the twin, which is UNIQUE).
 - ALTERNATE ROUTE: the same operation by another door (key, menu, right-click, another dialog); cites its primary.
 - NOT ON DESKTOP /CHARTS: one of the execution status's 19 rows with no real control on desktop /charts.
-- VALID: a real row that is not a member operation on its own (a read-only state, admin-only, done in the Agent panel, or a control that no longer exists); kept, not counted as an operation.
+- VALID: a real row that is not a member operation on its own; split into READ-ONLY TEACHING (a member-facing readout, label or panel to locate, inspect or understand) and excluded (admin-only, Agent-panel-only, nonexistent, irrelevant). Neither is counted as an operation.
+
+## VALID rows: READ-ONLY TEACHING and excluded
+
+A separate category, kept out of the canonical operation count. READ-ONLY TEACHING rows are things a member locates, inspects or needs to understand; a walkthrough can teach them, the Agent never executes them. Excluded rows carry their reason.
+
+| row | category | action | walkthrough (teach-cov-5) | reason |
+| --- | --- | --- | --- | --- |
+| C2-022 | READ-ONLY TEACHING | See what is on a chart | VERIFIED | the indicator list on a chart (legend and Chart Settings): a member locates and reads it |
+| C2-023 | READ-ONLY TEACHING | Read About text | ASSIGNED / NOT REACHED | an indicator's About text, a panel the member opens and reads |
+| C2-054 | READ-ONLY TEACHING | List indicator templates | NO ASSIGNED WALKTHROUGH | the indicator template list in the template bar: a member inspects it |
+| C2-097 | READ-ONLY TEACHING | List indicator alerts | VERIFIED | the indicator alerts list in the alerts popover |
+| C2-100 | READ-ONLY TEACHING | See why an alert cannot fire | ROUTED / BROWSER FAILED | the popover's reason an alert cannot fire: a readout the member needs to understand |
+| C3-026 | READ-ONLY TEACHING | See which layout is open | VERIFIED | the open layout's name on the Layout Dock |
+| C3-110 | READ-ONLY TEACHING | Read a scan's conditions | VERIFIED | a scan's conditions in the scanner's read-only popover |
+| C3-111 | READ-ONLY TEACHING | Read a scan's results | VERIFIED | a scan's results table in the scanner widget |
+| C3-127 | READ-ONLY TEACHING | See my alerts | VERIFIED | the member's alert list in the Alerts widget |
+| C3-134 | READ-ONLY TEACHING | Read stored headlines for a symbol | VERIFIED | stored headlines for a symbol in the News widget |
+| C3-149 | READ-ONLY TEACHING | Ask who reports on a day from Charts | VERIFIED | who reports on a day: the Calendar widget's day view (the row's 'ask' is the member reading it, not an Agent-only path) |
+| C3-150 | READ-ONLY TEACHING | Ask when a stock reports from Charts | VERIFIED | when a stock reports: the company dock's earnings tab, the same control C3-216 opens |
+| C3-157 | READ-ONLY TEACHING | Read breadth tiles | VERIFIED | the Breadth widget's tiles |
+| C3-167 | READ-ONLY TEACHING | Read the flow | VERIFIED | the Options Flow widget's rows |
+| C3-179 | READ-ONLY TEACHING | Read the numbers | ASSIGNED / NOT REACHED | the fundamentals numbers in the company dock |
+| C3-181 | READ-ONLY TEACHING | Read profile and earnings table | VERIFIED | the profile and earnings table in the company dock |
+| C3-185 | READ-ONLY TEACHING | Read market context | NO WALKTHROUGH | the Market Context widget's readout |
+| C1-161 | excluded | Reorder (front/back) | NO WALKTHROUGH | nonexistent: the overlay no longer offers drawing reorder (ChartDrawingOverlay.jsx:362); only a store function remains |
+| C2-049 | excluded | Copy indicators to another chart | NO ASSIGNED WALKTHROUGH | irrelevant as a separate item: no dedicated copy control; the manual route is the template bar, already C2-052 |
+| C3-032 | excluded | Save a layout as a global template (admin) | NO ASSIGNED WALKTHROUGH | admin-only: saving a layout as a global template |
+| C3-036 | excluded | Delete a prebuilt template (admin) | NO ASSIGNED WALKTHROUGH | admin-only: deleting a prebuilt template |
+| C3-054 | excluded | Save a grid as global (admin) | VERIFIED | admin-only: saving a grid as global |
+| C3-093 | excluded | Mark a list prebuilt (admin) | NO ASSIGNED WALKTHROUGH | admin-only: marking a list prebuilt |
+| C3-115 | excluded | Create a scanner in the workspace | NO WALKTHROUGH | nonexistent: 'create a scanner' in the workspace is a coming-soon panel |
+| C3-116 | excluded | Modify a preset scan's conditions | NO ASSIGNED WALKTHROUGH | nonexistent: preset scan conditions are server-defined and read-only; nothing to modify |
+| C3-118 | excluded | Run or refine a screen from the workspace chat | NO WALKTHROUGH | Agent-panel-only: a screen is run by typing to the Agent; there is no human control |
+| C3-119 | excluded | Save a screen run from the workspace | NO ASSIGNED WALKTHROUGH | Agent-panel-only: a screen is saved through the Agent; there is no human control |
 
 ## Folded rows (DUPLICATE and ALTERNATE ROUTE)
 
@@ -630,4 +666,4 @@ Each checked in master 8500e084ac UI source. C1-176..179 reuse the ids the execu
 
 - The NOT ON DESKTOP /CHARTS rows are exactly the execution status's 19.
 - Judgement calls (kept UNIQUE where the control or widget differs even if the writer is shared): the flag toggle in the watchlist vs the chart (C3-077, C3-078, C1-005); compare from a watchlist row vs the chart (C3-101, C1-034); price alert from a row, the alerts widget and the chart (C3-098, C3-128, C1-114); the two directions of one chip toggle (C2-018, C2-019); C1-031 (a whole-year jump) apart from C1-030; the eraser (C1-145) apart from Delete selected (C1-146).
-- The VALID read-only rows are real member reads. If the denominator should count reads, move them to UNIQUE: the canonical count then rises by those rows.
+- READ-ONLY TEACHING is reported on its own and never added to the canonical operation count; the 499 benchmark and its history are unchanged.
