@@ -123,7 +123,8 @@
 /** 39 = W9 BROKER INTEGRATION (T4 sizing, T6 fill timing, T7 exits, T13a broker report, N7): the strategy broker's integration lands; see the lanes' EVIDENCE */
 /** 40 = W9-T12 trade markers, W9-T13b report panel, NO-GUARD-IDS (guard ids hidden on member surfaces except the Pine editor); see the lanes' EVIDENCE */
 /** 41 = W9 T5 costs, T8 risk, T4-F1 min-contract source, T11-F1 chart window, T7-F1 order log; see the lanes' EVIDENCE */
-export const SCRIPT_ENGINE_VERSION = 41
+/** 42 = CUM-OFF-LISTING: off-listing running totals (ta.cum/obv/pvt/wad/accdist/nvi/pvi) are withheld by name unless they cancel (served member output changes; translator output unchanged); with DIV-1 harness warm-history grading */
+export const SCRIPT_ENGINE_VERSION = 42
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */

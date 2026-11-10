@@ -3290,6 +3290,7 @@ export default function StockChart({
   // explicit user choice always wins over this. The phone shell passes true so
   // the canvas opens clean; the chevron (and the toolbarApiRef doors) remain.
   toolbarDefaultCollapsed = false,
+  legendFlush = false,       // a card with no drawing toolbar (breadth drill grid): the crosshair legend sits flush at the pane's top instead of under the toolbar's reserved band.
   // Phone chart shell (wave 8): present the drawing tools as MobileDrawBar —
   // a labeled bottom strip sharing THIS chart's activeTool/undo/magnet state —
   // and hide the desktop ChartToolbar entirely (its dialogs still portal, its
@@ -10008,7 +10009,7 @@ export default function StockChart({
       // and settings toggles fire N duplicate pref POSTs). Read via latest-ref
       // so the callback form costs zero re-subscribes and zero re-renders.
       const ha = hotkeysActiveRef.current
-      if (typeof ha === 'function' ? !ha() : ha === false) return
+      if (typeof ha === 'function' ? !ha(e) : ha === false) return
       // ⛔⛔ A MODAL IS OPEN => THE CHART DOES NOT GET THE KEY.
       //
       // This listener is on `document`, so it fires wherever focus happens to be —
@@ -21194,7 +21195,7 @@ export default function StockChart({
         return (
         <div
           ref={legendRef}
-          className={`${styles.legend}${legendV2 ? ' ' + styles.legendV2 : ''}${compactLegend && legendV2 ? ' ' + styles.legendCompact : ''}${toolbarCollapsed ? ' ' + styles.legendToolbarHidden : ''}`}
+          className={`${styles.legend}${legendV2 ? ' ' + styles.legendV2 : ''}${compactLegend && legendV2 ? ' ' + styles.legendCompact : ''}${legendFlush ? ' ' + styles.legendFlush : toolbarCollapsed ? ' ' + styles.legendToolbarHidden : ''}`}
           /* Drop below the index pane so the legend never covers it; reserve the
              right price-axis width so the BAR INFO strip wraps before it. */
           style={{

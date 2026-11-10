@@ -197,3 +197,21 @@ describe('format', () => {
     expect(fmtPct(undefined)).toBe('—')
   })
 })
+
+describe('mergeHistory (the count chart’s 6M / 1Y ranges)', () => {
+  it('adds older settled sessions under the page window, newest first, live row on top', async () => {
+    const { mergeHistory } = await import('../longHistory')
+    const page = [{ _live: true, date: '2026-11-09' }, { date: '2026-11-06' }, { date: '2026-11-05' }]
+    const long = [{ date: '2026-11-06' }, { date: '2026-11-05' }, { date: '2026-11-04' }, { date: '2026-11-03' }]
+    const out = mergeHistory(page, long)
+    expect(out.map(r => r.date)).toEqual(['2026-11-09', '2026-11-06', '2026-11-05', '2026-11-04', '2026-11-03'])
+    expect(out[0]._live).toBe(true)
+    // The page's own rows win (same objects), never the long copy.
+    expect(out[1]).toBe(page[1])
+  })
+  it('no long history: the page rows come back untouched', async () => {
+    const { mergeHistory } = await import('../longHistory')
+    const page = [{ date: '2026-11-06' }]
+    expect(mergeHistory(page, null)).toBe(page)
+  })
+})

@@ -117,15 +117,31 @@ DELTA_WINDOW_DAILY_DAYS = int(os.environ.get("DELTA_WINDOW_DAILY_DAYS", "10"))
 DELTA_WINDOW_SLOW_DAYS = int(os.environ.get("DELTA_WINDOW_SLOW_DAYS", "45"))
 
 
+#: Timeframes keyed by a YYYYMMDD integer rather than unix seconds.
+_DATE_KEYED_TFS = ("D", "W", "M")
+_DATE_KEY_MAX = 99991231
+_UNIX_KEY_MAX = 2**63 - 1
+
+
+def _date_key(unix_seconds: int) -> int:
+    """The ET calendar date of a unix time, in the YYYYMMDD form bars are keyed by."""
+    return int(_dt.datetime.fromtimestamp(unix_seconds, _ET).strftime("%Y%m%d"))
+
+
 def _delta_cutoffs(now: Optional[int] = None) -> dict:
-    """Per-tf unix-seconds cutoff: rows with ts >= cutoff go in the delta."""
+    """Per-tf cutoff: rows with ts >= cutoff go in the delta.
+
+    Each cutoff is in its timeframe's own key unit. Intraday bars are keyed by
+    unix seconds and D/W/M by YYYYMMDD; until 2026-11-09 D/W/M were given a
+    unix-seconds cutoff too, which no date key can reach, so no delta ever
+    carried a daily, weekly or monthly bar."""
     now = int(now if now is not None else time.time())
     intraday = now - DELTA_WINDOW_INTRADAY_DAYS * _DAY_SECONDS
     return {
         "1": intraday, "5": intraday, "15": intraday, "30": intraday, "60": intraday,
-        "D": now - DELTA_WINDOW_DAILY_DAYS * _DAY_SECONDS,
-        "W": now - DELTA_WINDOW_SLOW_DAYS * _DAY_SECONDS,
-        "M": now - DELTA_WINDOW_SLOW_DAYS * _DAY_SECONDS,
+        "D": _date_key(now - DELTA_WINDOW_DAILY_DAYS * _DAY_SECONDS),
+        "W": _date_key(now - DELTA_WINDOW_SLOW_DAYS * _DAY_SECONDS),
+        "M": _date_key(now - DELTA_WINDOW_SLOW_DAYS * _DAY_SECONDS),
     }
 
 
@@ -1122,17 +1138,27 @@ def _export_delta_db(out_path: str, now: Optional[int] = None) -> int:
             # ⚰️ A `bars_provenance` table was created in the delta here (and
             # filled from a source table that was always empty) until
             # 2026-08-09. See the note in `_merge_snapshot_db` above.
+            # ⛔ Seek per ticker. `WHERE tf=?` alone cannot use the (ticker, tf,
+            # ts) key, so it reads the whole 40 GB table once per timeframe; that
+            # made one delta take about two hours (2026-11-09).
+            from api.services.bars_sqlite import iter_tickers
+
             total = 0
-            for tf, cut in cutoffs.items():
-                rows = src.execute(
-                    "SELECT ticker,tf,ts,o,h,l,c,v FROM ohlcv WHERE tf=? AND ts>=?",
-                    (tf, cut),
-                ).fetchall()
-                if rows:
-                    out.executemany(
-                        "INSERT OR REPLACE INTO ohlcv VALUES (?,?,?,?,?,?,?,?)", rows
-                    )
-                    total += len(rows)
+            for ticker in iter_tickers(src):
+                for tf, cut in cutoffs.items():
+                    # The ceiling keeps a mis-keyed unix timestamp on a date
+                    # timeframe out of the delta.
+                    top = _DATE_KEY_MAX if tf in _DATE_KEYED_TFS else _UNIX_KEY_MAX
+                    rows = src.execute(
+                        "SELECT ticker,tf,ts,o,h,l,c,v FROM ohlcv "
+                        "WHERE ticker=? AND tf=? AND ts>=? AND ts<=?",
+                        (ticker, tf, cut, top),
+                    ).fetchall()
+                    if rows:
+                        out.executemany(
+                            "INSERT OR REPLACE INTO ohlcv VALUES (?,?,?,?,?,?,?,?)", rows
+                        )
+                        total += len(rows)
             out.commit()
             return total
         finally:

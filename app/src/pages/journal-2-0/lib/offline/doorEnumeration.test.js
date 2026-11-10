@@ -1724,6 +1724,13 @@ const DOOR_CLASSIFICATION = {
       + 'BEGIN IMMEDIATE; researchCapture.js lands the returned revision.',
     evidence: ['tests/test_notebook_transcript_capture.py', 'tests/test_notes_cas_is_atomic.py'],
   },
+  'POST /api/j2/research-capture/tweets/save': {
+    class: NONE,
+    why: 'tweet_capture.save appends documentExcerpt blocks through append_document_excerpt, one per post, a '
+      + 'SERVER_APPENDED_TYPE merged by the reconcile\'s APPEND_ONLY branch, never forked; ImportTweetSheet lands the '
+      + 'returned revision with settleNoteWrite on every 200, a partial import included.',
+    evidence: ['tests/test_notebook_tweet_capture.py', 'tests/test_notes_cas_is_atomic.py'],
+  },
   'POST /api/j2/personal/notes/*/append': {
     class: FORK,
     why: 'the personal API (a Shortcut or script, no tab) appends paragraphs through note_personal_api.append_nodes: '

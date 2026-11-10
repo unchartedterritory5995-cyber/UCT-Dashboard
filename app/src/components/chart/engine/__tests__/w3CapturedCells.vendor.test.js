@@ -28,7 +28,10 @@ import { runOurSide } from './vendorHarness/ourSide'
 /** capture id → the number of cells the merge base drew (before S1). */
 const PINNED = {
   'artemis-oscillator-pro-rddt-1d-2026-09-28': 16,
-  'artemis-oscillator-pro-spy-1d-2026-10-03': 15,
+  // ⭐ DIV-1 RE-PIN (2026-11-09): was 15. The SPY capture is now replayed over SPY's proved
+  // history from its listing (as the member's daily chart computes it) and draws the same
+  // 16 TradingView cells as RDDT, which starts at its listing (TradingView draws 21).
+  'artemis-oscillator-pro-spy-1d-2026-10-03': 16,
   'ema-ribbon-trend-filter-strixedge-rddt-1d-2026-09-28': 37,
   'ema-ribbon-trend-filter-strixedge-spy-1d-2026-10-03': 37,
   'position-size-calc-rddt-1d-2026-09-28': 9,
