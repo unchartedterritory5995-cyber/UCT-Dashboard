@@ -6,6 +6,15 @@
  "C2-007": [
   "savedIndicator"
  ],
+ "C2-091": [
+  "alertFormMultiLine"
+ ],
+ "C2-092": [
+  "alertFormSignal"
+ ],
+ "C2-100": [
+  "blockedAlert"
+ ],
  "C3-198": [
   "aiAnswer"
  ],

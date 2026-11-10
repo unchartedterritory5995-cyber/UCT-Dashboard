@@ -134,7 +134,7 @@ async function rightClickRegion(s) {
 }
 
 try {
-  p = await open(R, { prefs: boardFor(given), fixtures: fixturesFor(given), query: queryFor(given), ls: given.ls || null, width: 1600, height: 950 })
+  p = await open(R, { prefs: boardFor(given), fixtures: fixturesFor(given), query: queryFor(given), ls: given.ls || null, iaCatalog: given.iaCatalog || null, width: 1600, height: 950 })
   // a desktop member has a mouse: headless Chrome reports no hover, and the drawing layer only hit-tests under a hovering pointer
   // (ChartDrawingOverlay's matchMedia('(hover: hover)')). Emulated, then the page loads again with it
   // (CDP's media emulation has no hover feature, so the page is told what a desktop with a mouse answers)

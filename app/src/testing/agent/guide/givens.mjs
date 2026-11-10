@@ -9,6 +9,7 @@
 //   prefs     any other preference the app reads on load
 //   routes    fixture routes the app's OWN requests are answered on (lib.mjs matches "METHOD /path" before the harness)
 //   query     harness query flags (agentHarness.jsx reads them on load)
+//   iaCatalog the indicator-alert catalog the page's simulated alert route serves (acceptance/lib.mjs open)
 //   setup     a page script that goes through the app's own modules and routes, after the board has loaded
 //   prelude   a MEMBER'S ACT, with real CDP input on the app's own control, for state that exists only after an act:
 //             an AI Search answer on /charts lives only in the widget's session (no store holds one to load), so the
@@ -24,6 +25,18 @@ const SAVED_DEF = AUTHORING.styled_markers
 
 const chart = (id, color, x, y, w, h, opts = {}) => ({ id, type: 'chart', color, x, y, w, h, opts: { tf: 'D', ...opts } })
 const watch = (extra = {}) => ({ id: 'w-watch', type: 'watchlist', color: 'A', x: 18, y: 0, w: 6, h: 20, opts: {}, ...extra })
+
+// The indicator-alert catalog in the server's own entry shape (api/services/alert_user_series.py entries, the acceptance runner's
+// IA_CATALOG): { indicator, label, conditions, default_threshold, plots: [{ value, label, conditions, default_threshold, inputs,
+// instance_label, output_type? }] }. The form opens on catalog[0] (IndicatorAlertPopover seeds it), so the entry listed FIRST is
+// the indicator the form shows.
+const LEVEL = [{ value: 'above', label: 'Above threshold', needs_threshold: true }, { value: 'below', label: 'Below threshold', needs_threshold: true }, { value: 'cross_above', label: 'Crosses above', needs_threshold: true }, { value: 'cross_below', label: 'Crosses below', needs_threshold: true }]
+const RSI = { indicator: 'rsi', label: 'RSI', conditions: LEVEL, default_threshold: 70, plots: [{ value: 'rsi', label: 'RSI', conditions: LEVEL, default_threshold: 70, inputs: { period: 14 }, instance_label: 'RSI (14)' }] }
+const macdPlot = (value, label) => ({ value, label, conditions: LEVEL, default_threshold: 0, inputs: { fast: 12, slow: 26, signal: 9 }, instance_label: 'MACD (12, 26, 9)' })
+const MACD = { indicator: 'macd', label: 'MACD', conditions: LEVEL, default_threshold: 0, plots: [macdPlot('macd', 'MACD line'), macdPlot('macd.signal', 'Signal line'), macdPlot('macd.hist', 'Histogram')] }
+// a member's own yes/no formula (the saved definition above), served as the store serves a user entry: its plot's output_type
+// derived as `condition` (alert_trigger_policy.output_type_of), no default threshold
+const SIGNAL = { indicator: SAVED_DEF.id, label: SAVED_DEF.meta.name, source: 'user', conditions: LEVEL, default_threshold: null, plots: [{ value: `${SAVED_DEF.id}.buy`, label: SAVED_DEF.meta.shortName, conditions: LEVEL, default_threshold: null, inputs: {}, instance_label: SAVED_DEF.meta.name, output_type: 'condition' }] }
 
 // pages/charts/widgets/AiSearchWidget.jsx: the streaming route refused → `tryStream` returns null → the single-shot route, whose
 // body `applyFinal` reads as { answer, citations, related_questions }
@@ -75,6 +88,24 @@ export const GIVENS = {
     about: 'one saved indicator of the member’s own, on the definitions list route the chart installs from (a route seed)',
     routes: () => [{ match: '^GET /api/user-definitions([?]|$)', body: { definitions: [{ def_id: SAVED_DEF.id, version: SAVED_DEF.version, rev: 1, definition: SAVED_DEF }] } }],
   },
+  // The indicator-alert form open on an indicator with several lines (MACD), so its Plot list shows. A ROUTE SEED: the alert
+  // catalog route (served by the harness's own simulated /api/indicator-alerts/catalog, from `iaCatalog`) lists MACD first
+  alertFormMultiLine: {
+    about: 'the alert catalog lists MACD (three lines) first, so the indicator-alert form opens on it (a route seed)',
+    iaCatalog: [MACD, RSI],
+  },
+  // The form open on a yes/no signal (a member's own condition formula), so its trigger policy ("Alert when") shows
+  alertFormSignal: {
+    about: 'the alert catalog lists one of the member’s own yes/no formulas first, so the form opens on a signal (a route seed)',
+    iaCatalog: [SIGNAL, RSI],
+  },
+  // An indicator alert on the chart's symbol that cannot fire: it names an indicator the catalog no longer offers (the popover's
+  // own rule: catalogReady && !byAddress.has(a.indicator)). Created through the app's alert route (simulated in the page)
+  blockedAlert: {
+    about: 'an indicator alert on SPY whose indicator the catalog no longer offers, created on the alerts route (a route seed)',
+    iaCatalog: [RSI],
+    setup: `(async () => { const r = await fetch('/api/indicator-alerts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sym: 'SPY', indicator: 'retired_osc', condition: 'above', threshold: 1, tf: 'D' }) }); return r.ok ? 'blockedAlert: created' : 'blockedAlert: refused ' + r.status })()`,
+  },
   // Replay running on the board. The cutoff is session state in ChartsWorkspace (replayCutoff: no pref, no route holds it), so
   // the member starts it the way the product offers: Tools ▾ → Replay Mode → a date → Start replay (ReplayPanel's own controls)
   replayRunning: {
@@ -123,6 +154,7 @@ export function applyGivens(g, names) {
     if (d.routes) routes.push(...d.routes())
     if (d.query) g.extraQuery = [...(g.extraQuery || []), d.query]
     if (d.setup) setups.push(d.setup)
+    if (d.iaCatalog) { if (g.iaCatalog && g.iaCatalog !== d.iaCatalog) throw new Error(`given "${n}" sets an alert catalog another given already set`); g.iaCatalog = d.iaCatalog }
   }
   g.declared = names
   if (routes.length) g.declaredRoutes = routes
