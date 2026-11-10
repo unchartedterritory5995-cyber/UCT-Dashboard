@@ -4872,6 +4872,9 @@ const RS_RATING_RAW = {
       'leader', 'leadership', 'ibd', 'percentile', 'rank'],
     tier: 'premium', repaint: 'non-repainting',
     requiresServer: true,
+    // Browsed and added in the library (once offered), never a right-click quick toggle:
+    // the Technical library's own `quickMenu: false` rule.
+    quickMenu: false,
     timeframes: ['D'],
     // The pane has no last-value tag for a blank series: the server's summary
     // (`82, up 6 in 20 sessions`) or, muted, its reason (`the rating history is
@@ -4975,6 +4978,9 @@ const RS_PHASES_RAW = {
       'leader', 'leadership', 'custom benchmark', 'shading'],
     tier: 'premium', repaint: 'non-repainting',
     requiresServer: true,
+    // Browsed and added in the library (once offered), never a right-click quick toggle:
+    // the Technical library's own `quickMenu: false` rule.
+    quickMenu: false,
     legendParams: ['benchmark'],
     // The pane label's value while the histogram is blank: the server's words
     // (`RS up while the market is down · divergence +1.2`, or the reason).
@@ -5051,6 +5057,9 @@ const RS_VS_EMA_RAW = {
       'benchmark', 'leader', 'leadership', 'custom benchmark'],
     tier: 'premium', repaint: 'non-repainting',
     requiresServer: true,
+    // Browsed and added in the library (once offered), never a right-click quick toggle:
+    // the Technical library's own `quickMenu: false` rule.
+    quickMenu: false,
     legendParams: ['benchmark'],
     // The pane label's value while the histogram is blank: the RS line's own
     // sentence (`above its 21 EMA by 6.8%`, or the reason).

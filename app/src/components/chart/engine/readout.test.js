@@ -306,6 +306,9 @@ describe('the chip declarations cannot silently lose — or gain — a chip', ()
    */
   const NOT_IN_THE_SHIPPED_LEGEND = [
     'rsLine::rsLine',
+    // ⭐ UCT RS split, unit U6 (2026-11-09): the three server definitions cut out of
+    // `rsLine` postdate the shipped legend for the same reason it does.
+    'rsRating::ratingLine', 'rsPhases::divergence', 'rsVsEma::dist',
     // ⭐ `dataSeries` POSTDATES THE SHIPPED LEGEND ENTIRELY — it is registry-native
     // and there is no pre-B4 `legChips` entry for it to have dropped. Excluded
     // here for exactly the reason the ten below are: this list is the membership

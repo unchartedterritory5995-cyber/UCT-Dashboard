@@ -214,7 +214,8 @@ describe('a blob written before the engine existed', () => {
     // a legacy pane because it was never a pane — the value was printed into the
     // volume pane's LABEL. No block, no toggle, no stored blob that named it.
     // ⭐ 2026-10-01 — and the Technical library's thirty own-pane Tier 1 studies.
-    const NEVER_A_SHIPPED_PANE = ['rsLine', 'dataSeries', 'dollarVolume',
+    // ⭐ U6 (2026-11-09): the RS split's three, server pane definitions like `rsLine`.
+    const NEVER_A_SHIPPED_PANE = ['rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'dataSeries', 'dollarVolume',
       ...TIER1_IDS.filter((id) => !['superTrend', 'keltner', 'envelope'].includes(id))]
     const shippedPaneIds = paneIds.filter(id => !NEVER_A_SHIPPED_PANE.includes(id))
     for (const id of NEVER_A_SHIPPED_PANE) {
