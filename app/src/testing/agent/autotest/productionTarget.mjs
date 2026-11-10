@@ -30,6 +30,7 @@ import { runRequest } from './driver.mjs'
 
 export const PROD_ORIGIN = 'https://www.uctintelligence.com'
 export const TEST_PREFIX = 'AUTOTEST-'
+export const SETTLE_DELAY_MS = 10000
 const GATE = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../../tools/agent_autotest_gate.py')
 export const WORKSPACE_PREFS = ['charts_workspace_layout', 'charts_workspace_groups', 'charts_active_template']
 export const PROD_FAMILIES = new Set(['symbol', 'timeframe', 'chart-type', 'session', 'scale', 'view', 'compare', 'chart-settings', 'volume', 'indicator-add', 'indicator-edit', 'indicator-style', 'indicator-visibility', 'undo-conversation', 'howto', 'explain'])
@@ -127,9 +128,14 @@ export async function runProduction({ authorization, list, dir, known }) {
       const b0 = await spentToday(b)
       const { evidence, result } = await runRequest({ R, mock: false, openFn, turnTimeoutMs: 60000, valueFree: true }, req)
       const b1 = await spentToday(b)
+      // AUDIT F2: the server may make ONE more call of this request AFTER the reply is sent (the background chat-naming
+      // call, api/routers/uct_agent.py `background.add_task(_name_unnamed, ...)`; inside the same request's $0.25 turn cap
+      // and 2-call ceiling). Read the budget again after it has had time to reserve, and settle at the larger delta.
+      await sleep(SETTLE_DELAY_MS)
+      const b2 = await spentToday(b)
       // unknown, or a fall (the server's day rolled over between the reads): settle at the worst case, never at 0
       // a crash or a turn timeout: the server may still be spending on that turn, so the delta could miss it -> worst case
-      const usd = !evidence?.crash && b0 != null && b1 != null && b1 >= b0 ? b1 - b0 : null
+      const usd = !evidence?.crash && b0 != null && b1 != null && b2 != null && b1 >= b0 && b2 >= b1 ? Math.max(b1 - b0, b2 - b0) : null
       const s = gate(['settle', '--id', String(reservation), ...(usd == null ? [] : ['--usd', String(usd)])])
       const row = rowOf(req, { ...evidence, usd }, result, { mode: MODE, known })
       rows.push({ ...row, failed: row.failed?.map(f => ({ name: f.name, tag: f.tag })), say: undefined })      // value-free

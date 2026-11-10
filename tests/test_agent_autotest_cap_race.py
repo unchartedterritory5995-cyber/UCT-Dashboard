@@ -41,7 +41,12 @@ try:
     else:
         if mode == 'program':
             gate.STAGES['canary'] = 8.0      # lift the stage budget so the PROGRAM ceiling is the one raced
-        rid = gate.reserve_turn(ledger.Ledger(), stage='canary', usd=float(os.environ['RACE_USD']), max_usd=8.0)
+        # exactly what reserve_turn books, minus its scratch-world refusal (production never books into a scratch ledger)
+        c = gate.Ceilings(ledger.Ledger(), max_usd=8.0, stage='canary', turn_cap=0.25, run_id='autotest-canary-production')
+        why = c.refuse(float(os.environ['RACE_USD']))
+        if why:
+            raise gate.Refused(why)
+        rid = c.led.reserve(c.run_id, float(os.environ['RACE_USD']), tool='race', limits=c.limits())
     print(json.dumps({'granted': rid}))
 except (gate.Refused, ledger.LedgerRefused) as e:
     print(json.dumps({'refused': str(e)[:120]}))
@@ -93,12 +98,67 @@ def overrun_stops() -> dict:
         code = ("import os,sys,json;sys.path.insert(0,os.environ['RACE_ROOT']);from tools import agent_autotest_gate as g;"
                 "import io,contextlib\n"
                 "def run(a):\n b=io.StringIO()\n with contextlib.redirect_stdout(b): rc=g.main(a)\n return rc,b.getvalue().strip()\n"
-                "r1=run(['reserve','--stage','canary','--usd','0.25']);rid=json.loads(r1[1])['id']\n"
+                "from tools import agent_eval_ledger as l;rid=l.Ledger().reserve('autotest-canary-production',0.25,tool='race')\n"
                 "r2=run(['settle','--id',str(rid),'--usd','0.30'])\n"
                 "r3=run(['reserve','--stage','canary','--usd','0.25'])\n"
                 "print(json.dumps({'settle_rc':r2[0],'stop_file':os.path.exists(os.environ['UCT_AGENT_AUTOTEST_STOP']),'next_reserve_rc':r3[0],'next':r3[1][:90]}))")
         out = subprocess.run([sys.executable, "-c", code], env=env, capture_output=True, text=True, timeout=120)
         return json.loads(out.stdout.strip().splitlines()[-1])
+
+
+FAKE_KEY = "sk-ant-api03-" + "x" * 80          # real-looking; never sent anywhere (the fake client only records a call)
+BYPASS = r"""
+import json, os, sys
+sys.path.insert(0, os.environ['RACE_ROOT'])
+from tools import agent_eval_ledger as ledger
+from tools import agent_autotest_gate as gate
+KW = {"model": "claude-haiku-4-5", "max_tokens": 64, "system": "s", "messages": [{"role": "user", "content": "x"}]}
+calls = []
+def fake(**kw):
+    calls.append(1)
+    raise RuntimeError("fake client: no network")
+out = {}
+try:
+    ledger.Ledger().guarded_call("autotest-bypass", fake, KW, tool="bypass")
+    out["guarded_call"] = "ALLOWED"
+except ledger.LedgerRefused as e:
+    out["guarded_call"] = "refused" if "override" in str(e) else "refused-other: " + str(e)[:80]
+except RuntimeError:
+    out["guarded_call"] = "ALLOWED"
+try:
+    gate.reserve_turn(ledger.Ledger(), stage="canary", usd=0.25, max_usd=8.0)
+    out["reserve_turn"] = "ALLOWED"
+except (gate.Refused, ledger.LedgerRefused) as e:
+    out["reserve_turn"] = "refused" if "override" in str(e) else "refused-other: " + str(e)[:80]
+out["fake_client_calls"] = len(calls)
+print(json.dumps(out))
+"""
+
+
+def bypass(key: bool) -> dict:
+    """AUDIT F1 rail, OUTSIDE pytest: a plain process FAKES PYTEST_CURRENT_TEST and points the ledger, the authorization
+    and the STOP file at a fresh temp dir (= a fresh cap). With a real-looking key every paid path must refuse before the
+    client; the production reserve must refuse with or without a key. The no-key control shows the fake client IS
+    reachable there, so the refusal comes from the rail and nothing else."""
+    with tempfile.TemporaryDirectory() as d:
+        env = _setup(d, 21.0)
+        env["PYTEST_CURRENT_TEST"] = "faked by a plain process"
+        for k in ("UCT_AGENT_EVAL_API_KEY", "ANTHROPIC_API_KEY"):
+            env.pop(k, None)
+        if key:
+            env["UCT_AGENT_EVAL_API_KEY"] = FAKE_KEY
+        out = subprocess.run([sys.executable, "-c", BYPASS], env=env, capture_output=True, text=True, timeout=120)
+        return json.loads(out.stdout.strip().splitlines()[-1])
+
+
+def bypass_ok(with_key: dict, no_key: dict) -> bool:
+    return (with_key == {"guarded_call": "refused", "reserve_turn": "refused", "fake_client_calls": 0}
+            and no_key["reserve_turn"] == "refused" and no_key["fake_client_calls"] == 1)
+
+
+def test_RAIL_scratch_override_refuses_every_paid_path_outside_pytest():
+    w, n = bypass(True), bypass(False)
+    assert bypass_ok(w, n), (w, n)
 
 
 def test_ledger_cap_holds_across_processes():
@@ -118,7 +178,7 @@ def test_stage_cap_holds_across_processes():
 
 def test_turn_over_reservation_stops_before_next_call():
     r = overrun_stops()
-    assert r["settle_rc"] == 2 and r["stop_file"] and r["next_reserve_rc"] == 2, r
+    assert r["settle_rc"] == 2 and r["stop_file"] and r["next_reserve_rc"] == 2 and "stop is in force" in r["next"], r
 
 
 if __name__ == "__main__":
@@ -126,7 +186,10 @@ if __name__ == "__main__":
     ok = rows[0]["granted"] <= 32 and rows[0]["committed_usd"] <= CAP and rows[1]["granted"] <= 32 and rows[1]["committed_usd"] <= CAP \
         and rows[2]["granted"] <= 2 and rows[2]["committed_usd"] <= 0.5
     o = overrun_stops()
-    ok = ok and o["settle_rc"] == 2 and o["stop_file"] and o["next_reserve_rc"] == 2
+    ok = ok and o["settle_rc"] == 2 and o["stop_file"] and o["next_reserve_rc"] == 2 and "stop is in force" in o["next"]
+    bw, bn = bypass(True), bypass(False)
+    ok = ok and bypass_ok(bw, bn)
+    print(json.dumps({"bypass_with_key": bw, "bypass_no_key": bn}))
     for r in rows:
         print(json.dumps(r))
     print(json.dumps({"overrun": o}))

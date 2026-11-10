@@ -304,6 +304,10 @@ def reserve_turn(led: ledger.Ledger, *, stage: str, usd: float, max_usd: float) 
     settled from the server's own /api/agent/budget delta. `key_fp` names no key: production's stays on the server."""
     if os.path.exists(stop_path()):
         raise Refused(f"a stop is in force ({stop_path()})")
+    try:
+        ledger.refuse_paid_in_scratch(led.path, production=True)    # AUDIT F1: production never books into a scratch ledger
+    except ledger.LedgerRefused as e:
+        raise Refused(str(e))
     c = Ceilings(led, max_usd=max_usd, stage=stage, turn_cap=usd, run_id=f"{RUN_PREFIX}{stage}-production")
     why = c.refuse(usd)
     if why:

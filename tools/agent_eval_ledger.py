@@ -85,6 +85,34 @@ def under_pytest() -> bool:
     return bool(os.environ.get("PYTEST_CURRENT_TEST"))
 
 
+#: Every test-only override of a pinned file. Any one of them set means "a scratch world": no paid path may run in it.
+OVERRIDE_ENVS = (LEDGER_ENV, "UCT_AGENT_AUTOTEST_AUTH", "UCT_AGENT_AUTOTEST_STOP")
+#: Presence only (the value is never read into anything): a real-looking key in the environment of a scratch world.
+KEY_ENVS = (EVAL_KEY_ENV, PROD_KEY_ENV)
+
+
+def overrides_in_use(path: str | None = None) -> list[str]:
+    """The test-only overrides in force: an env override of the ledger / authorization / stop file, or a ledger handle
+    on any file but the pinned one. PYTEST_CURRENT_TEST can be set by any process, so it never makes these safe."""
+    used = [n for n in OVERRIDE_ENVS if os.environ.get(n, "").strip()]
+    if path is not None and os.path.normcase(os.path.abspath(path)) != os.path.normcase(os.path.abspath(pinned_ledger())):
+        used.append("ledger path")
+    return used
+
+
+def refuse_paid_in_scratch(path: str | None = None, *, production: bool = False) -> None:
+    """THE RAIL (AUDIT F1). A relocated ledger comes with a relocated cap file, authorization and STOP file, i.e. a fresh
+    cap. So with ANY override in force, every PAID path refuses outright when a key is present in the environment or the
+    target is production. A scratch ledger is only ever used with a fake client and no key."""
+    used = overrides_in_use(path)
+    if not used:
+        return
+    keyed = [n for n in KEY_ENVS if os.environ.get(n, "").strip()]
+    if production or keyed:
+        why = "the production target" if production else f"a key in the environment ({', '.join(keyed)})"
+        raise LedgerRefused("unavailable", f"test-only override in force ({', '.join(used)}) with {why}: no paid call")
+
+
 def ledger_path() -> str:
     """The one pinned ledger file. The env override is honoured ONLY under pytest (a test's scratch ledger); anywhere
     else it is refused outright — a relocated ledger would come with a relocated cap file. No fallback: a machine
@@ -402,6 +430,7 @@ class Ledger:
         """ONE metered Messages call: reserve its worst case, call, settle from usage. `per_run_cap(worst) -> str|None`
         may refuse the call for a run-level reason (the run's own --max-usd) before anything is reserved. Only an
         `anthropic.APIStatusError` releases; any other exception settles at the worst case and is re-raised."""
+        refuse_paid_in_scratch(self.path)                 # AUDIT F1: never a paid call against a scratch ledger
         model = str(kwargs.get("model") or "")
         worst = worst_case_usd(kwargs)
         if per_run_cap is not None:

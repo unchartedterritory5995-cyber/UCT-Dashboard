@@ -23,6 +23,8 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setenv(ledger.LEDGER_ENV, str(db))
     monkeypatch.setenv(gate.AUTH_ENV, str(tmp_path / "auth.json"))
     monkeypatch.setenv(gate.STOP_ENV, str(tmp_path / "stop.json"))
+    for k in ledger.KEY_ENVS:                 # a scratch ledger is only ever used with no key (refuse_paid_in_scratch)
+        monkeypatch.delenv(k, raising=False)
     return tmp_path
 
 
@@ -218,12 +220,19 @@ def test_history_follows_the_route(env):
 
 def test_production_reservation_holds_a_whole_turn_and_settles_from_the_server(env):
     led = ledger.Ledger()
-    rid = gate.reserve_turn(led, stage="canary", usd=0.25, max_usd=8.0)
+    c = gate.Ceilings(led, max_usd=8.0, stage="canary", turn_cap=0.25, run_id="autotest-canary-production")
+    rid = led.reserve(c.run_id, 0.25, tool=gate.TOOL, limits=c.limits())          # what reserve_turn books
     assert led.committed()[0] == pytest.approx(0.25)
     led.settle(rid, 0.02)
     assert led.committed() == (0.0, pytest.approx(0.02))
-    with pytest.raises(gate.Refused):
-        gate.reserve_turn(led, stage="canary", usd=0.25, max_usd=0.1)
+    with pytest.raises(ledger.LedgerRefused):
+        led.reserve(c.run_id, 0.25, limits=gate.Ceilings(led, max_usd=0.1, stage="canary", turn_cap=0.25, run_id=c.run_id).limits())
+
+
+def test_production_never_books_into_a_scratch_ledger(env):
+    """AUDIT F1: under any override the production reserve refuses, key or no key."""
+    with pytest.raises(gate.Refused, match="override"):
+        gate.reserve_turn(ledger.Ledger(), stage="canary", usd=0.25, max_usd=8.0)
 
 
 def test_the_cli_refuses_without_the_file(env, capsys):

@@ -30,6 +30,8 @@ PAID_TOOLS = ("agent_eval_run.py", "agent_live_batch.py", "agent_latency_probe.p
 def led(tmp_path, monkeypatch):
     path = str(tmp_path / "ledger.db")
     monkeypatch.setenv(L.LEDGER_ENV, path)
+    for k in L.KEY_ENVS:                      # a scratch ledger is only ever used with no key (refuse_paid_in_scratch)
+        monkeypatch.delenv(k, raising=False)
     (tmp_path / L.CAP_FILE_NAME).write_text(json.dumps({"cap_usd": 21.0}), encoding="utf-8")
     return L.Ledger(path)
 
