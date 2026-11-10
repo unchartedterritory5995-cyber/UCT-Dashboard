@@ -54,6 +54,31 @@ describe('a shed answer on the daily handoff lane', () => {
     expect(f).toHaveBeenCalledTimes(1)
   })
 
+  it('an aborted prepare asks nothing, or stores nothing', async () => {
+    const f = vi.fn(async () => answer('TSLA'))
+    vi.stubGlobal('fetch', f)
+    const gone = new AbortController()
+    gone.abort()
+    await expect(prepareDailyForDisplay('TSLA', 'D', { signal: gone.signal })).resolves.toBe('error')
+    expect(f).not.toHaveBeenCalled()
+    const late = new AbortController()
+    let release
+    f.mockImplementation(() => new Promise(r => { release = () => { late.abort(); r(answer('TSLA')) } }))
+    const p = prepareDailyForDisplay('TSLA', 'D', { signal: late.signal })
+    await waitFor(() => expect(f).toHaveBeenCalled())
+    release()
+    await expect(p).resolves.toBe('error')
+    expect(memPeek('TSLA', 'D')).toBeNull()
+  })
+
+  it('the signal reaches fetch', async () => {
+    const f = vi.fn(async () => answer('INTC'))
+    vi.stubGlobal('fetch', f)
+    const ctl = new AbortController()
+    await prepareDailyForDisplay('INTC', 'D', { signal: ctl.signal })
+    expect(f.mock.calls[0][1]).toEqual({ signal: ctl.signal })
+  })
+
   it('two callers for one symbol share one request', async () => {
     let release
     const f = vi.fn(() => new Promise(r => { release = () => r(answer('AMD')) }))

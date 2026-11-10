@@ -119,9 +119,11 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true } = 
         lastOutcomeRef.current = outcome
         commit()
       }
-      prepareDailyForDisplay(requestedSym, tf).then(land, () => land('error'))
+      // Aborted on any exit: a newer symbol, or past the bound, where the chart owns the fetch.
+      const ctl = new AbortController()
+      prepareDailyForDisplay(requestedSym, tf, { signal: ctl.signal }).then(land, () => land('error'))
       const bound = setTimeout(() => land('hold-timeout'), DAILY_HOLD_MAX_MS)
-      return () => { live = false; clearTimeout(bound) }
+      return () => { live = false; clearTimeout(bound); ctl.abort() }
     }
 
     if (peekDisplayable(requestedSym, tf)) { commit(); return undefined }

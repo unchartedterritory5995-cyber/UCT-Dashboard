@@ -224,7 +224,7 @@ describe('scope — what the handoff must NOT hold back', () => {
     const { result, rerender } = renderHook(
       ({ s }) => useSymbolHandoff(s, 'D'), { initialProps: { s: 'A' } })
     act(() => { rerender({ s: 'B' }) })
-    expect(prepareDailyMock).toHaveBeenCalledWith('B', 'D')
+    expect(prepareDailyMock).toHaveBeenCalledWith('B', 'D', { signal: expect.any(AbortSignal) })
     expect(result.current).toBe('A')          // never B over a blank canvas
     await act(async () => { done('current'); await vi.advanceTimersByTimeAsync(1) })
     expect(result.current).toBe('B')
@@ -252,6 +252,25 @@ describe('scope — what the handoff must NOT hold back', () => {
     expect(result.current).toBe('A')
     await act(async () => { resolvers.C('current'); await vi.advanceTimersByTimeAsync(5) })
     expect(result.current).toBe('C')
+  })
+
+  it('a superseded daily prepare is aborted, so a walk leaves no request behind', () => {
+    const { rerender } = renderHook(
+      ({ s }) => useSymbolHandoff(s, 'D'), { initialProps: { s: 'A' } })
+    act(() => { rerender({ s: 'B' }) })
+    const first = prepareDailyMock.mock.calls[0][2].signal
+    expect(first.aborted).toBe(false)
+    act(() => { rerender({ s: 'C' }) })
+    expect(first.aborted).toBe(true)
+    expect(prepareDailyMock.mock.calls[1][2].signal.aborted).toBe(false)
+  })
+
+  it('past the bound the prepare is aborted too: the chart owns the fetch from there', async () => {
+    const { rerender } = renderHook(
+      ({ s }) => useSymbolHandoff(s, 'D'), { initialProps: { s: 'A' } })
+    act(() => { rerender({ s: 'B' }) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(DAILY_HOLD_MAX_MS + 1) })
+    expect(prepareDailyMock.mock.calls[0][2].signal.aborted).toBe(true)
   })
 
   it('W and M take the same bounded path', async () => {
