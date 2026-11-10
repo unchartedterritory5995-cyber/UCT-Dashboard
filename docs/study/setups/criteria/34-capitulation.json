@@ -1238,33 +1238,33 @@
   "failures": [
    {
     "ticker": "COP",
-    "trigger": "2022-06-22",
+    "date": "2022-06-22",
     "criterion": "cap.inv_index_new_low",
-    "note": "a 24% flush on 2022-06-17 (2.0 ATR, 3.3x volume, burst 3/5), reclaimed only on the third session at 92.82 with the stop at 91.41; the next session traded through the stop and the stock fell to 78.30 inside 30 sessions. A late reclaim with the sector still breaking; the stop did its job."
+    "why": "a 24% flush on 2022-06-17 (2.0 ATR, 3.3x volume, burst 3/5), reclaimed only on the third session at 92.82 with the stop at 91.41; the next session traded through the stop and the stock fell to 78.30 inside 30 sessions. A late reclaim with the sector still breaking; the stop did its job."
    },
    {
     "ticker": "WDC",
-    "trigger": "2024-07-29",
+    "date": "2024-07-29",
     "criterion": "cap.inv_stall",
-    "note": "a 16% flush on 2024-07-25 (burst 4/5), reclaimed on the second session at 50.20 with a 0.65% stop; stopped the next day, then 39.89 inside 30 sessions. The reclaim session opened 4% up and closed two cents over the flush low: the stall-and-weak-close warning."
+    "why": "a 16% flush on 2024-07-25 (burst 4/5), reclaimed on the second session at 50.20 with a 0.65% stop; stopped the next day, then 39.89 inside 30 sessions. The reclaim session opened 4% up and closed two cents over the flush low: the stall-and-weak-close warning."
    },
    {
     "ticker": "DLTR",
-    "trigger": "2022-05-19",
+    "date": "2022-05-19",
     "criterion": "cap.stop_width",
-    "note": "a 23% flush with the low 5.7 ATR under the prior close on 4.1x volume (burst 4/5), reclaimed the next day at 128.03 with a 1.8% stop; the following session traded both under the stop and up to 136.19, and the stock closed 25% above the buy ten sessions later. A 1.8% stop under a 5.7-ATR bar is the cut-the-shares-or-skip case; the intraday turn is the entry that would have survived it."
+    "why": "a 23% flush with the low 5.7 ATR under the prior close on 4.1x volume (burst 4/5), reclaimed the next day at 128.03 with a 1.8% stop; the following session traded both under the stop and up to 136.19, and the stock closed 25% above the buy ten sessions later. A 1.8% stop under a 5.7-ATR bar is the cut-the-shares-or-skip case; the intraday turn is the entry that would have survived it."
    },
    {
     "ticker": "CAR",
-    "trigger": "2026-04-23",
+    "date": "2026-04-23",
     "criterion": "cap.no_knife",
-    "note": "down 77% in 3 days on 7.0x volume; Bracco said wait 1 to 2 weeks; the low broke the next day and the stock traded 25% under it within 5 sessions."
+    "why": "down 77% in 3 days on 7.0x volume; Bracco said wait 1 to 2 weeks; the low broke the next day and the stock traded 25% under it within 5 sessions."
    },
    {
     "ticker": "INTC",
-    "trigger": "2024-08-02",
+    "date": "2024-08-02",
     "criterion": "cap.setting",
-    "note": "the app's 5-star fixture, 44% under its 200-day with a 7.3 ATR flush on 6.2x volume: gapped under the low the next day and never traded above the flush close in 10 sessions. The deep-downtrend climax (C) the course does not buy."
+    "why": "the app's 5-star fixture, 44% under its 200-day with a 7.3 ATR flush on 6.2x volume: gapped under the low the next day and never traded above the flush close in 10 sessions. The deep-downtrend climax (C) the course does not buy."
    },
    {
     "ticker": "BN",

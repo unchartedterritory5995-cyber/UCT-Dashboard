@@ -1340,33 +1340,33 @@
   "failures": [
    {
     "ticker": "NVDA",
-    "trigger": "2025-08-18",
+    "date": "2025-08-18",
     "criterion": "e20.which_tap",
-    "note": "buy at 181.91, stop 178.01, stopped the next day (low 175.49); a late tap after a four-month run with the 20 EMA already flattening (e20.inv_line_flat); the stock then went sideways for six weeks. The 2025-08-27 report was seven trading days away, so B22 did not block it."
+    "why": "buy at 181.91, stop 178.01, stopped the next day (low 175.49); a late tap after a four-month run with the 20 EMA already flattening (e20.inv_line_flat); the stock then went sideways for six weeks. The 2025-08-27 report was seven trading days away, so B22 did not block it."
    },
    {
     "ticker": "CAT",
-    "trigger": "2025-11-17",
+    "date": "2025-11-17",
     "criterion": "e20.stop_width",
-    "note": "buy at 558.32, stop 540.97 (3.1%, already wide), stopped the next day on a gap down to 543.35 and a low of 538.05; it closed at 546.88 and reached 610 (the 3R level) within a month without us. A one-day shakeout through a wider stop; the rule has no re-entry (e20.tries)."
+    "why": "buy at 558.32, stop 540.97 (3.1%, already wide), stopped the next day on a gap down to 543.35 and a low of 538.05; it closed at 546.88 and reached 610 (the 3R level) within a month without us. A one-day shakeout through a wider stop; the rule has no re-entry (e20.tries)."
    },
    {
     "ticker": "AMZN",
-    "trigger": "2026-05-18",
+    "date": "2026-05-18",
     "criterion": "e20.which_tap",
-    "note": "buy at 264.37, stop 260.86, stopped the next day; the second tap after a steep April run, the 20 EMA turning down within a week of the buy, and a small-bodied hold candle under the prior highs, a weak hold; the stock lost its 50-day SMA in June."
+    "why": "buy at 264.37, stop 260.86, stopped the next day; the second tap after a steep April run, the 20 EMA turning down within a week of the buy, and a small-bodied hold candle under the prior highs, a weak hold; the stock lost its 50-day SMA in June."
    },
    {
     "ticker": "CRM",
-    "trigger": "2026-10 (week of 10-26)",
+    "date": "2026-10 (week of 10-26)",
     "criterion": "e20.stop_gap",
-    "note": "the owner's own: an oops and red to green at the 20EMA, then a 4% loss on the gap down when ServiceNow dumped (2026-11-01). B20's gap rule is the lesson."
+    "why": "the owner's own: an oops and red to green at the 20EMA, then a 4% loss on the gap down when ServiceNow dumped (2026-11-01). B20's gap rule is the lesson."
    },
    {
     "ticker": "SHOP",
-    "trigger": "2026-11 (before 11-08)",
+    "date": "2026-11 (before 11-08)",
     "criterion": "e20.earnings_window",
-    "note": "the owner's own: closed below the 20EMA ahead of earnings knocking me out (2026-11-08). B22 allows holding through a report only at 5R."
+    "why": "the owner's own: closed below the 20EMA ahead of earnings knocking me out (2026-11-08). B22 allows holding through a report only at 5R."
    },
    {
     "ticker": "GILD",

@@ -1347,27 +1347,27 @@
   "failures": [
    {
     "ticker": "BA",
-    "trigger": "2021-11-15",
+    "date": "2021-11-15",
     "criterion": "lp.tradeable_name",
-    "note": "a 20% correction, a 0.7%-wide bundle, a +5.5% launch on 2.55x volume above all four averages: every box ticked. It traded through the stop (2.7% under the close) the next session and kept falling. BA had spent two years in a downtrend; a stock he would trade is the only line that keeps a learner out."
+    "why": "a 20% correction, a 0.7%-wide bundle, a +5.5% launch on 2.55x volume above all four averages: every box ticked. It traded through the stop (2.7% under the close) the next session and kept falling. BA had spent two years in a downtrend; a stock he would trade is the only line that keeps a learner out."
    },
    {
     "ticker": "CMCSA",
-    "trigger": "2017-12-04",
+    "date": "2017-12-04",
     "criterion": "lp.tradeable_name",
-    "note": "a 16% correction, a 0.8% bundle, +4.9% on 2.17x volume; stopped two sessions later. A big-volume launch in a slow large cap, the kind the FITB ruling warns about."
+    "why": "a 16% correction, a 0.8% bundle, +4.9% on 2.17x volume; stopped two sessions later. A big-volume launch in a slow large cap, the kind the FITB ruling warns about."
    },
    {
     "ticker": "NEE",
-    "trigger": "2025-03-10",
+    "date": "2025-03-10",
     "criterion": "lp.stop_cap",
-    "note": "a 22% correction, a 0.7% bundle, +4.6% on 2.36x volume, the stop 4.9% away (near the 6% cap); stopped two sessions later. The wide stop meant a small position: the rule's job was to keep the loss at 1R, and it did."
+    "why": "a 22% correction, a 0.7% bundle, +4.6% on 2.36x volume, the stop 4.9% away (near the 6% cap); stopped two sessions later. The wide stop meant a small position: the rule's job was to keep the loss at 1R, and it did."
    },
    {
     "ticker": "TEAM",
-    "trigger": "2021-04-30",
+    "date": "2021-04-30",
     "criterion": "lp.launch_volume_2x",
-    "note": "a different date from his kept TEAM chart: +4.1% on 2.13x volume, stopped the next session. A 2x launch bar was not a protection."
+    "why": "a different date from his kept TEAM chart: +4.1% on 2.13x volume, stopped the next session. A 2x launch bar was not a protection."
    },
    {
     "ticker": "FDX",

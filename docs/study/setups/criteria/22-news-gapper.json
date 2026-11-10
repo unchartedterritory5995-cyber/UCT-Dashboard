@@ -1196,21 +1196,21 @@
   "failures": [
    {
     "ticker": "AVAV",
-    "trigger": "2024-03-14",
+    "date": "2024-03-14",
     "criterion": "ng.entry_pullback",
-    "note": "gap 2024-03-05, +15.3% on 15.8x volume, closing at 79% of its range; the 8-session pullback and reclaim was bought at 162.59 and went straight to the stop (158.43) without a single higher high. A big-volume gap does not protect a late Buy 2."
+    "why": "gap 2024-03-05, +15.3% on 15.8x volume, closing at 79% of its range; the 8-session pullback and reclaim was bought at 162.59 and went straight to the stop (158.43) without a single higher high. A big-volume gap does not protect a late Buy 2."
    },
    {
     "ticker": "SEDG",
-    "trigger": "2019-05-13",
+    "date": "2019-05-13",
     "criterion": "ng.inv_close_under_low",
-    "note": "gap 2019-05-07, +15.0% on 11.4x; the day-4 reclaim at 51.76 failed the next session, best 0.0R; the whole gap was given back within weeks."
+    "why": "gap 2019-05-07, +15.0% on 11.4x; the day-4 reclaim at 51.76 failed the next session, best 0.0R; the whole gap was given back within weeks."
    },
    {
     "ticker": "PEN",
-    "trigger": "2026-01-21",
+    "date": "2026-01-21",
     "criterion": "ng.not_late",
-    "note": "gap 2026-01-15, +11.1% on 18.2x, a 1-year volume high; the stock was already up 23.8% over 65 sessions and the day-4 reclaim at 357.70 reached 0.45R before the stop. Late in a run, even the loudest gap is a poor Buy 2."
+    "why": "gap 2026-01-15, +11.1% on 18.2x, a 1-year volume high; the stock was already up 23.8% over 65 sessions and the day-4 reclaim at 357.70 reached 0.45R before the stop. Late in a run, even the loudest gap is a poor Buy 2."
    },
    {
     "ticker": "GE",

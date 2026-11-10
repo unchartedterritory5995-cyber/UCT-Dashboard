@@ -1241,21 +1241,21 @@
   "failures": [
    {
     "ticker": "AMZN",
-    "trigger": "2023-04-27",
+    "date": "2023-04-27",
     "criterion": "mar.slope_200_rising",
-    "note": "200-day, Entry A, stopped at 0R. Fifty-seven closes under a 200-day that was still falling (it passed the 10-session slope test because the fall had slowed, but sat below its value 20 sessions earlier, 106.85 against 107.52), a 2.65x-volume reclaim, and the report came after that very close (mar.earnings_window): it gapped back under the line the next morning. A flattening line is not a rising one; never buy into the report. The stock then rose about 19% in two months without us."
+    "why": "200-day, Entry A, stopped at 0R. Fifty-seven closes under a 200-day that was still falling (it passed the 10-session slope test because the fall had slowed, but sat below its value 20 sessions earlier, 106.85 against 107.52), a 2.65x-volume reclaim, and the report came after that very close (mar.earnings_window): it gapped back under the line the next morning. A flattening line is not a rising one; never buy into the report. The stock then rose about 19% in two months without us."
    },
    {
     "ticker": "AAPL",
-    "trigger": "2022-09-12",
+    "date": "2022-09-12",
     "criterion": "mar.index_200",
-    "note": "200-day, Entry A, stopped at 0R. A clean-looking remount of a flat 200-day on 1.49x volume, clearing the 20 and 50 as well, with the S&P 500 itself under its 200-day in September 2022; the next session gapped down through the stop and the stock fell about 18% to its October low. Mistake 11."
+    "why": "200-day, Entry A, stopped at 0R. A clean-looking remount of a flat 200-day on 1.49x volume, clearing the 20 and 50 as well, with the S&P 500 itself under its 200-day in September 2022; the next session gapped down through the stop and the stock fell about 18% to its October low. Mistake 11."
    },
    {
     "ticker": "IWM",
-    "trigger": "2023-12-06",
+    "date": "2023-12-06",
     "criterion": "mar.stop_width",
-    "note": "ETF; 200-day, Entry B, stopped at 0R. Fifty-three closes under the line, a 1.7x-volume reclaim, a tight pause, the buy over its high with a 1.6% stop under the pause low; the stop was hit the next session on the shakeout and the fund closed about 9% higher three weeks later. The Entry B stop is tight by design; on a broad index fund it was too tight for the noise. Also an ETF when the setup is written for leading stocks."
+    "why": "ETF; 200-day, Entry B, stopped at 0R. Fifty-three closes under the line, a 1.7x-volume reclaim, a tight pause, the buy over its high with a 1.6% stop under the pause low; the stop was hit the next session on the shakeout and the fund closed about 9% higher three weeks later. The Entry B stop is tight by design; on a broad index fund it was too tight for the noise. Also an ETF when the setup is written for leading stocks."
    },
    {
     "ticker": "FDX",

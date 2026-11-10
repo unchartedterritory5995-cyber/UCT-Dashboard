@@ -1255,33 +1255,33 @@
   "failures": [
    {
     "ticker": "GOOGL",
-    "trigger": "2019-01-14",
+    "date": "2019-01-14",
     "criterion": "wd.not_new_bull",
-    "note": "a lower-high top, a three-day stall 3.4% wide, a 2.1% stop; stopped the next session at 0R; twenty sessions later 7.2% above the entry. A few weeks after the December 2018 low with QQQ still under its 50-day: the early-in-a-new-bull-market case."
+    "why": "a lower-high top, a three-day stall 3.4% wide, a 2.1% stop; stopped the next session at 0R; twenty sessions later 7.2% above the entry. A few weeks after the December 2018 low with QQQ still under its 50-day: the early-in-a-new-bull-market case."
    },
    {
     "ticker": "DXCM",
-    "trigger": "2022-04-18",
+    "date": "2022-04-18",
     "criterion": "wd.wide_loose",
-    "note": "an extension-plus-failed-push top, an 8-day stall 9.6% wide, a 2.4% stop; stopped the next session at 0R, then the stock fell 37% within 20 sessions. A stop that fits 3% can be the wrong stop in a volatile name; the move you then miss is not evidence the entry was right."
+    "why": "an extension-plus-failed-push top, an 8-day stall 9.6% wide, a 2.4% stop; stopped the next session at 0R, then the stock fell 37% within 20 sessions. A stop that fits 3% can be the wrong stop in a volatile name; the move you then miss is not evidence the entry was right."
    },
    {
     "ticker": "DIS",
-    "trigger": "2006-01-26",
+    "date": "2006-01-26",
     "criterion": "wd.trigger_volume",
-    "note": "a failed-push top, a three-day stall, trigger volume 3.3x the 50-day average (the strong form); never past 0.34R, stopped on day 8, its earnings reaction day, and 11.6% above the entry twenty sessions later. Heavy volume is a cue, not a gate, and a report inside the first two weeks belongs in the checklist."
+    "why": "a failed-push top, a three-day stall, trigger volume 3.3x the 50-day average (the strong form); never past 0.34R, stopped on day 8, its earnings reaction day, and 11.6% above the entry twenty sessions later. Heavy volume is a cue, not a gate, and a report inside the first two weeks belongs in the checklist."
    },
    {
     "ticker": "META",
-    "trigger": "2022-01-05",
+    "date": "2022-01-05",
     "criterion": "wd.stop",
-    "note": "B26-compliant (4% under the 200-day), a 3.6% stop; stopped at -1R, then down 27.3% within 20 sessions. The tight-stop risk in a volatile name."
+    "why": "B26-compliant (4% under the 200-day), a 3.6% stop; stopped at -1R, then down 27.3% within 20 sessions. The tight-stop risk in a volatile name."
    },
    {
     "ticker": "TSLA",
-    "trigger": "2023-05-15",
+    "date": "2023-05-15",
     "criterion": "wd.not_new_bull",
-    "note": "Kell's own short trigger ('If lost 166.50'), 19% under the 200-day, a 2.1% stop; lost 1R and the stock rose 55.5% over the next 20 sessions. He had flagged it 'a laggard name. Might just be an avoid'; a strong uptrending market and the stock's own 2023 recovery ran it over."
+    "why": "Kell's own short trigger ('If lost 166.50'), 19% under the 200-day, a 2.1% stop; lost 1R and the stock rose 55.5% over the next 20 sessions. He had flagged it 'a laggard name. Might just be an avoid'; a strong uptrending market and the stock's own 2023 recovery ran it over."
    },
    {
     "ticker": "HPQ",

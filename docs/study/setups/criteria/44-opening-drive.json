@@ -1141,33 +1141,33 @@
   "failures": [
    {
     "ticker": "EAT",
-    "trigger": "2026-09-22",
+    "date": "2026-09-22",
     "criterion": "od.day1_close_check",
-    "note": "gap +3.2% over the prior high on 2.5x volume, RS 84, bought 211.21 at 9:40 with the stop at 204.95 (3.0%). Best 0.37R; stopped the same day; the day closed at 24% of its range. The day-1 close check would not have helped, the stop came first; only the pattern of 'high of the day in the first 20 minutes, then a lower high' would."
+    "why": "gap +3.2% over the prior high on 2.5x volume, RS 84, bought 211.21 at 9:40 with the stop at 204.95 (3.0%). Best 0.37R; stopped the same day; the day closed at 24% of its range. The day-1 close check would not have helped, the stop came first; only the pattern of 'high of the day in the first 20 minutes, then a lower high' would."
    },
    {
     "ticker": "PAYC",
-    "trigger": "2026-10-01",
+    "date": "2026-10-01",
     "criterion": "od.trigger",
-    "note": "gap +3.7% on 5.0x first-bar volume (the second-heaviest in the strict set), RS 90, bought 229.02 at 9:35. The fill was the high of the day: the stock never ticked higher, slid for an hour and hit the stop (224.09) at 10:35, then recovered to close at 78% of its range. B21: a stop-out is not a re-entry without a new trigger; a drive whose first push fails in minute six is usually not a drive."
+    "why": "gap +3.7% on 5.0x first-bar volume (the second-heaviest in the strict set), RS 90, bought 229.02 at 9:35. The fill was the high of the day: the stock never ticked higher, slid for an hour and hit the stop (224.09) at 10:35, then recovered to close at 78% of its range. B21: a stop-out is not a re-entry without a new trigger; a drive whose first push fails in minute six is usually not a drive."
    },
    {
     "ticker": "RVTY",
-    "trigger": "2026-10-06",
+    "date": "2026-10-06",
     "criterion": "od.market_reading",
-    "note": "gap +2.7%, 2.9x volume, RS 91, 48% above its 200-day. Bought 165.00 at 9:35, best 0.21R, stopped the same day, closed at 13% of the range. One of four strict fires that day (with NVT, ARKG, CIBR), all stopped: the drives were real for five minutes and the market was not."
+    "why": "gap +2.7%, 2.9x volume, RS 91, 48% above its 200-day. Bought 165.00 at 9:35, best 0.21R, stopped the same day, closed at 13% of the range. One of four strict fires that day (with NVT, ARKG, CIBR), all stopped: the drives were real for five minutes and the market was not."
    },
    {
     "ticker": "TSEM",
-    "trigger": "2026-09-17",
+    "date": "2026-09-17",
     "criterion": "od.stop",
-    "note": "a 6.3% gap on 2.5x volume, bought 216.48, reached 2.1R by 9:50, then fell through its open and the stop (214.23) within the hour before recovering to a best close 10% higher within 10 sessions; the stop under the first bar's low was 1.0% away. A tight stop is not a free stop, and a stop-out is not a re-entry (B21)."
+    "why": "a 6.3% gap on 2.5x volume, bought 216.48, reached 2.1R by 9:50, then fell through its open and the stop (214.23) within the hour before recovering to a best close 10% higher within 10 sessions; the stop under the first bar's low was 1.0% away. A tight stop is not a free stop, and a stop-out is not a re-entry (B21)."
    },
    {
     "ticker": "GMAB",
-    "trigger": "2026-10-05",
+    "date": "2026-10-05",
     "criterion": "od.trigger",
-    "note": "rejected as an example: the first bar closed at 94% of its range on 2.8x volume, but the trigger came only at 9:50 and the stock sat flat for four hours; its 42.9R came from a 3:05 pm surge and the next morning's gap, not from the open. A best-R number without the chart is not a textbook example."
+    "why": "rejected as an example: the first bar closed at 94% of its range on 2.8x volume, but the trigger came only at 9:50 and the stock sat flat for four hours; its 42.9R came from a 3:05 pm surge and the next morning's gap, not from the open. A best-R number without the chart is not a textbook example."
    }
   ],
   "limits": "One autumn of 5-minute bars, one market regime; 41 strict trades on 21 days, so the cases are not independent. Only 3 of the 10 examples are strict; 7 pass every rule except one 'my proposal' line (volume 1.5x to 2x, RS 77, a stop a shade over 3%). The news behind each gap was not checked and needs the owner's eye. RS is a proxy rank, not the app's rating; no costs; today's liquid names only. The numbers are a floor to argue from, not a statistic.",

@@ -1236,21 +1236,21 @@
   "failures": [
    {
     "ticker": "LBTYA",
-    "trigger": "2014-09-19",
+    "date": "2014-09-19",
     "criterion": "tl.volume",
-    "note": "the best-looking line of the failures, 8 touches over 83 sessions, slope 0.022, but the break came on only 1.25x volume and closed just 0.39% above the line; the next day closed back under it and the stop (1.35%) traded on day 4. A weak-volume break that barely clears the line is Murphy's intraday penetration dressed as a close."
+    "why": "the best-looking line of the failures, 8 touches over 83 sessions, slope 0.022, but the break came on only 1.25x volume and closed just 0.39% above the line; the next day closed back under it and the stop (1.35%) traded on day 4. A weak-volume break that barely clears the line is Murphy's intraday penetration dressed as a close."
    },
    {
     "ticker": "TMUS",
-    "trigger": "2014-03-21",
+    "date": "2014-03-21",
     "criterion": "tl.time_stop",
-    "note": "6 touches over 51 sessions, closed a full 2% above the line, then three flat closes and a drop through the 0.9% stop on day 4 without ever making a higher high. No follow-through within 3 sessions is itself the signal; the time stop exists for this."
+    "why": "6 touches over 51 sessions, closed a full 2% above the line, then three flat closes and a drop through the 0.9% stop on day 4 without ever making a higher high. No follow-through within 3 sessions is itself the signal; the time stop exists for this."
    },
    {
     "ticker": "IFF",
-    "trigger": "2020-08-10",
+    "date": "2020-08-10",
     "criterion": "tl.overhead_supply",
-    "note": "5 touches, 62 sessions, slope 0.077, a 1.4% close over the line on 1.36x volume; one more up day, then a reversal to the stop (1.7%) on day 2 and a further 4% slide. The overhead supply at anchor 1 and the 50-day just above the break are the places a learner should expect a fight."
+    "why": "5 touches, 62 sessions, slope 0.077, a 1.4% close over the line on 1.36x volume; one more up day, then a reversal to the stop (1.7%) on day 2 and a further 4% slide. The overhead supply at anchor 1 and the 50-day just above the break are the places a learner should expect a fight."
    },
    {
     "ticker": "EL",

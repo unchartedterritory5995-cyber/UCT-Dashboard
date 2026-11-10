@@ -1190,27 +1190,27 @@
   "failures": [
    {
     "ticker": "CMCSA",
-    "trigger": "2026-09-18",
+    "date": "2026-09-18",
     "criterion": "orb.opening_volume",
-    "note": "short at 10:00 on 5.2x opening volume, gap -1.1%, RS 17, risk 1.85%: the break of the OR low ran 0.24R and reversed back into the range the same morning; stopped the same day. The date is the September quarterly expiration: the volume was rebalance volume, not a seller. 168 hits fell on that day."
+    "why": "short at 10:00 on 5.2x opening volume, gap -1.1%, RS 17, risk 1.85%: the break of the OR low ran 0.24R and reversed back into the range the same morning; stopped the same day. The date is the September quarterly expiration: the volume was rebalance volume, not a seller. 168 hits fell on that day."
    },
    {
     "ticker": "DE",
-    "trigger": "2026-11-02",
+    "date": "2026-11-02",
     "criterion": "orb.parent_setup",
-    "note": "long at 10:00 on 3.7x opening volume, RS 81, risk 2.05%, but the stock had gapped down 0.9% and the OR high was only a fraction above the prior day's high; 0.15R and failed within the hour, stopped the same day. A break on a red open with no gap of its own is the bare ORB of 8.8.1."
+    "why": "long at 10:00 on 3.7x opening volume, RS 81, risk 2.05%, but the stock had gapped down 0.9% and the OR high was only a fraction above the prior day's high; 0.15R and failed within the hour, stopped the same day. A break on a red open with no gap of its own is the bare ORB of 8.8.1."
    },
    {
     "ticker": "LII",
-    "trigger": "2026-10-27",
+    "date": "2026-10-27",
     "criterion": "orb.short_context",
-    "note": "short at 10:00 on 3.4x opening volume, gap +0.4% (an up-open in a weak stock, RS 6), risk 2.2%: 0.26R and stopped the same day. The short worked best when the stock opened down and under the prior day's low; an up-open breakdown was the weak cell."
+    "why": "short at 10:00 on 3.4x opening volume, gap +0.4% (an up-open in a weak stock, RS 6), risk 2.2%: 0.26R and stopped the same day. The short worked best when the stock opened down and under the prior day's low; an up-open breakdown was the weak cell."
    },
    {
     "ticker": "OVV",
-    "trigger": "2026-10-09",
+    "date": "2026-10-09",
     "criterion": "orb.trim_1",
-    "note": "5R in session 7, then back to the fixed stop in session 18. QLYS, SNX, TJX and FORM (12.3R) did the same within 20 sessions: the count says stopped, the trims at 3R and 5R and the breakeven move say otherwise. Teach the exit as part of the setup."
+    "why": "5R in session 7, then back to the fixed stop in session 18. QLYS, SNX, TJX and FORM (12.3R) did the same within 20 sessions: the count says stopped, the trims at 3R and 5R and the breakeven move say otherwise. Teach the exit as part of the setup."
    },
    {
     "ticker": "APA",

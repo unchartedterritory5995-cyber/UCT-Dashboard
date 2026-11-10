@@ -1036,21 +1036,21 @@
   "failures": [
    {
     "ticker": "LULU",
-    "trigger": "2020-02-24",
+    "date": "2020-02-24",
     "criterion": "ur.market_turn",
-    "note": "L 242.17, undercut 2.68% the same day, buy at the open 245.39, stop 235.64 (3.97% from the buy, already over the A13 line); made 0.52R and was stopped three sessions later as the market broke down; 20 sessions later the stock was 172. A correct-looking U&R means nothing when the index is breaking."
+    "why": "L 242.17, undercut 2.68% the same day, buy at the open 245.39, stop 235.64 (3.97% from the buy, already over the A13 line); made 0.52R and was stopped three sessions later as the market broke down; 20 sessions later the stock was 172. A correct-looking U&R means nothing when the index is breaking."
    },
    {
     "ticker": "AMD",
-    "trigger": "2021-09-14",
+    "date": "2021-09-14",
     "criterion": "ur.retry",
-    "note": "L 105.52, undercut 2.74%, two closes under, buy 105.52, stop 102.58 (2.79%); reached 0.42R, stopped four sessions later at 99.51 in the September 2021 pullback, back at 105 twenty sessions after that. The stop did its job; a new try needs a new trigger."
+    "why": "L 105.52, undercut 2.74%, two closes under, buy 105.52, stop 102.58 (2.79%); reached 0.42R, stopped four sessions later at 99.51 in the September 2021 pullback, back at 105 twenty sessions after that. The stop did its job; a new try needs a new trigger."
    },
    {
     "ticker": "NVDA",
-    "trigger": "2024-04-05",
+    "date": "2024-04-05",
     "criterion": "ur.after_entry_stop",
-    "note": "L 87.62, undercut 1.99%, one close under, buy 87.63, stop 85.83 (2.05%); reached 0.67R and was stopped two sessions later at 83.02 as the April 2024 correction began. The reclaim day closed in its top half; the best-looking reclaim still loses about 58% of the time."
+    "why": "L 87.62, undercut 1.99%, one close under, buy 87.63, stop 85.83 (2.05%); reached 0.67R and was stopped two sessions later at 83.02 as the April 2024 correction began. The reclaim day closed in its top half; the best-looking reclaim still loses about 58% of the time."
    },
    {
     "ticker": "TRIP",

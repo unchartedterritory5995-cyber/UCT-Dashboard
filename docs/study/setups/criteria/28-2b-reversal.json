@@ -1088,21 +1088,21 @@
   "failures": [
    {
     "ticker": "NVDA",
-    "trigger": "2024-04-18",
+    "date": "2024-04-18",
     "criterion": "tb.market_washout",
-    "note": "the April 9 low (83.02) undercut by 0.75% on April 17 and reclaimed on the 18th (close 84.67, upper half, stop 82.35); the next day opened 83.15 and fell to 75.61, a 9% day through the stop with no warning on the daily chart; the market and the chip group were still making lower lows."
+    "why": "the April 9 low (83.02) undercut by 0.75% on April 17 and reclaimed on the 18th (close 84.67, upper half, stop 82.35); the next day opened 83.15 and fell to 75.61, a 9% day through the stop with no warning on the daily chart; the market and the chip group were still making lower lows."
    },
    {
     "ticker": "AMD",
-    "trigger": "2024-04-16",
+    "date": "2024-04-16",
     "criterion": "tb.market_washout",
-    "note": "the same week, the same group: the February 21 low (161.81) undercut 1.9% on April 15, reclaimed on the 16th (close 163.46), and the next day fell 6% to 154.02, through the stop at 158.71."
+    "why": "the same week, the same group: the February 21 low (161.81) undercut 1.9% on April 15, reclaimed on the 16th (close 163.46), and the next day fell 6% to 154.02, through the stop at 158.71."
    },
    {
     "ticker": "TSLA",
-    "trigger": "2023-08-11",
+    "date": "2023-08-11",
     "criterion": "tb.reclaim_fails",
-    "note": "the June 26 low (240.70) undercut 1.1% and reclaimed the same day (close 242.65); the next session gapped under the level and the stock fell four more days to 219: a second, deeper break in which the failure had failed."
+    "why": "the June 26 low (240.70) undercut 1.1% and reclaimed the same day (close 242.65); the next session gapped under the level and the stock fell four more days to 219: a second, deeper break in which the failure had failed."
    },
    {
     "ticker": "PYPL",

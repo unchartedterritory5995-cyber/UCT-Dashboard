@@ -1022,27 +1022,27 @@
   "failures": [
    {
     "ticker": "ADBE",
-    "trigger": "2014-03-12",
+    "date": "2014-03-12",
     "criterion": "oops.after_entry_stop",
-    "note": "red prior day, opened under the low, closed strong (0.97 of the range) with a 1.16% stop, a 5.1% pullback, the low on the 21-day; the next day opened 0.6% higher and sold straight through the Oops-day low; best excursion 0.0R. A perfect-looking day gives no warning; the stop is the whole plan."
+    "why": "red prior day, opened under the low, closed strong (0.97 of the range) with a 1.16% stop, a 5.1% pullback, the low on the 21-day; the next day opened 0.6% higher and sold straight through the Oops-day low; best excursion 0.0R. A perfect-looking day gives no warning; the stop is the whole plan."
    },
    {
     "ticker": "AMAT",
-    "trigger": "2022-01-14",
+    "date": "2022-01-14",
     "criterion": "oops.market_reading",
-    "note": "a Super Oops (close 167.00, over the prior high) with a 1.04% stop after a 5.6% pullback; three straight down days followed (152.36, 143.07, 139.15): the January 2022 market break, which no single-stock rule sees."
+    "why": "a Super Oops (close 167.00, over the prior high) with a 1.04% stop after a 5.6% pullback; three straight down days followed (152.36, 143.07, 139.15): the January 2022 market break, which no single-stock rule sees."
    },
    {
     "ticker": "ADI",
-    "trigger": "2022-12-16",
+    "date": "2022-12-16",
     "criterion": "oops.market_reading",
-    "note": "opened under the low, closed over the prior close (166.82) with a 1.25% stop and the low 0.6 ATR from the 21-day; drifted sideways two days, then broke the Oops-day low without reaching 1R; a December 2022 Oops in a market that was not Green."
+    "why": "opened under the low, closed over the prior close (166.82) with a 1.25% stop and the low 0.6 ATR from the 21-day; drifted sideways two days, then broke the Oops-day low without reaching 1R; a December 2022 Oops in a market that was not Green."
    },
    {
     "ticker": "WFRD",
-    "trigger": "2022-06-07",
+    "date": "2022-06-07",
     "criterion": "oops.after_entry_stop",
-    "note": "the owner's own kept failed-setup lesson: Actually a good example. But just horrible result. SEI 2025-07-29 is the other."
+    "why": "the owner's own kept failed-setup lesson: Actually a good example. But just horrible result. SEI 2025-07-29 is the other."
    },
    {
     "ticker": "V",

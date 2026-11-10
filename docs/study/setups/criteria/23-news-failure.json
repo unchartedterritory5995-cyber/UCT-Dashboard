@@ -992,27 +992,27 @@
   "failures": [
    {
     "ticker": "MRVL",
-    "trigger": "2026-06-04",
+    "date": "2026-06-04",
     "criterion": "nf.crowding",
-    "note": "long: a 6.2% gap down on 2.7x volume closed in the top 12% of the range above the 200-day, no report that day; the stop, 8% away, was hit before any gain. A strong-looking failure after only a 7% pullback: no crowding behind it."
+    "why": "long: a 6.2% gap down on 2.7x volume closed in the top 12% of the range above the 200-day, no report that day; the stop, 8% away, was hit before any gain. A strong-looking failure after only a 7% pullback: no crowding behind it."
    },
    {
     "ticker": "NBIS",
-    "trigger": "2026-10-15",
+    "date": "2026-10-15",
     "criterion": "nf.stop_width",
-    "note": "long: a 5.7% gap down closed in the top 4% of the range after a 34% fall, the crowded case the rule likes, yet the 12.2% stop was taken with nothing gained. Even the best shape loses often; the stop size alone should have made it a skip or a small size. No report dates on file, so the gap cannot be classed."
+    "why": "long: a 5.7% gap down closed in the top 4% of the range after a 34% fall, the crowded case the rule likes, yet the 12.2% stop was taken with nothing gained. Even the best shape loses often; the stop size alone should have made it a skip or a small size. No report dates on file, so the gap cannot be classed."
    },
    {
     "ticker": "AMAT",
-    "trigger": "2025-04-08",
+    "date": "2025-04-08",
     "criterion": "nf.not_market_wide",
-    "note": "short (also DAL the same day): gapped up 4.2% on 2.2x and closed in the bottom 11% of the range under the 200-day, the day before the 2025-04-09 market rally; both stops were hit the next day at 0R. The bearish read in a washed-out market is a poor sell signal, and a same-day cluster means the news was the market."
+    "why": "short (also DAL the same day): gapped up 4.2% on 2.2x and closed in the bottom 11% of the range under the 200-day, the day before the 2025-04-09 market rally; both stops were hit the next day at 0R. The bearish read in a washed-out market is a poor sell signal, and a same-day cluster means the news was the market."
    },
    {
     "ticker": "ZTS",
-    "trigger": "2025-08-05",
+    "date": "2025-08-05",
     "criterion": "nf.inv_failure_failed",
-    "note": "short, earnings: gap up 5.4%, closed in the bottom 10% of the range, reached 0.9R and then reversed through the day's high. The failure itself failed."
+    "why": "short, earnings: gap up 5.4%, closed in the bottom 10% of the range, reached 0.9R and then reversed through the day's high. The failure itself failed."
    },
    {
     "ticker": "TTD",

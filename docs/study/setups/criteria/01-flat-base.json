@@ -1238,21 +1238,21 @@
   "failures": [
    {
     "ticker": "AMZN",
-    "trigger": "2024-03-21",
+    "date": "2024-03-21",
     "criterion": "fb.close_back_in_base",
-    "note": "a 6.4-week, 8% shelf with four taps and inside days; the breakout day traded to 181.41 on 0.72x volume and closed at 178.15, the low of the day, back inside the base; the next session's low took the 2.05 stop."
+    "why": "a 6.4-week, 8% shelf with four taps and inside days; the breakout day traded to 181.41 on 0.72x volume and closed at 178.15, the low of the day, back inside the base; the next session's low took the 2.05 stop."
    },
    {
     "ticker": "META",
-    "trigger": "2020-06-23",
+    "date": "2020-06-23",
     "criterion": "fb.stop",
-    "note": "gapped above the pivot (241.28), closed mid-range on 1.0x volume; the next day's low hit the stop; two sessions later it closed 10% under the fill. The stop did its job."
+    "why": "gapped above the pivot (241.28), closed mid-range on 1.0x volume; the next day's low hit the stop; two sessions later it closed 10% under the fill. The stop did its job."
    },
    {
     "ticker": "XOM",
-    "trigger": "2026-03-20",
+    "date": "2026-03-20",
     "criterion": "fb.stop_width",
-    "note": "breakout on 2.5x volume but a close in the bottom fifth of the range; the stop sat 0.88% under the fill while the 20-day average range was 2.5%; a 2% gap down stopped it, then it ran to 176 in six sessions."
+    "why": "breakout on 2.5x volume but a close in the bottom fifth of the range; the stop sat 0.88% under the fill while the 20-day average range was 2.5%; a 2% gap down stopped it, then it ran to 176 in six sessions."
    },
    {
     "ticker": "BHC",

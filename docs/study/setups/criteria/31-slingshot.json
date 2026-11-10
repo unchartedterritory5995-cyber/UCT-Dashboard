@@ -1094,27 +1094,27 @@
   "failures": [
    {
     "ticker": "FSLR",
-    "trigger": "2013-05-06",
+    "date": "2013-05-06",
     "criterion": "ss.earnings_window",
-    "note": "the drive was a 45.5% day on 2013-04-09, the pullback 3 closes and 7.1% deep, the trigger closed at 0.94 of its range with a 3.3% stop. The next session opened lower and traded through the stop (low 42.61 against a 46.62 open): out in one day, 0.0R. A giant drive does not make the trigger safer; the stop is what keeps it small. Corrected 2026-11-10: the earnings table puts FSLR's report reaction on 2013-05-07, the session after the buy, so the trade was inside the 3-session blackout and the reversal was the earnings reaction. Not a setup failure; replaced in the failure sheet by SRPT 2019-01-25."
+    "why": "the drive was a 45.5% day on 2013-04-09, the pullback 3 closes and 7.1% deep, the trigger closed at 0.94 of its range with a 3.3% stop. The next session opened lower and traded through the stop (low 42.61 against a 46.62 open): out in one day, 0.0R. A giant drive does not make the trigger safer; the stop is what keeps it small. Corrected 2026-11-10: the earnings table puts FSLR's report reaction on 2013-05-07, the session after the buy, so the trade was inside the 3-session blackout and the reversal was the earnings reaction. Not a setup failure; replaced in the failure sheet by SRPT 2019-01-25."
    },
    {
     "ticker": "BIIB",
-    "trigger": "2022-10-24",
+    "date": "2022-10-24",
     "criterion": "ss.earnings_window",
-    "note": "a 39.9% news gap on 2022-09-28, a 6-close pullback 8.2% deep, a 2.4% stop. The day after the trigger opened at 278.60 and fell to 265.46, through the stop: 0.0R. The biggest gaps breed the most violent next-day reversals, even with a tight stop. Corrected 2026-11-10: the earnings table puts BIIB's report reaction on 2022-10-25, the session after the buy, so the trade was inside the 3-session blackout and the gap down was the earnings reaction. Not a setup failure; replaced in the failure sheet by LOW 2008-08-28."
+    "why": "a 39.9% news gap on 2022-09-28, a 6-close pullback 8.2% deep, a 2.4% stop. The day after the trigger opened at 278.60 and fell to 265.46, through the stop: 0.0R. The biggest gaps breed the most violent next-day reversals, even with a tight stop. Corrected 2026-11-10: the earnings table puts BIIB's report reaction on 2022-10-25, the session after the buy, so the trade was inside the 3-session blackout and the gap down was the earnings reaction. Not a setup failure; replaced in the failure sheet by LOW 2008-08-28."
    },
    {
     "ticker": "PLTR",
-    "trigger": "2026-08-27",
+    "date": "2026-08-27",
     "criterion": "ss.reentry",
-    "note": "the same earnings drive (2026-08-04, +29.5%) gave two triggers six sessions apart (2026-08-21 and 2026-08-27); both were stopped (the first the next day, the second after 4 days, best 0.31R). The re-entry rule allows the second try; a stock that fails its first Slingshot has said the pullback was no longer orderly."
+    "why": "the same earnings drive (2026-08-04, +29.5%) gave two triggers six sessions apart (2026-08-21 and 2026-08-27); both were stopped (the first the next day, the second after 4 days, best 0.31R). The re-entry rule allows the second try; a stock that fails its first Slingshot has said the pullback was no longer orderly."
    },
    {
     "ticker": "PSX",
-    "trigger": "2020-12-10",
+    "date": "2020-12-10",
     "criterion": "ss.leadership",
-    "note": "the same market-wide drive day as LPLA (2020-11-09, +22.2%), 3 closes, 5.5% deep, DCR 0.76, a 3.9% stop: stopped in 2 sessions, 0.0R. The bars cannot say whether PSX was a leader by RS that day; it is the kind of case rule 8 exists for."
+    "why": "the same market-wide drive day as LPLA (2020-11-09, +22.2%), 3 closes, 5.5% deep, DCR 0.76, a 3.9% stop: stopped in 2 sessions, 0.0R. The bars cannot say whether PSX was a leader by RS that day; it is the kind of case rule 8 exists for."
    },
    {
     "ticker": "SRPT",

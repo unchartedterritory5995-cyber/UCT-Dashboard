@@ -1198,21 +1198,21 @@
   "failures": [
    {
     "ticker": "NVDA",
-    "trigger": "2024-04-03",
+    "date": "2024-04-03",
     "criterion": "hg.not_climax",
-    "note": "every box ticked: ADX 53 and rising, a 5-day pullback to the 20 EMA, a 2.8% stop at 87.57 against a 90.11 buy. It was the third month of a near-vertical run, and the first touch after that run was the start of April's correction, not a resting point. Stopped for a full 1R with the best excursion under 0.5R."
+    "why": "every box ticked: ADX 53 and rising, a 5-day pullback to the 20 EMA, a 2.8% stop at 87.57 against a 90.11 buy. It was the third month of a near-vertical run, and the first touch after that run was the start of April's correction, not a resting point. Stopped for a full 1R with the best excursion under 0.5R."
    },
    {
     "ticker": "LULU",
-    "trigger": "2024-01-12",
+    "date": "2024-01-12",
     "criterion": "hg.setup_void",
-    "note": "ADX 51 after the December surge, a 4-day pullback, but the trigger did not come until the fifth session after the touch (the last one allowed) at 488.08 with the stop at 478.08. The late trigger was the tell. It stopped out and did not recover that level in the rest of the year's data."
+    "why": "ADX 51 after the December surge, a 4-day pullback, but the trigger did not come until the fifth session after the touch (the last one allowed) at 488.08 with the stop at 478.08. The late trigger was the tell. It stopped out and did not recover that level in the rest of the year's data."
    },
    {
     "ticker": "CELH",
-    "trigger": "2024-04-01",
+    "date": "2024-04-01",
     "criterion": "hg.length",
-    "note": "ADX 49.5, a 10-day pullback (the longest the rule allows) and a 3.4% stop at 81.37 against an 84.24 buy. Ten days is a flag that has already lost its urgency. Stopped within the 60-session window with no excursion past 0.5R."
+    "why": "ADX 49.5, a 10-day pullback (the longest the rule allows) and a 3.4% stop at 81.37 against an 84.24 buy. Ten days is a flag that has already lost its urgency. Stopped within the 60-session window with no excursion past 0.5R."
    },
    {
     "ticker": "MELI",

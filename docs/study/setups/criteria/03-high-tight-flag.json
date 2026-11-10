@@ -1350,21 +1350,21 @@
   "failures": [
    {
     "ticker": "SRRK",
-    "trigger": "2020-12-22",
+    "date": "2020-12-22",
     "criterion": "htf.breakout_volume",
-    "note": "the biggest pole in the scan (+291% in 34 sessions) and a 6-day, 15.5% flag, but flag volume was 13% of the pole's and the breakout day traded a tenth of its 50-day average; stopped the next session with 0R. A breakout that nobody buys is not a breakout, even on a perfect geometry."
+    "why": "the biggest pole in the scan (+291% in 34 sessions) and a 6-day, 15.5% flag, but flag volume was 13% of the pole's and the breakout day traded a tenth of its 50-day average; stopped the next session with 0R. A breakout that nobody buys is not a breakout, even on a perfect geometry."
    },
    {
     "ticker": "NET",
-    "trigger": "2020-11-27",
+    "date": "2020-11-27",
     "criterion": "htf.flag_depth_a",
-    "note": "+113% in 40 sessions, a 14-day flag 18.7% deep, then a trigger on 0.86x volume with a 1.2% stop under the prior day's low; stopped the next session for 0R. A deeper-than-ideal flag plus weak demand plus a stop tighter than one ordinary day's range is the usual way an HTF entry dies."
+    "why": "+113% in 40 sessions, a 14-day flag 18.7% deep, then a trigger on 0.86x volume with a 1.2% stop under the prior day's low; stopped the next session for 0R. A deeper-than-ideal flag plus weak demand plus a stop tighter than one ordinary day's range is the usual way an HTF entry dies."
    },
    {
     "ticker": "MRVL",
-    "trigger": "2026-05-13",
+    "date": "2026-05-13",
     "criterion": "htf.breakeven",
-    "note": "+107% in 33 sessions, a tight 5-day flag, breakout volume 1.21x; it reached 2.35R and was then stopped at the original stop. Under the house plan the stop would already have been at breakeven, so this fixed-stop loss is a scratch in practice; the scan's 29.6% understates the plan for this reason."
+    "why": "+107% in 33 sessions, a tight 5-day flag, breakout volume 1.21x; it reached 2.35R and was then stopped at the original stop. Under the house plan the stop would already have been at breakeven, so this fixed-stop loss is a scratch in practice; the scan's 29.6% understates the plan for this reason."
    },
    {
     "ticker": "FSLR",

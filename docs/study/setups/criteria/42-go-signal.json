@@ -1183,21 +1183,21 @@
   "failures": [
    {
     "ticker": "NVDA",
-    "trigger": "2024-06-28",
+    "date": "2024-06-28",
     "criterion": "go.close_under_pc_warning",
-    "note": "everything qualified (10-day EMA, a 16% five-day move, a 7.4% flag, RS 98); it opened above the prior close (123.99), dipped to 123.42 and the first candle closed at 126.81, 2.3% up and already 2.7% from the stop; that reclaim was the high of the day, the session closed at 123.54 under the prior close, and the stop (123.39) was hit the next morning. A big first candle widens the risk and leaves nothing to buy against."
+    "why": "everything qualified (10-day EMA, a 16% five-day move, a 7.4% flag, RS 98); it opened above the prior close (123.99), dipped to 123.42 and the first candle closed at 126.81, 2.3% up and already 2.7% from the stop; that reclaim was the high of the day, the session closed at 123.54 under the prior close, and the stop (123.39) was hit the next morning. A big first candle widens the risk and leaves nothing to buy against."
    },
    {
     "ticker": "TSLA",
-    "trigger": "2025-05-30",
+    "date": "2025-05-30",
     "criterion": "go.after_entry_stop",
-    "note": "a 26% five-day move, a dip under the prior day's low (353.82 against a prior close of 358.43), a first candle closing green at 361.86; the third hourly candle broke back under the prior close and the fourth fell through the stop (353.79); the session closed at 346.46, 4.3% below the entry. The turn was real and the stock gave it back within three hours: the same-session stop that 23% of all hits took."
+    "why": "a 26% five-day move, a dip under the prior day's low (353.82 against a prior close of 358.43), a first candle closing green at 361.86; the third hourly candle broke back under the prior close and the fourth fell through the stop (353.79); the session closed at 346.46, 4.3% below the entry. The turn was real and the stock gave it back within three hours: the same-session stop that 23% of all hits took."
    },
    {
     "ticker": "NVDA",
-    "trigger": "2024-05-08",
+    "date": "2024-05-08",
     "criterion": "go.close_under_pc_warning",
-    "note": "a gap-down open (-1.2%) that reclaimed the prior close in the first candle (90.98), then drifted between 89.5 and 90.5 all day, closed at 90.41 under the prior close (90.55), and was stopped the next day at 89.39 for -1R; best excursion 0.08R. A reclaim that does not follow through within the session is the warning in practice."
+    "why": "a gap-down open (-1.2%) that reclaimed the prior close in the first candle (90.98), then drifted between 89.5 and 90.5 all day, closed at 90.41 under the prior close (90.55), and was stopped the next day at 89.39 for -1R; best excursion 0.08R. A reclaim that does not follow through within the session is the warning in practice."
    },
    {
     "ticker": "CRWD",

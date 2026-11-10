@@ -1169,21 +1169,21 @@
   "failures": [
    {
     "ticker": "AMZN",
-    "trigger": "2026-10-12",
+    "date": "2026-10-12",
     "criterion": "av.stop",
-    "note": "the AVWAP from the 2026-08-03 high reclaimed on 2026-10-09 after a 7.6 ATR fall and 47 closes under, a +0.42 ATR close, stop 2.6%; the stock never traded above the fill again and was stopped (0.0R). Everything in the picture was right and it still failed: the stop, not the pattern, is the protection."
+    "why": "the AVWAP from the 2026-08-03 high reclaimed on 2026-10-09 after a 7.6 ATR fall and 47 closes under, a +0.42 ATR close, stop 2.6%; the stock never traded above the fill again and was stopped (0.0R). Everything in the picture was right and it still failed: the stop, not the pattern, is the protection."
    },
    {
     "ticker": "DIS",
-    "trigger": "2021-07-13",
+    "date": "2021-07-13",
     "criterion": "av.volume",
-    "note": "86 closes under the line from the 2021-03-08 high, the reclaim on 2.47x volume, the heaviest of any failure; stop 4.1%; stopped at 0.17R. The loud volume did not help, which matches the base-rate cut."
+    "why": "86 closes under the line from the 2021-03-08 high, the reclaim on 2.47x volume, the heaviest of any failure; stop 4.1%; stopped at 0.17R. The loud volume did not help, which matches the base-rate cut."
    },
    {
     "ticker": "TMO",
-    "trigger": "2022-03-22",
+    "date": "2022-03-22",
     "criterion": "av.market_reading",
-    "note": "a +0.78 ATR close on 1.54x volume after a 9.6 ATR fall, in a year the broad market fell; stopped with 0.0R. The index's own standing matters, and the scan did not read it."
+    "why": "a +0.78 ATR close on 1.54x volume after a 9.6 ATR fall, in a year the broad market fell; stopped with 0.0R. The index's own standing matters, and the scan did not read it."
    },
    {
     "ticker": "PG",

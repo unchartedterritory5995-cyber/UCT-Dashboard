@@ -1566,21 +1566,21 @@
   "failures": [
    {
     "ticker": "QCOM",
-    "trigger": "2019-05-10",
+    "date": "2019-05-10",
     "criterion": "bf.not_after_burst",
-    "note": "a textbook-looking five-day flag (pole +62% in 14 days on an April 2019 gap, flag 8.9% deep on 0.44x the pole's volume, stop 1.8%); the trigger day was the high and the stock fell about 25% in four weeks. The pole was a one-day gap, not a trend, and the flag sat in the pole's third week."
+    "why": "a textbook-looking five-day flag (pole +62% in 14 days on an April 2019 gap, flag 8.9% deep on 0.44x the pole's volume, stop 1.8%); the trigger day was the high and the stock fell about 25% in four weeks. The pole was a one-day gap, not a trend, and the flag sat in the pole's third week."
    },
    {
     "ticker": "STZ",
-    "trigger": "2013-03-04",
+    "date": "2013-03-04",
     "criterion": "bf.stop",
-    "note": "a four-day flag 3.1% deep on a quarter of the pole's volume; it broke out, failed within days (best 0.85R), hit the 1.8% stop, then ran to 50 without us. A clean shape still loses about seven times in ten before 3R under a fixed stop; the answer is the small stop and the next trigger, not a wider stop."
+    "why": "a four-day flag 3.1% deep on a quarter of the pole's volume; it broke out, failed within days (best 0.85R), hit the 1.8% stop, then ran to 50 without us. A clean shape still loses about seven times in ten before 3R under a fixed stop; the answer is the small stop and the next trigger, not a wider stop."
    },
    {
     "ticker": "LLY",
-    "trigger": "2024-08-30",
+    "date": "2024-08-30",
     "criterion": "bf.inv_third_flag",
-    "note": "a five-day flag at all-time highs after a +30% pole, stop 2.25%, best 0.56R; the breakout failed the same week and the stock drifted under the 50-day for two months. A later flag in a long run, in a stock already extended on the weekly chart."
+    "why": "a five-day flag at all-time highs after a +30% pole, stop 2.25%, best 0.56R; the breakout failed the same week and the stock drifted under the 50-day for two months. A later flag in a long run, in a stock already extended on the weekly chart."
    },
    {
     "ticker": "TSLA",

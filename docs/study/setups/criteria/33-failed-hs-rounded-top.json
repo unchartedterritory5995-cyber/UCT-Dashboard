@@ -1191,39 +1191,39 @@
   "failures": [
    {
     "ticker": "AAPL",
-    "trigger": "2026-08-28",
+    "date": "2026-08-28",
     "criterion": "fh.retries",
-    "note": "a clean 51-bar pattern (shoulders 317.40 / 320.28, head 13.5% over the neckline, a 2.8% undercut); the trigger over 320.28 was stopped the next session (stop 315.40, 1.5% away, best 0.0R), then the stock ran to 350 without the trade. A whipsaw, not a wrong read: count the tries and allow a second entry over the same level."
+    "why": "a clean 51-bar pattern (shoulders 317.40 / 320.28, head 13.5% over the neckline, a 2.8% undercut); the trigger over 320.28 was stopped the next session (stop 315.40, 1.5% away, best 0.0R), then the stock ran to 350 without the trade. A whipsaw, not a wrong read: count the tries and allow a second entry over the same level."
    },
    {
     "ticker": "CAT",
-    "trigger": "2024-07-18",
+    "date": "2024-07-18",
     "criterion": "fh.hs_structure",
-    "note": "the shoulders were 8.8% apart (334.87 left, 364.43 right), so the right-shoulder high sat almost at the head and the trigger was late and high; stopped at once (best 0.0R), two months of chop before the autumn run. Uneven shoulders grade lower; the 10% tolerance is the outer limit."
+    "why": "the shoulders were 8.8% apart (334.87 left, 364.43 right), so the right-shoulder high sat almost at the head and the trigger was late and high; stopped at once (best 0.0R), two months of chop before the autumn run. Uneven shoulders grade lower; the 10% tolerance is the outer limit."
    },
    {
     "ticker": "DDOG",
-    "trigger": "2025-01-28",
+    "date": "2025-01-28",
     "criterion": "fh.neckline",
-    "note": "the neckline sloped up so steeply that it ran 2.4% above the right-shoulder high at the trigger: the drawn pattern was not a top. Failed in two days (best 0.0R); the stock lost 40% after its February earnings."
+    "why": "the neckline sloped up so steeply that it ran 2.4% above the right-shoulder high at the trigger: the drawn pattern was not a top. Failed in two days (best 0.0R); the stock lost 40% after its February earnings."
    },
    {
     "ticker": "GOOGL",
-    "trigger": "2026-09-18",
+    "date": "2026-09-18",
     "criterion": "fh.late_stage",
-    "note": "the H&S formed under a higher May high (405), a lower-high structure in a stock that had already topped; the trigger at 351.60 stalled under the 50-day and the neckline, reached 0.8R, and the stock fell 20% by late October. Edwards and Magee's 'last push' warning."
+    "why": "the H&S formed under a higher May high (405), a lower-high structure in a stock that had already topped; the trigger at 351.60 stalled under the 50-day and the neckline, reached 0.8R, and the stock fell 20% by late October. Edwards and Magee's 'last push' warning."
    },
    {
     "ticker": "SMH",
-    "trigger": "2025-12-03",
+    "date": "2025-12-03",
     "criterion": "fh.trigger",
-    "note": "Bracco's autumn 2025 call: the failed breakdown at $325 under the $333 neckline; under the right-shoulder trigger (360.00, the dossier's reading of his chart) it stopped out on 2025-12-12 (-1.0R), and SMH later rose past 400. Which level is the right shoulder, and the stop, decided the outcome."
+    "why": "Bracco's autumn 2025 call: the failed breakdown at $325 under the $333 neckline; under the right-shoulder trigger (360.00, the dossier's reading of his chart) it stopped out on 2025-12-12 (-1.0R), and SMH later rose past 400. Which level is the right shoulder, and the stop, decided the outcome."
    },
    {
     "ticker": "LULU",
-    "trigger": "2023-03-29",
+    "date": "2023-03-29",
     "criterion": "fh.no_chase",
-    "note": "the failure completed on an earnings gap 11.4% over the right shoulder (C28 says skip); bought anyway, -1.0R."
+    "why": "the failure completed on an earnings gap 11.4% over the right shoulder (C28 says skip); bought anyway, -1.0R."
    },
    {
     "ticker": "GILD",

@@ -1241,21 +1241,21 @@
   "failures": [
    {
     "ticker": "AMZN",
-    "trigger": "2021-10-20",
+    "date": "2021-10-20",
     "criterion": "rm.index_remounting",
-    "note": "a textbook-looking remount of both the 50 and the 200 on the same day (2021-10-15) on 1.8x volume after 14 closes below, stop 1.0% under a tight quiet day. Stopped within days with nothing gained, and the stock rolled over into its 2022 decline. The picture was right; the market and the group were not, and a 1% stop on a mega-cap leaves no room."
+    "why": "a textbook-looking remount of both the 50 and the 200 on the same day (2021-10-15) on 1.8x volume after 14 closes below, stop 1.0% under a tight quiet day. Stopped within days with nothing gained, and the stock rolled over into its 2022 decline. The picture was right; the market and the group were not, and a 1% stop on a mega-cap leaves no room."
    },
    {
     "ticker": "PYPL",
-    "trigger": "2018-10-23",
+    "date": "2018-10-23",
     "criterion": "rm.index_remounting",
-    "note": "a 200-day remount on 2.98x volume (the earnings reaction, 2018-10-18 after the close) in the middle of the October 2018 correction, stop 3.2%. Stopped at once as the index made new lows; the stock chopped around its 200-day for months. The heavy-volume remount did not help with the index under its own 200-day."
+    "why": "a 200-day remount on 2.98x volume (the earnings reaction, 2018-10-18 after the close) in the middle of the October 2018 correction, stop 3.2%. Stopped at once as the index made new lows; the stock chopped around its 200-day for months. The heavy-volume remount did not help with the index under its own 200-day."
    },
    {
     "ticker": "BA",
-    "trigger": "2019-06-21",
+    "date": "2019-06-21",
     "criterion": "rm.ma200_rising",
-    "note": "29 closes under the 200-day after the 737 MAX gap, then a 2.7x-volume remount day (2019-06-18). Stopped in a week; the line was retaken and lost again twice more that summer. A 200-day that is flat (it just passed the 20-session test) after a news-driven break is the weakest version of the setup."
+    "why": "29 closes under the 200-day after the 737 MAX gap, then a 2.7x-volume remount day (2019-06-18). Stopped in a week; the line was retaken and lost again twice more that summer. A 200-day that is flat (it just passed the 20-session test) after a news-driven break is the weakest version of the setup."
    },
    {
     "ticker": "DOCU",

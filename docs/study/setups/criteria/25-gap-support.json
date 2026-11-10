@@ -1289,21 +1289,21 @@
   "failures": [
    {
     "ticker": "MSFT",
-    "trigger": "2025-08-04",
+    "date": "2025-08-04",
     "criterion": "gs.timing",
-    "note": "an 8.2% earnings gap on 2.8x volume tested only two sessions later; the low 0.7% under the gap-up low, the close at 74% of the range, 1.5% risk; the stop traded before any gain (0.0R). Second-session tests are the largest group of hits (810) and the weakest (27% to 3R)."
+    "why": "an 8.2% earnings gap on 2.8x volume tested only two sessions later; the low 0.7% under the gap-up low, the close at 74% of the range, 1.5% risk; the stop traded before any gain (0.0R). Second-session tests are the largest group of hits (810) and the weakest (27% to 3R)."
    },
    {
     "ticker": "AVGO",
-    "trigger": "2025-09-24",
+    "date": "2025-09-24",
     "criterion": "gs.gap_not_huge",
-    "note": "a 16.2% earnings gap on 4.3x volume, tested 13 sessions later with a near perfect hold (low 0.7% above the line, close at 88% of the range, 1.7% risk), yet the stop traded without any gain. A clean test day is not enough when the gap was very large: gaps of 15% or more reached 3R 26% of the time against 30% for gaps under 8%."
+    "why": "a 16.2% earnings gap on 4.3x volume, tested 13 sessions later with a near perfect hold (low 0.7% above the line, close at 88% of the range, 1.7% risk), yet the stop traded without any gain. A clean test day is not enough when the gap was very large: gaps of 15% or more reached 3R 26% of the time against 30% for gaps under 8%."
    },
    {
     "ticker": "AMD",
-    "trigger": "2020-09-17",
+    "date": "2020-09-17",
     "criterion": "gs.market_reading",
-    "note": "an 11.7% earnings gap on 2.2x volume tested 35 sessions later with a close at 97% of the range and 3.2% risk; the stop traded with no gain. The stock had already fallen hard from its post-gap high and the broad market was in its September 2020 pullback: the scan ignores the reading, which is the missing filter here."
+    "why": "an 11.7% earnings gap on 2.2x volume tested 35 sessions later with a close at 97% of the range and 3.2% risk; the stop traded with no gain. The stock had already fallen hard from its post-gap high and the broad market was in its September 2020 pullback: the scan ignores the reading, which is the missing filter here."
    },
    {
     "ticker": "AEHR",

@@ -1466,33 +1466,33 @@
   "failures": [
    {
     "ticker": "DIS",
-    "trigger": "2015-09-10",
+    "date": "2015-09-10",
     "criterion": "bg.earnings_breakdown",
-    "note": "the 2015-08-05 gap came one session off the top on 10x volume, the kind he cut as 'just an earnings breakdown'; the bounce to the 20-day was rejected, but the trigger day was the low of the move and the stock reversed up through the stop at once (best 0.0R)."
+    "why": "the 2015-08-05 gap came one session off the top on 10x volume, the kind he cut as 'just an earnings breakdown'; the bounce to the 20-day was rejected, but the trigger day was the low of the move and the stock reversed up through the stop at once (best 0.0R)."
    },
    {
     "ticker": "BMRN",
-    "trigger": "2020-09-24",
+    "date": "2020-09-24",
     "criterion": "bg.not_late",
-    "note": "a textbook 35% gap on 27x volume (2020-08-19); the 20-day rejection came after 24 sessions with the stock already 40% off its high; 1.3R, then a rally through the stop. After a drop that large the 20-day sits far under the zone: shorting late, and Bulkowski's big drops bounce."
+    "why": "a textbook 35% gap on 27x volume (2020-08-19); the 20-day rejection came after 24 sessions with the stock already 40% off its high; 1.3R, then a rally through the stop. After a drop that large the 20-day sits far under the zone: shorting late, and Bulkowski's big drops bounce."
    },
    {
     "ticker": "CIEN",
-    "trigger": "2017-09-29",
+    "date": "2017-09-29",
     "criterion": "bg.market",
-    "note": "rejected at the 20-day after 19 to 23 sessions with a 1.3% stop, stopped at once (best 0.0R) in a strong general uptrend; the stock under its own 200-day satisfied B26, but the Red or Orange reading was not met."
+    "why": "rejected at the 20-day after 19 to 23 sessions with a 1.3% stop, stopped at once (best 0.0R) in a strong general uptrend; the stock under its own 200-day satisfied B26, but the Red or Orange reading was not met."
    },
    {
     "ticker": "CHKP",
-    "trigger": "2017-12-07",
+    "date": "2017-12-07",
     "criterion": "bg.market",
-    "note": "the same shape as CIEN two months later: a 2.4% stop, stopped at once in a strong market. The scan did not check the market; the short needs its help."
+    "why": "the same shape as CIEN two months later: a 2.4% stop, stopped at once in a strong market. The scan did not check the market; the short needs its help."
    },
    {
     "ticker": "AGQ",
-    "trigger": "2026-01-15",
+    "date": "2026-01-15",
     "criterion": "bg.p_day2",
-    "note": "Version P: day 2 opened 9.3% under Wednesday's close after the climax; Bracco's '3 failed attempts over 2 sessions'; the next session it fell further, then on 2026-01-20 it opened over the day-2 high."
+    "why": "Version P: day 2 opened 9.3% under Wednesday's close after the climax; Bracco's '3 failed attempts over 2 sessions'; the next session it fell further, then on 2026-01-20 it opened over the day-2 high."
    },
    {
     "ticker": "NFLX",

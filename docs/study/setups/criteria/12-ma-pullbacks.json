@@ -1256,21 +1256,21 @@
   "failures": [
    {
     "ticker": "NVDA",
-    "trigger": "2024-04-03",
+    "date": "2024-04-03",
     "criterion": "map.market_reading",
-    "note": "20 EMA; a five-day pullback on 0.8x volume, 8% off the high, stacked and rising averages, a 2.8% stop: by the rule as good as the 2023 example. It triggered, rolled over the next day and was stopped for the full 1R; the index was topping into a multi-week correction that started the same week."
+    "why": "20 EMA; a five-day pullback on 0.8x volume, 8% off the high, stacked and rising averages, a 2.8% stop: by the rule as good as the 2023 example. It triggered, rolled over the next day and was stopped for the full 1R; the index was topping into a multi-week correction that started the same week."
    },
    {
     "ticker": "TSLA",
-    "trigger": "2024-01-08",
+    "date": "2024-01-08",
     "criterion": "map.near_high",
-    "note": "50 SMA; the rule passed it (the 50 SMA barely above the 200, within 25% of the high) but it was 20.6% off that high, the 50 SMA was flat, the 200 rising into it, and the pullback 3.6 ATR deep (map.orderly). It failed the same week and went from 240 to 170 in two months. A broken leader's first touch of the 50 is a correction, not a pullback."
+    "why": "50 SMA; the rule passed it (the 50 SMA barely above the 200, within 25% of the high) but it was 20.6% off that high, the 50 SMA was flat, the 200 rising into it, and the pullback 3.6 ATR deep (map.orderly). It failed the same week and went from 240 to 170 in two months. A broken leader's first touch of the 50 is a correction, not a pullback."
    },
    {
     "ticker": "MU",
-    "trigger": "2026-10-07",
+    "date": "2026-10-07",
     "criterion": "map.stop_width",
-    "note": "20 EMA; a seven-day drift onto a rising 20 EMA with the 50 and 200 far below, but 16.7% off its high and with a 5.9% stop. It failed on day two and lost its 50 SMA within the week. Under A13 the trade would have been skipped or sized down."
+    "why": "20 EMA; a seven-day drift onto a rising 20 EMA with the 50 and 200 far below, but 16.7% off its high and with a 5.9% stop. It failed on day two and lost its 50 SMA within the week. Under A13 the trade would have been skipped or sized down."
    },
    {
     "ticker": "GILD",

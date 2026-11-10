@@ -1175,27 +1175,27 @@
   "failures": [
    {
     "ticker": "NVDA",
-    "trigger": "2024-03-04",
+    "date": "2024-03-04",
     "criterion": "peg.stop_pause",
-    "note": "PEG day 2024-02-22, +11.2% gap, 1.9x volume, close at 0.99 of range, up 36% in the prior 65 sessions; bought over the pause high at 84.13 on a gap open with a stop only 0.5% away; the stock stalled and the stop went that week, 0.0R. A 0.5% stop under the trigger day's low on a stock that moves 3% a day is not a stop, and the 36% run was past the A-grade cue."
+    "why": "PEG day 2024-02-22, +11.2% gap, 1.9x volume, close at 0.99 of range, up 36% in the prior 65 sessions; bought over the pause high at 84.13 on a gap open with a stop only 0.5% away; the stock stalled and the stop went that week, 0.0R. A 0.5% stop under the trigger day's low on a stock that moves 3% a day is not a stop, and the 36% run was past the A-grade cue."
    },
    {
     "ticker": "CELH",
-    "trigger": "2023-05-18",
+    "date": "2023-05-18",
     "criterion": "peg.inv_drift",
-    "note": "PEG day 2023-05-10, +10.6% gap, 7.5x volume, close at 0.61; a seven-day pause, buy over 45.07 with a 2.9% stop, straight down to the stop, 0.0R. A big-volume gap that closed only just inside the top half and then needed seven days to trigger; the pause was already a drift."
+    "why": "PEG day 2023-05-10, +10.6% gap, 7.5x volume, close at 0.61; a seven-day pause, buy over 45.07 with a 2.9% stop, straight down to the stop, 0.0R. A big-volume gap that closed only just inside the top half and then needed seven days to trigger; the pause was already a drift."
    },
    {
     "ticker": "ELF",
-    "trigger": "2023-06-06",
+    "date": "2023-06-06",
     "criterion": "peg.entry_pause",
-    "note": "PEG day 2023-05-25, +10.7% gap, 4.6x volume, close at 0.98, up 18% in 65 sessions; bought the eighth-day break at 107.16, stop 2.6% away, stopped without reaching 1R. Textbook gap, textbook pause, still lost: about seven in ten stop at a fixed stop, which is why the plan sizes by the stop, not a sign the rule is wrong."
+    "why": "PEG day 2023-05-25, +10.7% gap, 4.6x volume, close at 0.98, up 18% in 65 sessions; bought the eighth-day break at 107.16, stop 2.6% away, stopped without reaching 1R. Textbook gap, textbook pause, still lost: about seven in ten stop at a fixed stop, which is why the plan sizes by the stop, not a sign the rule is wrong."
    },
    {
     "ticker": "AAPL",
-    "trigger": "2018-08-06",
+    "date": "2018-08-06",
     "criterion": "peg.gap_floor",
-    "note": "one of the mega-caps (also AAPL 2022-02-02, MSFT 2015-04-29, NFLX 2023-01-25, ZM 2025-12-02) gapping 4% to 5% on 2x to 3x volume that gave the thinnest follow-through in the sample; the B- cue for a small gap on a widely covered name."
+    "why": "one of the mega-caps (also AAPL 2022-02-02, MSFT 2015-04-29, NFLX 2023-01-25, ZM 2025-12-02) gapping 4% to 5% on 2x to 3x volume that gave the thinnest follow-through in the sample; the B- cue for a small gap on a widely covered name."
    },
    {
     "ticker": "MSFT",

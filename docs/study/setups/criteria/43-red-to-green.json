@@ -1072,27 +1072,27 @@
   "failures": [
    {
     "ticker": "TXG",
-    "trigger": "2026-09-08",
+    "date": "2026-09-08",
     "criterion": "rg.trigger",
-    "note": "9-day EMA, RS 100, closed green, best 37R on hourly bars; the 5-minute bars show the first bar ticking over the prior close at 9:30 with a low of 61.68 and the day's low of 61.61 printing at 9:45, after that first cross. A first-trade buy with the stop under the low so far (61.65) was stopped 15 minutes later; the stock then crossed again and ran. One in eight of the 40 best candidates had this shape."
+    "why": "9-day EMA, RS 100, closed green, best 37R on hourly bars; the 5-minute bars show the first bar ticking over the prior close at 9:30 with a low of 61.68 and the day's low of 61.61 printing at 9:45, after that first cross. A first-trade buy with the stop under the low so far (61.65) was stopped 15 minutes later; the stock then crossed again and ran. One in eight of the 40 best candidates had this shape."
    },
    {
     "ticker": "TSLA",
-    "trigger": "2025-01-22",
+    "date": "2025-01-22",
     "criterion": "rg.inv_close_back_under",
-    "note": "9-day EMA, gap -1.7%, crossed in hour one, closed at 4% of its range; stopped before the close. Among 992 bar-1 hits with RS 90+ at a level, 292 (29%) were stopped the same day: MU 2026-10-08, AMD 2024-03-14, 2025-11-11 and 2025-11-17 (20-day EMA, all closed in the bottom third), PLTR 2025-04-21 (50-day). Same-day stop-outs are the main cost, even in leaders at a level."
+    "why": "9-day EMA, gap -1.7%, crossed in hour one, closed at 4% of its range; stopped before the close. Among 992 bar-1 hits with RS 90+ at a level, 292 (29%) were stopped the same day: MU 2026-10-08, AMD 2024-03-14, 2025-11-11 and 2025-11-17 (20-day EMA, all closed in the bottom third), PLTR 2025-04-21 (50-day). Same-day stop-outs are the main cost, even in leaders at a level."
    },
    {
     "ticker": "NVDA",
-    "trigger": "2025-08-14",
+    "date": "2025-08-14",
     "criterion": "rg.stop_gap",
-    "note": "9-day EMA, closed green at 72% of its range, best 0.63R, stopped two sessions later on the next gap down. A green close is not a free pass: 102 of 540 RS-90+ level hits that closed green were stopped within a few sessions without reaching 1R (META 2024-04-10, COHR 2026-06-30)."
+    "why": "9-day EMA, closed green at 72% of its range, best 0.63R, stopped two sessions later on the next gap down. A green close is not a free pass: 102 of 540 RS-90+ level hits that closed green were stopped within a few sessions without reaching 1R (META 2024-04-10, COHR 2026-06-30)."
    },
    {
     "ticker": "TWLO",
-    "trigger": "2026-09-02",
+    "date": "2026-09-02",
     "criterion": "rg.tries",
-    "note": "met every rule at the 20-day EMA, crossed in hour one, stopped the same day (best 0.6R); the retry on 2026-09-15 at the same level ran 14.8R. CRM 2026-10-19 and 10-20 crossed at the 20-day EMA and faded (0.6R and 1.5R before the stop); CRM 2026-10-27 was stopped the same day. His ALAB 2026-08-13, NOW 2026-09 and BE 2026-03 trades did not pass the scan's filters."
+    "why": "met every rule at the 20-day EMA, crossed in hour one, stopped the same day (best 0.6R); the retry on 2026-09-15 at the same level ran 14.8R. CRM 2026-10-19 and 10-20 crossed at the 20-day EMA and faded (0.6R and 1.5R before the stop); CRM 2026-10-27 was stopped the same day. His ALAB 2026-08-13, NOW 2026-09 and BE 2026-03 trades did not pass the scan's filters."
    },
    {
     "ticker": "AMD",

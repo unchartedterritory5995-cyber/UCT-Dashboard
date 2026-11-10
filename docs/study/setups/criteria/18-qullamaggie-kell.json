@@ -1761,21 +1761,21 @@
   "failures": [
    {
     "ticker": "NVDA",
-    "trigger": "2024-11-06",
+    "date": "2024-11-06",
     "criterion": "qk.breakout_first_base",
-    "note": "a 23-session, 16%-deep base after a 32% run broke out on 0.9x volume, reached 2.1R and was stopped; the prior move was near the smallest the rule allows and the stock was already far along its yearly advance, Kell's late in the cycle case."
+    "why": "a 23-session, 16%-deep base after a 32% run broke out on 0.9x volume, reached 2.1R and was stopped; the prior move was near the smallest the rule allows and the stock was already far along its yearly advance, Kell's late in the cycle case."
    },
    {
     "ticker": "AMZN",
-    "trigger": "2020-04-30",
+    "date": "2020-04-30",
     "criterion": "qk.breakout_earnings_window",
-    "note": "a 14-session flag after a 41% run broke out on 1.5x volume on the day of its earnings report after the close, gapped down and never traded above the entry (best 0.0R); check the report date before buying a breakout."
+    "why": "a 14-session flag after a 41% run broke out on 1.5x volume on the day of its earnings report after the close, gapped down and never traded above the entry (best 0.0R); check the report date before buying a breakout."
    },
    {
     "ticker": "AMD",
-    "trigger": "2024-02-15",
+    "date": "2024-02-15",
     "criterion": "qk.breakout_stop",
-    "note": "a 9.7%-deep, 13-session flag after a 34% run broke out on 0.7x volume and was stopped at once with 0.0R; the pattern was textbook, the leader simply failed, which is what the stop is for."
+    "why": "a 9.7%-deep, 13-session flag after a 34% run broke out on 0.7x volume and was stopped at once with 0.0R; the pattern was textbook, the leader simply failed, which is what the stop is for."
    },
    {
     "ticker": "QCOM",

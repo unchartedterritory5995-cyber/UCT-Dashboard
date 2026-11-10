@@ -1275,21 +1275,21 @@
   "failures": [
    {
     "ticker": "SBUX",
-    "trigger": "2024-08-16",
+    "date": "2024-08-16",
     "criterion": "ep.entry_delayed",
-    "note": "an 18% news gap on 2024-08-13 on 13x volume (a new CEO, not a report day) closed at 98% of its range; the day-4 inside-day break at 94.97 hit the stop the next session, 0R. A strong gap with no follow-through once the buyers who wanted in had bought; the inside-day trigger was the weaker one in the scan."
+    "why": "an 18% news gap on 2024-08-13 on 13x volume (a new CEO, not a report day) closed at 98% of its range; the day-4 inside-day break at 94.97 hit the stop the next session, 0R. A strong gap with no follow-through once the buyers who wanted in had bought; the inside-day trigger was the weaker one in the scan."
    },
    {
     "ticker": "TSLA",
-    "trigger": "2019-10-28",
+    "date": "2019-10-28",
     "criterion": "ep.stop_delayed",
-    "note": "a 17% earnings gap on 2019-10-24 on 4.4x volume, bought on the day-3 break of the post-gap high at 22.01 (split-adjusted); it hit the stop the next session without reaching 1R, though the stock went on to a far larger move months later. An EP entry can be right about the stock and still lose on the first trigger."
+    "why": "a 17% earnings gap on 2019-10-24 on 4.4x volume, bought on the day-3 break of the post-gap high at 22.01 (split-adjusted); it hit the stop the next session without reaching 1R, though the stock went on to a far larger move months later. An EP entry can be right about the stock and still lose on the first trigger."
    },
    {
     "ticker": "GOOGL",
-    "trigger": "2015-07-21",
+    "date": "2015-07-21",
     "criterion": "ep.inv_late",
-    "note": "a 13% earnings gap on 2015-07-17 on 7.4x volume after a 19% six-month rise; the day-3 break reached only 0.5R before stopping out. The already-up-into-the-news case."
+    "why": "a 13% earnings gap on 2015-07-17 on 7.4x volume after a 19% six-month rise; the day-3 break reached only 0.5R before stopping out. The already-up-into-the-news case."
    },
    {
     "ticker": "ANF",

@@ -1092,27 +1092,27 @@
   "failures": [
    {
     "ticker": "TSLA",
-    "trigger": "2025-02-06",
+    "date": "2025-02-06",
     "criterion": "spr.range_height",
-    "note": "a 25-day range 373.04 to 439.74, 17.9% tall, three touches, probe 0.52 ATR on 0.97x volume, stop 2.65%; bought 373.04 at the open, never traded above the entry, broke the spring low the next day and gapped on. A tall range after a 73% run in the prior 60 sessions, in a market turning down."
+    "why": "a 25-day range 373.04 to 439.74, 17.9% tall, three touches, probe 0.52 ATR on 0.97x volume, stop 2.65%; bought 373.04 at the open, never traded above the entry, broke the spring low the next day and gapped on. A tall range after a 73% run in the prior 60 sessions, in a market turning down."
    },
    {
     "ticker": "MSFT",
-    "trigger": "2023-08-08",
+    "date": "2023-08-08",
     "criterion": "spr.after_entry_stop",
-    "note": "a 40-day range, 13.1% tall, three touches, a cents-deep 0.16 ATR probe on 0.76x volume, stop 1.07%: everything the rules ask for, stopped on the third day without ever showing a profit. A spring that fails usually fails at once."
+    "why": "a 40-day range, 13.1% tall, three touches, a cents-deep 0.16 ATR probe on 0.76x volume, stop 1.07%: everything the rules ask for, stopped on the third day without ever showing a profit. A spring that fails usually fails at once."
    },
    {
     "ticker": "AAPL",
-    "trigger": "2021-10-01",
+    "date": "2021-10-01",
     "criterion": "spr.index_sprung",
-    "note": "AAPL and QQQ both sprang on the same day and both made 0.0R: a market-wide shakeout that did not finish; the index's own spring failed, and so did the leader's."
+    "why": "AAPL and QQQ both sprang on the same day and both made 0.0R: a market-wide shakeout that did not finish; the index's own spring failed, and so did the leader's."
    },
    {
     "ticker": "NVO",
-    "trigger": "2025-12-12",
+    "date": "2025-12-12",
     "criterion": "spr.stop_gap",
-    "note": "an upthrust short, stop 1.64%; ran to 2.98R, a hair short of the 3R trim, then gapped from 48.10 to an open of 52.67 through the 50.78 stop on 12-23. B20 applies; the upthrust short below the 200-day stays capped at grade B."
+    "why": "an upthrust short, stop 1.64%; ran to 2.98R, a hair short of the 3R trim, then gapped from 48.10 to an open of 52.67 through the 50.78 stop on 12-23. B20 applies; the upthrust short below the 200-day stays capped at grade B."
    },
    {
     "ticker": "GOOGL",

@@ -1314,21 +1314,21 @@
   "failures": [
    {
     "ticker": "MU",
-    "trigger": "2022-03-29",
+    "date": "2022-03-29",
     "criterion": "wp.earnings_window",
-    "note": "a pop through 81.20 on 1.8 times the 50-day volume, closing at 82.05 above both EMAs, after a 31% decline and 14 of 15 closes under the 20 EMA: a textbook picture. Micron reported that evening; the next day's low of 78.60 went through the 79.21 stop at the open. AMZN 2016-01-28 is the same story."
+    "why": "a pop through 81.20 on 1.8 times the 50-day volume, closing at 82.05 above both EMAs, after a 31% decline and 14 of 15 closes under the 20 EMA: a textbook picture. Micron reported that evening; the next day's low of 78.60 went through the 79.21 stop at the open. AMZN 2016-01-28 is the same story."
    },
    {
     "ticker": "CRWD",
-    "trigger": "2021-03-17",
+    "date": "2021-03-17",
     "criterion": "wp.not_earnings_day",
-    "note": "the pop was itself the earnings-reaction day on 3 times the 50-day volume, and the day's range left a stop 8.6% below the fill; stopped the next session at 47.40. An earnings-day pop is an Episodic Pivot or Power Earnings Gap, and a stop wider than about 3% is a reason for a smaller position or a pass, never a reason to tighten it to fit."
+    "why": "the pop was itself the earnings-reaction day on 3 times the 50-day volume, and the day's range left a stop 8.6% below the fill; stopped the next session at 47.40. An earnings-day pop is an Episodic Pivot or Power Earnings Gap, and a stop wider than about 3% is a reason for a smaller position or a pass, never a reason to tighten it to fit."
    },
    {
     "ticker": "COIN",
-    "trigger": "2024-08-23",
+    "date": "2024-08-23",
     "criterion": "wp.volume",
-    "note": "a 13-day base after a 41% decline, 15 of 15 closes under the 20 EMA, then a pop through 209.80 that closed at 211.40, but on only 1.04 times the 50-day volume and with a 4.7% stop; two sessions later the low of 194.10 took the stop. Pops with volume under 1.5 times the base and a stop wider than 3% were the scan's weakest groups; this one was both."
+    "why": "a 13-day base after a 41% decline, 15 of 15 closes under the 20 EMA, then a pop through 209.80 that closed at 211.40, but on only 1.04 times the 50-day volume and with a 4.7% stop; two sessions later the low of 194.10 took the stop. Pops with volume under 1.5 times the base and a stop wider than 3% were the scan's weakest groups; this one was both."
    },
    {
     "ticker": "PLTR",

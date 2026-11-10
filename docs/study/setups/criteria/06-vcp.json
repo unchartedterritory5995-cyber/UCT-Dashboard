@@ -1427,36 +1427,36 @@
   "failures": [
    {
     "ticker": "ALGN",
-    "trigger": "2007-10-17",
+    "date": "2007-10-17",
     "criterion": "vcp.squat",
-    "note": "two contractions (27.5%, 7.1%), a 59-session base, 2.3x volume through the 28.64 pivot, but the day closed at 28.14, back inside the base; the next day's low, 27.64, took out the 27.70 stop. Best 0R. A breakout that closes back in the base is the warning sign with the worst numbers in the scan.",
+    "why": "two contractions (27.5%, 7.1%), a 59-session base, 2.3x volume through the 28.64 pivot, but the day closed at 28.14, back inside the base; the next day's low, 27.64, took out the 27.70 stop. Best 0R. A breakout that closes back in the base is the warning sign with the worst numbers in the scan.",
     "stopped": "stopped 1 session after the buy, 2007-10-18, low 27.64"
    },
    {
     "ticker": "CMG",
-    "trigger": "2020-12-16",
+    "date": "2020-12-16",
     "criterion": "vcp.after_entry_stop",
-    "note": "contractions 14.2% and 4.6%, 2.0x volume, a close above the pivot, an A grade on its face; it reached only 0.87R and fell to the stop 11 sessions later (2021-01-04). A failure with nothing wrong in the setup: the reason the stop, not an opinion, is the exit.",
+    "why": "contractions 14.2% and 4.6%, 2.0x volume, a close above the pivot, an A grade on its face; it reached only 0.87R and fell to the stop 11 sessions later (2021-01-04). A failure with nothing wrong in the setup: the reason the stop, not an opinion, is the exit.",
     "stopped": "stopped 11 sessions after the buy, 2021-01-04, low 26.25"
    },
    {
     "ticker": "META",
-    "trigger": "2024-07-05",
+    "date": "2024-07-05",
     "criterion": "vcp.breakeven",
-    "note": "contractions 22.0% and 5.7%, 61 sessions, 1.4x volume, a close above the pivot at 539.91 against a 522.88 pivot; best 1.18R, then stopped 5 sessions later (2024-07-12, low 494.23). The stop was 3.2% under; the breakeven move (B19) would not yet have applied at 1.18R.",
+    "why": "contractions 22.0% and 5.7%, 61 sessions, 1.4x volume, a close above the pivot at 539.91 against a 522.88 pivot; best 1.18R, then stopped 5 sessions later (2024-07-12, low 494.23). The stop was 3.2% under; the breakeven move (B19) would not yet have applied at 1.18R.",
     "stopped": "stopped 5 sessions after the buy, 2024-07-12, low 494.23"
    },
    {
     "ticker": "AXON",
-    "trigger": "2025-02-18",
+    "date": "2025-02-18",
     "criterion": "vcp.stop_width",
-    "note": "a stop-placement lesson, not a pattern failure: the stock opened above the pivot, the fill was 694.02 and the buy day's low 691.86, so the day-low stop sat 0.3% under the fill; the next day gapped to a 592.76 low, far through it, and B20 (the first 30-minute low, out past 2R) governed the exit. The case ChartMill's ATR floor is aimed at, and a question for the owner (D-005)."
+    "why": "a stop-placement lesson, not a pattern failure: the stock opened above the pivot, the fill was 694.02 and the buy day's low 691.86, so the day-low stop sat 0.3% under the fill; the next day gapped to a 592.76 low, far through it, and B20 (the first 30-minute low, out past 2R) governed the exit. The case ChartMill's ATR floor is aimed at, and a question for the owner (D-005)."
    },
    {
     "ticker": "CRWD",
-    "trigger": "2021-04-22",
+    "date": "2021-04-22",
     "criterion": "vcp.inv_first_t_deep",
-    "note": "a 31.5% first contraction, a close back under the pivot (54.18 against 55.81), a 5.1% stop; stopped after 5 sessions with a best of 0.34R. A deep first leg plus a squat: two of the warnings at once.",
+    "why": "a 31.5% first contraction, a close back under the pivot (54.18 against 55.81), a 5.1% stop; stopped after 5 sessions with a best of 0.34R. A deep first leg plus a squat: two of the warnings at once.",
     "stopped": "stopped 5 sessions after the buy, 2021-04-29, low 52.10"
    }
   ],

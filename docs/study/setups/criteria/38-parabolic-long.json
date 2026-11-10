@@ -1248,39 +1248,39 @@
   "failures": [
    {
     "ticker": "2020-02-28 cluster (DIA, MDY, CVS, RF, BAC and dozens more)",
-    "trigger": "2020-02-28",
+    "date": "2020-02-28",
     "criterion": "pl.not_crash_start",
-    "note": "83 names printed a gap-down reversal day on heavy volume with every box ticked and every context met; 0 reached 5R and all were stopped. The first week of a breakdown from an all-time high; the real low came 16 sessions later. The 2020-03-06 repeat (10 hits, none reached 1R) was the same lesson."
+    "why": "83 names printed a gap-down reversal day on heavy volume with every box ticked and every context met; 0 reached 5R and all were stopped. The first week of a breakdown from an all-time high; the real low came 16 sessions later. The 2020-03-06 repeat (10 hits, none reached 1R) was the same lesson."
    },
    {
     "ticker": "BKU",
-    "trigger": "2023-03-16",
+    "date": "2023-03-16",
     "criterion": "pl.inv_linear",
-    "note": "a 44% fall to 8.2 ATR under the 50-day, 4 boxes, 4.4x volume, a green close: stopped at 0R the next session. The regional-bank panic had one more leg; SLG six sessions later on 03-24 is example 8. The first turn after a shock often comes too early."
+    "why": "a 44% fall to 8.2 ATR under the 50-day, 4 boxes, 4.4x volume, a green close: stopped at 0R the next session. The regional-bank panic had one more leg; SLG six sessions later on 03-24 is example 8. The first turn after a shock often comes too early."
    },
    {
     "ticker": "ALGN",
-    "trigger": "2018-10-26",
+    "date": "2018-10-26",
     "criterion": "pl.not_news",
-    "note": "a 45% fall and a reversal day on 4.6x volume, but the fall began with its own report (2018-10-24 after the close): 0R, stopped."
+    "why": "a 45% fall and a reversal day on 4.6x volume, but the fall began with its own report (2018-10-24 after the close): 0R, stopped."
    },
    {
     "ticker": "SQQQ",
-    "trigger": "2020-08-27",
+    "date": "2020-08-27",
     "criterion": "pl.instrument",
-    "note": "a 3x inverse Nasdaq ETF 35% off its high with all 5 boxes made 0.01R. Its selling climax is simply the index making a high; mean reversion in an inverse fund is a bet on an index pullback, a different setup."
+    "why": "a 3x inverse Nasdaq ETF 35% off its high with all 5 boxes made 0.01R. Its selling climax is simply the index making a high; mean reversion in an inverse fund is a bet on an index pullback, a different setup."
    },
    {
     "ticker": "CAR",
-    "trigger": "2026-04-24",
+    "date": "2026-04-24",
     "criterion": "pl.room_to_target",
-    "note": "from 847.70 to 202.31 in three sessions after a squeeze; 04-27 undercut $200, 04-29 gapped to 157.16, then 140.44 by 05-14. The 9 EMA (above 260 at the end of April) was not reached until 05-21."
+    "why": "from 847.70 to 202.31 in three sessions after a squeeze; 04-27 undercut $200, 04-29 gapped to 157.16, then 140.44 by 05-14. The 9 EMA (above 260 at the end of April) was not reached until 05-21."
    },
    {
     "ticker": "NBIS",
-    "trigger": "2026-10-15",
+    "date": "2026-10-15",
     "criterion": "pl.not_crash_start",
-    "note": "all five boxes and a close at the top of its range, +7.4% from the open; the next day -12.2% and a new low, 149.48 by 10-26. A perfect-looking daily V in a fresh breakdown (the Nasdaq lost its 200-day in early November)."
+    "why": "all five boxes and a close at the top of its range, +7.4% from the open; the next day -12.2% and a new low, 149.48 by 10-26. A perfect-looking daily V in a fresh breakdown (the Nasdaq lost its 200-day in early November)."
    },
    {
     "ticker": "BAC",

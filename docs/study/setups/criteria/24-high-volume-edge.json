@@ -1430,21 +1430,21 @@
   "failures": [
    {
     "ticker": "NAVN",
-    "trigger": "2026-03-27",
+    "date": "2026-03-27",
     "criterion": "hve.stop_width",
-    "note": "the owner's 'perfect' HVE gave the day-2 trigger (opened 12.80 under the 13.11 HVC and traded through it) but the day-2 low was 7.2% under the HVC, a 7.5% stop; taken as the scan takes it, the stop was hit on the day-4 undercut before the run to +87%. When the day-2 stop is too wide, skip and wait for a later entry at the level."
+    "why": "the owner's 'perfect' HVE gave the day-2 trigger (opened 12.80 under the 13.11 HVC and traded through it) but the day-2 low was 7.2% under the HVC, a 7.5% stop; taken as the scan takes it, the stop was hit on the day-4 undercut before the run to +87%. When the day-2 stop is too wide, skip and wait for a later entry at the level."
    },
    {
     "ticker": "MBX",
-    "trigger": "2025-09-23",
+    "date": "2025-09-23",
     "criterion": "hve.close_position",
-    "note": "+100% on 62x the 50-day and 10x the old record, but a close at 0.26 of the range; the day-2 reclaim with a 7.4% stop never saw a cent of profit. A record day that closes in the bottom quarter is a supply day dressed as an HVE."
+    "why": "+100% on 62x the 50-day and 10x the old record, but a close at 0.26 of the range; the day-2 reclaim with a 7.4% stop never saw a cent of profit. A record day that closes in the bottom quarter is a supply day dressed as an HVE."
    },
    {
     "ticker": "KOD",
-    "trigger": "2026-09-29",
+    "date": "2026-09-29",
     "criterion": "hve.breakeven",
-    "note": "+178% on 57x, an all-time record, close 0.83; triggered, reached 2.2R and came back through the 7.0% stop. PRTA 2022-09-28 (+88%, 27x, close 0.90) did the same at 2.4R with a 4.3% stop. No cue predicts these; the breakeven move at 2R makes them scratches."
+    "why": "+178% on 57x, an all-time record, close 0.83; triggered, reached 2.2R and came back through the 7.0% stop. PRTA 2022-09-28 (+88%, 27x, close 0.90) did the same at 2.4R with a 4.3% stop. No cue predicts these; the breakeven move at 2R makes them scratches."
    },
    {
     "ticker": "QGEN",

@@ -1137,27 +1137,27 @@
   "failures": [
    {
     "ticker": "NVDA",
-    "trigger": "2024-04-01",
+    "date": "2024-04-01",
     "criterion": "id.inv_close_under_21",
-    "note": "inside day 2024-03-28, bought at 91.31 with the stop at 89.14; the stock had already closed under its 10-day for a week after the March run (close 90.36 against a 10-day of 91.00); the break lasted one day and the stop went on 2024-04-02. An inside day inside a stall under the fast average is a pause in a range, not a continuation."
+    "why": "inside day 2024-03-28, bought at 91.31 with the stop at 89.14; the stock had already closed under its 10-day for a week after the March run (close 90.36 against a 10-day of 91.00); the break lasted one day and the stop went on 2024-04-02. An inside day inside a stall under the fast average is a pause in a range, not a continuation."
    },
    {
     "ticker": "TSLA",
-    "trigger": "2021-01-14",
+    "date": "2021-01-14",
     "criterion": "id.not_stretched",
-    "note": "inside day 2021-01-13, bought at 286.83 with the stop at 277.28; passed C29 by a hair (9.1% over the 10-day) but was 17% over the 21 EMA after a vertical January; stopped the next session. Near the 10% line, treat it as stretched."
+    "why": "inside day 2021-01-13, bought at 286.83 with the stop at 277.28; passed C29 by a hair (9.1% over the 10-day) but was 17% over the 21 EMA after a vertical January; stopped the next session. Near the 10% line, treat it as stretched."
    },
    {
     "ticker": "NVDA",
-    "trigger": "2025-01-24",
+    "date": "2025-01-24",
     "criterion": "id.stop_gap",
-    "note": "inside day 2025-01-23 closed at the top of its range, 6.4% over the 10-day; bought at 148.37 on a gap over the 147.24 trigger, stop 143.67; the entry day reversed to 141.88 and stopped the trade the same day, and on 2025-01-27 the stock gapped to 124.80 on news. A perfect-looking bar is still a coin flip; the stop is the plan and B20 is what saves the account when the gap comes through it."
+    "why": "inside day 2025-01-23 closed at the top of its range, 6.4% over the 10-day; bought at 148.37 on a gap over the 147.24 trigger, stop 143.67; the entry day reversed to 141.88 and stopped the trade the same day, and on 2025-01-27 the stock gapped to 124.80 on news. A perfect-looking bar is still a coin flip; the stop is the plan and B20 is what saves the account when the gap comes through it."
    },
    {
     "ticker": "HOOD",
-    "trigger": "2026-09-08",
+    "date": "2026-09-08",
     "criterion": "id.not_stretched",
-    "note": "his own 4 Sep 2026 inside day, 11.0% over its 10-day SMA; triggered and stopped the same day. C29 would have skipped it."
+    "why": "his own 4 Sep 2026 inside day, 11.0% over its 10-day SMA; triggered and stopped the same day. C29 would have skipped it."
    },
    {
     "ticker": "NFLX",

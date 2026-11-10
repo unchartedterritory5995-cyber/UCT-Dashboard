@@ -1324,27 +1324,27 @@
   "failures": [
    {
     "ticker": "ELF",
-    "trigger": "2024-04-04",
+    "date": "2024-04-04",
     "criterion": "mr.prior_trend_a",
-    "note": "eight straight down closes (-21% after a +58% run) ended with a 2.2 ATR flush on 3x volume under the 50-day, RSI(2) 0, four marks; the turn day reclaimed the flush close and closed red; the stop (2.2%) was hit the next session. An eight-day slide through the 50-day on a stock that had just made a parabolic top is a broken leader, not a stretched one."
+    "why": "eight straight down closes (-21% after a +58% run) ended with a 2.2 ATR flush on 3x volume under the 50-day, RSI(2) 0, four marks; the turn day reclaimed the flush close and closed red; the stop (2.2%) was hit the next session. An eight-day slide through the 50-day on a stock that had just made a parabolic top is a broken leader, not a stretched one."
    },
    {
     "ticker": "NFLX",
-    "trigger": "2022-07-21",
+    "date": "2022-07-21",
     "criterion": "mr.inv_business_change",
-    "note": "the short: a post-report gap up 24% in four days on 4.9x volume, 47% under the 200-day, RSI(2) 100; the short triggered and the stock never came back, climbing for a month. A report gap that changes the story is an earnings gap, not a stretched rally in a dead stock; the honest stop was also 4.9%."
+    "why": "the short: a post-report gap up 24% in four days on 4.9x volume, 47% under the 200-day, RSI(2) 100; the short triggered and the stock never came back, climbing for a month. A report gap that changes the story is an earnings gap, not a stretched rally in a dead stock; the honest stop was also 4.9%."
    },
    {
     "ticker": "IONQ",
-    "trigger": "2026-04-16",
+    "date": "2026-04-16",
     "criterion": "mr.short_above_200",
-    "note": "the short: a 54% rally in four days on 4.2x volume to 7% under the 200-day, 5/5 marks; the short triggered with a 5.2% stop, was hit the next session, and the stock traded above $60 within five weeks. Fading a strong momentum burst; a four-day 54% move is the parabolic family."
+    "why": "the short: a 54% rally in four days on 4.2x volume to 7% under the 200-day, 5/5 marks; the short triggered with a 5.2% stop, was hit the next session, and the stock traded above $60 within five weeks. Fading a strong momentum burst; a four-day 54% move is the parabolic family."
    },
    {
     "ticker": "DASH",
-    "trigger": "2024-05-03",
+    "date": "2024-05-03",
     "criterion": "mr.stop_width",
-    "note": "a report flush of 3.2 ATR on 6x volume, 17.5% in three days after a +27% run, four marks; the turn day reclaimed and failed, 0.2R. The honest stop was 6.4%, double A13's guide, and a report-driven drop in a name still well under its high had no level to lean on."
+    "why": "a report flush of 3.2 ATR on 6x volume, 17.5% in three days after a +27% run, four marks; the turn day reclaimed and failed, 0.2R. The honest stop was 6.4%, double A13's guide, and a report-driven drop in a name still well under its high had no level to lean on."
    },
    {
     "ticker": "ILMN",

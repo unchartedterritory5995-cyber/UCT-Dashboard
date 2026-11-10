@@ -1042,21 +1042,21 @@
   "failures": [
    {
     "ticker": "AAPL",
-    "trigger": "2026-10-16",
+    "date": "2026-10-16",
     "criterion": "pvt.trigger",
-    "note": "5 reds into the 10-day, pivot 15:00, bought 343.15 at 15:30, stop 341.10; went nowhere and was stopped. The same on 2026-10-26 (pivot 15:00, bought 344.07). A pivot in the last hour has no session left to work; 156 of the 1,477 trades were such late triggers."
+    "why": "5 reds into the 10-day, pivot 15:00, bought 343.15 at 15:30, stop 341.10; went nowhere and was stopped. The same on 2026-10-26 (pivot 15:00, bought 344.07). A pivot in the last hour has no session left to work; 156 of the 1,477 trades were such late triggers."
    },
    {
     "ticker": "MSFT",
-    "trigger": "2026-09-01",
+    "date": "2026-09-01",
     "criterion": "pvt.stop_width",
-    "note": "4 reds into the 10-day, bought 501.07, stop 498.97 (0.42% risk); reached 0.5R and was stopped. NVDA 2026-10-09 (2 reds into the 21-day, 0.42%) was stopped at once; MSFT's 10-14, 10-21 and 10-22 pivots failed the same way. On a slow mega-cap a 2-dollar stop is inside the noise; the originator built it for volatile names."
+    "why": "4 reds into the 10-day, bought 501.07, stop 498.97 (0.42% risk); reached 0.5R and was stopped. NVDA 2026-10-09 (2 reds into the 21-day, 0.42%) was stopped at once; MSFT's 10-14, 10-21 and 10-22 pivots failed the same way. On a slow mega-cap a 2-dollar stop is inside the noise; the originator built it for volatile names."
    },
    {
     "ticker": "INTC",
-    "trigger": "2026-09-29",
+    "date": "2026-09-29",
     "criterion": "pvt.inv_context",
-    "note": "pivots at the 10 and 21-day on 09-29, 10-06 and 10-07 (risk 0.8% to 2.8%) all stopped with no follow-through: three stabs in six sessions on a name that had stopped trending, which E56 would have cut off after the third try in a week. The entry and stop rules were met; the daily picture and the clock were the difference."
+    "why": "pivots at the 10 and 21-day on 09-29, 10-06 and 10-07 (risk 0.8% to 2.8%) all stopped with no follow-through: three stabs in six sessions on a name that had stopped trending, which E56 would have cut off after the third try in a week. The entry and stop rules were met; the daily picture and the clock were the difference."
    },
    {
     "ticker": "AXON",

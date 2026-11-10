@@ -1242,27 +1242,27 @@
   "failures": [
    {
     "ticker": "MU",
-    "trigger": "2025-08-19",
+    "date": "2025-08-19",
     "criterion": "xbk.stop",
-    "note": "pop 08-08 on 1.3x volume, a 3-day drift, hold day 08-18, entry 123.70 with a 2.5% stop; stopped the next session (08-20) with a best excursion of 0R. A clean-looking crossback that simply failed: the stop did its job."
+    "why": "pop 08-08 on 1.3x volume, a 3-day drift, hold day 08-18, entry 123.70 with a 2.5% stop; stopped the next session (08-20) with a best excursion of 0R. A clean-looking crossback that simply failed: the stop did its job."
    },
    {
     "ticker": "LLY",
-    "trigger": "2024-09-03",
+    "date": "2024-09-03",
     "criterion": "xbk.wedge_pop_first",
-    "note": "pop 08-08 (2.9x, the earnings gap), 16 sessions to the hold day, a 6-day drift, entry 961.02, 2.1% stop; stopped on 09-04, best 0R. The long wait after the pop and a stock already up 15% over the prior quarter match 8.7's warning about buying late in the stock's own advance (xbk.inv_late_cycle)."
+    "why": "pop 08-08 (2.9x, the earnings gap), 16 sessions to the hold day, a 6-day drift, entry 961.02, 2.1% stop; stopped on 09-04, best 0R. The long wait after the pop and a stock already up 15% over the prior quarter match 8.7's warning about buying late in the stock's own advance (xbk.inv_late_cycle)."
    },
    {
     "ticker": "NFLX",
-    "trigger": "2023-04-11",
+    "date": "2023-04-11",
     "criterion": "xbk.earnings_window",
-    "note": "pop 03-23, a 2-day drift, entry 34.34 (split-adjusted), 3.2% stop; stopped 04-12, best 0R, with the report's reaction day on 04-19. The entry was 5 sessions before earnings, outside B22's 3-session window, but the stock could not hold its pullback low into the print."
+    "why": "pop 03-23, a 2-day drift, entry 34.34 (split-adjusted), 3.2% stop; stopped 04-12, best 0R, with the report's reaction day on 04-19. The entry was 5 sessions before earnings, outside B22's 3-session window, but the stock could not hold its pullback low into the print."
    },
    {
     "ticker": "AAPL",
-    "trigger": "2022-02-09",
+    "date": "2022-02-09",
     "criterion": "xbk.index_20ema",
-    "note": "pop 01-28 off the January low, hold 02-08, 2.6% stop; stopped 02-11 with 0R. The Nasdaq 100 had closed under its own 20-day EMA the day before the entry and regained it only that day, inside the January 2022 correction: the market condition Kell and UCT's intro both warn about."
+    "why": "pop 01-28 off the January low, hold 02-08, 2.6% stop; stopped 02-11 with 0R. The Nasdaq 100 had closed under its own 20-day EMA the day before the entry and regained it only that day, inside the January 2022 correction: the market condition Kell and UCT's intro both warn about."
    }
   ],
   "limits": "Daily bars only (the 65-minute trigger was not tested); no RS or market data in the scan; the short mirror was not scanned; the base rate is the raw pattern with a fixed stop; a scan cannot see the clean and obvious quality the owner grades by eye, which is why the ten were chosen by looking at every chart, not by best R. The ten machine-found candidates in 8.10 (three winners in ten) are leads for him to chart and grade.",

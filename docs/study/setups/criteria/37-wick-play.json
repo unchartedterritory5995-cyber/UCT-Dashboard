@@ -1080,27 +1080,27 @@
   "failures": [
    {
     "ticker": "AMZN",
-    "trigger": "2018-09-04",
+    "date": "2018-09-04",
     "criterion": "wk.stop_width",
-    "note": "a 60% wick on 2018-08-30, a clean inside day, a fill at 101.33 with a 1.1% stop, 1.1% under the 52-week high; the next session's low was 99.49, stopped for 0R, and the stock never traded above 102.53 in the following 20 sessions. A perfect-looking wick play at the end of a run is still a 1%-stop bet on one more push; the rule did not fail, the run was over."
+    "why": "a 60% wick on 2018-08-30, a clean inside day, a fill at 101.33 with a 1.1% stop, 1.1% under the 52-week high; the next session's low was 99.49, stopped for 0R, and the stock never traded above 102.53 in the following 20 sessions. A perfect-looking wick play at the end of a run is still a 1%-stop bet on one more push; the rule did not fail, the run was over."
    },
    {
     "ticker": "DDOG",
-    "trigger": "2020-10-06",
+    "date": "2020-10-06",
     "criterion": "wk.not_stretched",
-    "note": "the wick day sat 9.6% over its 10-day, almost at the C29 line, and day 2's low left a 4.1% stop; day 3 traded through the trigger to 109.60 and down to 102.14, under the stop, the same day; stopped on 10-08, then ran to 2.3R within a week. A stretched name with a wide stop: skip, or take the stop and wait for a new setup."
+    "why": "the wick day sat 9.6% over its 10-day, almost at the C29 line, and day 2's low left a 4.1% stop; day 3 traded through the trigger to 109.60 and down to 102.14, under the stop, the same day; stopped on 10-08, then ran to 2.3R within a week. A stretched name with a wide stop: skip, or take the stop and wait for a new setup."
    },
    {
     "ticker": "SHOP",
-    "trigger": "2024-02-12",
+    "date": "2024-02-12",
     "criterion": "wk.earnings_window",
-    "note": "a 55% wick on 02-08, a clean inside day, a fill at 91.40 with a 2.75% stop; on 02-13 it opened at 77.80, 15% lower, far through the stop on the earnings reaction. B22 is the lesson."
+    "why": "a 55% wick on 02-08, a clean inside day, a fill at 91.40 with a 2.75% stop; on 02-13 it opened at 77.80, 15% lower, far through the stop on the earnings reaction. B22 is the lesson."
    },
    {
     "ticker": "ANET",
-    "trigger": "2025-08-13",
+    "date": "2025-08-13",
     "criterion": "wk.stop_broker",
-    "note": "day 1 carried an 84% wick three sessions after the earnings reaction, 8% over the 10-day; day 3 printed 141.99 through the 141.46 trigger and closed at 138.01 with a low of 136.01, 3.9% under the entry: stopped on the entry day on any ordering of the bars; then 4.5R within 20 sessions. A stretched name's first push can fail inside the day, and a stop is a stop."
+    "why": "day 1 carried an 84% wick three sessions after the earnings reaction, 8% over the 10-day; day 3 printed 141.99 through the 141.46 trigger and closed at 138.01 with a low of 136.01, 3.9% under the entry: stopped on the entry day on any ordering of the bars; then 4.5R within 20 sessions. A stretched name's first push can fail inside the day, and a stop is a stop."
    },
    {
     "ticker": "V",

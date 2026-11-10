@@ -28,6 +28,10 @@ What `validate_card` checks, one line each:
   * grading has non-empty a_plus, b_minus and no_trade lists; invalidations and mistakes are non-empty; short_mirror
     says whether one exists; management names the trims and the trail;
   * every criterion's `owner_question` is listed in `owner_decisions`;
+  * `examples.failures` and `examples.near_misses` each hold at least MIN_EXAMPLES entries, every entry a dict with
+    ticker, date (YYYY-MM-DD, or YYYY-MM with a note in brackets for an owner's trade dated by week), criterion (an id
+    on this card, or "none" for a loss that broke no rule) and why; `examples.sheets` names the failures and near_misses
+    sheets;
   * no em-dash anywhere in the file, and never "the firm" (VOICE.md; OWNER_PRINCIPLES rule 11).
 
 Id regexes (documented here because the other registers are written by other hands):
@@ -69,6 +73,8 @@ MIN_LOOKALIKES = 2
 MIN_SEEDS = 3
 MIN_SEED_KINDS = 3
 MANAGEMENT_KEYS = ("trim_1", "trim_2", "trail", "breakeven")
+MIN_EXAMPLES = 4
+EXAMPLE_DATE = re.compile(r"^\d{4}-\d{2}(-\d{2}|\s*\(.+\))$")
 EM_DASH = "—"
 OUR_NAME = re.compile(r"\bthe firm('s)?\b", re.I)
 
@@ -357,6 +363,32 @@ def validate_card(card: dict, repo_root: pathlib.Path = REPO, *, path: Optional[
     for oq in sorted(asked):
         if oq not in od:
             out.append(f"owner_question {oq} is not listed in owner_decisions")
+
+    # the recognition examples: losses traded by the rules and near-misses that fail exactly one rule
+    ex = card.get("examples")
+    if not isinstance(ex, dict):
+        out.append("examples must be an object")
+    else:
+        for key in ("failures", "near_misses"):
+            rows = ex.get(key)
+            if not isinstance(rows, list) or len(rows) < MIN_EXAMPLES:
+                out.append(f"examples.{key} needs at least {MIN_EXAMPLES} entries")
+                rows = rows if isinstance(rows, list) else []
+            for i, e in enumerate(rows):
+                if not isinstance(e, dict):
+                    out.append(f"examples.{key}[{i}] must be an object")
+                    continue
+                for need in ("ticker", "date", "criterion", "why"):
+                    if not e.get(need):
+                        out.append(f"examples.{key}[{i}] ({e.get('ticker', '?')}): missing {need}")
+                if e.get("date") and not EXAMPLE_DATE.match(str(e["date"])):
+                    out.append(f"examples.{key}[{i}] ({e.get('ticker', '?')}): date must be YYYY-MM-DD")
+                crit_id = e.get("criterion")
+                if crit_id and crit_id != "none" and crit_id not in ids:
+                    out.append(f"examples.{key}[{i}] ({e.get('ticker', '?')}): criterion '{crit_id}' is not on this card")
+        sheets = ex.get("sheets")
+        if not isinstance(sheets, dict) or not sheets.get("failures") or not sheets.get("near_misses"):
+            out.append("examples.sheets must name the failures and near_misses sheets")
 
     # voice, over the whole file
     blob = json.dumps(card, ensure_ascii=False)

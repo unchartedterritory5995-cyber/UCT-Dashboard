@@ -132,6 +132,27 @@ def _question_not_listed(d):
     d["owner_decisions"].remove("D-043")
 
 
+
+def _too_few_near_misses(d):
+    d["examples"]["near_misses"] = d["examples"]["near_misses"][:2]
+
+
+def _failure_missing_why(d):
+    d["examples"]["failures"][0].pop("why")
+
+
+def _failure_bad_date(d):
+    d["examples"]["failures"][0]["date"] = "March 2024"
+
+
+def _near_miss_unknown_criterion(d):
+    d["examples"]["near_misses"][0]["criterion"] = "fb.no_such_rule"
+
+
+def _no_sheets(d):
+    d["examples"].pop("sheets")
+
+
 def _bad_id(d):
     _crit(d, "fb.depth")["id"] = "Depth"
 
@@ -219,6 +240,11 @@ def _gate_not_bool(d):
     (_pending_without_question, "pending-owner needs an owner_question"),
     (_bad_question_format, "must be D-NNN or a Q-NN-n placeholder"),
     (_question_not_listed, "owner_question D-043 is not listed in owner_decisions"),
+    (_too_few_near_misses, "examples.near_misses needs at least 4 entries"),
+    (_failure_missing_why, "missing why"),
+    (_failure_bad_date, "date must be YYYY-MM-DD"),
+    (_near_miss_unknown_criterion, "criterion 'fb.no_such_rule' is not on this card"),
+    (_no_sheets, "examples.sheets must name the failures and near_misses sheets"),
     (_bad_id, "id must be <prefix>.<snake>"),
     (_second_prefix, "more than one id prefix"),
     (_duplicate_id, "duplicate id"),
