@@ -36,3 +36,20 @@
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 
 https://claude.ai/code/session_01Dhm4qhJhGoto7iixuJEEzM
+
+## On the combined head `0e650af360` (SIMULATED)
+- **Master merged in** (Lead's decision): one merge commit of `origin/master` `5c78b4b74a` (which includes #1005 and
+  #1006). No conflicts.
+- **Related tests** (`src/agent/agentGuide*`, `src/agent/guide`, `src/agent/contract`, `agentContracts`): 1026 passed.
+- **Notebook bytes:** 2,252,617 B on this head against 2,252,608 B on master. **+9 B**, verdict PASS against budget
+  2,260,793 B.
+  - The 9 bytes are all in the shared entry chunk (`index`, 563,679 → 563,688).
+  - A string-literal diff of that chunk finds no added text, and the lazy-chunk names it references are identical. So
+    the difference is minifier identifier naming (more exports in the guide modules shift some mangled names to longer
+    ones). No content reaches first open.
+  - The packet gate says "≤ 0 for anything that reaches first-open", so this is listed for the Lead's call.
+- **One locked full suite** (`src/agent`, `src/pages/command`; quiet machine; BelowNormal):
+  - `Test Files 2 failed | 302 passed | 5 skipped (309)`, `Tests 3 failed | 9777 passed | 14 skipped (9794)`.
+  - The 3 failures are pre-existing master reds: `src/pages/command/keyListenerCensus` ×2 and `shortcutRegistry`
+    DrillPlayer ×1.
+  - `src/agent` is all green.
