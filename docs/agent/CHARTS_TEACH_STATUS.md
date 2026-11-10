@@ -12,8 +12,8 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 |---|---|---|---|---|---|---|
 | C1 | 134 | 3 | 13 | 14 | 11 | 0 |
 | C2 | 44 | 6 | 16 | 23 | 12 | 0 |
-| C3 | 127 | 15 | 24 | 34 | 18 | 5 |
-| All | 305 | 24 | 53 | 71 | 41 | 5 |
+| C3 | 136 | 15 | 24 | 26 | 16 | 6 |
+| All | 314 | 24 | 53 | 63 | 39 | 6 |
 
 - VERIFIED: proved in the browser, as above.
 - ROUTED / BROWSER FAILED: the words reach the right walkthrough, but the browser run did not end on its control. Routing only; the reason is in the row.
@@ -72,7 +72,7 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C1-046 | Replay | Legacy bar replay play/step/speed/scrub | NO ASSIGNED WALKTHROUGH |  | The words reach replay; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C1-047 | Settings | Toggle grid | VERIFIED | chartSetting | Browser 2026-11-10: "how do I toggle grid" → ring on the last step's control | VERIFIED |
 | C1-048 | Settings | Solid/gradient background | VERIFIED | chartSetting | Browser 2026-11-10: "how do I solid/gradient background" → ring on the last step's control | VERIFIED |
-| C1-049 | Settings | Solid background colour | VERIFIED | control: The chart’s background | Browser 2026-11-10: "how do I solid background colour" → ring on the last step's control | ASSIGNED / NOT REACHED |
+| C1-049 | Settings | Solid background colour | VERIFIED | control: The chart’s background | Browser 2026-11-10: "how do I solid background colour" → ring on the last step's control | VERIFIED |
 | C1-050 | Settings | Gradient colours | VERIFIED | chartSetting | Browser 2026-11-10: "how do I gradient colours" → ring on the last step's control | VERIFIED |
 | C1-051 | Settings | Crosshair mode | VERIFIED | chartSetting | Browser 2026-11-10: "how do I crosshair mode" → ring on the last step's control | VERIFIED |
 | C1-052 | Settings | Crosshair colour/width/style | VERIFIED | chartSetting | Browser 2026-11-10: "how do I crosshair colour/width/style" → ring on the last step's control | VERIFIED |
@@ -101,7 +101,7 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C1-075 | Settings | Bar-close countdown (Shift+C) | VERIFIED | chartSetting | Browser 2026-11-10: "how do I bar-close countdown (Shift+C)" → ring on the last step's control | VERIFIED |
 | C1-076 | Settings | Restore defaults | VERIFIED | panelAction: Restoring a chart’s defaults | Browser 2026-11-10: "how do I restore defaults" → ring on the last step's control | VERIFIED |
 | C1-077 | Settings | Save / delete a custom colour | NO ASSIGNED WALKTHROUGH |  | The words reach settings; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
-| C1-078 | Settings | Light/dark palette (Shift+T) | VERIFIED | chartView: Light or dark chart | Browser 2026-11-10: "how do I light/dark palette (Shift+T)" → ring on the last step's control | NO WALKTHROUGH |
+| C1-078 | Settings | Light/dark palette (Shift+T) | VERIFIED | chartView: Light or dark chart | Browser 2026-11-10: "how do I light/dark palette (Shift+T)" → ring on the last step's control | VERIFIED |
 | C1-079 | Themes | Apply a theme to one chart | VERIFIED | chartThemes | Browser 2026-11-10: "how do I apply a theme to one chart" → ring on the last step's control | VERIFIED |
 | C1-080 | Themes | Apply a theme to all charts | VERIFIED | panelAction | Browser 2026-11-10: "how do I apply a theme to all charts" → ring on the last step's control | VERIFIED |
 | C1-081 | Themes | Apply a theme to all widgets | VERIFIED | panelAction | Browser 2026-11-10: "how do I apply a theme to all widgets" → ring on the last step's control | VERIFIED |
@@ -173,14 +173,14 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C1-147 | Drawing | Recolour | VERIFIED | drawingEdit | Browser 2026-11-10: "show me how to make that line pink" → ring on the last step's control | VERIFIED |
 | C1-148 | Drawing | Width and line style | VERIFIED | drawingEdit | Browser 2026-11-10: "how do I width and line style" → ring on the last step's control | VERIFIED |
 | C1-149 | Drawing | Fill and border | VERIFIED | control: A drawing’s Fill | Browser 2026-11-10: "show me how to shade that box blue" → ring on the last step's control | VERIFIED |
-| C1-150 | Drawing | Text font, size, bold, italic, background | VERIFIED | control: A drawing’s Bold | Browser 2026-11-10: "show me how to make the note bold" → ring on the last step's control | NO ASSIGNED WALKTHROUGH |
+| C1-150 | Drawing | Text font, size, bold, italic, background | VERIFIED | control: A drawing’s Bold | Browser 2026-11-10: "show me how to make the note bold" → ring on the last step's control | VERIFIED |
 | C1-151 | Drawing | Fib levels and fills | VERIFIED | drawingEdit | Browser 2026-11-10: "how do I fib levels and fills" → ring on the last step's control | VERIFIED |
 | C1-152 | Drawing | Reset fib | ROUTED / BROWSER FAILED | control: A drawing’s Reset levels | "show me how to reset the fib levels" reaches it; browser: step 1: no point of the region it names opened the menu row it needs | ROUTED / BROWSER FAILED |
 | C1-153 | Drawing | Measure-label options | ROUTED / BROWSER FAILED | control: A drawing’s Show bars | "show me how to hide bars on the measure" reaches it; browser: step 1: no point of the region it names opened the menu row it needs | ROUTED / BROWSER FAILED |
-| C1-154 | Drawing | Price label on a line | VERIFIED | control: A drawing’s Show price label | Browser 2026-11-10: "show me how to show the price on that line" → ring on the last step's control | NO ASSIGNED WALKTHROUGH |
+| C1-154 | Drawing | Price label on a line | VERIFIED | control: A drawing’s Show price label | Browser 2026-11-10: "show me how to show the price on that line" → ring on the last step's control | VERIFIED |
 | C1-155 | Drawing | Edit anchors | VERIFIED | drawingEdit | Browser 2026-11-10: "how do I edit anchors" → ring on the last step's control | VERIFIED |
 | C1-156 | Drawing | Make horizontal | VERIFIED | control: A drawing’s Make horizontal | Browser 2026-11-10: "show me how to flatten that line" → ring on the last step's control | VERIFIED |
-| C1-157 | Drawing | Duplicate | VERIFIED | control: A drawing’s Duplicate | Browser 2026-11-10: "show me how to copy that line" → ring on the last step's control | NO ASSIGNED WALKTHROUGH |
+| C1-157 | Drawing | Duplicate | VERIFIED | control: A drawing’s Duplicate | Browser 2026-11-10: "show me how to copy that line" → ring on the last step's control | VERIFIED |
 | C1-158 | Drawing | Lock/unlock | VERIFIED | drawingEdit | Browser 2026-11-10: "show me how to lock that line" → ring on the last step's control | VERIFIED |
 | C1-159 | Drawing | Hide/show one | VERIFIED | drawingEdit | Browser 2026-11-10: "show me how to hide that fib" → ring on the last step's control | VERIFIED |
 | C1-160 | Drawing | Save as default | NO ASSIGNED WALKTHROUGH |  | The words reach control; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
@@ -322,7 +322,7 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C3-020 | Chart tabs | Add a chart tab | VERIFIED | chartTab | Browser 2026-11-10: "how do I add a chart tab" → ring on the last step's control | VERIFIED |
 | C3-021 | Chart tabs | Switch a chart tab | VERIFIED | tabAction | Browser 2026-11-10: "how do I switch a chart tab" → ring on the last step's control | VERIFIED |
 | C3-022 | Chart tabs | Rename a chart tab | VERIFIED | control: Renaming a chart tab | Browser 2026-11-10: "how do I rename a chart tab" → ring on the last step's control | VERIFIED |
-| C3-023 | Chart tabs | Change a chart tab's link colour | ROUTED / BROWSER FAILED | control: A chart tab’s link colour | "how do I change a chart tab's link colour" reaches it; browser: no walkthrough: Harness 6:39 PM how do I change a chart tab's link colour // UCT Agent 6:39 PM I can’t see the tab’s dot on your screen right now — Chart (SPY) may be scrolled | ROUTED / BROWSER FAILED |
+| C3-023 | Chart tabs | Change a chart tab's link colour | ROUTED / BROWSER FAILED | control: A chart tab’s link colour | "how do I change a chart tab's link colour" reaches it; browser: no walkthrough: Harness 9:54 PM how do I change a chart tab's link colour // UCT Agent 9:54 PM I can’t see the tab’s dot on your screen right now — Chart (SPY) may be scrolled | ROUTED / BROWSER FAILED |
 | C3-024 | Chart tabs | Close a chart tab | VERIFIED | tabAction | Browser 2026-11-10: "how do I close a chart tab" → ring on the last step's control | VERIFIED |
 | C3-025 | Layout Dock | Open a saved layout | VERIFIED | layouts | Browser 2026-11-10: "how do I open a saved layout" → ring on the last step's control | VERIFIED |
 | C3-026 | Layout Dock | See which layout is open | VERIFIED | layoutAction | Browser 2026-11-10: "how do I see which layout is open" → ring on the last step's control | VERIFIED |
@@ -365,45 +365,45 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C3-063 | Watchlist | Open a list in a widget (own) | VERIFIED | watchlistAction: Opening one of your lists | Browser 2026-11-10: "show me how to show my Momentum list" → ring on the last step's control | VERIFIED |
 | C3-064 | Watchlist | Open a prebuilt or community list | VERIFIED | watchlistAction | Browser 2026-11-10: "how do I open a prebuilt or community list" → ring on the last step's control | VERIFIED |
 | C3-065 | Watchlist | Open the Flagged list | VERIFIED | watchlistAction | Browser 2026-11-10: "how do I open the Flagged list" → ring on the last step's control | VERIFIED |
-| C3-066 | Watchlist | Open a colour-tag list | NOT IN PRODUCT |  | Colour-tag lists are rendered only by the unscoped Watchlists page (!pickList), and /watchlists redirects to Charts; the widget's list picker has no tag lists. | NO ASSIGNED WALKTHROUGH |
+| C3-066 | Watchlist | Open a colour-tag list | NOT IN PRODUCT |  | Colour-tag lists are rendered only by the unscoped Watchlists page (!pickList), and /watchlists redirects to Charts; the widget's list picker has no tag lists. | NOT IN PRODUCT |
 | C3-067 | Watchlist | Go back to the list picker | VERIFIED | control: Going back to the list picker | Browser 2026-11-10: "how do I go back to the list picker" → ring on the last step's control | VERIFIED |
 | C3-068 | Watchlist | Click a row to load the symbol | VERIFIED | watchlistAction | Browser 2026-11-10: "how do I click a row to load the symbol" → ring on the last step's control | VERIFIED |
 | C3-069 | Watchlist | Walk the list with arrow keys or space | VERIFIED | watchlistAction | Browser 2026-11-10: "how do I walk the list with arrow keys or space" → ring on the last step's control | VERIFIED |
 | C3-070 | Watchlist | Create a list | VERIFIED | watchlistCreate | Browser 2026-11-10: "how do I create a list" → ring on the last step's control | VERIFIED |
-| C3-071 | Watchlist | Create a list from a template | ROUTED / BROWSER FAILED | watchlistAction: Creating a list from a template | "how do I create a list from a template" reaches it; browser: last step shows its fallback: You have no saved watchlist looks yet, so there’s no Template here. Save one from ⚙ → ＋ Save as Template on a list first. | NO ASSIGNED WALKTHROUGH |
-| C3-072 | Watchlist | Save a community list to My Lists | NO ASSIGNED WALKTHROUGH |  | The words reach watchlistAction; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
-| C3-073 | Watchlist | Rename a list | NO ASSIGNED WALKTHROUGH |  | The words reach control; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
-| C3-074 | Watchlist | Rename the Flagged list | NO WALKTHROUGH |  | The inventory words reach none. | NO WALKTHROUGH |
+| C3-071 | Watchlist | Create a list from a template | ROUTED / BROWSER FAILED | watchlistAction: Creating a list from a template | "how do I create a list from a template" reaches it; browser: last step shows its fallback: You have no saved watchlist looks yet, so there’s no Template here. Save one from ⚙ → ＋ Save as Template on a list first. | ROUTED / BROWSER FAILED |
+| C3-072 | Watchlist | Save a community list to My Lists | VERIFIED | watchlistAction: Saving a community list to My Lists | Browser 2026-11-10: "how do I save a community list to My Lists" → ring on the last step's control | NO ASSIGNED WALKTHROUGH |
+| C3-073 | Watchlist | Rename a list | VERIFIED | watchlistAction: Renaming a list | Browser 2026-11-10: "how do I rename a list" → ring on the last step's control | NO ASSIGNED WALKTHROUGH |
+| C3-074 | Watchlist | Rename the Flagged list | VERIFIED | watchlistAction: Renaming a list | Browser 2026-11-10: "how do I rename the Flagged list" → ring on the last step's control | NO WALKTHROUGH |
 | C3-075 | Watchlist | Delete a list | VERIFIED | control: Deleting a watchlist | Browser 2026-11-10: "how do I delete a list" → ring on the last step's control | VERIFIED |
-| C3-076 | Watchlist | Add a symbol | VERIFIED | watchlistAddSymbol | Browser 2026-11-10: "show me how to add NVDA to Momentum" → ring on the last step's control | ASSIGNED / NOT REACHED |
+| C3-076 | Watchlist | Add a symbol | VERIFIED | watchlistAddSymbol | Browser 2026-11-10: "show me how to add NVDA to Momentum" → ring on the last step's control | VERIFIED |
 | C3-077 | Watchlist | Add to Flagged | VERIFIED | watchlistAction | Browser 2026-11-10: "how do I add to Flagged" → ring on the last step's control | VERIFIED |
 | C3-078 | Watchlist | Flag or unflag a row (star) | VERIFIED | watchlistAction | Browser 2026-11-10: "how do I flag or unflag a row (star)" → ring on the last step's control | VERIFIED |
-| C3-079 | Watchlist | Remove a symbol | VERIFIED | watchlistAction | Browser 2026-11-10: "show me how to remove NVDA from Momentum" → ring on the last step's control | ASSIGNED / NOT REACHED |
-| C3-080 | Watchlist | Remove all starred symbols from a list | NO ASSIGNED WALKTHROUGH |  | The words reach watchlistAction; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
-| C3-081 | Watchlist | Reorder symbols by hand | NOT IN PRODUCT |  | No control in the product: Watchlists.jsx never starts a row drag (dragItemId is never set), so a ticker cannot be reordered by hand. | NO WALKTHROUGH |
+| C3-079 | Watchlist | Remove a symbol | VERIFIED | watchlistAction | Browser 2026-11-10: "show me how to remove NVDA from Momentum" → ring on the last step's control | VERIFIED |
+| C3-080 | Watchlist | Remove all starred symbols from a list | NOT IN PRODUCT |  | No way to star a ticker in a list: the list menu’s Remove starred shows only while a list has starred tickers, and nothing in the product stars one (pages/Watchlists.jsx toggleStar is never called; a row’s ☆ is Add to Flagged). | NO ASSIGNED WALKTHROUGH |
+| C3-081 | Watchlist | Reorder symbols by hand | NOT IN PRODUCT |  | No control in the product: Watchlists.jsx never starts a row drag (dragItemId is never set), so a ticker cannot be reordered by hand. | NOT IN PRODUCT |
 | C3-082 | Watchlist | Sort by a column | VERIFIED | watchlistAction | Browser 2026-11-10: "how do I sort by a column" → ring on the last step's control | VERIFIED |
-| C3-083 | Watchlist | Show or hide a column | VERIFIED | watchlistAction | Browser 2026-11-10: "how do I show or hide a column" → ring on the last step's control | ASSIGNED / NOT REACHED |
-| C3-084 | Watchlist | Apply a column preset | NOT IN PRODUCT |  | Column presets (COL_PRESETS) are rendered only in the unscoped page's sub-header (!pickList); the widget's column menu has none. | NO WALKTHROUGH |
-| C3-085 | Watchlist | Reorder columns by drag | VERIFIED | watchlistAction: Reordering a list’s columns | Browser 2026-11-10: "how do I reorder columns by drag" → ring on the last step's control | NO WALKTHROUGH |
-| C3-086 | Watchlist | Resize a column | VERIFIED | control: Resizing a list’s column | Browser 2026-11-10: "how do I resize a column" → ring on the last step's control | ASSIGNED / NOT REACHED |
-| C3-087 | Watchlist | Reset columns | VERIFIED | control: Resetting a list’s columns | Browser 2026-11-10: "how do I reset columns" → ring on the last step's control | ASSIGNED / NOT REACHED |
-| C3-088 | Watchlist | Write or edit a ticker note | VERIFIED | watchlistAction | Browser 2026-11-10: "how do I write or edit a ticker note" → ring on the last step's control | ASSIGNED / NOT REACHED |
-| C3-089 | Watchlist | Expand or collapse a list | NOT IN PRODUCT |  | The widget shows one list, always open: there is nothing to expand or collapse. ‹ Lists switches the list. | NO WALKTHROUGH |
-| C3-090 | Watchlist | Tag a symbol with a colour | NOT IN PRODUCT |  | Not in the Charts Watchlist widget (counted NOT IN PRODUCT for the widget family): a ticker’s colour tag lives on the ticker action menu (components/TickerActions.jsx, opened from TickerPopup and from ticker lists on other pages: the Calendar, the Screener’s results, Theme Tracker, the Desk reader), which the widget does not open. | NO ASSIGNED WALKTHROUGH |
-| C3-091 | Watchlist | Share a tag colour or Flagged | NO ASSIGNED WALKTHROUGH |  | The words reach chartView; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
-| C3-092 | Watchlist | Make a list public | NO ASSIGNED WALKTHROUGH |  | The words reach watchlistCreate; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
-| C3-093 | Watchlist | Mark a list prebuilt (admin) | NO ASSIGNED WALKTHROUGH |  | The words reach watchlistAction; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
-| C3-094 | Watchlist | Copy a list to the clipboard | NO ASSIGNED WALKTHROUGH |  | The words reach control; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
-| C3-095 | Watchlist | Export a list as CSV or Excel | NO ASSIGNED WALKTHROUGH |  | The words reach control; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
+| C3-083 | Watchlist | Show or hide a column | VERIFIED | watchlistAction | Browser 2026-11-10: "how do I show or hide a column" → ring on the last step's control | VERIFIED |
+| C3-084 | Watchlist | Apply a column preset | NOT IN PRODUCT |  | Column presets (COL_PRESETS) are rendered only in the unscoped page's sub-header (!pickList); the widget's column menu has none. | NOT IN PRODUCT |
+| C3-085 | Watchlist | Reorder columns by drag | VERIFIED | watchlistAction: Reordering a list’s columns | Browser 2026-11-10: "how do I reorder columns by drag" → ring on the last step's control | VERIFIED |
+| C3-086 | Watchlist | Resize a column | VERIFIED | control: Resizing a list’s column | Browser 2026-11-10: "how do I resize a column" → ring on the last step's control | VERIFIED |
+| C3-087 | Watchlist | Reset columns | VERIFIED | control: Resetting a list’s columns | Browser 2026-11-10: "how do I reset columns" → ring on the last step's control | VERIFIED |
+| C3-088 | Watchlist | Write or edit a ticker note | VERIFIED | watchlistAction | Browser 2026-11-10: "how do I write or edit a ticker note" → ring on the last step's control | VERIFIED |
+| C3-089 | Watchlist | Expand or collapse a list | NOT IN PRODUCT |  | The widget shows one list, always open: there is nothing to expand or collapse. ‹ Lists switches the list. | NOT IN PRODUCT |
+| C3-090 | Watchlist | Tag a symbol with a colour | NOT IN PRODUCT |  | Not in the Charts Watchlist widget (counted NOT IN PRODUCT for the widget family): a ticker’s colour tag lives on the ticker action menu (components/TickerActions.jsx, opened from TickerPopup and from ticker lists on other pages: the Calendar, the Screener’s results, Theme Tracker, the Desk reader), which the widget does not open. | NOT IN PRODUCT |
+| C3-091 | Watchlist | Share a tag colour or Flagged | VERIFIED | watchlistAction: Sharing a list with the community | Browser 2026-11-10: "how do I share a tag colour or Flagged" → ring on the last step's control | NO ASSIGNED WALKTHROUGH |
+| C3-092 | Watchlist | Make a list public | VERIFIED | watchlistAction: Sharing a list with the community | Browser 2026-11-10: "how do I make a list public" → ring on the last step's control | NO ASSIGNED WALKTHROUGH |
+| C3-093 | Watchlist | Mark a list prebuilt (admin) | VERIFIED | watchlistAction: Publishing a list to Prebuilt | Browser 2026-11-10: "how do I mark a list prebuilt (admin)" → ring on the last step's control | NO ASSIGNED WALKTHROUGH |
+| C3-094 | Watchlist | Copy a list to the clipboard | VERIFIED | watchlistAction: Copying a list to the clipboard | Browser 2026-11-10: "how do I copy a list to the clipboard" → ring on the last step's control | NO ASSIGNED WALKTHROUGH |
+| C3-095 | Watchlist | Export a list as CSV or Excel | VERIFIED | watchlistAction: Exporting a list | Browser 2026-11-10: "how do I export a list as CSV or Excel" → ring on the last step's control | NO ASSIGNED WALKTHROUGH |
 | C3-096 | Watchlist | Import tickers | NO ASSIGNED WALKTHROUGH |  | The words reach control; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
-| C3-097 | Watchlist | View or restore list version history | NO WALKTHROUGH |  | The inventory words reach none. | NO WALKTHROUGH |
+| C3-097 | Watchlist | View or restore list version history | VERIFIED | watchlistAction: A list’s version history | Browser 2026-11-10: "how do I view or restore list version history" → ring on the last step's control | NO WALKTHROUGH |
 | C3-098 | Watchlist | Set a price alert from a row | VERIFIED | watchlistAction | Browser 2026-11-10: "how do I set a price alert from a row" → ring on the last step's control | VERIFIED |
 | C3-099 | Watchlist | Delete an alert from the row popover | VERIFIED | watchlistAction | Browser 2026-11-10: "how do I delete an alert from the row popover" → ring on the last step's control | VERIFIED |
 | C3-100 | Watchlist | Open Full Research or AI from a row | VERIFIED | watchlistAction | Browser 2026-11-10: "how do I open Full Research or AI from a row" → ring on the last step's control | VERIFIED |
 | C3-101 | Watchlist | Compare from a row | VERIFIED | watchlistAction | Browser 2026-11-10: "how do I compare from a row" → ring on the last step's control | VERIFIED |
-| C3-102 | Watchlist | Open a row's attention facts | VERIFIED | watchlistAction: A ticker’s attention facts | Browser 2026-11-10: "how do I open a row's attention facts" → ring on the last step's control | NO ASSIGNED WALKTHROUGH |
-| C3-103 | Watchlist | Change list appearance (canvas, text, tint) | VERIFIED | watchlistAction: Changing a watchlist’s look | Browser 2026-11-10: "how do I change list appearance (canvas, text, tint)" → ring on the last step's control | ASSIGNED / NOT REACHED |
-| C3-104 | Watchlist | Save or load a watchlist look | VERIFIED | watchlistAction: A saved watchlist look | Browser 2026-11-10: "how do I save or load a watchlist look" → ring on the last step's control | NO ASSIGNED WALKTHROUGH |
+| C3-102 | Watchlist | Open a row's attention facts | VERIFIED | watchlistAction: A ticker’s attention facts | Browser 2026-11-10: "how do I open a row's attention facts" → ring on the last step's control | VERIFIED |
+| C3-103 | Watchlist | Change list appearance (canvas, text, tint) | VERIFIED | watchlistAction: Changing a watchlist’s look | Browser 2026-11-10: "how do I change list appearance (canvas, text, tint)" → ring on the last step's control | VERIFIED |
+| C3-104 | Watchlist | Save or load a watchlist look | VERIFIED | watchlistAction: A saved watchlist look | Browser 2026-11-10: "how do I save or load a watchlist look" → ring on the last step's control | VERIFIED |
 | C3-105 | Watchlist | Track or freeze a linked scan or theme | NO ASSIGNED WALKTHROUGH |  | The words reach chartThemes; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C3-106 | Watchlist | Use a saved screen as a list | NO WALKTHROUGH |  | The inventory words reach none. | NO WALKTHROUGH |
 | C3-107 | Scanner | Pick a preset scan | VERIFIED | widgetAction | Browser 2026-11-10: "how do I pick a preset scan" → ring on the last step's control | VERIFIED |
@@ -419,7 +419,7 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C3-117 | Scanner | Open an AI Search scan in the builder and edit conditions | NO ASSIGNED WALKTHROUGH |  | The words reach control; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C3-118 | Scanner | Run or refine a screen from the workspace chat | NO WALKTHROUGH |  | The inventory words reach none. | NO WALKTHROUGH |
 | C3-119 | Scanner | Save a screen run from the workspace | NO ASSIGNED WALKTHROUGH |  | The words reach layoutSave; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
-| C3-120 | Scanner | Send a scan to Journal | ROUTED / BROWSER FAILED | widgetAction | "how do I send a scan to Journal" reaches it; browser: no walkthrough: Harness 6:51 PM how do I send a scan to Journal // UCT Agent 6:51 PM Sending a scan to the Journal isn’t available yet. It will show in the Scanner widget once | ROUTED / BROWSER FAILED |
+| C3-120 | Scanner | Send a scan to Journal | ROUTED / BROWSER FAILED | widgetAction | "how do I send a scan to Journal" reaches it; browser: no walkthrough: Harness 10:08 PM how do I send a scan to Journal // UCT Agent 10:08 PM Sending a scan to the Journal isn’t available yet. It will show in the Scanner widget on | ROUTED / BROWSER FAILED |
 | C3-121 | Volume Surge | Choose what the scanner watches | ASSIGNED / NOT REACHED | widgetAction | Assigned widgetAction; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
 | C3-122 | Volume Surge | Create, rename or delete a scope list | ROUTED / BROWSER FAILED | control: Deleting a Volume Surge list | "how do I create, rename or delete a scope list" reaches it; browser: last step shows its fallback: You have no lists of your own here yet. | ROUTED / BROWSER FAILED |
 | C3-123 | Volume Surge | Add a ticker to a scope list | VERIFIED | control: Adding a ticker to a Volume Surge list | Browser 2026-11-10: "how do I add a ticker to a scope list" → ring on the last step's control | VERIFIED |
@@ -452,7 +452,7 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C3-150 | Calendar | Ask when a stock reports from Charts | VERIFIED | dockAction | Browser 2026-11-10: "how do I ask when a stock reports from Charts" → ring on the last step's control | VERIFIED |
 | C3-151 | Calendar | Filter economic events by stars | VERIFIED | widgetAction | Browser 2026-11-10: "how do I filter economic events by stars" → ring on the last step's control | VERIFIED |
 | C3-152 | Calendar | Toggle the TBD section | NO WALKTHROUGH |  | The inventory words reach none. | NO WALKTHROUGH |
-| C3-153 | Calendar | Sort earnings columns | NO ASSIGNED WALKTHROUGH |  | The words reach watchlists; nobody has judged it right | NO WALKTHROUGH |
+| C3-153 | Calendar | Sort earnings columns | NO ASSIGNED WALKTHROUGH |  | The words reach watchlists; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C3-154 | Calendar | Show all earnings in a section | NO ASSIGNED WALKTHROUGH |  | The words reach chartView; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C3-155 | Calendar | Click an earnings row | VERIFIED | widgetAction | Browser 2026-11-10: "how do I click an earnings row" → ring on the last step's control | VERIFIED |
 | C3-156 | Calendar | Send a day to Journal | VERIFIED | control: Sending UCT Terminal to the Journal | Browser 2026-11-10: "how do I send a day to Journal" → ring on the last step's control | VERIFIED |
@@ -482,8 +482,8 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C3-180 | Fundamentals | Change appearance or send to Journal | ASSIGNED / NOT REACHED | widgetSettings | Assigned widgetSettings; the inventory's own words do not reach it | ASSIGNED / NOT REACHED |
 | C3-181 | Profile | Read profile and earnings table | VERIFIED | widgetAction | Browser 2026-11-10: "how do I read profile and earnings table" → ring on the last step's control | VERIFIED |
 | C3-182 | Profile | Click a peer ticker | NO ASSIGNED WALKTHROUGH |  | The words reach symbol; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
-| C3-183 | Indexes | Hide or restore an index | ROUTED / BROWSER FAILED | control: Hiding an index | "how do I hide or restore an index" reaches it; browser: no walkthrough: Harness 6:59 PM how do I hide or restore an index // UCT Agent 6:59 PM The Indexes widget isn’t available yet. It will be on Widgets ▾ once it’s switched on. | ROUTED / BROWSER FAILED |
-| C3-184 | Indexes | Send levels to Journal | ROUTED / BROWSER FAILED | control: Sending Indexes to the Journal | "show me how to send index levels to journal" reaches it; browser: no walkthrough: Harness 6:59 PM show me how to send index levels to journal // UCT Agent 6:59 PM The Indexes widget isn’t available yet. It will be on Widgets ▾ once it’s swit | ROUTED / BROWSER FAILED |
+| C3-183 | Indexes | Hide or restore an index | ROUTED / BROWSER FAILED | control: Hiding an index | "how do I hide or restore an index" reaches it; browser: no walkthrough: Harness 10:16 PM how do I hide or restore an index // UCT Agent 10:16 PM The Indexes widget isn’t available yet. It will be on Widgets ▾ once it’s switched on. | ROUTED / BROWSER FAILED |
+| C3-184 | Indexes | Send levels to Journal | ROUTED / BROWSER FAILED | control: Sending Indexes to the Journal | "show me how to send index levels to journal" reaches it; browser: no walkthrough: Harness 10:16 PM show me how to send index levels to journal // UCT Agent 10:16 PM The Indexes widget isn’t available yet. It will be on Widgets ▾ once it’s sw | ROUTED / BROWSER FAILED |
 | C3-185 | Market Context | Read market context | NO WALKTHROUGH |  | The inventory words reach none. | NO WALKTHROUGH |
 | C3-186 | Market Context | Send to Journal | NO ASSIGNED WALKTHROUGH |  | The words reach control; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C3-187 | NH/NL | Add or remove a universe | VERIFIED | widgetAction | Browser 2026-11-10: "show me how to add the Nasdaq 100 to new highs" → ring on the last step's control | VERIFIED |
@@ -526,7 +526,7 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 
 ## Held-out KNOWN MISSES (not passes)
 
-Held-out phrasings that do NOT reach what their held-out file named. Asserted both ways in that file (not what was named; what they reach today), so they pass as tests but are NOT passes. Kept in step with COV3_MISSES, COV4_MISSES, COV4B_MISSES and COV5_MISSES in the agentGuideHeldOutCov3/Cov4/Cov4b/Cov5 test files.
+Held-out phrasings that do NOT reach what their held-out file named. Asserted both ways in that file (not what was named; what they reach today), so they pass as tests but are NOT passes. Kept in step with COV3_MISSES, COV4_MISSES, COV4B_MISSES COV5_MISSES and WL_TITLE_MENU_MISSES in the agentGuideHeldOutCov3/Cov4/Cov4b/Cov5 test files.
 
 | Set | Words | Named | Reaches | Why |
 |---|---|---|---|---|
@@ -538,3 +538,4 @@ Held-out phrasings that do NOT reach what their held-out file named. Asserted bo
 | cov-5 | how do I set a solid colour behind the candles | The chart’s background | Finding chart settings | no word of the background’s own: “behind the candles” names nothing the catalog or the settings table holds |
 | cov-5 | how do I make the crosshair snap to the candles | The magnet crosshair | Changing Crosshair | the magnet crosshair’s only toggles (StockChart’s region menu, ChartToolbar’s panel) are not opened by a desktop /charts right-click; the workspace chart menu has no such row |
 | cov-5 | how do I turn on the magnet crosshair | The magnet crosshair | Changing Crosshair | the magnet crosshair’s only toggles (StockChart’s region menu, ChartToolbar’s panel) are not opened by a desktop /charts right-click; the workspace chart menu has no such row |
+| wl title menu | how do I clear out all the starred tickers in my watchlist | Removing the starred tickers | Using watchlists | NOT IN PRODUCT (C3-080): nothing stars a ticker in a list (Watchlists.jsx toggleStar is never called), so Remove starred never shows; the walkthrough was withdrawn |
