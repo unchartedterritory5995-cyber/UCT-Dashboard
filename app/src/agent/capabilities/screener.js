@@ -1035,7 +1035,15 @@ export const screenRelevant = (message) => SCREEN_WORDS.test(String(message || '
  * it by letter. Nothing is shortened: every field's definition reads back whole from `notes` + `key`. Pure.
  */
 export function fieldNotes(fields) {
-  const sentencesOf = (t) => String(t).split(/(?<=[.:])\s+/).filter(Boolean)
+  // a sentence ends at '.' or ':' followed by whitespace: the mark is kept, the whitespace dropped (no lookbehind: iOS 16 floor)
+  const sentencesOf = (t) => {
+    const s = String(t)
+    const out = []
+    let from = 0
+    for (const m of s.matchAll(/[.:](\s+)/g)) { out.push(s.slice(from, m.index + 1)); from = m.index + 1 + m[1].length }
+    out.push(s.slice(from))
+    return out.filter(Boolean)
+  }
   const seen = new Map()
   for (const f of fields) for (const s of new Set(sentencesOf(f.description || ''))) seen.set(s, (seen.get(s) || 0) + 1)
   const key = {}
