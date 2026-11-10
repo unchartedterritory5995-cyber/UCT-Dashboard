@@ -1043,9 +1043,58 @@
     "trigger": "2022-06-07",
     "criterion": "oops.after_entry_stop",
     "note": "the owner's own kept failed-setup lesson: Actually a good example. But just horrible result. SEI 2025-07-29 is the other."
+   },
+   {
+    "ticker": "V",
+    "date": "2019-08-13",
+    "criterion": "oops.after_entry_stop",
+    "why": "a Williams open after a red day, a 4.2% pullback, the low 0.84 ATR under the 21-day, close 178.61 (0.93 of the range); buy 176.35, stop 174.16 (1.24%); the next day opened 176.24 and fell to 173.16 through the stop without ever trading above the entry. SPY made no lower low; the stock made a new high four weeks later from a new trigger."
+   },
+   {
+    "ticker": "UBER",
+    "date": "2025-03-07",
+    "criterion": "oops.market_reading",
+    "why": "a Williams open after a red day, an 8.7% pullback to the 21-day, close 76.27; buy 74.97, stop 73.73 (1.65%); stopped the next day (low 71.97); SPY made a lower low on 03-13 and the stock was 63.94 four weeks later."
+   },
+   {
+    "ticker": "CRM",
+    "date": "2023-06-20",
+    "criterion": "oops.after_entry_stop",
+    "why": "a Super Oops (close 216.97 over the 213.65 prior high) with a 1.52% stop; the next day opened 216.52 and sold through the stop to 208.07. The Super close is a grade mark, not a guarantee."
    }
   ],
-  "limits": "Daily bars only (the order of prices inside the day is unknown; some reclaims touched the prior close before the undercut); the scanned base rate is the look-ahead version; 3R on a 1.3% stop is about 4% of price; earnings dates thin before 2005; an RS proxy, not RS; no market reading; survivor universe; no costs. Nothing here is a published statistic."
+  "limits": "Daily bars only (the order of prices inside the day is unknown; some reclaims touched the prior close before the undercut); the scanned base rate is the look-ahead version; 3R on a 1.3% stop is about 4% of price; earnings dates thin before 2005; an RS proxy, not RS; no market reading; survivor universe; no costs. Nothing here is a published statistic.",
+  "near_misses": [
+   {
+    "ticker": "GOOGL",
+    "date": "2026-02-27",
+    "criterion": "oops.scanner_oops",
+    "why": "the day's low (303.80) held 0.48% above the prior low (302.35) while it opened under the prior close and closed over it; the rule is a trade under yesterday's low first. A Red to Green (43-red-to-green), not an Oops. Best 0.0R, stopped."
+   },
+   {
+    "ticker": "HD",
+    "date": "2025-09-15",
+    "criterion": "oops.pullback",
+    "why": "the prior close (422.69) was only 0.6% under the 20-day high (425.22); the rule is a 3% to 12% pullback first. A dip at the highs with nothing to reverse from. Best 0.37R, stopped."
+   },
+   {
+    "ticker": "BABA",
+    "date": "2016-02-24",
+    "criterion": "oops.above_200",
+    "why": "the Oops-day close (67.23) and the prior close (66.97) are both 12% under the 200-day SMA (76.48); the rule is both above it. Watch only under B26. Best 0.0R, stopped the next day."
+   },
+   {
+    "ticker": "PANW",
+    "date": "2023-08-03",
+    "criterion": "oops.orderly",
+    "why": "the prior day fell 6.71% (126.58 to 118.08); the rule is an orderly drift with no drop over 4% in the 5 sessions before. The day after a news day, a delayed-reaction setup, not an Oops. Best 0.0R, stopped."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_29-undercut-rally.png"
+  }
  },
  "question_seeds": [
   {

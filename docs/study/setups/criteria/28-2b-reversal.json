@@ -1103,9 +1103,52 @@
     "trigger": "2023-08-11",
     "criterion": "tb.reclaim_fails",
     "note": "the June 26 low (240.70) undercut 1.1% and reclaimed the same day (close 242.65); the next session gapped under the level and the stock fell four more days to 219: a second, deeper break in which the failure had failed."
+   },
+   {
+    "ticker": "PYPL",
+    "date": "2018-03-26",
+    "criterion": "tb.market_washout",
+    "why": "the 76.93 low (03-02) undercut 0.75% and reclaimed the next day; the open fill 77.98, stop 76.30; the following day reversed from 79.59 to a 76.31 close through the stop, and SPY made a lower low on 04-02."
+   },
+   {
+    "ticker": "MGM",
+    "date": "2017-07-05",
+    "criterion": "tb.after_entry_stop",
+    "why": "the 30.82 low (06-12) undercut 1.65% and reclaimed the next day; buy 30.83, stop 30.26; the next day's low touched the stop to the cent and the stock was 31.98 twenty sessions later. Out at once; a retry needs a new trigger."
    }
   ],
-  "limits": "No RS rating or group (a leader proxy only in the dossier's check, nothing in the scan), no market reading, no earnings filter beyond the ten examples, no clean lead-in test, no trims. Fill at the level plus a cent is the best case for a market order; R is often under 1% of price, so slippage matters most here. Survivor universe. Nothing here is a published statistic."
+  "limits": "No RS rating or group (a leader proxy only in the dossier's check, nothing in the scan), no market reading, no earnings filter beyond the ten examples, no clean lead-in test, no trims. Fill at the level plus a cent is the best case for a market order; R is often under 1% of price, so slippage matters most here. Survivor universe. Nothing here is a published statistic.",
+  "near_misses": [
+   {
+    "ticker": "DELL",
+    "date": "2024-07-22",
+    "criterion": "tb.depth",
+    "why": "the undercut went 4.36% under the 127.59 low (to 122.03), 3 closes under, reclaim on day 3; the rule is 3% or less. The stop would be 4.83%. Not a 2B at full size."
+   },
+   {
+    "ticker": "GS",
+    "date": "2017-01-25",
+    "criterion": "tb.reclaim_window",
+    "why": "6 closes under the 236.64 low before the first close back above; the rule is within 3 sessions. A Remount (32-remount), bought on the retake of the line."
+   },
+   {
+    "ticker": "GOOG",
+    "date": "2026-07-20",
+    "criterion": "tb.reclaim_close",
+    "why": "the reclaim day (a gap over the 348.66 level after 1 close under) closed at 0.14 of its range; the rule is the upper half. A failed reclaim, not a trigger."
+   },
+   {
+    "ticker": "META",
+    "date": "2026-01-08",
+    "criterion": "tb.above_200",
+    "why": "a same-day undercut (0.45%) and reclaim of the 638.61 low with the close 4.2% under the 200-day SMA; the rule is a close above it. Watch only under B26."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_29-undercut-rally.png"
+  }
  },
  "question_seeds": [
   {

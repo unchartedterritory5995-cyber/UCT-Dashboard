@@ -1258,3 +1258,47 @@ table above.
   0.67R and was stopped two sessions later at 83.02 as the April 2024 correction began; the shakeout turned into a
   three-week pullback. The reclaim day closed in its top half, so even the best-looking reclaim loses about 58% of the
   time by this scan's count; the edge is in the R multiple of the winners, not the hit rate.
+
+## 14. Failures and near-misses (from our data)
+
+Added 2026-11-10 (deliverable 4 of `CRITERIA_PROGRAMME.md`). Everything below is read off the same scan as section 13
+(`final/hits.json`) or off a re-run of `ur_scan.py` with one gate relaxed at a time (`near_scan.py`, a 450-name random
+subset of the liquid universe, 150 seconds per gate), never off a chart alone. Charts: `final/fail_1-4.png` (the four
+failures, one column), `final/near_1-4.png` (the four near-misses) and `final/pair_28-2b-reversal.png` (a textbook U&R
+over a textbook 2B), in `_study-resume/scratchpad/setups/29-undercut-rally/` (scratch, not in the repo). Every chart
+carries L, the stop, 3R and 5R and the box from the prior low to the reclaim, so a learner can compare a failure or a
+near-miss with the winners of section 13 at a glance. SPY numbers are the sandbox's own bars. LULU 2020-02-24 from
+section 13 is not re-charted here: its stop was 3.97% from the buy, so it fails ur.stop_width and is not a by-the-rules
+trade; the three failures named there that pass every gate are kept and one more year is added.
+
+**Failures: valid U&Rs, traded by the rules, stopped before 3R.** All four passed every gate the scan can read (above
+the 200-day and the 50-day with the 50-day not falling, a fresh undercut of 1.1% to 2.7% of the 10-session low, a close
+back above L within 2 sessions, a stop of 1.6% to 2.8%, $100 million or more a day, no report in the window).
+
+| # | Ticker | Buy day | Level L (its date) | Undercut / closes under / reclaim | Buy | Stop (risk) | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | TRIP | 2014-07-09 | 102.17 (06-23) | 1.53% / 1 / next day | 102.18 | 100.56 (1.59%) | 07-10, low 100.44, closed 103.35 | The day after the buy dipped 12 cents through the stop and closed back above the entry; the stock then fell anyway, to 91.78 by 08-01 (94.03 twenty sessions after the buy). SPY made no lower low. The stop is the exit, not a hold: the one that shakes you out and then runs is the price of the ones that keep falling. | ur.after_entry_stop |
+| 2 | ADBE | 2018-03-26 | 217.19 (03-09) | 1.11% / 1 / next day | 218.83 (the open, 0.8% over L) | 214.73 (1.87%) | 03-27, open 229.90, low 212.25, close 213.80 | A 5% gap up the next morning sold off all day through the stop; the low of the move came on 04-02 (207.22), the day SPY made a lower low (254.67 under its 257.83 March low). The stock was back at 217.89 twenty sessions on. The index had not turned. | ur.market_turn |
+| 3 | AMD | 2021-09-14 | 105.52 (09-08) | 2.74% / 2 / day 2 | 105.52 | 102.58 (2.79%) | 09-20, low 99.51 | Reached 0.42R, then was stopped on day 4 as SPY made a lower low (428.86 under its 436.12 20-session low); back at 105.04 twenty sessions after the buy. The stop did its job; a new try needs a new trigger, at most 3 a week. | ur.retry |
+| 4 | NVDA | 2024-04-05 | 87.62 (04-02) | 1.99% / 1 / next day | 87.63 | 85.83 (2.05%) | 04-09, low 83.02 | Reached 0.67R, then was stopped on day 2; the shakeout became a three-week pullback to 75.61 (04-19), the day SPY made its lower low (493.86). 88.79 twenty sessions after the buy, from a lower base. The reclaim day had closed in its top half; the best-looking reclaim still loses most of the time. | ur.after_entry_stop |
+
+**Near-misses: charts that look like a U&R and fail exactly one gate.** Each was found by relaxing that one gate in
+the scan and keeping only the hits the strict rule rejects for it; every other gate passed.
+
+| # | Ticker | Date | The one criterion that fails | The number | Level L / closes under / reclaim | What it really is |
+|---|---|---|---|---|---|---|
+| 1 | MSFT | 2020-03-02 | ur.depth | The undercut went 6.88% under L (163.23 to 152.00); the rule is 6% at most, 3% for an A. The stop that follows is 8.08% from the buy. | 163.23 (02-24) / 2 / day 2 | A deeper break in the first week of the 2020 crash that happened to close back above: not this setup. Made 0.73R and was stopped; the stock fell to 132 within three weeks. |
+| 2 | FDX | 2024-05-10 | ur.reclaim_window | 8 closes under L before the first close back above (reclaim on day 8); the rule is 3 at most. | 211.18 (04-18) / 8 / day 8 | A Remount of a level (setup 32), bought on the retake of the line with the stop under the remount day's low. Made 0.98R and was stopped; the June run came from a later base. |
+| 3 | SBUX | 2025-03-07 | ur.not_prior_day_low | The 10-session low IS yesterday's low (104.91, set 03-06); the prior day's low alone is not a U&R level. | 104.91 (03-06) / 0 / same day | A one-day dip under yesterday's low and a close back over it: an Oops (setup 30), judged on one candle, not a U&R. Best 0.0R, stopped; the stock lost 20% in the next five weeks. |
+| 4 | MSFT | 2026-06-08 | ur.above_200 | The buy-day close was 9.7% under a falling 200-day SMA; the rule is a close above it. | 409.58 (05-27) / 0 / same day | A U&R shape under the 200-day: watch only under B26. Best 0.0R, stopped the next day; the stock fell 12% in two weeks. |
+
+**What the failures have in common.** All four looked right on the day: a fresh, shallow undercut of a level that
+had held, a close back above it within two sessions, a stop under 3%, a leader above its averages. None of the four
+gave a warning on its own chart, and three of them (ADBE, AMD, NVDA) were stopped while SPY was making a lower low,
+the market condition ur.market_turn describes and the scan cannot read. TRIP is the other kind: the stop was touched by
+12 cents and the day closed above the entry, which is the moment a learner is tempted to "hold through it"; the stock
+then lost 10%. The teaching is the card's own: the stop under the undercut low is the exit, at once; a new try needs a
+new trigger; and the best place for the first try is an index that has itself just undercut and reclaimed. The
+near-misses show the three numbers a learner must count before calling a U&R: how far under (6% at most, 3% for an
+A), how many closes under (none past the third), and whether the level is bigger than yesterday's low, with the
+200-day as the fourth, non-negotiable line.

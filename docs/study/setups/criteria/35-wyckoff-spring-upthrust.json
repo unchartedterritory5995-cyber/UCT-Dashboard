@@ -1113,9 +1113,46 @@
     "trigger": "2025-12-12",
     "criterion": "spr.stop_gap",
     "note": "an upthrust short, stop 1.64%; ran to 2.98R, a hair short of the 3R trim, then gapped from 48.10 to an open of 52.67 through the 50.78 stop on 12-23. B20 applies; the upthrust short below the 200-day stays capped at grade B."
+   },
+   {
+    "ticker": "GOOGL",
+    "date": "2019-05-09",
+    "criterion": "spr.market_reading",
+    "why": "a 40-day range 57.92-64.85 (12.0% tall, two touches), a 0.14 ATR probe on 0.91x volume, closed back inside the same day; bought 58.44 at the 05-10 open, stop 57.70 (1.27%); that day dipped to 57.32 through the stop and the stock fell to 51.35 by 06-03 as SPY made lower lows (279.93 on 05-13). Not a Green market."
    }
   ],
-  "limits": "Daily bars only (the owner's intraday reclaim and B20 cannot be tested; the next-open entry is usually worse than the reclaim); the range and spring rules are one reading of sources that publish no numbers; no RS rating or group (C31 not applied); survivors; events cluster on market-wide days; one management plan; no commissions, slippage, borrow fees. Nothing here is a published statistic, and no published success rate for springs exists."
+  "limits": "Daily bars only (the owner's intraday reclaim and B20 cannot be tested; the next-open entry is usually worse than the reclaim); the range and spring rules are one reading of sources that publish no numbers; no RS rating or group (C31 not applied); survivors; events cluster on market-wide days; one management plan; no commissions, slippage, borrow fees. Nothing here is a published statistic, and no published success rate for springs exists.",
+  "near_misses": [
+   {
+    "ticker": "COST",
+    "date": "2021-01-20",
+    "criterion": "spr.dip_depth",
+    "why": "the probe went 1.34 ATR under the 359.50 floor (to 352.44), one close under, back inside the next day; the rule is 0.1 to 1 ATR (1 to 2 ATR grades lower, over 2 is a breakdown). Stop 2.46%; made 0.52R, stopped."
+   },
+   {
+    "ticker": "INTC",
+    "date": "2005-08-29",
+    "criterion": "spr.reclaim_window",
+    "why": "3 closes under the 25.61 floor and the close back inside on day 4; the rule is the same day or the next. A U&R of the range low at best (29-undercut-rally), with more closes a Remount; made 0.35R, stopped."
+   },
+   {
+    "ticker": "AMZN",
+    "date": "2021-08-12",
+    "criterion": "spr.floor_touches",
+    "why": "the floor (164.99) was touched by one swing low, 40 sessions old, that price rallied 14% off; the rule is a flat floor touched at least twice. A 2B of a single low (28-2b-reversal), not a spring; made 0.01R, stopped."
+   },
+   {
+    "ticker": "NFLX",
+    "date": "2025-09-15",
+    "criterion": "spr.range_length",
+    "why": "the range behind the probe is 19 sessions long (118.24-126.71 from 08-18); the rule is 20 or more. A U&R of a three-week shelf low (29-undercut-rally), not a spring; made 0.87R, stopped."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_29-undercut-rally.png"
+  }
  },
  "question_seeds": [
   {

@@ -1051,9 +1051,52 @@
     "trigger": "2024-04-05",
     "criterion": "ur.after_entry_stop",
     "note": "L 87.62, undercut 1.99%, one close under, buy 87.63, stop 85.83 (2.05%); reached 0.67R and was stopped two sessions later at 83.02 as the April 2024 correction began. The reclaim day closed in its top half; the best-looking reclaim still loses about 58% of the time."
+   },
+   {
+    "ticker": "TRIP",
+    "date": "2014-07-09",
+    "criterion": "ur.after_entry_stop",
+    "why": "L 102.17 (06-23), undercut 1.53% on 07-08, one close under, reclaimed the next day; buy 102.18, stop 100.56; the day after dipped to 100.44 through the stop and closed 103.35, then the stock fell to 91.78 by 08-01. The stop is the exit, not a hold."
+   },
+   {
+    "ticker": "ADBE",
+    "date": "2018-03-26",
+    "criterion": "ur.market_turn",
+    "why": "L 217.19 (03-09), undercut 1.11% on 03-23, one close under, reclaimed the next day; the open fill 218.83, stop 214.73; the next day opened 229.90 and closed 213.80 through the stop; SPY made a lower low on 04-02. The index had not turned."
    }
   ],
-  "limits": "No RS rating or group (the 50-day and 200-day tests stood in), no market reading, daily bars only (the order of moves inside a day is unknown, and the owner enters intraday), survivors only, no costs. The same-day fill at L plus a cent assumes you were watching and bought the first trade back through the level. Nothing here is a published statistic."
+  "limits": "No RS rating or group (the 50-day and 200-day tests stood in), no market reading, daily bars only (the order of moves inside a day is unknown, and the owner enters intraday), survivors only, no costs. The same-day fill at L plus a cent assumes you were watching and bought the first trade back through the level. Nothing here is a published statistic.",
+  "near_misses": [
+   {
+    "ticker": "MSFT",
+    "date": "2020-03-02",
+    "criterion": "ur.depth",
+    "why": "the undercut went 6.88% under L 163.23 (to 152.00), 2 closes under, reclaim on day 2; the rule is 6% at most, 3% for an A. The stop would be 8.08%. Not this setup."
+   },
+   {
+    "ticker": "FDX",
+    "date": "2024-05-10",
+    "criterion": "ur.reclaim_window",
+    "why": "8 closes under L 211.18 before the first close back above; the rule is 3 at most. A Remount (32-remount), bought on the retake of the line."
+   },
+   {
+    "ticker": "SBUX",
+    "date": "2025-03-07",
+    "criterion": "ur.not_prior_day_low",
+    "why": "the 10-session low is only yesterday's low (104.91); a one-day dip under it and a close back over it is an Oops (30-oops-reversal), judged on one candle, not a U&R."
+   },
+   {
+    "ticker": "MSFT",
+    "date": "2026-06-08",
+    "criterion": "ur.above_200",
+    "why": "a same-day undercut (0.25%) and reclaim of L 409.58 with the close 9.7% under a falling 200-day SMA; the rule is a close above it. Watch only under B26."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_28-2b-reversal.png"
+  }
  },
  "question_seeds": [
   {

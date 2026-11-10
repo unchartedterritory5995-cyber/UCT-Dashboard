@@ -1187,3 +1187,51 @@ breaks" only on the best examples).
 names and hourly bars since 2023-12, too thin to check the reclaim order on these ten; earnings dates are thin before
 2005, so rule 15 was only partly applied to examples 1 and 2; no RS rating (a 6-month return against SPY stood in);
 survivor universe; a fixed stop with no trims, so the base rate is not the house plan's result.
+
+## 13. Failures and near-misses (from our data)
+
+Added 2026-11-10 (deliverable 4 of `CRITERIA_PROGRAMME.md`). Everything below is read off the same scan as section 12
+(`final/hits.json`) or off a re-run of `oops_scan.py` with one gate relaxed at a time (`near_scan.py`, a 450-name random
+subset of the liquid universe, 150 seconds per gate), never off a chart alone. Charts: `final/fail_1-4.png` (the four
+failures, one column), `final/near_1-4.png` (the four near-misses) and `final/pair_29-undercut-rally.png` (a textbook
+Oops over a textbook U&R), in `_study-resume/scratchpad/setups/30-oops-reversal/` (scratch, not in the repo). Every
+chart carries the prior close (the buy), the stop, 3R and 5R and the pullback box from the 20-day high, so a learner
+can compare a failure or a near-miss with the winners of section 12 at a glance. SPY numbers are the sandbox's own
+bars. "Prior low" is the day before's low (l1); every Oops has 0 closes under it and reclaims the prior close the same
+day, by definition, which is the thing that separates it from the 2B and the U&R.
+
+**Failures: valid Oops days, traded by the rules, stopped before 3R.** All four are Williams opens (under the prior
+low) after a red day, with a 4% to 9% pullback, the low within 0.9 ATR of the 21-day EMA, a close in the top 15% of
+the range, a stop of 1.0% to 1.7%, both closes above a rising 200-day, $200 million or more a day, no report in the
+window; and all four were stopped on the first session after the entry with a best excursion of 0.0R.
+
+| # | Ticker | Oops day | Prior low / undercut | Prior close (buy) | Oops-day close | Stop (risk) | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | ADBE | 2014-03-12 | 67.25 / 0.74% | 67.47 (buy 67.48) | 68.06 (0.97 of the range) | 66.70 (1.16%) | 03-13, open 68.48, low 66.63 | Opened 1.5% up the next morning and sold straight through the Oops-day low; 59.63 by 04-07, 63.46 twenty sessions after the entry. SPY made no lower low. A perfect-looking day gives no warning; the stop is the whole plan. | oops.after_entry_stop |
+| 2 | V | 2019-08-13 | 175.60 / 0.79% | 176.34 (buy 176.35) | 178.61 (0.93) | 174.16 (1.24%) | 08-14, open 176.24, low 173.16, close 173.51 | Never traded above the entry: the next day fell through the stop and closed near its low. SPY made no lower low, and the stock went on to a new high (187.05 on 09-09, over the 184.07 20-day high) from a later entry. The stop did its job; the second chance was a new trigger, not a hold. | oops.after_entry_stop |
+| 3 | AMAT | 2022-01-14 | 156.50 / 0.58% | 157.18 (buy 157.19) | 167.00 (a Super Oops, over the 166.53 prior high) | 155.55 (1.04%) | 01-18, open 165.36, low 151.52, close 152.36 | The best-looking close of the set, then a 9% down day through the stop, the first of three straight down days; 123.85 by 01-28, 131.86 twenty sessions on. SPY made a lower low on 01-24 (420.76 under its 451.14 20-session low): the January 2022 break, which no single-stock rule sees. | oops.market_reading |
+| 4 | UBER | 2025-03-07 | 74.72 / 1.26% | 74.96 (buy 74.97) | 76.27 (0.85) | 73.73 (1.65%) | 03-10, open 74.94, low 71.97, close 73.06 | Stopped the next day; SPY made a lower low on 03-13 (549.68 under its 570.12 20-session low) and the stock was 63.94 four weeks later (64.62 twenty sessions after the entry). An Oops in a market that was not Green. | oops.market_reading |
+
+A fifth, in words: CRM 2023-06-20, a Super Oops (close 216.97 over the 213.65 prior high) with a 1.52% stop, opened
+216.52 the next day and sold through the stop to 208.07 (close 209.59); it was 234.37 twenty sessions later from a
+later base. Like AMAT, the Super close bought nothing.
+
+**Near-misses: charts that look like an Oops and fail exactly one gate.** Each was found by relaxing that one gate in
+the scan and keeping only the hits the strict rule rejects for it; every other gate passed.
+
+| # | Ticker | Date | The one criterion that fails | The number | Prior low / undercut / reclaim | What it really is |
+|---|---|---|---|---|---|---|
+| 1 | GOOGL | 2026-02-27 | oops.scanner_oops | The day's low (303.80) held 0.48% ABOVE the prior low (302.35); the rule is a trade under yesterday's low first. It opened under the prior close (304.14 against 307.38) and closed over it (311.76). | 302.35 / none / same day | A Red to Green (setup 43), not an Oops: every Oops is a red to green, not the reverse. Buy 307.39, stop 303.75; best 0.0R, stopped; 274.34 twenty sessions later. |
+| 2 | HD | 2025-09-15 | oops.pullback | The prior close (422.69) was 0.6% under the 20-day high (425.22); the rule is a 3% to 12% pullback first. | 418.88 / 0.27% / same day | A dip at the highs, not a pullback: there is nothing to reverse from. Buy 422.70, stop 417.70; best 0.37R, stopped; 379.37 twenty sessions later. |
+| 3 | BABA | 2016-02-24 | oops.above_200 | The Oops-day close (67.23) and the prior close (66.97) are both 12% under the 200-day SMA (76.48); the rule is both above it. | 66.47 / 1.89% / same day | An Oops shape in a downtrend, under all its averages: watch only under B26. Buy 66.98, stop 65.16 (2.72%); best 0.0R, stopped the next day. (It was 76.56 twenty sessions later, from a later base; the rule is about the odds, not this one case.) |
+| 4 | PANW | 2023-08-03 | oops.orderly | The prior day fell 6.71% (126.58 to 118.08); the rule is an orderly drift with no drop over 4% in the 5 sessions before. | 117.02 / 0.10% / same day | The day after a news day (a delayed-reaction setup, not an Oops): the undercut is 12 cents and the reclaim closes only 0.5% over the prior close. Buy 118.09, stop 116.86; best 0.0R, stopped; the stock fell to 102 within a week. |
+
+**What the failures have in common.** All four were the best kind of Oops day on paper: a red day, a Williams open,
+a shallow undercut on the 21-day, a close near the high, a stop under 2%. None gave a warning on its own chart, and
+all four were stopped on the very next session without ever reaching 1R; two of them (AMAT, UBER) came as SPY went
+on to a lower low, the market condition oops.market_reading names and the scan cannot read, and the other two (ADBE,
+V) simply failed in a flat index. The teaching is the card's own: the Oops-day low is the stop and it is honoured at
+once; a Super close is a grade mark, not a guarantee; and a market that is not Green is the place for an A+ only. The
+near-misses show the four questions a learner must answer before calling an Oops: did the day trade under yesterday's
+low (GOOGL did not), was there a pullback to reverse (HD had none), is the stock above its 200-day (BABA was not), and
+was the day before an orderly drift rather than a news bar (PANW's was a 6.7% drop).

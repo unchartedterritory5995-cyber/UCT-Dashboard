@@ -1076,3 +1076,51 @@ be checked for any of them.
 
 Charts: `final/01_GIS_2001-10-15.png` to `final/10_TGT_2023-07-27.png`; phone sheets `final/sheet_1-4.png`,
 `final/sheet_5-7.png`, `final/sheet_8-10.png` (all outside the repo, in the scratchpad named above).
+
+## 14. Failures and near-misses (from our data)
+
+Added 2026-11-10 (deliverable 4 of `CRITERIA_PROGRAMME.md`). Everything below is read off the same scan as section 13
+(`final/hits.json`) or off a re-run of `scan35.py`'s spring rule with one gate relaxed at a time (`near_scan.py`, the
+full liquid universe, 240 seconds per gate), never off a chart alone. Charts: `final/fail_1-4.png` (the four failures,
+one column), `final/near_1-4.png` (the four near-misses) and `final/pair_29-undercut-rally.png` (a textbook spring over
+a textbook U&R), in `_study-resume/scratchpad/setups/35-wyckoff-spring-upthrust/` (scratch, not in the repo). Every
+chart carries the floor, the stop, 3R and 5R and the range box, so a learner can compare a failure or a near-miss with
+the winners of section 13 at a glance. SPY numbers are the sandbox's own bars. Springs only; the upthrust short (NVO
+2025-12-12 in section 13) is not re-charted. "Buy" is the next-open fill the scan took (section 13), so "stopped on the
+entry day" means the first session after the spring day, the session the position was opened in.
+
+**Failures: valid springs, traded by the rules, stopped before 3R.** All four passed every gate the scan can read
+(above the 200-day, a 25 to 60 session range 11.8% to 17.9% tall with 2 or 3 floor touches and closes drifting less
+than a quarter of the height, a probe of 0.14 to 0.54 ATR that closed back inside the same day in its upper half, a stop
+of 1.1% to 2.7%, $2 billion or more a day, no report in the window); all four were stopped on the entry day with a
+best excursion of 0.0R.
+
+| # | Ticker | Spring day | Range (sessions, floor-top, height, touches) | Probe / closes under / reclaim | Buy (next open) | Stop (risk) | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | GOOGL | 2019-05-09 | 40 d, 57.92-64.85, 12.0%, 2 | 0.14 ATR to 57.73, on 0.91x volume / 0 / same day | 58.44 (05-10) | 57.70 (1.27%) | 05-10, low 57.32, closed 58.38 | The entry day dipped through the stop and closed back above the entry; the stock then fell to 51.35 by 06-03 (53.42 twenty sessions on) as SPY made lower lows (279.93 on 05-13, under its 285.81 20-session low). Not a Green market. | spr.market_reading |
+| 2 | AAPL | 2021-10-01 | 60 d, 140.67-157.26, 11.8%, 2 | 0.54 ATR to 139.11, on 1.24x / 0 / same day | 141.76 (10-04) | 139.08 (1.89%) | 10-04, low 138.27, close 139.14 | Stopped on the entry day as SPY made a lower low (426.36 under its 428.78 20-session low); QQQ sprang the same day and failed too (0.0R in the same scan). The index's own spring had not held. It was 149.80 twenty sessions later, from a later base. | spr.index_sprung |
+| 3 | MSFT | 2023-08-08 | 40 d, 324.41-366.78, 13.1%, 3 | 0.16 ATR to 323.00, on 0.76x / 0 / same day | 326.47 (08-09) | 322.97 (1.07%) | 08-09, low 321.05, close 322.23 | A cents-deep probe on light volume, three touches, a 1% stop: everything the rules ask for, and it was stopped on the entry day without ever showing a profit; 311.55 on 08-18, the day SPY made its lower low (433.01). 332.88 twenty sessions on. A spring that fails usually fails at once. | spr.after_entry_stop |
+| 4 | TSLA | 2025-02-06 | 25 d, 373.04-439.74, 17.9%, 3 | 0.52 ATR to 363.18, on 0.97x / 0 / same day | 373.04 (02-07, the open was under the floor; filled at the floor) | 363.15 (2.65%) | 02-07, low 360.34, close 361.62 | Never traded above the entry; broke the spring low on the entry day and gapped on, 250.73 by 03-07 (262.67 twenty sessions on). SPY made no lower low in the next 10 sessions: this one was the stock's own, a 17.9% tall range (near the 20% limit) after a 73% run in the prior 60 sessions. | spr.range_height |
+
+**Near-misses: charts that look like a spring and fail exactly one gate.** Each was found by relaxing that one gate in
+the scan and keeping only the hits the strict rule rejects for it; every other gate passed. The four are the four tells
+the card's lookalikes rest on: the depth of the dip, the speed of the reclaim, the number of floor touches and the
+length of the range.
+
+| # | Ticker | Date | The one criterion that fails | The number | Floor / probe / closes under / reclaim | What it really is |
+|---|---|---|---|---|---|---|
+| 1 | COST | 2021-01-20 | spr.dip_depth | The probe went 1.34 ATR under the 359.50 floor (to 352.44); the rule is 0.1 to 1 ATR (1 to 2 ATR grades lower, over 2 is a breakdown). | 359.50 (25 d, 6.1%, 2 touches) / 352.44 / 1 / next day | A deeper shakeout, two-bar: buy 361.30 at the 01-21 open, stop 352.41 (2.46%); made 0.52R and was stopped; the stock lost 13% in the next six weeks. By the card, a lower grade and a smaller size, or the test entry. |
+| 2 | INTC | 2005-08-29 | spr.reclaim_window | 3 closes under the 25.61 floor; the close back inside came on day 4. The rule is the same day (one-bar) or the next (two-bar). | 25.61 (60 d, 12.6%, 2 touches) / 25.31 (0.57 ATR) / 3 / day 4 | A U&R of the range low at best (3 closes under is the U&R's limit), with more closes a Remount, not a spring. Buy 25.65 at the 08-30 open, stop 25.28 (1.44%); made 0.35R, stopped; 23.83 twenty sessions on. |
+| 3 | AMZN | 2021-08-12 | spr.floor_touches | The floor (164.99) was touched by ONE swing low, 40 sessions old, that price rallied 14% off; the rule is a flat floor touched at least twice, 5 sessions apart. | 164.99 (one low, 06-15) / 163.48 (0.41 ATR) / 1 / next day | A 2B of a single swing low (setup 28), not a spring: there is no flat range to look left at. Buy 165.28 at the 08-13 open, stop 163.45 (1.11%); made 0.01R, stopped; 173.46 twenty sessions on, from a lower low (158.79). |
+| 4 | NFLX | 2025-09-15 | spr.range_length | The range behind the probe is 19 sessions long (118.24-126.71 from 08-18); the rule is 20 or more. | 118.24 (19 d, 7.2%, 2 touches) / 117.32 (0.33 ATR) / 0 / same day | A U&R of a three-week shelf low (setup 29), not a spring. Buy 120.56 at the 09-16 open, stop 117.29 (2.71%); made 0.87R, stopped; 121.90 twenty sessions on. |
+
+**What the failures have in common.** All four were quiet, shallow probes of a flat range in a leader above its
+200-day, exactly what the card asks for, and all four were stopped on the entry day with a best excursion of 0.0R,
+which is section 8.5's number in one picture (41% of springs broke their low before any test came). Three of the four
+(GOOGL, AAPL, MSFT) came while SPY was making, or about to make, a lower low: the index had not sprung, so the stock's
+spring was a shakeout that kept going. TSLA was the stock's own: a tall range near the 20% limit after a 73% run, in
+which the "floor" was a ledge on the way down. The teaching is the card's own: the stop under the spring low is the
+trade, not a formality, and Wyckoff's step 5 (time the commitment with a turn in the index) is a gate here, not a
+footnote. The near-misses show the four counts a learner must make before calling a spring: how deep (0.1 to 1 ATR),
+how fast back inside (the same day or the next), how many floor touches (two or more, 5 sessions apart), and how long
+the range (20 sessions or more); miss one and it is a 2B, a U&R or a Remount, each with its own card.

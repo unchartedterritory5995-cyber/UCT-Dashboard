@@ -1127,3 +1127,46 @@ the "failure had failed" (8.5). All three were liquid leaders above the 200-day 
 a market still in its decline, which is why 8.7 ("the indexes are washing out ... and reclaiming them") is a gate, not a
 footnote, and why the stop is honoured at once (8.3). The scan's own numbers say the same: a third of all long hits
 never reached 1R.
+
+## 13. Failures and near-misses (from our data)
+
+Added 2026-11-10 (deliverable 4 of `CRITERIA_PROGRAMME.md`). Everything below is read off the same scan as section 12
+(`final/hits.json`) or off a re-run of `scan_2b.py` with one gate relaxed at a time (`near_scan.py`, a 450-name
+random subset of the liquid universe, 150 seconds per gate), never off a chart alone. Charts: `final/fail_1-4.png`
+(the four failures, one column), `final/near_1-4.png` (the four near-misses) and `final/pair_29-undercut-rally.png`
+(a textbook 2B over a textbook U&R), in `_study-resume/scratchpad/setups/28-2b-reversal/` (scratch, not in the repo).
+Every chart carries the buy point, the stop, 3R and 5R and the prior-low box, so a learner can compare a failure or a
+near-miss with the winners of section 12 at a glance. SPY numbers are the sandbox's own bars.
+
+**Failures: valid 2Bs, traded by the rules, stopped before 3R.** All four passed every gate the scan can read (above
+the 200-day, a swing low 7 to 33 sessions old with a rally of 2 ATR or more off it, the first break, an undercut of
+0.75% to 1.65%, a reclaim close in the upper half on the break day or the next, quiet break volume, $100 million or
+more a day), and all four were stopped on the first session after the entry with a best excursion of 0.0R.
+
+| # | Ticker | Trigger | Prior low (date) | Undercut / closes under / reclaim | Buy | Stop (risk) | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | PYPL | 2018-03-26 | 76.93 (03-02) | 0.75% / 1 / next day | 77.98 (the open, 1.4% over the level) | 76.30 (2.15%) | 03-27, low 75.65 | The day after the entry opened 79.59 and closed 76.31, through the stop. SPY went on to a lower low on 04-02 (254.67, under its 257.83 March low): the market was still washing out, not reclaiming. | tb.market_washout |
+| 2 | MGM | 2017-07-05 | 30.82 (06-12) | 1.65% / 1 / next day | 30.83 | 30.26 (1.85%) | 07-06, low 30.26 (the stop to the cent) | The next day's low touched the stop exactly, the low of the move came the day after (30.20), and the stock was 31.98 twenty sessions later. The stop did its job; a new try needs a new trigger. | tb.after_entry_stop |
+| 3 | TSLA | 2023-08-11 | 240.70 (06-26) | 1.11% / 0 / same day | 241.77 | 237.97 (1.57%) | 08-14, low 233.75 | The next session opened 235.70, under the level, and the stock fell to 212.36 by 08-18: the failure failed. It was 273.58 twenty sessions after the entry, from a later, lower base. | tb.reclaim_fails |
+| 4 | NVDA | 2024-04-18 | 83.02 (04-09) | 0.75% / 0 / same day | 84.97 | 82.35 (3.08%) | 04-19, low 75.61 | The next day opened 83.15 and fell to 75.61, a 10% day straight through the stop; SPY made a lower low the same day (493.86 under its 499.12 20-session low). The stop was already 3.08% from the entry, over the A13 line. | tb.market_washout |
+
+**Near-misses: charts that look like a 2B and fail exactly one gate.** Each was found by relaxing that one gate in the
+scan and keeping only the hits the strict rule rejects for it; every other gate passed.
+
+| # | Ticker | Date | The one criterion that fails | The number | Prior low / closes under / reclaim | What it really is |
+|---|---|---|---|---|---|---|
+| 1 | DELL | 2024-07-22 | tb.depth | The undercut went 4.36% under the 127.59 low (to 122.03); the rule is 3% or less. The stop that follows is 4.83% from the entry. | 127.59 (06-07) / 3 / day 3 | A deeper break that happened to close back above: not a 2B at full size. By the card, a smaller size or the hourly higher-low entry, or no trade. It never traded above the entry and fell to 88 within three weeks. |
+| 2 | GS | 2017-01-25 | tb.reclaim_window | 6 closes under the 236.64 low before the first close back above (reclaim on day 6); the rule is within 3 sessions. | 236.64 (12-29) / 6 / day 6 | A Remount of a level (setup 32), bought on the retake of the line with the stop under the remount day's low, not on the reclaim of a low. Made 0.67R and was stopped. |
+| 3 | GOOG | 2026-07-20 | tb.reclaim_close | The reclaim day closed at 0.14 of its range (a gap over the level that sold off all day); the rule is a close in the upper half (0.5 or more). | 348.66 (07-09) / 1 / next day | A failed reclaim, not a trigger: the close is back near the low, so the buyers who lifted it at the open were gone by the bell. Best 0.06R, stopped. |
+| 4 | META | 2026-01-08 | tb.above_200 | The reclaim-day close was 4.2% under the 200-day SMA; the rule is a close above it. | 638.61 (12-12) / 0 / same day | A 2B shape in a stock below its 200-day: watch only under B26 (the dossier's rule; D-009 is still pending). Best 0.89R, stopped. |
+
+**What the failures have in common.** None gave a warning on its own chart: each reclaim day closed in the upper half
+on quiet volume, three of the four had an undercut under 1.2%, and all four were stopped on the very next session with
+a best excursion of 0.0R. Two of them (PYPL in March 2018, NVDA in April 2024) came while SPY was still making lower
+lows, the market condition the card's tb.market_washout names and the scan cannot read; TSLA is the "failure that
+failed" case (a gap back under the level the next morning); MGM is the plain cost of the setup, a stop touched to the
+cent on a shakeout the stock then rallied from. The teaching is the card's own: the stop goes under the undercut low
+and is honoured at once, a close back under the level is the warning, and a market still making lower lows is not the
+place for the first try. The near-misses show the three numbers a learner must count before calling a 2B: how far
+under (3% or less), how many closes under (none past the third session), and where the reclaim day closed (upper
+half), with the 200-day as the fourth, non-negotiable line.
