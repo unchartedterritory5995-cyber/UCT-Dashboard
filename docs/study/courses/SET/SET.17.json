@@ -398,7 +398,7 @@
    "id": "u04",
    "source": "s15",
    "quote": "My target for a Parabolic Short is consistently the 9-day exponential moving average (9EMA), which my studies show acts as a magnet for mean reversion",
-   "claim": "Bracco's parabolic short ends at the 9-day EMA, where a Wedge Drop begins."
+   "claim": "Bracco's parabolic short ends at the 9-day EMA, a magnet for mean reversion."
   },
   {
    "id": "h01",
@@ -1081,7 +1081,7 @@
     "WHR, August 2002, a bear market. The stock sits 19.4% under a falling 200-day; the bounce makes a lower high.",
     "Four days stalled on the averages, 6.0% wide. No new high in the last three sessions. The averages catch up.",
     "2002-08-29: a close under both averages and the stall low, 55.55. Short at market, 55.16. Stop 56.28, 2.0% away.",
-    "Failure mode: a close back above both averages within days. Instead it slides: 3R on day 9, a third covered, 14.2R."
+    "No quick reclaim. It slid: 3R on day 9, a third covered. At best it reached 14.2R."
    ],
    "facts": [
     "d01",
@@ -1103,7 +1103,7 @@
     "GS, August 2011. Kell's faster rally that puts in a lower high: the bounce dies at the falling 50-day.",
     "A four-day stall, 4.4% wide, on the 10-day EMA. The up days are quiet. The index is in its own down cycle.",
     "2011-08-02: a close under both averages at 131.23 on 1.2x volume. Short at market. Stop 134.79, 2.7% away.",
-    "3R on day 4: cover a third, stop to breakeven. Another third at 5R, the rest on the trail. 13.2R."
+    "3R on day 4: cover a third, stop to breakeven. Another third at 5R, then trail. It reached 13.2R at best."
    ],
    "facts": [
     "d07",
@@ -1124,7 +1124,7 @@
    "steps": [
     "GEN, December 2025, 3.0% under its 200-day. A bounce to a lower high fails a push past the prior high.",
     "Seven days of narrowing range on the averages, 2.9% wide. Then a gap under the stall low, 27.31, on 0.4x volume.",
-    "Short at market, 27.19. Stop a few cents over the high, 27.69, 1.8% away. Volume was light: the dossier's caveat.",
+    "Short at market, 27.19. Stop a few cents over the high, 27.69, 1.8% away. Light volume only grades the day down.",
     "Failure mode: the reclaim within a few sessions. Instead 3R on day 12, before the February report; 18.0R at best."
    ],
    "facts": [
@@ -1624,7 +1624,7 @@
     },
     "round": 2
    },
-   "why": "2.03%. The stop minus the fill, divided by the fill. Inside the 3% a stop usually sits within. That was WHR's stop, 2.0% away on the dossier's table.",
+   "why": "2.03%. The stop minus the fill, divided by the fill. That fits inside the 3% a stop usually sits within. It was WHR's stop in August 2002.",
    "lesson_line": "Stop first, distance second, size last. Measure the distance before the size.",
    "facts": [
     "h04",
@@ -1649,7 +1649,7 @@
     "Move the stop up to the 200-day"
    ],
    "answer": "Cover; the reclaim is the exit",
-   "why": "Cover. If the stock regains its moving averages and pushes higher, exit the short. HPQ did exactly this on day 2; the slide came in July, without the trade.",
+   "why": "Cover. If the stock regains its moving averages and pushes higher, exit the short. HPQ closed back above both averages on day 2, and its stop went that day. The slide came in July, without the trade.",
    "lesson_line": "The reclaim cancels the drop. Cover, and wait for a new stall.",
    "facts": [
     "t06",
@@ -1730,7 +1730,7 @@
     "Short, half size"
    ],
    "answer": "No short; Green is for longs",
-   "why": "No short. Green is full risk for longs; Red is mostly cash plus shorts below the 200-day. A Green or Yellow reading is a no-trade row for this short. TraderLion: avoid shorting in strong uptrending markets.",
+   "why": "No short. Green is full risk for longs; Red is mostly cash plus shorts below the 200-day. A Green or Yellow reading is a no-trade row for this short. TraderLion: avoid shorting early in new bull markets or strong uptrending stocks.",
    "lesson_line": "Read the market before the stock. A short in a Green market is a fight you picked.",
    "facts": [
     "h24",
@@ -1768,7 +1768,7 @@
    ],
    "house": true,
    "wrong": {
-    "Yes; under both averages is enough": "Kell himself warns the setup is not simply a cross of the averages. The close position is a gate.",
+    "Yes; under both averages is enough": "Kell warns of the mirror, the Wedge Pop, that it is not simply a cross of the averages. The close position is a gate here.",
     "Yes, if volume was heavy": "Volume grades the day. It does not turn a mid-range close into a decided one."
    }
   },
@@ -2054,7 +2054,7 @@
     "Pass; it is not a setup"
    ],
    "answer": "B- at best; wide and loose",
-   "why": "B- at best. Wide, loose action before the drop is graded down, not excluded. DXCM 2022-04-18 was this stall: stopped at 0R by a 124.00 high, then the stock fell 32.5% in 20 sessions.",
+   "why": "B- at best. Wide, loose action before the drop is graded down, not excluded. DXCM 2022-04-18 was this stall: stopped at 0R by a 124.00 high, then the stock fell hard.",
    "lesson_line": "A tight stop on a loose stall is a coin flip. Size it down or skip it.",
    "facts": [
     "c12",
@@ -2076,12 +2076,12 @@
    "criterion": "wd.top_extension",
    "q": "An index closes 5% over its 10-day EMA. By Kell's own note, what is that?",
    "choices": [
-    "An extension; a top is likely near",
+    "An extension; price is stretched",
     "A healthy trend; nothing to do",
     "A Wedge Drop",
     "A Wedge Pop"
    ],
-   "answer": "An extension; a top is likely near",
+   "answer": "An extension; price is stretched",
    "why": "An extension. Kell called QQQ ahead of itself at 4-5% above its daily 10-day EMA, and the Wedge Drop came two weeks later. Our card: about 4% or more over the 10-day for an index.",
    "lesson_line": "Far above the fast average, the rally is tired. Watch for the stall.",
    "facts": [
@@ -2185,7 +2185,7 @@
     "Covered at the close, 26.20"
    ],
    "answer": "Stopped at 25.26; a planned loss",
-   "why": "Stopped at 25.26. The stop is the exit, a real order, never widened. DIS 2006: 0.34R at best, back above both EMAs on day 2, stopped on its earnings reaction day.",
+   "why": "Stopped at 25.26. The stop is the exit, a real order, never widened. DIS 2006: 0.34R at best, stopped on day 8, its earnings reaction day.",
    "lesson_line": "A close above the trigger day's high means the stop already went. The stop is the exit.",
    "facts": [
     "h02",
@@ -2261,7 +2261,7 @@
    "criterion": "wd.parabolic_exception",
    "q": "A blow-off top shorted on its climax day above the 200-day is the Parabolic Short's trade, not a Wedge Drop.",
    "answer": "True",
-   "why": "True. A short above the 200-day after a blow-off is the Parabolic Short, on its climax day, with its own checklist. Bracco's target for it is the 9-day EMA, the average where a Wedge Drop begins.",
+   "why": "True. A short above the 200-day after a blow-off is the Parabolic Short, on its climax day, with its own checklist. Bracco's target for it is the 9-day EMA, which acts as a magnet for mean reversion.",
    "lesson_line": "Shorting the blow-off is a different setup. The Wedge Drop comes days later, back at the averages.",
    "facts": [
     "c25",
@@ -2470,7 +2470,7 @@
     "Yes; the stop was too tight"
    ],
    "answer": "No; a planned loss, the stop did its job",
-   "why": "No. The stop is the exit, and the loss was the planned one. DIS 2006-01-26 was back above both EMAs on day 2 and stopped on its earnings reaction day. Heavy volume on the drop did not make it work.",
+   "why": "No. The stop is the exit, and the loss was the planned one. DIS 2006-01-26 was stopped on day 8, its earnings reaction day. Heavy volume on the drop did not make it work.",
    "lesson_line": "A loss taken at plan is the system working. You will take this one again.",
    "facts": [
     "h02",
@@ -2606,7 +2606,7 @@
     "Exactly 50"
    ],
    "answer": "20 or less, in a weak group",
-   "why": "20 or less, in a weak group. Shorts are the mirror: the weakest stocks, an RS rating of 20 or less, in the weakest groups. Our own words: incredibly more selective than longs.",
+   "why": "20 or less, in a weak group. Shorts are the mirror: the weakest stocks, an RS rating of 20 or less, in the weakest groups. Our own words: extremely picky with shorts.",
    "lesson_line": "Short the weakest in the weakest groups. The mirror of buying leaders.",
    "facts": [
     "h13",
@@ -2662,7 +2662,7 @@
     "Nothing; Red means all cash"
    ],
    "answer": "A short candidate: the pop and rejection",
-   "why": "A short candidate. Red is mostly cash plus shorts below the 200-day. Our own frame: below the 200-day, a decent pop back up and rejection at the 50-day or 20-day EMA. That is the A+ row.",
+   "why": "A short candidate. Red is mostly cash plus shorts below the 200-day. Our own frame: below the 200-day, a decent pop back up and rejection at the 50-day or 20-day EMA. That is the top the A+ grade wants.",
    "lesson_line": "Red market, under the 200-day, a pop that fails at the 50-day: that is our short.",
    "facts": [
     "h15",
@@ -2683,15 +2683,15 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "wd.order",
-   "story": "GS, August 2011. A bounce dies at the falling 50-day, then a four-day stall. Today it closes under both averages at 131.23 on 1.2x volume.",
+   "story": "GS, August 2011. A bounce dies at the falling 50-day, then a four-day stall. Today it closes under both averages at 131.23 on 1.2x volume. The day's high is 134.76.",
    "q": "Write the plan: entry, stop, first cover.",
    "choices": [
     "Market 131.23; stop 134.79; third at 3R",
-    "Limit 130.00; stop 150.00; hold to 10R",
-    "Market at close; stop 128.00; add at 3R"
+    "Limit 130.00; stop 134.79; third at 3R",
+    "Market 131.23; stop 134.79; half at 2R"
    ],
    "answer": "Market 131.23; stop 134.79; third at 3R",
-   "why": "Market at 131.23, stop 134.79, a third at 3R. A market order on the close, the stop a few cents over the two-day high, the first third covered at 3R. GS got there on day 4.",
+   "why": "Market at 131.23, stop 134.79, a third at 3R. A market order on the close, the stop a few cents over the day's high, the first third covered at 3R. GS got there on day 4.",
    "lesson_line": "Entry, stop, cover, trail. Write it before the close; execute it without a debate.",
    "facts": [
     "h20",
@@ -2703,8 +2703,8 @@
    ],
    "house": true,
    "wrong": {
-    "Limit 130.00; stop 150.00; hold to 10R": "A limit under the close may never fill, and a stop at 150.00 is nowhere near the day's high, far outside 3%.",
-    "Market at close; stop 128.00; add at 3R": "A stop under the fill is not a stop on a short, and there is no adding."
+    "Limit 130.00; stop 134.79; third at 3R": "A limit under the close may never fill on the day that matters. Entries are market orders.",
+    "Market 131.23; stop 134.79; half at 2R": "The first cover is a third at 3R. Half at 2R is too early and too much."
    }
   },
   {
@@ -2770,14 +2770,14 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "wd.below_200",
-   "q": "Hidden ticker, the trigger day is the last bar. Is this close under the 200-day, so a short is allowed? Take it or pass.",
+   "q": "Hidden ticker, the trigger day is the last bar. On the 200-day test alone, is a short allowed here?",
    "choices": [
-    "Take it; under the 200-day",
-    "Pass; above the 200-day",
-    "Pass; the stall is wide and loose"
+    "Yes; the close is under the 200-day",
+    "No; the close is above the 200-day",
+    "No; the stall is wide and loose"
    ],
-   "answer": "Take it; under the 200-day",
-   "why": "Take it. The close is 3.9% under the 200-day. The bounce topped where the 50-day meets the flat 200-day, then a seven-day stall. The stop sat right at the 3% limit; it ran 6.7R, 3R on day 6.",
+   "answer": "Yes; the close is under the 200-day",
+   "why": "Yes. The close is 3.9% under the 200-day. The bounce topped where the 50-day meets the flat 200-day, then a seven-day stall. The stop sat right at the 3% limit; it ran 6.7R, 3R on day 6.",
    "lesson_line": "Under the 200-day, a pop that failed at the 50-day, a tight stall: the short is allowed. Then check the rest.",
    "facts": [
     "c02",
@@ -2787,8 +2787,8 @@
    ],
    "house": true,
    "wrong": {
-    "Pass; above the 200-day": "Look again: the close sits under the 200-day, not above it.",
-    "Pass; the stall is wide and loose": "Seven days in a narrow range on the averages is tight, not loose."
+    "No; the close is above the 200-day": "Look again: the close sits under the 200-day, not above it.",
+    "No; the stall is wide and loose": "Seven days in a narrow range on the averages is tight, not loose."
    },
    "chart": {
     "sym": "DXCM",
@@ -2881,7 +2881,423 @@
   "Walk-through fills: the scan shorted at the trigger day's close (WHR 55.16, GS 131.23, GEN 27.19) and stopped $0.03 over the higher of the trigger day's high and the day before; the unit's w1 and w2 say 'the two-day high' and w3 'a few cents over the high' (GEN's 27.69 is 1.8% from the fill either way). A live market order in the last 15 minutes fills a little differently.",
   "The chart questions (q63 DXCM asof 2026-03-05, q64 V asof 2021-05-10) show the trigger day as the last visible bar on the member's own chart with their averages; the keys rest on the dossier's reads (d19, d20, d29) and B26. If the member's chart settings do not draw the 200-day, the question still reads; the importer resolves the bars from our own history.",
   "INCY 2023-08-17 (3R on day 21) is the card's case for patience inside the time stop; whether it was past 1R by day 10 is not in the dossier, so the unit does not use it.",
-  "The 2023 QQQ sequence Kell wrote up (k04, k08, d38) sat above the 200-day; the unit uses it only for the sell-signal job and Kell's own reading, never as a short."
+  "The 2023 QQQ sequence Kell wrote up (k04, k08, d38) sat above the 200-day; the unit uses it only for the sell-signal job and Kell's own reading, never as a short.",
+  "Cold check 2026-11-10: 67 pass (16 fixed), 0 fix, 2 cut (q11 and q45 cut as duplicates of q57 and q64). Look first at: (1) wd.stop is pending (D-008): q06 and q60 key the trigger day's high, which matches 6 of 8 re-checked examples; the scan used the two-day high when it fit 3% (PCG, GEN). (2) The dossier's best-R figures are high-water marks on a fixed stop, not results; the walk-throughs now say so, and the owner should confirm that is how he wants examples framed. (3) The card contradicts itself on RS: wd.weak_group is a settled gate (20 or less) but a strong-RS leader is graded B-; q11 was cut on it. DXCM 2022's 20-session fall is 37% in one place and 32.5% in another; the number is left out."
  ],
- "verify": {}
+ "verify": {
+  "q01": {
+   "status": "pass",
+   "notes": "t01, v01, v02 verbatim (TraderLion and Deepvue, two publishers). Wrong notes true; choices 40 characters or fewer.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "c01, c02, h10 (B26) verbatim; key is the settled 200-day rule. Wrong role (wd.role, pending) is not keyed: only the sell-signal half Kell states.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "t01, t02, t03, y01 verbatim. Key is Kell's order (extension, tight stall); t03 and the why allow the no-extension case. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "c56/h11 (C28 mirrored via D47, settled) verbatim. 4% under the trigger level.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "t06 and c20 verbatim; reclaim cover is proposed on the card, Kell's own line. True.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "h01 (A3/F62), h22, c47, t05 verbatim. wd.stop is pending-owner (D-008), but the key is only 'a few cents over the trigger day's high', the settled A3/F62 default mirrored by D47; the 2-day high and stall top are not offered as wrong. Checked on our bars: the dossier's stops are 3 cents over the trigger day's high in 6 of the 8 examples I re-checked (WHR, GS, EXP, TSM, CAH, DIS) and over the two-day high in the other two (PCG, GEN).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "c08, c57, y01 verbatim. 3 to 10 sessions is a proposed card number, taught as 'our card'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "t08, t09 verbatim (TraderLion), c26, u03. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "h14 (C33, settled) and c48 verbatim. 10 sessions, under 1R.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "c04 verbatim (proposed card number: 8 of 10 closes over the 20-day EMA); k01 verbatim. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "cut",
+   "notes": "duplicate of q57 (a short wants an RS rating of 20 or less, C31/h13, asked twice). Also the why says a leader with strong RS is the B- row (card grading, c37) while the key says 'No', and a B- is still a trade: the card contradicts itself (wd.weak_group is a settled gate but the grading rows call a strong-RS leader a B-). q57 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "h09 (B23) and c49 verbatim. $6 and $3 million both fail. False is right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "k09 (Kell's deck, 21 words), t04, c27 verbatim. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "h08 (B22) and c24 verbatim. True. Same rule as q31/q56 asked in different formats (rule, case, reaction-day exception); kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "c09, y01, t02 verbatim. 1 ATR is a proposed card number. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "c07, c05, c40, k01, u01 verbatim. Story gives the 60-session high test the key needs. Proposed criterion.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "c10 and c44 verbatim (proposed). False is right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "h12 (C29), c50 verbatim; settled. Pass at the open on a gap down.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "h05 (B19, third at 3R is the hard rule) and h18 verbatim. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "calc re-derived: (56.28-55.16)/55.16 = 2.03%. h04 (A13), c16, d01 verbatim. Reworded the clumsy 'Inside the 3% a stop usually sits within' sentence and dropped 'the dossier's table' from the member text.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "t06, c20, d23, d24 verbatim. The why said HPQ 'did exactly this on day 2', but HPQ's day-2 high (21.83) was over the 21.61 stop, so it was stopped that day; the why now says so. Key (cover on the reclaim) unchanged.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "h19 (E52) and c51 verbatim. 21-day for a steadier mover; settled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "calc re-derived: R = 46.89-45.96 = 0.93; 3R = 45.96-2.79 = 43.17. h05, d03 verbatim (PCG, 3R on day 10).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "h24, h15 (D46) verbatim. Key holds under both wd.market options (pending, D-023): both require Orange or Red, so Green is no short. The why quoted TraderLion as 'strong uptrending markets'; t07 says new bull markets or strong uptrending stocks. Corrected to the verbatim wording.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "c13, d31, c42 verbatim (LOW 2007-09-07, 56%). Wrong note applied Kell's Wedge Pop line (p01) to the drop as if it were about the drop; reworded to say it is about the mirror.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "c11, t12, t13 verbatim. Proposed gate. Wrong notes true (VZ d32).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "calc re-derived: R = 80.77-78.94 = 1.83; (78.94-69.79)/1.83 = 5.0. h18, d09, d10 verbatim (EXP, 3R on day 3).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "h06, h07 (B20) and c52 verbatim. Re-derived: R = 37.22-36.65 = 0.57; the 37.55 stop is a 0.90 loss = 1.6R, inside the 2R ceiling; the open (37.40) is 1.3R. d05 numbers verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "x03 (Kell's page offers the add), c19, h26 (A5) verbatim. False, our rule says no add.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "c14, h20 (E57), h21 (E58) verbatim. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "h08, c24 verbatim. Monday close, report after Wednesday's close: three sessions before. Key holds.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "h05 (B19) and c53 verbatim. Breakeven between 2R and 5R.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "c23, t07, d25, d26, c45 verbatim; GOOGL 52.58 and 56.38 give +7.2%. The answer is by elimination from 'three weeks after a market low', which is a hindsight label, but the story gives that cue and no wrong choice fits; kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "c16, h01 (A3), h04 (A13) verbatim. False is right; never pull the stop in.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "h23 (F63) and c54 verbatim; settled. A third at 3R, the day opens past it.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "c12, c36, d27, d28 verbatim. DXCM 2022's fall after the stop is 37% on the card and in dossier 13 but 32.5% in dossier 14; with sources in conflict the number is left out of the why (it now says 'fell hard'). Key (graded down, not excluded) unchanged.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "k03, c06, k08 verbatim (Kell: QQQ 4-5% over its 10-day EMA Feb 2; Wedge Drop Feb 16/17). The key choice said 'a top is likely near', a prediction no source makes; now 'An extension; price is stretched'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "c42, c13, y02 verbatim. Key holds under every D-006 option (volume cue or gate): the gap-down close at the low grades at least as high.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "c03 verbatim (proposed; the 20-session window is the pilot's, noted on the card), d02 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "calc re-derived: 50000 x 1% = 500; 500 / (134.79-131.23 = 3.56) = 140.4, rounded down 140. Position cap check (A7, 40%): 140 x 131.23 = $18,372 = 36.7% of the account, under the cap. h03, h01, d07 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "h02 (A4), c21, d21, d22 verbatim. The why said DIS was back above both EMAs on day 2, which by q05/q21 means cover on day 2, not hold to day 8; that clause is removed. Key (stopped at the planned stop) unchanged.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "y04 verbatim, c18 (proposed). Key only says the first rally into the falling averages is expected and the trail still decides; wd.stall_on_averages (pending) is not keyed. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "h17 (D48) and c55 verbatim. Skip is right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "c25, c29 verbatim (house card). The why said the 9-day EMA is 'the average where a Wedge Drop begins'; the Wedge Drop uses the 10 and 20-day EMAs. Now quotes u04 only ('acts as a magnet for mean reversion'); fact claim u04 trimmed to match. Pending wd.parabolic_exception not keyed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "cut",
+   "notes": "duplicate of q64: same example (V 2021-05-10), same 8.3% above the 200-day, same fact (a sell signal, not a short) as a story and as a chart question. q64 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "c09, c30, c31, d30 verbatim (WFC 2016-09-09, 1.42 ATR). Key by the stall test; the 'mean-reversion short' label is the card's near-miss row.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "c11, d32 verbatim (VZ 2010-06-30, 2.84x). Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "c29, c25, u04 verbatim (10% or more over the 9-day EMA, climax day of a 3 to 5 day burst). Key only names the setup; pending exception not keyed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "c28, p01 verbatim. The story gives raw price action (coiled under the averages, closed up through both), not the label; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "c15 and y06 verbatim. Proposed advanced rule; the daily close is the judge.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "calc re-derived: 100/88 - 1 = 13.64%, which is the card's own measure (wd.not_stretched: 10-day SMA / entry - 1). c50, h12 verbatim. The plain 'under' figure would be 12.0%; the question states the formula, so the key is unambiguous.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "pass",
+   "notes": "h02, d21, d22, c16 verbatim; 2.1% re-derived (25.26/24.74). A loss at plan is not a mistake. The why said DIS was back above both EMAs on day 2, which by q05/q21 would be the cover; clause removed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "c22 (B21), h25, k09, y05 verbatim. Nothing now, new setup only; selling was right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "h04, c16, d13, d14 verbatim (TSM 2022-06-09). 93.53/90.85 is 2.95%, shown as 3.0% in the dossier; 'within about 3%' holds.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "h14 (C33), c48 verbatim. Cover at 0.6R on day 10.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "c24, h08 verbatim. The reaction day itself is allowed. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "h13 (C31), c46 verbatim. The why quoted 'incredibly more selective than longs' as our words; u02 says 'extremely picky'. Corrected to the verbatim wording. Kept over q11.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "re-derived: 64.63-61.50 = 3.13 = 4.8% under (card measure 64.63/61.50-1 = 5.1%), both over 4%. c56, h11 verbatim (INCY trigger level 64.63, d1 table).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "h15 (D46), u01, c40, c07 verbatim. The why called the case 'the A+ row', but the story lacks the volume and market tests; now 'the top the A+ grade wants'. Key unchanged.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "h20, h22, h05, d07, d08, c47 verbatim. The story gave no high, so the 134.79 stop could not be derived; re-checked against our daily bars: GS 2011-08-02 high 134.76, so 134.79 is three cents over the trigger day's high (2.7% from 131.23; the two-day high would be 4.7% away, so the scan fell back to the day's high). Story now states the day's high; the why said 'two-day high', now 'the day's high'; the two silly choices (a 150.00 stop) replaced with a limit order and a half-at-2R cover.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "c26, t08, u03, x01 verbatim. Close in content to q08 (an index drop is a warning) but q08 asks the meaning and this asks the action; kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "k06, d37 verbatim; 166.35 close is in the dossier (line on TSLA 2023-05-15). Key rests on 'a strong market' (the story's cue), true under both wd.market options.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "chart DXCM asof 2026-03-05 (the trigger day is the last bar, ticker not in the question); c02, h10, d19, d20 verbatim, -3.9% re-checked. The question asked only about the 200-day but the key said 'Take it', which also needs the market and RS gates the member cannot see. Reworded to 'on the 200-day test alone, is a short allowed' with Yes/No choices; key and notes rewritten.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "chart V asof 2021-05-10; c02, c01, d29, h10 verbatim (8.3% above the 200-day, 0.93R then stopped). Pass holds whatever the other gates say.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "c17, c16, h04, t11 verbatim. False is right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "r01, r02 (ChartSchool, 3 to 6 months) and c08, y01 verbatim. A contrast question; nothing else from the rising wedge is keyed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w1": {
+   "status": "pass",
+   "notes": "d01, d02, c-facts verbatim. The last step gave 14.2R as the result; d01's figure is the best R before a stop on a fixed stop (the dossier says it is not a realised result). Now says 'At best it reached 14.2R' and drops the failure-mode wording that implied a result.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "d07, d08, k01, c07, c47 verbatim; 134.79/131.23 = 2.7%. The last step gave 13.2R as the result; now 'It reached 13.2R at best'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "d17, d18, c05 verbatim; 27.69/27.19 = 1.8%. 'The dossier's caveat' removed from the member text (light volume only grades the day down, a cue not a gate). 18.0R already read 'at best'.",
+   "fixed": true,
+   "by": "checker"
+  }
+ }
 }

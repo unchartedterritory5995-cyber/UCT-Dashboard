@@ -597,7 +597,7 @@
    "id": "d01",
    "source": "d1",
    "quote": "TVTX | 2015-03-18 | 2015-03-19 | +37% / +34% | 17.2x / 1.6x / yes | 0.98 | $4M | 20.17 | 19.89 (1.4%) | 48.4R",
-   "claim": "TVTX, HVE 2015-03-18, buy 2015-03-19: +37%, close 0.98; buy 20.17, stop 19.89 (1.4%); best 48.4R."
+   "claim": "TVTX, HVE 2015-03-18, buy 2015-03-19: +37%, close 0.98; HVC 20.17 (buy a cent over), stop 19.89 (1.4%); best 48.4R."
   },
   {
    "id": "d02",
@@ -615,7 +615,7 @@
    "id": "d04",
    "source": "d1",
    "quote": "DOCU | 2019-09-06 | 2019-09-09 | +22% / +20% | 12.9x / 1.2x / yes | 0.68 | $98M | 56.27 | 55.53 (1.3%) | 22.6R",
-   "claim": "DOCU, HVE 2019-09-06, buy 2019-09-09: +22%; buy 56.27, stop 55.53 (1.3%); best 22.6R."
+   "claim": "DOCU, HVE 2019-09-06, buy 2019-09-09: +22%; HVC 56.27 (buy a cent over), stop 55.53 (1.3%); best 22.6R."
   },
   {
    "id": "d05",
@@ -633,7 +633,7 @@
    "id": "d07",
    "source": "d1",
    "quote": "INOD | 2026-05-08 | 2026-05-11 | +86% / +60% | 18.7x / 2.3x / yes | 0.63 | $44M | 84.89 | 83.38 (1.8%) | 26.5R",
-   "claim": "INOD, HVE 2026-05-08, buy 2026-05-11: +86%; buy 84.89, stop 83.38 (1.8%); best 26.5R."
+   "claim": "INOD, HVE 2026-05-08, buy 2026-05-11: +86%; HVC 84.89 (buy a cent over), stop 83.38 (1.8%); best 26.5R."
   },
   {
    "id": "d08",
@@ -651,7 +651,7 @@
    "id": "d10",
    "source": "d1",
    "quote": "INSM | 2024-05-28 | 2024-05-29 | +118% / +126% | 18.3x / 3.5x / yes | 0.64 | $47M | 48.06 | 45.83 (4.7%) | 14.5R",
-   "claim": "INSM, HVE 2024-05-28: +118%, a 126% gap; buy 48.06, stop 45.83 (4.7%); best 14.5R."
+   "claim": "INSM, HVE 2024-05-28: +118%, a 126% gap; HVC 48.06 (buy a cent over), stop 45.83 (4.7%); best 14.5R."
   },
   {
    "id": "d11",
@@ -669,7 +669,7 @@
    "id": "d13",
    "source": "d1",
    "quote": "VRTX | 2012-05-07 | 2012-05-08 | +55% / +39% | 18.5x / 3.3x / yes | 0.91 | $86M | 58.12 | 57.54 (1.0%) | 13.5R",
-   "claim": "VRTX, HVE 2012-05-07: buy 58.12, stop 57.54 (1.0%); best 13.5R."
+   "claim": "VRTX, HVE 2012-05-07: HVC 58.12 (buy a cent over), stop 57.54 (1.0%); best 13.5R."
   },
   {
    "id": "d14",
@@ -804,8 +804,8 @@
    "title": "TVTX, March 2015: the clean one",
    "steps": [
     "TVTX, March 2015. A $4M-a-day name in a quiet uptrend, 25% over its 200-day. Then record volume, up 37%.",
-    "It closes at 0.98 of its range. That close is the HVC: mark a ray there and an AVWAP from the day.",
-    "2015-03-19, day 2: a dip under the HVC, then back through it. Buy at market, 20.17. Stop under the day-2 low, 19.89.",
+    "It closes at 0.98 of its range. That close, 20.17, is the HVC: mark a ray and an AVWAP.",
+    "Day 2, 2015-03-19: a dip under the HVC, then back over. Buy a cent over it. Stop 19.89, under the day-2 low.",
     "Failure mode: back under the fill. Instead it stair-steps to +70% by day 54, the HVC never traded again."
    ],
    "facts": [
@@ -825,7 +825,7 @@
    "steps": [
     "DOCU, September 2019. An earnings report brings the most shares it has ever traded. Up 22%, from 7% under its 200-day.",
     "Earnings on ordinary big volume is a PEG. This volume is extreme, an all-time record: an HVE. Mark the close.",
-    "2019-09-09, day 2 dips and reclaims. Buy at market, 56.27. Stop a few cents under the day-2 low, 55.53.",
+    "2019-09-09, day 2 dips and reclaims. Buy at market, a cent over the 56.27 close. Stop under the day-2 low, 55.53.",
     "Failure mode: back under the fill. Day 3 dips 0.8% under the HVC, holds the stop, then rises 30% by day 55."
    ],
    "facts": [
@@ -845,7 +845,7 @@
    "title": "INOD, May 2026: the trims are the trade",
    "steps": [
     "INOD, May 2026. An earnings report on extreme volume, an all-time record, up 86%. Its close is the level.",
-    "2026-05-11, day 2 dips 1.8% under the HVC and reclaims. Buy at market, 84.89. Stop under the day-2 low, 83.38.",
+    "2026-05-11, day 2 dips 1.8% under the HVC and reclaims. Buy a cent over 84.89. Stop under the day-2 low, 83.38.",
     "5R in two sessions: thirds off at 3R and 5R, stop to breakeven. The peak, +47%, comes on day 17.",
     "Failure mode: a slide back under the level. By day 30 it round-trips under the HVC. The trims kept the win."
    ],
@@ -1267,18 +1267,18 @@
    "rung": 3,
    "format": "numeric",
    "criterion": "hve.trim_1",
-   "q": "Bought at 56.27 with the stop at 55.53. Where is 3R?",
-   "answer": 58.49,
+   "q": "Bought at 56.28 with the stop at 55.53. Where is 3R?",
+   "answer": 58.53,
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "a + 3 * (a - b)",
-     "a": 56.27,
+     "a": 56.28,
      "b": 55.53
     },
     "round": 2
    },
-   "why": "58.49. Three times the risk, added to the buy. A third comes off there.",
+   "why": "58.53. Three times the risk, added to the buy. A third comes off there.",
    "lesson_line": "Sell a third at 3R. Know the price before the buy.",
    "facts": [
     "h05",
@@ -1425,18 +1425,18 @@
    "rung": 4,
    "format": "numeric",
    "criterion": "hve.stop_width",
-   "q": "Fill 58.12. The day-2 low is 57.56 and the stop sits two cents under it. How far below the fill is the stop, in percent?",
-   "answer": 1.0,
+   "q": "Fill 58.13. The day-2 low is 57.56 and the stop sits two cents under it. How far below the fill is the stop, in percent?",
+   "answer": 1.01,
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "(a - (b - 0.02)) / a * 100",
-     "a": 58.12,
+     "a": 58.13,
      "b": 57.56
     },
     "round": 2
    },
-   "why": "1.0%. Two cents under the day-2 low is 57.54, the stop the scan used for VRTX.",
+   "why": "1.01%. Two cents under the day-2 low is 57.54, VRTX's stop in May 2012.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "c04",
@@ -1476,14 +1476,14 @@
    "rung": 4,
    "format": "numeric",
    "criterion": "hve.trim_2",
-   "q": "Bought at 84.89, stop 83.38. The stock trades 92.44. How many R is that?",
+   "q": "Bought at 84.90, stop 83.38. The stock trades 92.50. How many R is that?",
    "answer": 5.0,
    "calc": {
     "fn": "r_multiple",
     "args": {
-     "entry": 84.89,
+     "entry": 84.9,
      "stop": 83.38,
-     "exit": 92.44
+     "exit": 92.5
     },
     "round": 2
    },
@@ -1796,7 +1796,7 @@
    "format": "scenario",
    "criterion": "hve.after_entry_stop",
    "q": "Was the stop a mistake?",
-   "story": "You bought day 2 at 80.07, stop 77.24. The next session shakes out to 71.08 and takes your stop. Weeks later it runs to 88.84.",
+   "story": "You bought day 2 at 80.07, stop 77.24. The next session takes your stop, and within three sessions the low is 71.08. Weeks later it runs to 88.84.",
    "choices": [
     "No; the stop is the exit",
     "Yes; it needed a wider stop",
@@ -1843,7 +1843,7 @@
    "wrong": {
     "Yes; it is back over the HVC": "Being over the HVC is not a trigger. The new trade needs its own setup.",
     "Yes; the old stop proved right": "That is chasing the past. A re-entry needs a fresh trigger and stop.",
-    "Never; the stock failed you": "Not never. A new trigger is a new trade, within the try limits."
+    "Never; the stock failed you": "Not never. A new trigger is a new trade with its own stop."
    },
    "house": true
   },
@@ -1966,12 +1966,12 @@
    "q": "How does the group read?",
    "story": "Four names in one theme all set volume records on the same day. One gives a clean day-2 reclaim of its HVC.",
    "choices": [
-    "A plus; a cue, not a rule",
+    "It helps; a cue, not a rule",
     "A rule; all four must trigger",
     "A warning; it is a crowd"
    ],
-   "answer": "A plus; a cue, not a rule",
-   "why": "A plus. A group or theme setting volume records the same day helps. It is a cue, not a rule.",
+   "answer": "It helps; a cue, not a rule",
+   "why": "It helps. A group or theme setting volume records the same day helps. It is a cue, not a rule.",
    "lesson_line": "A group moving together is a tailwind, not a trigger.",
    "facts": [
     "c29"
@@ -1988,19 +1988,19 @@
    "rung": 6,
    "format": "numeric",
    "criterion": "hve.stop",
-   "q": "Account 40,000. Risk 0.5%. Fill 20.17, stop 19.89. How many shares?",
-   "answer": 714,
+   "q": "Account 40,000. Risk 0.5%. Fill 20.18, stop 19.89. How many shares?",
+   "answer": 689,
    "calc": {
     "fn": "shares_from_risk",
     "args": {
      "account": 40000,
      "risk_pct": 0.5,
-     "entry": 20.17,
+     "entry": 20.18,
      "stop": 19.89
     },
     "round": 0
    },
-   "why": "714 shares. Account times risk, divided by the stop distance, rounded down. Then check the position cap.",
+   "why": "689 shares. Account times risk, divided by the stop distance, rounded down. Then check the position cap.",
    "lesson_line": "The stop sets the size, never the other way round.",
    "facts": [
     "h03",
@@ -2145,7 +2145,7 @@
    "format": "scenario",
    "criterion": "hve.trim_2",
    "q": "By our rules, what kept this a win?",
-   "story": "Bought day 2 at 84.89, stop 83.38. 5R comes in two sessions; the peak is day 17. By day 30 it has round-tripped under the HVC.",
+   "story": "Bought day 2 at 84.90, stop 83.38. 5R comes in two sessions; the peak is day 17. By day 30 it has round-tripped under the HVC.",
    "choices": [
     "The thirds at 3R and 5R",
     "Holding all of it",
@@ -2208,7 +2208,7 @@
    ],
    "wrong": {
     "Yes; it must be over the 50-day": "No 50-day test applies on this card. The 200-day at the fill does.",
-    "Yes; the 50 must top the 200": "That is a base-card check. The HVE has no 50-day requirement."
+    "Yes; the 50 must top the 200": "That is a check for other setups. The HVE has no 50-day requirement."
    },
    "house": true
   },
@@ -2312,7 +2312,7 @@
     "A mistake; the stop was too tight"
    ],
    "answer": "Stopped; a small planned loss",
-   "why": "Stopped, a small planned loss. The broker stop took it on the way through, as planned. It drifted lower after.",
+   "why": "Stopped, a small planned loss. The broker stop took it on the way through, as planned.",
    "lesson_line": "A real stop order acts when you cannot. That is its job.",
    "facts": [
     "h18",
@@ -2436,15 +2436,15 @@
    "format": "scenario",
    "criterion": "hve.trigger",
    "q": "Write the plan: entry, stop, first trim.",
-   "story": "A quiet stock trades record volume, up 37%, and closes at its high. Day 2 dips under that close to a low of 19.91, then trades back through it.",
+   "story": "A quiet stock trades record volume, up 37%, and closes near its high, 20.17. Day 2 dips under that close to a low of 19.91, then trades back through it.",
    "choices": [
-    "20.17, stop 19.89, a third at 3R",
+    "20.18, stop 19.89, a third at 3R",
     "Buy the close, stop the record low",
-    "20.17, stop at the HVC",
+    "20.18, stop at the HVC",
     "Wait for 21, stop 19.89"
    ],
-   "answer": "20.17, stop 19.89, a third at 3R",
-   "why": "20.17, stop 19.89, a third at 3R. A market buy a cent over the HVC, the stop a few cents under the day-2 low. TVTX ran to +70% by day 54.",
+   "answer": "20.18, stop 19.89, a third at 3R",
+   "why": "20.18, stop 19.89, a third at 3R. A market buy a cent over the HVC, the stop a few cents under the day-2 low. TVTX ran to +70% by day 54.",
    "lesson_line": "Entry, stop, trim before the buy. Then let the plan work.",
    "facts": [
     "c14",
@@ -2455,8 +2455,8 @@
    ],
    "wrong": {
     "Buy the close, stop the record low": "The close is not our buy, and the record day's low is not the day-2 stop.",
-    "20.17, stop at the HVC": "The HVC is never the stop. It sits under the day-2 low.",
-    "Wait for 21, stop 19.89": "The trigger is the trade back over the HVC, not a higher price."
+    "Wait for 21, stop 19.89": "The trigger is the trade back over the HVC, not a higher price.",
+    "20.18, stop at the HVC": "The HVC is never the stop. It sits under the day-2 low."
    },
    "house": true
   },
@@ -2466,7 +2466,7 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "hve.regular_hours",
-   "q": "What is your first possible buy?",
+   "q": "What is your first High Volume Edge buy?",
    "story": "A trial result hits at 7 a.m. The stock trades far higher pre-market on huge volume and holds all day.",
    "choices": [
     "Day 2, a reclaim of the HVC",
@@ -2601,7 +2601,435 @@
   "Story items that are not real examples (q22, q31's prices are NAVN's but the outcome is not asked, q32, q37, q45, q48, q53, q54, q56, q60, q61, q64, q67) use round or hypothetical numbers to test one rule; none claims a real outcome.",
   "q28 computes dollar volume against the card's proposed 'under about $100 million' (hve.lesser_known, proposed, a grade cue); q43 grades on it. The owner exempted HVE examples from the bank's liquidity cut (2026-11-07), and B23's application here is D-030, not asked.",
   "The group cue (q45) rests on an unsigned UCT note (card evidence) and is unmeasured; it is keyed only as 'a cue, not a rule', the card's own words.",
-  "The short mirror does not exist (the owner ruled HVE long only); the down-close record day is taught only as 'not this setup' (q17)."
+  "The short mirror does not exist (the owner ruled HVE long only); the down-close record day is taught only as 'not this setup' (q17).",
+  "Cold check 2026-11-10: 68 pass (15 fixed), 0 fix, 3 cut (q14, q30 and q31 cut as duplicates of q37, q11 and q07). Look first at: (1) most of the volume tests are pending-owner (hve.record_volume, volume_multiple, a_plus_record, min_move; D-089); no question keys on a 10x or 8% number, so keep it that way until he rules. (2) The dossier's winners table prints the HVC under 'buy' (the real buy is a cent over it; the walk-throughs and sums now use that). The examples were chosen before the B23 liquidity rule was settled: TVTX traded $4M a day before its record day and INOD is the one kept chart under $20M a day after it (hve.liquidity, D-030), and INSM's day-2 stop was 4.7%, past the card's 'about 3%' (hve.stop_width). (3) The card's close-position line says 'TVTX and DYN were cut' while the unit teaches TVTX 2015 (close 0.98) as the clean example: the card probably means a different TVTX date; check it."
  ],
- "verify": {}
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "d01, d02, d03, c11, c14, c04, c05 verbatim; buy 20.17 / stop 19.89 (1.4%), +70% by day 54. TVTX traded $4M a day before the event; B23 liquidity is pending (D-030, measured on the 20 sessions after), so the line 'a $4M-a-day name' is the dossier's, not a rule check. The walk-through said 'Buy at market' at the HVC price; the buy is a cent over it (c14), now stated (the importer only allows numbers that sit in a quote, so the HVC figure is shown and the extra cent is in words). Re-checked on our bars: the dossier's winners table lists the HVC (the record day's close) in its 'buy' column and the scan bought a cent over it (the card's own seed: HVC 58.12, fill 58.13); the failures table lists the real buys.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "d04, d05, d06, c07, c06 verbatim; 56.27 / 55.53 = 1.3%, 7% under the 200-day before, over it at the entry; day 3 dip 0.8%, +30% by day 55. The walk-through said 'Buy at market' at the HVC price; the buy is a cent over it (c14), now stated (the importer only allows numbers that sit in a quote, so the HVC figure is shown and the extra cent is in words). Re-checked on our bars: the dossier's winners table lists the HVC (the record day's close) in its 'buy' column and the scan bought a cent over it (the card's own seed: HVC 58.12, fill 58.13); the failures table lists the real buys.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "d07, d08, d09, h05, h20 verbatim; INOD earnings 2026-05-07 after the close (dossier section 12), 5R in two sessions, peak +47% day 17, round trip by day 30. Owner: INOD is the one kept chart under $20M a day after the event (B23, pending D-030) and sat under its 200-day the day before. The walk-through said 'Buy at market' at the HVC price; the buy is a cent over it (c14), now stated (the importer only allows numbers that sit in a quote, so the HVC figure is shown and the extra cent is in words). Re-checked on our bars: the dossier's winners table lists the HVC (the record day's close) in its 'buy' column and the scan bought a cent over it (the card's own seed: HVC 58.12, fill 58.13); the failures table lists the real buys.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "c02, c11, c03 verbatim. HVC = the record day's close; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "c08, c35 verbatim; hve.up_close settled. True.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "c12, c33, c32, g03 verbatim. Day 2 is proposed on the card; wrong notes true (EP is bought on the gap day, c32).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "c04, h24 (F62), h01 (A3) verbatim; hve.stop settled. True.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "c11 and a01 verbatim; hve.mark_level settled. The distractors are real chart tools.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "c09 verbatim; hve.excluded_days settled. False is right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "c14, c03, h22 (E57) verbatim. Trigger is intraday, market order a cent over. Kept over q31, which asked the same thing with numbers.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "c19 (98% within 60 sessions) and c04 verbatim; hve.stop_not_hvc settled. False.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "c07, c01, c09, g06 verbatim. Two of the three wrong choices are calendar days rather than stories, a little loose but each is rightly excluded.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "c26, c01 verbatim (proposed: no prior advance required). False.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "c13, c03 verbatim (hve.day2_dip, proposed). Kept over q30, which asks the same fact.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "c16 (E58), h23, b04 verbatim. Settled; Bonde buys pre-market, we do not.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "c15 and h11 (C28) verbatim; settled. 4%.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "cut",
+   "notes": "duplicate of q37 (closing under the HVC is not an invalidation, do not erase the level). q37 asks it with a story and the erase option. q37 kept. c24 and c19 were verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "c25, b02, b03 verbatim (Bonde: widely covered names do not do as well; no analyst coverage means smaller or out of favor). Proposed lesser-known cue; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "c20, h31 (A5) verbatim; settled. False.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "c35, c08, c37 verbatim. Key rests on the settled up-close/long-only rules, not on hve.inv_down_close (pending).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "c44 and h08 (B22) verbatim; settled. No new buy in the 3 sessions before a report.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "calc re-derived: 56.28 + 3 x (56.28-55.53 = 0.75) = 58.53 (was 56.27 and 58.49, the HVC rather than the fill a cent over it). h05, d04 verbatim. Re-checked on our bars: the dossier's winners table lists the HVC (the record day's close) in its 'buy' column and the scan bought a cent over it (the card's own seed: HVC 58.12, fill 58.13); the failures table lists the real buys.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "c21, h05 (B19), h02 verbatim; settled. False.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "c43 and h26 (F65) verbatim; settled. Orange is A+ only.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "calc re-derived: 21.10/20.00 - 1 = 5.5%. c15, h11, h12 (C28) verbatim; settled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "c48, h15 (C33), c21 verbatim; settled. 0.6R after 10 days is a sell.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "c47 and h18 (D41) verbatim; settled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "calc re-derived: (58.13 - 57.54) / 58.13 = 1.015%, shown as 1.01% (was a fill of 58.12, the HVC itself). c04, h24, d13 verbatim (VRTX day-2 low 57.56, stop 57.54 on our bars). The why said 'the stop the scan used for VRTX'; 'the scan' is internal wording, now 'VRTX's stop in May 2012'. Re-checked on our bars: the dossier's winners table lists the HVC (the record day's close) in its 'buy' column and the scan bought a cent over it (the card's own seed: HVC 58.12, fill 58.13); the failures table lists the real buys.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "calc re-derived: 1% of 3,000,000 = 30,000. c46 and h19 (D42) verbatim; settled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "calc re-derived: R = 84.90-83.38 = 1.52; (92.50-84.90)/1.52 = 5.0 (was 84.89 and 92.44, the HVC as the fill). h20, h05, d07 verbatim. Re-checked on our bars: the dossier's winners table lists the HVC (the record day's close) in its 'buy' column and the scan bought a cent over it (the card's own seed: HVC 58.12, fill 58.13); the failures table lists the real buys.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "calc re-derived: 1,200,000 x 11.50 = $13.8M. c25 and c42 verbatim; the $100M line is a proposed card number. A $13.8M name would fail B23's $20M before the event, but the card measures B23 after the event (pending), so the arithmetic stands.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "c31, c07, d22, d23 verbatim (ROKU 2019-05-09, +28.1%, one-year record, stopped at 0.0R). Key holds under every D-089 option: 'barely beats the old high' fails 2.5x the record.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "cut",
+   "notes": "duplicate of q11: day 2 opens over the HVC and never trades under it, so no trigger (the same fact, a mcq and a story). q11 kept. The NRG numbers (d26: opened 2.1% over, low 1.7% over) were verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "cut",
+   "notes": "duplicate of q07: day 2 opens under the HVC, trades back over it, buy at market a cent over (same fact, same wrong notes). Also built on NAVN's numbers (HVC 13.11, open 12.80), whose honest day-2 stop was 7.5% wide (d28) and so a skip, which q50 teaches. q07 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "c10 and c05 verbatim (not on the 3rd to 5th day of a straight-up burst). Proposed; fourth day fits.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "c45, h06, h07 (B20) verbatim; settled. True.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "h25 (F63) and h05 verbatim; settled. A third at the open.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "c06 and h10 (B26) verbatim; hve.above_200 settled, read at the fill.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "c09 verbatim. Month-end is excluded; settled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "c24, h02, c19 verbatim; hve.under_hvc_not_failure and the stop rule settled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "c23, d14, d15 verbatim (QGEN: buy 55.46, stop 53.73, slid to 38.80 under the 46.07 low). Proposed level rule.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "h02, d16, d17, d33 verbatim (SE buy 80.07, stop 77.24, 71.08, 88.84, 56.05). The story said the next session shook out to 71.08; d17 says 71.08 within 3 sessions, so the story now says that. Key (the stop is the exit; a planned loss) unchanged. The 3.5% stop is over the card's 'about 3%' (hve.stop_width pending), but the lesson is the stop, not the width.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "h28 (B21), c17, c18, d17 verbatim. The wrong note referred to 'the try limits', which nothing in this unit teaches; now 'a new trade with its own stop'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "c49 and h30 (C34) verbatim; settled, a judgment call.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "c17, c18, c38 verbatim. Proposed follow-up entries; the wrong notes are true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "c42, c41, c25, b02 verbatim. Close in content to q15 but q43 asks the grade ($14M A+ against a $3B B-); kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "c07, d05, b01 verbatim. DOCU 2019-09-06 earnings on all-time record volume; key matches the settled fresh_catalyst line.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "c29 verbatim (a cue, not a rule; proposed). The key 'A plus' read like the A+ grade; now 'It helps; a cue, not a rule'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "calc re-derived: 40,000 x 0.5% = 200; 200 / (20.18-19.89 = 0.29) = 689.7, rounded down 689 (was 714 on a fill of 20.17, the HVC itself). Position cap check (A7, 40%): 689 x 20.18 = $13,904 = 34.8% of the account. h03, h01, d01 verbatim. Re-checked on our bars: the dossier's winners table lists the HVC (the record day's close) in its 'buy' column and the scan bought a cent over it (the card's own seed: HVC 58.12, fill 58.13); the failures table lists the real buys.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "c23 verbatim. A close under the record day's low ends it; a trade that closes back does not. False.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "re-derived: R = 50.00-48.50 = 1.50; the open (47.90) is -1.4R, the first-bar low 47.40 is -1.7R, inside the 2R ceiling, so 47.40 is the stop. c45, h06, h07 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "h05, c21, d20, d21 verbatim (NKTR buy 331.66, stop 323.98, 2.3R on 03-22, low 322.50 four sessions after). B19 allows the move at 2R; the default is the first trim, which the why says.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "h01, h02, d28, c17 verbatim (NAVN day-2 stop 7.5% wide). The key (never pull the stop in) is settled A3/A13; hve.stop_width (pending) decides only whether to skip or size down, and both are marked right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "h05, h20, d07, d08, d09 verbatim (INOD 5R in two sessions, +47% day 17, round trip by day 30). The why repeats w3's lesson; kept. Story fill corrected to 84.90 (the HVC is 84.89).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "pass",
+   "notes": "g05 verbatim (Duncan exits on a close under the HVC); c04 and c24 for ours. False.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "c30 and c06 verbatim (proposed: no 10, 21 or 50-day requirement). 'Base-card check' in a wrong note was internal wording, now 'a check for other setups'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "c28, c08, c35 verbatim (a cue, not a rule; ERAS 3%, FUN 0.5%). False for the 'must gap' claim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "c27, c40, d29, d30, d31, g02 verbatim (MBX 62x the 50-day, close 0.26, 7.4% stop). The key is 'graded down' (B-), not 'no trade'; consistent with the card.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "c36, c41, g01 verbatim. A 3x year-high on a mega-cap is an HVC.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "h18, c47, d18, d19, d32 verbatim (YELP buy 48.34, stop 47.52; day 3 opened 49.56, low 46.94). The why added 'It drifted lower after', which no fact states; removed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "g04 verbatim (Duncan 3% to 5% under the HVC); c04 for ours. False.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "d34 and h05 verbatim (3R often only 3% to 7% over the buy). True.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "c43, h26, h36 verbatim. Red is mostly cash and shorts; the card lists Red as a no-trade row for this long.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "h08 (B22) and c44 verbatim. Up 5R to hold through a report; at 3.2R sell.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "a01, a02 verbatim (Shannon anchors a VWAP at a meaningful market event). Low-stakes contrast question; kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "c14, c04, h05, d01, d03 verbatim. The story gave no HVC, so the member could not derive the fill; it now states the HVC. Re-checked on our bars: TVTX 2015-03-18 closed 20.17 (the HVC), day 2 low 19.91, so the buy is 20.18 (a cent over) and the stop 19.89 (two cents under the low); 3R = 20.18 + 3 x 0.29 = 21.05. (The dossier lists 20.17 as 'buy (HVC)', which is the HVC itself.)",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "c16, c12, c03, c32, k01 verbatim. 'First possible buy' also allowed the Episodic Pivot's same-day buy as a real answer; the question now says 'first High Volume Edge buy'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "chart INSM asof 2024-05-28 (the record day is the last bar, ticker not in the question); c07, c01, d10, d11, d12 verbatim (16% under the 200-day, 126% gap on 18.3x, +68% by day 59). The day-2 stop was 4.7% (hve.stop_width pending), which the question does not ask about.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "chart GPCR asof 2025-12-08 (the record day is the last bar); c10, d24, d25 verbatim (72.5% over the 60-session low, 18.2x, stopped at 0.0R, topped within two months).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "c22, c11, h36 verbatim. Invented prices are consistent: day 2 never trades over 45.00, so no trigger.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "c34 and c11 verbatim. Gap Support defends the gap day's low; the HVE's line is the close. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  }
+ }
 }
