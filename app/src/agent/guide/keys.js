@@ -26,14 +26,26 @@ const SAME = { cursor: '(cursor|mouse|pointer)', date: 'dates?', help: '(help|al
 const stem = (w) => SAME[w] || `${esc(w.replace(/s$/, ''))}\\w*`
 
 // "Ctrl+M" → its written forms: ctrl+m, ctrl + m, control+m (and ⌘M / cmd+m on a Mac)
-function chordRe(keys) {
+export function chordRe(keys) {   // exported for agentGuideKeysNoLookbehind (old vs new)
   const k = String(keys).toLowerCase()
   if (k === '?') return /(^|\s)\?(\s|$)|\bquestion mark\b/
   if (k === 'esc') return /\b(esc|escape)\b/
   if (!k.includes('+')) return null
   const parts = k.split('+').map(p => (p === 'ctrl' ? '(ctrl|control|cmd|⌘)' : p === 'alt' ? '(alt|option|⌥)' : esc(p)))
-  // the WHOLE chord: "Ctrl+Alt+J" is not Alt+J, and "Alt+Shift+A" is not Alt+Shift
-  return new RegExp(`(?<![a-z0-9])(?<!\\+\\s*)${parts.join('\\s*\\+\\s*')}(?![a-z0-9])(?!\\s*\\+)`)
+  // the WHOLE chord: "Ctrl+Alt+J" is not Alt+J, and "Alt+Shift+A" is not Alt+Shift. What comes before the chord is tested on
+  // the text, never a regex lookbehind (Safari < 16.4 cannot parse one: agentNoLookbehindStrings); a vetoed match resumes one
+  // character on, as the engine did (agentGuideKeysNoLookbehind holds old and new equal)
+  const re = new RegExp(`${parts.join('\\s*\\+\\s*')}(?![a-z0-9])(?!\\s*\\+)`, 'g')
+  return { test: (q) => wholeChordIn(re, String(q)) }
+}
+function wholeChordIn(re, q) {
+  re.lastIndex = 0
+  for (let m; (m = re.exec(q));) {
+    const before = q.slice(0, m.index)
+    if (!/[a-z0-9]$/.test(before) && !/\+\s*$/.test(before)) return true
+    re.lastIndex = m.index + 1
+  }
+  return false
 }
 // what it does, in its own words: every content word of one alternative ("Cursor / cancel" is either)
 function wordsRe(description) {

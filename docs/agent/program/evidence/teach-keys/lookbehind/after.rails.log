@@ -1,0 +1,18 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/w/pl-teach/app[39m
+
+ [32m✓[39m src/agent/agentGuideKeysNoLookbehind.test.js [2m([22m[2m52 tests[22m[2m)[22m[32m 37[2mms[22m[39m
+ [32m✓[39m src/noRegexLookbehind.test.js [2m([22m[2m6 tests[22m[2m)[22m[33m 2567[2mms[22m[39m
+     [33m[2m✓[22m[39m no product file under app/src uses one [33m 2271[2mms[22m[39m
+ [32m✓[39m src/agent/agentGuideKeysRails.test.js [2m([22m[2m69 tests[22m[2m)[22m[32m 54[2mms[22m[39m
+ [32m✓[39m src/agent/agentNoLookbehindStrings.test.js [2m([22m[2m5 tests[22m[2m)[22m[33m 10776[2mms[22m[39m
+     [33m[2m✓[22m[39m PARSED: no product file under app/src/agent carries one in a regex, string or template literal [33m 342[2mms[22m[39m
+     [33m[2m✓[22m[39m BUILT: no module under app/src/agent exports a pattern or string that carries one [33m 6979[2mms[22m[39m
+     [33m[2m✓[22m[39m KNOWN GAP: no product file outside app/src/agent carries one [33m 1773[2mms[22m[39m
+     [33m[2m✓[22m[39m KNOWN GAP pinned: the sites outside the Agent are exactly these today [33m 1675[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m4 passed[39m[22m[90m (4)[39m
+[2m      Tests [22m [1m[32m132 passed[39m[22m[90m (132)[39m
+[2m   Start at [22m 15:30:22
+[2m   Duration [22m 11.85s[2m (transform 11.51s, setup 1.27s, import 8.54s, tests 13.43s, environment 2.13s)[22m
+
