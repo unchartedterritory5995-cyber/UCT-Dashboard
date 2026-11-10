@@ -115,3 +115,48 @@ https://claude.ai/code/session_01Dhm4qhJhGoto7iixuJEEzM
 - **One locked full suite** at `0d605b91fd`:
   - `Test Files 3 failed | 404 passed | 5 skipped (412)`, `Tests 4 failed | 10884 passed | 14 skipped (10902)`.
   - All four failures are the pre-existing master reds (command ×3, entitykeys golden).
+
+## R-RAW browser evidence: the 9 title-menu cases (`docs/agent/program/evidence/teach-wl-widget/`)
+LOCAL headless Chrome on the agent harness, real CDP input, scripted model. Same format as
+`evidence/watchlist-title-hit/`.
+
+**What the runner records.** `teach.mjs`, with `TEACH_EVIDENCE_DIR` set (an opt-in capture added to the runner), records
+for every right-click it makes:
+- the pointer coordinates;
+- `document.elementFromPoint` at that point;
+- the step's text and its ring;
+- the menu that is open, with its rows;
+- a screenshot before and after the press.
+
+**Files:**
+- per case: `<id>.json` (the full case record: every step's ring box and primary box, `onPrimary`, and the `evidence`
+  entries), plus `<id>-rightclick-before.png` and `<id>-rightclick-after.png`;
+- `run.json`: the run as a whole.
+
+**Result: 9/9 pass.** In every case:
+- the right-click point is the list name's text centre (1000.5, 118);
+- `elementFromPoint` there is `watchlist.title`, the inner span from #1006;
+- after the press the open menu is `watchlist.rowMenu`, with its rows listed;
+- the last step's ring is on the named row (`onPrimary: true`).
+
+| Case | Row the walkthrough ends on | Menu rows after the right-click |
+|---|---|---|
+| C3-072 Save a community list | Save to My Lists… | Copy list to clipboard, Save to My Lists… (a community list open, via the community given) |
+| C3-073 Rename a list | Rename | Rename, Copy list to clipboard, Export CSV, Import tickers, Share with community, Publish to Prebuilt (UCT) |
+| C3-074 Rename the Flagged list | Rename | as C3-073 (the runner opens the fixture list "Momentum"; Flagged's menu has the same Rename row) |
+| C3-091 Share a tag colour or Flagged | Share with community | as C3-073 |
+| C3-092 Make a list public | Share with community | as C3-073 |
+| C3-093 Mark a list prebuilt (admin) | Publish to Prebuilt (UCT) | as C3-073 |
+| C3-094 Copy a list | Copy list to clipboard | as C3-073 |
+| C3-095 Export CSV or Excel | Export CSV | as C3-073 |
+| C3-097 Version history | Version history | as C3-073, plus Version history (the version store given) |
+
+On a first attempt of this evidence run, C3-095 failed once. The Agent answered with a "Do you mean …?" question
+instead of the walkthrough. It passed when re-run alone, it passed in the evidence run above, and it passed in the full
+pass. I did not keep that first attempt's files, because its menu probe was also reading the ⋯ button rather than the
+menu.
+
+## `guide/listRefs.js` only reads
+It reads list names through `host.watchlists.snapshot()`, a read of the store's current rows, and rewrites the
+request's words for routing only. It makes no store write, no `fetch`, no SWR mutate, and has no other side effect (see
+the diff: two pure functions plus that one read).
