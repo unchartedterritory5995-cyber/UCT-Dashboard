@@ -30,11 +30,11 @@ Test file: `app/src/agent/qa/chartsOutcome/chartSettings.outcome.test.jsx`.
 | C1-052 | crosshair red, 2px, dashed | setSetting crosshair.color / .width=2 / .style='dashed' | color '#ff0000', width 2, style 2 | PASS |
 | C1-053 | turn on the magnet crosshair | setSetting crosshair.magnet=true | magnet=true | PASS |
 | C1-054 | hide the last price label and show the MA labels | setSetting showPriceLabels=false, showMaLabels=true | both | PASS (see NL finding) |
-| C1-055 | bump the scale text up to 14 / make the scale text yellow | setSetting textSize=14; textColor='#ffff00' | textSize=14; textColor is refused with its `inert` reason and nothing is written | PASS (size); colour is refused by design |
+| C1-055 | bump the scale text up to 14 / make the scale text yellow | setSetting textSize=14; textColor='#ffff00' | textSize=14; textColor is refused with its `inert` reason and nothing is written | PARTIAL (SIMULATED): size covered; colour not (refused by design) |
 | C1-056 | hide the watermark | setSetting watermark.visible=false | false | PASS |
 | C1-057 | company off the watermark, add the logo | setSetting watermark.lines.company=false, .logo=true | both | PASS |
 | C1-059 | watermark bigger, bold, blue, 30% opacity | setSetting watermark.sizeScale=2, .weight=700, .color, .opacity=0.3 | all four | PASS |
-| C1-061 | put the watermark back in the middle (seed: moved) | setSetting watermark.x=0.5, watermark.y=0.5 | opts.watermarkPos x/y = 0.5 | PASS, with caveat: the result is the same state, but by a different write. The product's Reset writes `watermarkPos: null` (ChartWidget.jsx:499). |
+| C1-061 | put the watermark back in the middle (seed: moved) | setSetting watermark.x=0.5, watermark.y=0.5 | opts.watermarkPos x/y = 0.5 | PARTIAL (SIMULATED): the centred state is covered; the product's Reset write (`watermarkPos: null`, ChartWidget.jsx:499) is not |
 | C1-062 | ticker and company in the title | setSetting header.titleMode='both' | 'both' | PASS |
 | C1-063 | hide the day change next to the title | setSetting header.showChange=false | false | PASS |
 | C1-064 | only show the legend when I hold the crosshair | setSetting header.legendMode='hold' | legendModeOf = 'hold' | PASS |
@@ -50,7 +50,7 @@ Test file: `app/src/agent/qa/chartsOutcome/chartSettings.outcome.test.jsx`.
 | C1-087 | remove volume from this chart | volume.setState {state:'removed'} | volume.removed=true | PASS |
 | C1-090 | stop highlighting the highest volume candle | setSetting volume.hvcEnabled=false | false | PASS |
 | C1-091 | volume colours, 50 MA in white, hide label, histogram | setSetting volume.upColor / downColor / maPeriod=50 / maColor / labelVisible=false / barStyle='histogram' | all six | PASS |
-| C1-144 | position calculator: 25k account, 0.5% risk | setSetting positionCalc.accountSize=25000, .riskPct=0.5 | both | PASS (inputs only; placing the calculator drawing belongs to the drawing family) |
+| C1-144 | position calculator: 25k account, 0.5% risk | setSetting positionCalc.accountSize=25000, .riskPct=0.5 | both | PARTIAL (SIMULATED): inputs covered; placing the calculator drawing (drawing family) is not |
 | C2-013 | turn on Chart IQ pattern recognition | setSetting showChartIq=true | true | PASS |
 | C1-058 | watermark alignment | none | n/a | GAP (it.todo) |
 | C1-067 | header colours | none (`header.colors.*` is KNOWN) | n/a | GAP (it.todo) |
@@ -60,12 +60,14 @@ Test file: `app/src/agent/qa/chartsOutcome/chartSettings.outcome.test.jsx`.
 | C1-092 | overlay an indicator on volume | none (owned:indicator) | n/a | GAP (it.todo), owned by another project |
 | C1-127 | open Chart Settings (Alt+, / gear) | none | n/a | GAP (it.todo) |
 
-**Candidates for VERIFIED (32):** C1-015, 016, 017, 018, 024, 050, 051, 052, 053, 054, 055, 056, 057, 059, 061, 062, 063, 064, 068, 069, 070, 071, 072, 073, 075, 076, 080, 087, 090, 091, 144, and C2-013.
-- C1-055 counts on its size half. The colour half is refused honestly.
-- C1-061 is the same state reached by a different write.
-- C1-144 covers the calculator inputs only.
+**Candidates for VERIFIED (29):** C1-015, 016, 017, 018, 024, 050, 051, 052, 053, 054, 056, 057, 059, 062, 063, 064, 068, 069, 070, 071, 072, 073, 075, 076, 080, 087, 090, 091, and C2-013.
 
-I did not edit the status doc.
+**PARTIAL (SIMULATED), not VERIFIED (3), per AUDIT on PR #1016:**
+- C1-055: text size is covered. Colour is not; it is refused as inert by design.
+- C1-061: the centred end state is covered. The product's own Reset write (`watermarkPos: null`) is not.
+- C1-144: the calculator inputs are covered. Placing the drawing is not.
+
+The status doc records these as described in its "Update 2026-11-10" section.
 
 ## Gap list (for pl-exec)
 
@@ -89,9 +91,9 @@ timeout 900 python C:/w/pl-auto/tools/agent_suite_lock.py run --who pl-auto -- p
 ```
 
 Result (vitest, scripted model (jsdom/panel), not a real browser):
-`Test Files 1 passed (1) · Tests 33 passed | 7 todo (40)`
+`Test Files 1 passed (1) · Tests 33 passed | 7 todo (40)` (first commit, before the routing block)
 
-After the held-out routing block was added (2026-11-10 follow-up, see `PR-exec-chart-settings.md`): `Test Files 1 passed (1) · Tests 40 passed | 7 todo (47)`.
+Current file, after the held-out routing block and its KNOWN GAP pins (see `PR-exec-chart-settings.md`): **40 passed + 5 known-gap (pinned) + 7 todo** (vitest raw count `Tests 45 passed | 7 todo (52)`: vitest counts an `it.fails` as passed). The 40 are 33 outcome cases, 2 routing cases that hold, and 5 KNOWN GAP pins.
 
 Caveats:
 - The model is scripted. This proves the request carries the target, and that a correct plan changes the chart's stored settings and Undo restores them. It does not prove that a paid model picks this plan.

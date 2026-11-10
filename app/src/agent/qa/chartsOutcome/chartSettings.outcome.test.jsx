@@ -197,6 +197,13 @@ describe('held-out routing: chart nouns are never ticker symbols (pre-model pric
     const name = `ROUTE-NOUN ${c.noun} "${c.text}": not read as a price question for ${c.noun.toUpperCase()} (reaches the model)`
     const body = () => expect(parsePriceSentence(c.text), `${c.text} → ${JSON.stringify(parsePriceSentence(c.text))}`).toBeNull()
     if (c.holds) it(name, body)
-    else it.fails(`${name} — KNOWN GAP: "${c.noun}" is not in NOT_A_TICKER (marketDataPhrases.js:31), so it is a candidate and the resolver asks which instrument it means`, body)
+    else {
+      it.fails(`${name} — KNOWN GAP: "${c.noun}" is not in NOT_A_TICKER (marketDataPhrases.js:31), so it is a candidate and the resolver asks which instrument it means`, body)
+      // the PIN: the exact wrong reading today. It goes red when the parser is fixed (then this pair becomes one plain `it`,
+      // in pl-exec's NOT_A_TICKER fix commit) and also if the wrong behaviour changes shape (the bare it.fails would not notice).
+      it(`KNOWN GAP ROUTE-NOUN ${c.noun} "${c.text}": today it is read as a quote for the lowercase candidate "${c.noun}"`, () => {
+        expect(parsePriceSentence(c.text)).toEqual({ intent: 'quote', candidates: [{ text: c.noun, form: 'lower' }], sessionWord: null })
+      })
+    }
   }
 })

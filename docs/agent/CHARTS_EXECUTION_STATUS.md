@@ -8,21 +8,23 @@ Built on `agent/pl/bar-time-coverage` from `agent/pl/integration-1` `b07a97d526`
 
 ## The number
 
-**190 of 484 actions, 39.3%, are VERIFIED at panel level with a scripted model** (158 in the 2026-11-05 run, plus 32 from the chart-settings outcome test on 2026-11-10; see "Update 2026-11-10" below). That proves the Agent is given what it needs and that a correct plan reaches the right state. It does not prove the real model picks that plan, and it does not prove the real chart redraws.
+**187 of 484 actions, 38.6%, are VERIFIED at panel level with a scripted model** (158 in the 2026-11-05 run, plus 29 from the chart-settings outcome test on 2026-11-10). A further 3 are PARTIAL (SIMULATED): part of the action passes, part does not. See "Update 2026-11-10" below. That proves the Agent is given what it needs and that a correct plan reaches the right state. It does not prove the real model picks that plan, and it does not prove the real chart redraws.
 
 - Production evidence with the real planner covers 13 of those 158 rows, from the 2026-11-03 live run on the older build `463a4bcba5`, read by receipt and some server reads.
 - Real component in a browser, Agent executing: 0 rows. The browser runs in teach-status.md prove walkthroughs, where a person clicks. They never ran an Agent plan.
-- A further 36 rows have a passing runtime test (capability and writer, no panel). They are IMPLEMENTED / UNVERIFIED and are not in the 190. (It was 43; 7 of them were raised on 2026-11-10.)
+- A further 36 rows have a passing runtime test (capability and writer, no panel). They are IMPLEMENTED / UNVERIFIED and are not in the 187. (It was 43; 7 of them were raised on 2026-11-10.)
 - P0 actions: 58 of 74 VERIFIED (as of 2026-11-05; this doc carries no per-row P0 tag, so the 2026-11-10 update did not recount it).
 
 ## Update 2026-11-10: chart display settings (pl-auto)
 
-32 rows were raised to VERIFIED by one table-driven outcome test, `app/src/agent/qa/chartsOutcome/chartSettings.outcome.test.jsx` (branch `agent/pl/exec-chart-settings`, commit `837eb55376`): vitest, scripted model (jsdom/panel), not a real browser, `Tests 33 passed | 7 todo (40)`. Each case reads the chart's stored settings back through `settingValue`, checks the other three charts are untouched, and checks Undo restores the chart. Rows cite the case by its row id; the state reads "VERIFIED (SIMULATED outcome test, scripted model, jsdom)".
+29 rows were raised to VERIFIED and 3 to PARTIAL (SIMULATED) by one table-driven outcome test, `app/src/agent/qa/chartsOutcome/chartSettings.outcome.test.jsx` (branch `agent/pl/exec-chart-settings`, commit `837eb55376`): vitest, scripted model (jsdom/panel), not a real browser. Current file total: 40 passed + 5 known-gap (pinned) + 7 todo (vitest raw count: `Tests 45 passed | 7 todo (52)`, because vitest counts an `it.fails` as passed). Each case reads the chart's stored settings back through `settingValue`, checks the other three charts are untouched, and checks Undo restores the chart. Rows cite the case by its row id; the state reads "VERIFIED (SIMULATED outcome test, scripted model, jsdom)".
 
 - Was IMPLEMENTED / UNVERIFIED (30): C1-015, 017, 018, 024, 050, 051, 052, 053, 054, 055, 056, 057, 059, 062, 063, 064, 068, 069, 070, 071, 072, 073, 075, 076, 080, 087, 090, 091, 144, C2-013.
 - Was UNMAPPED (1): C1-016 (Heikin Ashi is a chart.setSetting row, `heikinAshi`).
 - Was MISSING (1): C1-061 (reset watermark to centre).
-- Qualified (the qualification is in the row's status): C1-055 (text size only; colour is refused as inert by design), C1-061 (same end state by a different write than the product's Reset), C1-144 (calculator inputs only).
+- PARTIAL (SIMULATED), not VERIFIED (AUDIT, PR #1016); each row's status says what is covered and what is not: C1-055 (text size covered; colour refused as inert), C1-061 (the centred end state covered; the product's own Reset write `watermarkPos: null` is not), C1-144 (calculator inputs covered; placing the drawing is not).
+- The counts table now has a PARTIAL column. PARTIAL is in scope but not VERIFIED. VERIFIED is 158 → 187 (29 rows): 28 that were IMPLEMENTED / UNVERIFIED, plus C1-016 (was UNMAPPED). C1-061 (was MISSING) is one of the 3 PARTIAL.
+- Not counted as VERIFIED: the 7 gap rows (unchanged), and the 5 held-out routing nouns (axis, scale, crosshair, legend, watermark). The routing nouns are test cases, not rows in this doc.
 - Not raised, status unchanged, and the row now points to the gap list in `docs/agent/program/EXEC-CHART-SETTINGS.md`: C1-058, 067, 077, 078, 081, 092, 127.
 - How the counts were updated: by hand, with no generator (none exists in tools/ or app/src/testing/). A script recounted the "All actions" table, confirmed it reproduced every "Counts by area" row exactly before the edit, then rewrote the changed rows and the totals from the recount. The 2026-11-05 sections below (Raised, Dropped, Other state changes) are left as that run wrote them.
 
@@ -99,88 +101,88 @@ Every file:line citation in the control column was checked against this tree: 33
 
 ## Counts by area
 
-| Part | Area | VERIFIED | IMPL / UNVERIFIED | MISSING | BLOCKED | UNMAPPED | In scope | Excluded |
-|---|---|---:|---:|---:|---:|---:|---:|---:|
-| C1 | Symbol | 3 | 1 | 1 | 0 | 0 | 5 | 0 |
-| C1 | Timeframe | 2 | 4 | 0 | 0 | 0 | 6 | 1 |
-| C1 | Chart type | 5 | 0 | 0 | 0 | 0 | 5 | 1 |
-| C1 | Session | 1 | 1 | 0 | 0 | 0 | 2 | 1 |
-| C1 | Scale | 2 | 1 | 1 | 1 | 0 | 5 | 0 |
-| C1 | View | 2 | 0 | 0 | 1 | 0 | 3 | 0 |
-| C1 | Go to date | 2 | 1 | 1 | 0 | 0 | 4 | 0 |
-| C1 | Compare | 1 | 4 | 3 | 0 | 0 | 8 | 0 |
-| C1 | Replay | 2 | 0 | 1 | 1 | 1 | 5 | 0 |
-| C1 | Settings | 26 | 0 | 6 | 0 | 0 | 32 | 0 |
-| C1 | Themes | 2 | 0 | 1 | 0 | 0 | 3 | 0 |
-| C1 | Templates | 3 | 0 | 0 | 0 | 0 | 3 | 1 |
-| C1 | Volume | 5 | 1 | 0 | 0 | 0 | 6 | 1 |
-| C1 | Panes | 1 | 1 | 0 | 0 | 0 | 2 | 1 |
-| C1 | Crosshair | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
-| C1 | Legend | 6 | 2 | 1 | 0 | 0 | 9 | 0 |
-| C1 | Measure | 4 | 0 | 0 | 0 | 0 | 4 | 0 |
-| C1 | Share | 0 | 0 | 0 | 4 | 0 | 4 | 0 |
-| C1 | Alerts | 6 | 1 | 1 | 0 | 0 | 8 | 0 |
-| C1 | Right-click | 1 | 1 | 4 | 0 | 0 | 6 | 3 |
-| C1 | Settings door | 0 | 0 | 1 | 0 | 0 | 1 | 0 |
-| C1 | Drawing | 28 | 2 | 3 | 3 | 2 | 38 | 1 |
-| C1 | Boards | 0 | 0 | 4 | 0 | 0 | 4 | 0 |
-| C1 | Keyboard | 2 | 0 | 0 | 1 | 2 | 5 | 0 |
-| C2 | Picker | 0 | 2 | 1 | 0 | 0 | 3 | 0 |
-| C2 | Add | 4 | 2 | 2 | 0 | 2 | 10 | 0 |
-| C2 | Remove | 3 | 0 | 0 | 0 | 1 | 4 | 0 |
-| C2 | Visibility | 4 | 0 | 0 | 0 | 0 | 4 | 0 |
-| C2 | Read | 1 | 1 | 0 | 0 | 0 | 2 | 0 |
-| C2 | Inputs | 2 | 2 | 2 | 0 | 0 | 6 | 0 |
-| C2 | Style | 3 | 3 | 0 | 0 | 0 | 6 | 0 |
-| C2 | Placement | 1 | 1 | 0 | 0 | 0 | 2 | 0 |
-| C2 | Panes | 1 | 1 | 0 | 0 | 1 | 3 | 0 |
-| C2 | Legend | 0 | 3 | 2 | 2 | 0 | 7 | 0 |
-| C2 | Undo | 0 | 1 | 0 | 0 | 0 | 1 | 0 |
-| C2 | Copy | 1 | 0 | 1 | 0 | 0 | 2 | 0 |
-| C2 | Templates | 4 | 0 | 0 | 0 | 0 | 4 | 0 |
-| C2 | Create | 5 | 4 | 0 | 0 | 0 | 9 | 0 |
-| C2 | Builder | 1 | 9 | 2 | 0 | 0 | 12 | 0 |
-| C2 | Import | 0 | 0 | 4 | 0 | 0 | 4 | 0 |
-| C2 | Image | 0 | 0 | 2 | 0 | 0 | 2 | 0 |
-| C2 | Saved | 1 | 1 | 1 | 3 | 0 | 6 | 0 |
-| C2 | Alerts | 7 | 2 | 4 | 0 | 0 | 13 | 0 |
-| C2 | Mobile | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
-| C3 | Board | 2 | 2 | 1 | 0 | 0 | 5 | 0 |
-| C3 | Link | 0 | 1 | 1 | 0 | 0 | 2 | 0 |
-| C3 | Float | 0 | 0 | 3 | 1 | 0 | 4 | 0 |
-| C3 | Popout | 0 | 0 | 4 | 0 | 0 | 4 | 0 |
-| C3 | Widget tabs | 0 | 4 | 0 | 0 | 0 | 4 | 0 |
-| C3 | Chart tabs | 4 | 1 | 0 | 0 | 0 | 5 | 0 |
-| C3 | Layout Dock | 7 | 3 | 5 | 2 | 0 | 17 | 0 |
-| C3 | Multi Chart | 0 | 0 | 2 | 19 | 0 | 21 | 0 |
-| C3 | Watchlist | 15 | 4 | 15 | 5 | 1 | 40 | 4 |
-| C3 | Scanner | 5 | 1 | 6 | 2 | 0 | 14 | 0 |
-| C3 | Volume Surge | 0 | 2 | 4 | 0 | 0 | 6 | 0 |
-| C3 | Alerts | 4 | 0 | 2 | 0 | 0 | 6 | 0 |
-| C3 | News | 1 | 1 | 3 | 0 | 0 | 5 | 0 |
-| C3 | TE News | 0 | 2 | 8 | 0 | 0 | 10 | 0 |
-| C3 | Calendar | 1 | 2 | 6 | 0 | 0 | 9 | 0 |
-| C3 | Breadth | 1 | 0 | 6 | 0 | 0 | 7 | 0 |
-| C3 | Options Flow | 1 | 2 | 2 | 0 | 0 | 5 | 0 |
-| C3 | Themes | 0 | 1 | 8 | 0 | 0 | 9 | 0 |
-| C3 | Fundamentals | 2 | 0 | 1 | 0 | 0 | 3 | 0 |
-| C3 | Profile | 2 | 0 | 0 | 0 | 0 | 2 | 0 |
-| C3 | Indexes | 0 | 0 | 2 | 0 | 0 | 2 | 0 |
-| C3 | Market Context | 0 | 0 | 1 | 0 | 1 | 2 | 0 |
-| C3 | NH/NL | 1 | 0 | 3 | 0 | 0 | 4 | 0 |
-| C3 | H/L Pulse | 0 | 0 | 1 | 0 | 0 | 1 | 0 |
-| C3 | Market Map | 0 | 0 | 4 | 0 | 0 | 4 | 0 |
-| C3 | AI Search | 0 | 1 | 4 | 0 | 0 | 5 | 0 |
-| C3 | Notebook | 0 | 0 | 3 | 1 | 0 | 4 | 0 |
-| C3 | Period Sort | 0 | 0 | 4 | 0 | 0 | 4 | 0 |
-| C3 | Replay | 2 | 1 | 1 | 0 | 0 | 4 | 0 |
-| C3 | Review | 0 | 0 | 0 | 0 | 0 | 0 | 3 |
-| C3 | Company dock | 0 | 2 | 3 | 0 | 0 | 5 | 0 |
-| C3 | Workspace | 0 | 0 | 1 | 1 | 1 | 3 | 0 |
-| C1 | **all** | 104 | 20 | 28 | 11 | 5 | 168 | 11 |
-| C2 | **all** | 38 | 32 | 21 | 5 | 4 | 100 | 1 |
-| C3 | **all** | 48 | 30 | 104 | 31 | 3 | 216 | 7 |
-| | **Total** | 190 | 82 | 153 | 47 | 12 | 484 | 19 |
+| Part | Area | VERIFIED | PARTIAL | IMPL / UNVERIFIED | MISSING | BLOCKED | UNMAPPED | In scope | Excluded |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| C1 | Symbol | 3 | 0 | 1 | 1 | 0 | 0 | 5 | 0 |
+| C1 | Timeframe | 2 | 0 | 4 | 0 | 0 | 0 | 6 | 1 |
+| C1 | Chart type | 5 | 0 | 0 | 0 | 0 | 0 | 5 | 1 |
+| C1 | Session | 1 | 0 | 1 | 0 | 0 | 0 | 2 | 1 |
+| C1 | Scale | 2 | 0 | 1 | 1 | 1 | 0 | 5 | 0 |
+| C1 | View | 2 | 0 | 0 | 0 | 1 | 0 | 3 | 0 |
+| C1 | Go to date | 2 | 0 | 1 | 1 | 0 | 0 | 4 | 0 |
+| C1 | Compare | 1 | 0 | 4 | 3 | 0 | 0 | 8 | 0 |
+| C1 | Replay | 2 | 0 | 0 | 1 | 1 | 1 | 5 | 0 |
+| C1 | Settings | 24 | 2 | 0 | 6 | 0 | 0 | 32 | 0 |
+| C1 | Themes | 2 | 0 | 0 | 1 | 0 | 0 | 3 | 0 |
+| C1 | Templates | 3 | 0 | 0 | 0 | 0 | 0 | 3 | 1 |
+| C1 | Volume | 5 | 0 | 1 | 0 | 0 | 0 | 6 | 1 |
+| C1 | Panes | 1 | 0 | 1 | 0 | 0 | 0 | 2 | 1 |
+| C1 | Crosshair | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
+| C1 | Legend | 6 | 0 | 2 | 1 | 0 | 0 | 9 | 0 |
+| C1 | Measure | 4 | 0 | 0 | 0 | 0 | 0 | 4 | 0 |
+| C1 | Share | 0 | 0 | 0 | 0 | 4 | 0 | 4 | 0 |
+| C1 | Alerts | 6 | 0 | 1 | 1 | 0 | 0 | 8 | 0 |
+| C1 | Right-click | 1 | 0 | 1 | 4 | 0 | 0 | 6 | 3 |
+| C1 | Settings door | 0 | 0 | 0 | 1 | 0 | 0 | 1 | 0 |
+| C1 | Drawing | 27 | 1 | 2 | 3 | 3 | 2 | 38 | 1 |
+| C1 | Boards | 0 | 0 | 0 | 4 | 0 | 0 | 4 | 0 |
+| C1 | Keyboard | 2 | 0 | 0 | 0 | 1 | 2 | 5 | 0 |
+| C2 | Picker | 0 | 0 | 2 | 1 | 0 | 0 | 3 | 0 |
+| C2 | Add | 4 | 0 | 2 | 2 | 0 | 2 | 10 | 0 |
+| C2 | Remove | 3 | 0 | 0 | 0 | 0 | 1 | 4 | 0 |
+| C2 | Visibility | 4 | 0 | 0 | 0 | 0 | 0 | 4 | 0 |
+| C2 | Read | 1 | 0 | 1 | 0 | 0 | 0 | 2 | 0 |
+| C2 | Inputs | 2 | 0 | 2 | 2 | 0 | 0 | 6 | 0 |
+| C2 | Style | 3 | 0 | 3 | 0 | 0 | 0 | 6 | 0 |
+| C2 | Placement | 1 | 0 | 1 | 0 | 0 | 0 | 2 | 0 |
+| C2 | Panes | 1 | 0 | 1 | 0 | 0 | 1 | 3 | 0 |
+| C2 | Legend | 0 | 0 | 3 | 2 | 2 | 0 | 7 | 0 |
+| C2 | Undo | 0 | 0 | 1 | 0 | 0 | 0 | 1 | 0 |
+| C2 | Copy | 1 | 0 | 0 | 1 | 0 | 0 | 2 | 0 |
+| C2 | Templates | 4 | 0 | 0 | 0 | 0 | 0 | 4 | 0 |
+| C2 | Create | 5 | 0 | 4 | 0 | 0 | 0 | 9 | 0 |
+| C2 | Builder | 1 | 0 | 9 | 2 | 0 | 0 | 12 | 0 |
+| C2 | Import | 0 | 0 | 0 | 4 | 0 | 0 | 4 | 0 |
+| C2 | Image | 0 | 0 | 0 | 2 | 0 | 0 | 2 | 0 |
+| C2 | Saved | 1 | 0 | 1 | 1 | 3 | 0 | 6 | 0 |
+| C2 | Alerts | 7 | 0 | 2 | 4 | 0 | 0 | 13 | 0 |
+| C2 | Mobile | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
+| C3 | Board | 2 | 0 | 2 | 1 | 0 | 0 | 5 | 0 |
+| C3 | Link | 0 | 0 | 1 | 1 | 0 | 0 | 2 | 0 |
+| C3 | Float | 0 | 0 | 0 | 3 | 1 | 0 | 4 | 0 |
+| C3 | Popout | 0 | 0 | 0 | 4 | 0 | 0 | 4 | 0 |
+| C3 | Widget tabs | 0 | 0 | 4 | 0 | 0 | 0 | 4 | 0 |
+| C3 | Chart tabs | 4 | 0 | 1 | 0 | 0 | 0 | 5 | 0 |
+| C3 | Layout Dock | 7 | 0 | 3 | 5 | 2 | 0 | 17 | 0 |
+| C3 | Multi Chart | 0 | 0 | 0 | 2 | 19 | 0 | 21 | 0 |
+| C3 | Watchlist | 15 | 0 | 4 | 15 | 5 | 1 | 40 | 4 |
+| C3 | Scanner | 5 | 0 | 1 | 6 | 2 | 0 | 14 | 0 |
+| C3 | Volume Surge | 0 | 0 | 2 | 4 | 0 | 0 | 6 | 0 |
+| C3 | Alerts | 4 | 0 | 0 | 2 | 0 | 0 | 6 | 0 |
+| C3 | News | 1 | 0 | 1 | 3 | 0 | 0 | 5 | 0 |
+| C3 | TE News | 0 | 0 | 2 | 8 | 0 | 0 | 10 | 0 |
+| C3 | Calendar | 1 | 0 | 2 | 6 | 0 | 0 | 9 | 0 |
+| C3 | Breadth | 1 | 0 | 0 | 6 | 0 | 0 | 7 | 0 |
+| C3 | Options Flow | 1 | 0 | 2 | 2 | 0 | 0 | 5 | 0 |
+| C3 | Themes | 0 | 0 | 1 | 8 | 0 | 0 | 9 | 0 |
+| C3 | Fundamentals | 2 | 0 | 0 | 1 | 0 | 0 | 3 | 0 |
+| C3 | Profile | 2 | 0 | 0 | 0 | 0 | 0 | 2 | 0 |
+| C3 | Indexes | 0 | 0 | 0 | 2 | 0 | 0 | 2 | 0 |
+| C3 | Market Context | 0 | 0 | 0 | 1 | 0 | 1 | 2 | 0 |
+| C3 | NH/NL | 1 | 0 | 0 | 3 | 0 | 0 | 4 | 0 |
+| C3 | H/L Pulse | 0 | 0 | 0 | 1 | 0 | 0 | 1 | 0 |
+| C3 | Market Map | 0 | 0 | 0 | 4 | 0 | 0 | 4 | 0 |
+| C3 | AI Search | 0 | 0 | 1 | 4 | 0 | 0 | 5 | 0 |
+| C3 | Notebook | 0 | 0 | 0 | 3 | 1 | 0 | 4 | 0 |
+| C3 | Period Sort | 0 | 0 | 0 | 4 | 0 | 0 | 4 | 0 |
+| C3 | Replay | 2 | 0 | 1 | 1 | 0 | 0 | 4 | 0 |
+| C3 | Review | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 3 |
+| C3 | Company dock | 0 | 0 | 2 | 3 | 0 | 0 | 5 | 0 |
+| C3 | Workspace | 0 | 0 | 0 | 1 | 1 | 1 | 3 | 0 |
+| C1 | **all** | 101 | 3 | 20 | 28 | 11 | 5 | 168 | 11 |
+| C2 | **all** | 38 | 0 | 32 | 21 | 5 | 4 | 100 | 1 |
+| C3 | **all** | 48 | 0 | 30 | 104 | 31 | 3 | 216 | 7 |
+| | **Total** | 187 | 3 | 82 | 153 | 47 | 12 | 484 | 19 |
 
 ## Raised to VERIFIED (47)
 
@@ -364,13 +366,13 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-052 | Settings | Crosshair colour/width/style | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-052 "make the crosshair red, 2px and dashed" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-053 | Settings | Magnet crosshair | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-053 "turn on the magnet crosshair" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-054 | Settings | Price labels / MA labels | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-054 "hide the last price label and show the moving average labels" | pass 33/33 (7 todo) | panel, scripted model |
-| C1-055 | Settings | Scale text size and colour | VERIFIED (SIMULATED outcome test, scripted model, jsdom) — qualified: text size only; scale text colour is refused as inert by design (the axes take their ink from the canvas), asserted in "C1-055 (colour half)" | chartSettings.outcome.test.jsx: C1-055 "bump the scale text up to 14" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-055 | Settings | Scale text size and colour | PARTIAL (SIMULATED) — covered: scale text SIZE (chart.setSetting textSize, read back, Undo); not covered: scale text COLOUR, which chart.setSetting refuses as inert by design (the axes take their ink from the canvas) | chartSettings.outcome.test.jsx: C1-055 "bump the scale text up to 14" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-056 | Settings | Watermark on/off (Alt+Shift+W) | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-056 "hide the watermark on this chart" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-057 | Settings | Watermark lines | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-057 "take the company name off the watermark and add the logo" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-058 | Settings | Watermark alignment | MISSING | none; gap: docs/agent/program/EXEC-CHART-SETTINGS.md (gap list) | n/a | none |
 | C1-059 | Settings | Watermark size/weight/colour/opacity | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-059 "make the watermark bigger, bold, blue and 30% opacity" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-060 | Settings | Move watermark | VERIFIED | agentChartSettingsTruth: writes opts.watermarkPos | pass 1/1 | panel, scripted model |
-| C1-061 | Settings | Reset watermark to centre | VERIFIED (SIMULATED outcome test, scripted model, jsdom) — qualified: same end state by a different write (watermark.x/y = 0.5); the product's right-click Reset writes watermarkPos: null (ChartWidget.jsx:499) | chartSettings.outcome.test.jsx: C1-061 "put the watermark back in the middle" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-061 | Settings | Reset watermark to centre | PARTIAL (SIMULATED) — covered: the watermark ends centred (watermark.x/y = 0.5 in opts.watermarkPos, Undo); not covered: the product's own Reset write (watermarkPos: null, ChartWidget.jsx:499), which no capability makes | chartSettings.outcome.test.jsx: C1-061 "put the watermark back in the middle" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-062 | Settings | Title shows ticker/company/both | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-062 "show the ticker and the company name in the title" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-063 | Settings | Day change beside title | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-063 "hide the day change next to the title" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-064 | Settings | Legend mode | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-064 "only show the legend when I hold the crosshair" | pass 33/33 (7 todo) | panel, scripted model |
@@ -453,7 +455,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-141 | Drawing | Cup curve | VERIFIED | drawingFamily: cup: the right symbol | pass 1/1 | panel, scripted model |
 | C1-142 | Drawing | Anchored VWAP | VERIFIED | c:drawing.avwap | pass 5/5 | panel, scripted model |
 | C1-143 | Drawing | Text note | VERIFIED | c:drawing.text | pass 5/5 | panel, scripted model |
-| C1-144 | Drawing | Position calculator | VERIFIED (SIMULATED outcome test, scripted model, jsdom) — qualified: the calculator's inputs only (positionCalc.accountSize / riskPct); placing the position-calculator drawing is the drawing family | chartSettings.outcome.test.jsx: C1-144 "set my position calculator to a 25k account risking half a percent" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-144 | Drawing | Position calculator | PARTIAL (SIMULATED) — covered: the calculator inputs (positionCalc.accountSize / riskPct, read back, Undo); not covered: placing the position-calculator drawing (drawing family) | chartSettings.outcome.test.jsx: C1-144 "set my position calculator to a 25k account risking half a percent" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-145 | Drawing | Eraser | VERIFIED | c:drawing.remove | pass 5/5 | panel, scripted model |
 | C1-146 | Drawing | Delete selected (Del, button) | VERIFIED | c:drawing.remove; drawings.outcome: one visible drawing goes at once | pass 6/6 | panel, scripted model |
 | C1-147 | Drawing | Recolour | VERIFIED | c:drawing.style | pass 4/4 | panel, scripted model |

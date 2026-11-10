@@ -7,7 +7,7 @@ Branch `agent/pl/exec-chart-settings`, off origin/master `dfc645ccb3`.
 - One table-driven outcome test, `app/src/agent/qa/chartsOutcome/chartSettings.outcome.test.jsx`. It covers the C1 Settings, Volume, Chart type and Themes rows that were not verified, plus C1-024, C1-144 and C2-013.
 - A held-out routing block in the same file: chart nouns are never ticker symbols.
 - Doc updates:
-  - `docs/agent/CHARTS_EXECUTION_STATUS.md`: 32 rows raised to VERIFIED, counts recounted.
+  - `docs/agent/CHARTS_EXECUTION_STATUS.md`: 29 rows raised to VERIFIED and 3 to PARTIAL (SIMULATED). A PARTIAL column was added to the counts table and every count recounted from the "All actions" table: VERIFIED 158 → 187, PARTIAL 0 → 3, IMPLEMENTED / UNVERIFIED 112 → 82, MISSING 154 → 153, UNMAPPED 13 → 12. In scope stays 484.
   - `docs/agent/program/EXEC-CHART-SETTINGS.md`: method and per-row ledger.
   - This file.
 - Test and docs only. **No product code changes.**
@@ -31,11 +31,11 @@ Method: each case mounts the real Agent panel over a four-chart fixture board, w
 | C1-052 | crosshair red, 2px, dashed | setSetting crosshair.color / width / style | all three | PASS |
 | C1-053 | turn on the magnet crosshair | setSetting crosshair.magnet=true | magnet | PASS |
 | C1-054 | hide the last price label and show the MA labels | setSetting showPriceLabels=false, showMaLabels=true | both | PASS (see routing family) |
-| C1-055 | bump the scale text up to 14 / make the scale text yellow | setSetting textSize=14; textColor | size written; colour refused with its `inert` reason, nothing written | PASS, qualified: size only |
+| C1-055 | bump the scale text up to 14 / make the scale text yellow | setSetting textSize=14; textColor | size written; colour refused with its `inert` reason, nothing written | PARTIAL (SIMULATED): size covered, colour not |
 | C1-056 | hide the watermark | setSetting watermark.visible=false | visible | PASS |
 | C1-057 | company off the watermark, add the logo | setSetting watermark.lines.company / .logo | both | PASS |
 | C1-059 | watermark bigger, bold, blue, 30% | setSetting watermark.sizeScale / weight / color / opacity | all four | PASS |
-| C1-061 | put the watermark back in the middle | setSetting watermark.x=0.5, watermark.y=0.5 | opts.watermarkPos x/y | PASS, qualified: same state, different write from the product Reset (`watermarkPos: null`) |
+| C1-061 | put the watermark back in the middle | setSetting watermark.x=0.5, watermark.y=0.5 | opts.watermarkPos x/y | PARTIAL (SIMULATED): the centred end state is covered; the product Reset write (`watermarkPos: null`) is not |
 | C1-062 | ticker and company in the title | setSetting header.titleMode='both' | titleMode | PASS |
 | C1-063 | hide the day change next to the title | setSetting header.showChange=false | showChange | PASS |
 | C1-064 | legend only while holding the crosshair | setSetting header.legendMode='hold' | legendModeOf | PASS |
@@ -51,7 +51,7 @@ Method: each case mounts the real Agent panel over a four-chart fixture board, w
 | C1-087 | remove volume from this chart | volume.setState {state:'removed'} | volume.removed | PASS |
 | C1-090 | stop highlighting the highest volume candle | setSetting volume.hvcEnabled=false | hvcEnabled | PASS |
 | C1-091 | volume colours, 50 MA white, no label, histogram | setSetting volume.upColor / downColor / maPeriod / maColor / labelVisible / barStyle | all six | PASS |
-| C1-144 | position calculator 25k, 0.5% risk | setSetting positionCalc.accountSize / riskPct | both | PASS, qualified: calculator inputs only (placing the drawing is the drawing family) |
+| C1-144 | position calculator 25k, 0.5% risk | setSetting positionCalc.accountSize / riskPct | both | PARTIAL (SIMULATED): calculator inputs covered; placing the drawing is not |
 | C2-013 | turn on Chart IQ pattern recognition | setSetting showChartIq=true | showChartIq | PASS |
 | C1-058, 067, 077, 078, 081, 092, 127 | (see gap list) | none | n/a | GAP (`it.todo`) |
 
@@ -74,15 +74,29 @@ The held-out block in `chartSettings.outcome.test.jsx` ("held-out routing: chart
 
 | Case | Phrasing | Today |
 |---|---|---|
-| ROUTE-NOUN axis | hide the price label on the axis | KNOWN GAP (`it.fails`) |
-| ROUTE-NOUN scale | show me the price scale | KNOWN GAP (`it.fails`) |
-| ROUTE-NOUN crosshair | show the price on the crosshair | KNOWN GAP (`it.fails`) |
-| ROUTE-NOUN legend | show the price legend | KNOWN GAP (`it.fails`) |
-| ROUTE-NOUN watermark | show the price in the watermark | KNOWN GAP (`it.fails`) |
+| ROUTE-NOUN axis | hide the price label on the axis | KNOWN GAP (`it.fails` + pin) |
+| ROUTE-NOUN scale | show me the price scale | KNOWN GAP (`it.fails` + pin) |
+| ROUTE-NOUN crosshair | show the price on the crosshair | KNOWN GAP (`it.fails` + pin) |
+| ROUTE-NOUN legend | show the price legend | KNOWN GAP (`it.fails` + pin) |
+| ROUTE-NOUN watermark | show the price in the watermark | KNOWN GAP (`it.fails` + pin) |
 | ROUTE-NOUN grid | show the grid lines at the price | holds (`it`) |
 | ROUTE-NOUN label | hide the price labels | holds (`it`) |
 
-Each case asserts `parsePriceSentence(text) === null`, which means the sentence goes on to the model. An `it.fails` case passes while the gap exists and turns red once it is fixed; then make it a plain `it`. A likely fix is to add the chart nouns (axis, scale, legend, crosshair, watermark) to `NOT_A_TICKER`. That is a product change and is not made here.
+Each noun has a pair of cases.
+- **The `it.fails` case** asserts `parsePriceSentence(text) === null`, which means the sentence goes on to the model.
+- **The plain `it` case** is named `KNOWN GAP ROUTE-NOUN <noun> …`. It pins today's exact wrong output.
+
+| Noun | `parsePriceSentence` today (pinned) |
+|---|---|
+| axis | `{"intent":"quote","candidates":[{"text":"axis","form":"lower"}],"sessionWord":null}` |
+| scale | `{"intent":"quote","candidates":[{"text":"scale","form":"lower"}],"sessionWord":null}` |
+| crosshair | `{"intent":"quote","candidates":[{"text":"crosshair","form":"lower"}],"sessionWord":null}` |
+| legend | `{"intent":"quote","candidates":[{"text":"legend","form":"lower"}],"sessionWord":null}` |
+| watermark | `{"intent":"quote","candidates":[{"text":"watermark","form":"lower"}],"sessionWord":null}` |
+
+The pin goes red if the parser is fixed, and also if the wrong behaviour changes shape. A bare `it.fails` passes on any failure, including a thrown error.
+
+**Flip owner: pl-exec.** pl-exec's `NOT_A_TICKER` fix PR must, in that same commit, turn each `it.fails` and its KNOWN GAP pin into one plain passing `it` (`parsePriceSentence(text) === null`). A likely fix is to add the chart nouns (axis, scale, legend, crosshair, watermark) to `NOT_A_TICKER`. That is a product change and is not made here.
 
 ## Run
 
@@ -93,9 +107,12 @@ timeout 900 python C:/w/pl-auto/tools/agent_suite_lock.py run --who pl-auto -- p
 ```
 
 Result (vitest, scripted model (jsdom/panel), not a real browser):
-`Test Files 1 passed (1) · Tests 40 passed | 7 todo (47)`
+**40 passed + 5 known-gap (pinned) + 7 todo** (vitest raw count `Tests 45 passed | 7 todo (52)`: vitest counts an `it.fails` as passed; `Test Files 1 passed (1)`).
 
-The 40 passes are the 33 outcome cases and the 7 routing cases (5 of them `it.fails`).
+- **40 passed:** 33 outcome cases, 2 routing cases that hold (grid, label), and 5 KNOWN GAP pins.
+- **5 known-gap:** the `it.fails` cases for axis, scale, crosshair, legend and watermark. Each is pinned by a sibling KNOWN GAP case that asserts the exact wrong output.
+- **7 todo:** the gap rows.
+- None of the 5 noun cases or the 7 todo rows is counted as VERIFIED in the status doc.
 
 ## Caveats
 
