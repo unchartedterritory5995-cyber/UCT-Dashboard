@@ -79,6 +79,52 @@ test('the scan can see an endless animation at all (control)', () => {
   fs.rmSync(dir, { recursive: true, force: true })
 })
 
+// ---- Inline styles in component code (`animation: "pulse 1.5s infinite"`): the same rule. ----
+// Counted per file, because a line number moves with every edit. Today's inline ones are all
+// loading, recording or maintenance states (the Options Flow summary dot is bounded by a 15 s
+// timeout on its request).
+const INLINE_BASELINE = path.join(ROOT, 'styles', 'endlessAnimations.inline.baseline.json')
+// Anywhere in the value on that line, so a conditional (`recording ? '... infinite' : 'none'`) counts.
+const INLINE_RE = /animation\s*:[^\n;]*?["'`][^"'`\n]*\binfinite\b/g
+
+function codeFiles(dir) {
+  const out = []
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (entry.name === 'node_modules' || entry.name.startsWith('.') || entry.name === '__fixtures__') continue
+      out.push(...codeFiles(full))
+    } else if (/\.(jsx?|tsx?)$/.test(entry.name) && !/\.test\./.test(entry.name)) out.push(full)
+  }
+  return out
+}
+
+export function scanInlineEndless(root = ROOT) {
+  const counts = {}
+  for (const file of codeFiles(root)) {
+    const n = (fs.readFileSync(file, 'utf8').match(INLINE_RE) || []).length
+    if (n) counts[path.relative(root, file).split(path.sep).join('/')] = n
+  }
+  return Object.fromEntries(Object.entries(counts).sort(([a], [b]) => a.localeCompare(b)))
+}
+
+test('no inline endless animation exists outside the reviewed counts', () => {
+  const now = scanInlineEndless()
+  if (globalThis.process.env.UPDATE_ENDLESS_BASELINE === '1') fs.writeFileSync(INLINE_BASELINE, JSON.stringify(now, null, 2) + '\n')
+  const known = JSON.parse(fs.readFileSync(INLINE_BASELINE, 'utf8'))
+  const over = Object.entries(now).filter(([f, n]) => n > (known[f] || 0)).map(([f, n]) => `${f}: ${n} (reviewed ${known[f] || 0})`)
+  expect(over, 'New inline endless animation(s). Read the header of this test before raising a count.').toEqual([])
+  const stale = Object.entries(known).filter(([f, n]) => (now[f] || 0) < n).map(([f, n]) => `${f}: reviewed ${n}, now ${now[f] || 0}`)
+  expect(stale, 'Fewer inline endless animations than reviewed: lower the counts.').toEqual([])
+})
+
+test('the inline scan can see one at all (control)', () => {
+  const dir = fs.mkdtempSync(path.join(globalThis.process.env.TEMP || '/tmp', 'endless-inline-'))
+  fs.writeFileSync(path.join(dir, 'A.jsx'), 'const s = { animation: "pulse 1.5s infinite" }; const t = { animation: "pulse 1s 3" }\nconst u = { animation: on ? \'x 1s infinite\' : \'none\' }')
+  expect(scanInlineEndless(dir)).toEqual({ 'A.jsx': 2 })
+  fs.rmSync(dir, { recursive: true, force: true })
+})
+
 test('the four always-on surfaces fixed on 2026-11-10 stay off the list', () => {
   const now = scanEndless().join('\n')
   expect(now).not.toMatch(/ChartsWorkspace\.module\.css::\.clockDot/)
