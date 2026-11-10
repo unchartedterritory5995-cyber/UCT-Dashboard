@@ -96,6 +96,30 @@ describe('UCT Agent on /calendar (W2-C1)', () => {
     await screen.findByText(/2026-11-04 isn't in that calendar week/)
   })
 
+  // TERM-033 (AUDIT bar, 2026-11-10): `request()` folded every failure into `null` with `.catch(() => null)`. A failed
+  // read is now a tagged outcome: the member is told the calendar couldn't be LOADED, with the cause, and it is logged;
+  // a failed week never reads as an empty one ("No reports…" / "no earnings reports").
+  it('UNAVAILABLE: a failed next-report / week read says the calendar couldn\'t be loaded (with the cause) and logs it, never "no reports"', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const real = globalThis.fetch
+    globalThis.fetch = vi.fn(async (url, init) => {
+      const u = String(url)
+      if (u.startsWith('/api/calendar/next-report')) { fetched.push(u); return new Response('upstream down', { status: 503 }) }
+      if (u.startsWith('/api/calendar?week=')) { fetched.push(u); throw new TypeError('Failed to fetch') }
+      return real(url, init)
+    })
+    const { host } = makePage()
+    mount(host)
+    type('when does NVDA report next?')
+    await screen.findByText("I couldn't load UCT's calendar for NVDA right now (HTTP 503), so I can't say when it reports.")
+    type('who reports 2026-11-10?')
+    await screen.findByText("I couldn't load UCT's calendar for that week right now (the request didn't reach UCT), so I can't say what reports.")
+    expect(screen.queryByText(/No reports are on that week|no earnings reports/)).toBeNull()
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/^\[uct-agent\] calendar: \/api\/calendar\/next-report\?sym=NVDA failed \(HTTP 503\)/))
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/^\[uct-agent\] calendar: \/api\/calendar\?week=2026-11-09 failed \(the request didn't reach UCT\)/))
+    expect(turnBodies).toHaveLength(0)
+  })
+
   it('day words: today / tomorrow / a weekday of the current week / ISO', () => {
     const now = Date.parse('2026-11-04T15:00:00Z')      // a Wednesday
     expect(dayOf('today', now)).toBe('2026-11-04')
