@@ -1003,6 +1003,9 @@ export function compareObjects(vendorObjs, ourObjs, colour = null) {
       reason: `our ${names} are withheld by name (TradingView's object limit may have removed some of them; objects:collector); every other object family's counts and texts agree`,
       counts: rows,
       texts: textRows,
+      // the colours of what we DO draw, paired with TradingView's, are still graded
+      // (a differing one would have made this a DIVERGE above)
+      ...(colour ? { colours: objectColourRows(colour), colourUnpaired: colour.unpaired || null } : {}),
     }
   }
   if (!colour) {

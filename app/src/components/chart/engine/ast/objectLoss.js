@@ -496,11 +496,11 @@ export function withRenderDrops(note, drops) {
  *  drew on some bars, so it cannot know how many TradingView made, nor which old
  *  ones TradingView has since removed to stay under the script's limit. */
 export function collectorFamiliesSentence(families) {
-  const fs = (families || []).map((f) => (f === 'linefill' ? 'fill between lines' : f))
-  const list = fs.length === 1 ? fs[0] : `${fs.slice(0, -1).join(', ')} or ${fs[fs.length - 1]}`
-  return `No ${list} is shown on this chart: on some bars this chart can't tell whether the `
+  const fs = (families || []).map((f) => (f === 'linefill' ? 'fills between lines' : f === 'box' ? 'boxes' : `${f}s`))
+  const list = fs.length === 1 ? fs[0] : `${fs.slice(0, -1).join(', ')} and ${fs[fs.length - 1]}`
+  return `Older ${list} are held back on this chart: on some bars this chart can't tell whether the `
     + "script drew one, so it can't know which older ones TradingView has already removed to "
-    + "stay within the script's limit, and drawing them could show some TradingView no longer does."
+    + "stay within the script's limit. Only the ones TradingView certainly still shows are drawn."
 }
 
 /**

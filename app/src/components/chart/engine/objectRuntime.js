@@ -387,14 +387,25 @@ export function beginObjects(program, ctx) {
    *  guard reads an unmeasured window reduction, `op.withhold`), per family; and the families
    *  whose live count TradingView's collector may therefore have cut — its count
    *  is ours plus up to that many, so past the collector's trigger which objects
-   *  it still holds is unknown. Such a family is withheld whole (`finish`), and a
-   *  getter on a LIVE object of it is unknown from then on (an empty handle is
-   *  still `na` whatever the collector did). */
+   *  it still holds is unknown. ⭐ W-C22-DEL r3 — of such a family, an object is
+   *  withheld (`finish`) unless it is CERTAINLY among the newest `cap` TradingView
+   *  made: its rank from the newest there is at most 1 + (this run's creates of the
+   *  family after it) + (creates Pine MAY have made after it), and the collector
+   *  always leaves the newest `cap`. ⚰️ It was the family WHOLE, which on vdubus SPY
+   *  (DIV-1 replay) hid hundreds of lines TradingView certainly shows. A getter on
+   *  a LIVE object of the family is unknown from then on (an empty handle is still
+   *  `na` whatever the collector did). */
   const unknownCreates = Object.fromEntries(OBJECT_FAMILIES.map((f) => [f, 0]))
   const collectorUnknown = new Set()
+  /** Per family: this run's creates so far (an object's `seq` is its place in it). */
+  const familySeq = Object.fromEntries(OBJECT_FAMILIES.map((f) => [f, 0]))
+  /** Per family: at each create Pine MAY have made, how many this run had made
+   *  (ascending), so "after object o" is every mark above `o.seq`. */
+  const unknownMarks = Object.fromEntries(OBJECT_FAMILIES.map((f) => [f, []]))
   const noteUnknownCreate = (op, mayHaveRun = !!op && op.unknownGuard === true) => {
     if (!op || op.k !== 'create' || !mayHaveRun || !own(POOL_LIMITS, op.family)) return
     unknownCreates[op.family] += 1
+    unknownMarks[op.family].push(familySeq[op.family])
     if (counts[op.family] + unknownCreates[op.family] > collectsAbove(limits[op.family])) collectorUnknown.add(op.family)
   }
   const taintInst = (id, props) => {
@@ -1711,7 +1722,9 @@ export function beginObjects(program, ctx) {
           nextId += 1
           const inst = {
             family: op.family, id, site: op.site, createdBar: bar, props,
+            seq: familySeq[op.family],
           }
+          familySeq[op.family] += 1
           live.set(id, inst)
           // ⭐ C17 — Pine made this object here; a property whose VALUE read
           // something tainted is what stays unknown on it (C22: or read an
@@ -2079,13 +2092,32 @@ export function beginObjects(program, ctx) {
   for (const fam of Object.keys(POOL_LIMITS)) {
     if (collectedBy[fam] > 0 && (lost.has(fam) || lost.has('*'))) withheldFams.add(fam)
   }
-  // ⭐ C33 — a family whose count TradingView's collector may have cut (creates
-  // this run could not decide pushed the possible count past its trigger).
-  for (const fam of collectorUnknown) withheldFams.add(fam)
-  // ⭐⭐ W-C22-DEL — BOTH collector rules above withhold a family WHOLE, and the
-  // member is told which (`withheldBy['objects:collector']`, the binder's drawing
-  // note). ⚰️ Until now the host lane dropped them with no sentence at all.
+  // ⭐⭐ W-C22-DEL — the lost-create rule above withholds a family WHOLE (how many
+  // creates it lost is not counted, so no object's rank is bounded); the C33 rule
+  // below withholds per object. Both are told to the member by family
+  // (`withheldBy['objects:collector']`, the binder's drawing note).
   const collectorFams = new Set(withheldFams)
+  // ⭐ C33 (W-C22-DEL r3) — of a family whose count TradingView's collector may
+  // have cut, the objects NOT certainly among its newest `cap` (see
+  // `noteUnknownCreate`): 1 + later + maybe-later > cap.
+  const collectorHeld = new Set()
+  {
+    const marksAbove = (marks, seq) => {
+      let lo = 0
+      let hi = marks.length
+      while (lo < hi) { const mid = (lo + hi) >> 1; if (marks[mid] > seq) hi = mid; else lo = mid + 1 }
+      return marks.length - lo
+    }
+    for (const o of live.values()) {
+      if (!collectorUnknown.has(o.family) || withheldFams.has(o.family)) continue
+      const later = familySeq[o.family] - o.seq - 1
+      if (1 + later + marksAbove(unknownMarks[o.family], o.seq) > limits[o.family]) collectorHeld.add(o.id)
+    }
+    // a fill spans two lines: a fill on a held line goes with it
+    for (const o of live.values()) {
+      if (o.family === 'linefill' && !withheldFams.has('linefill') && fillRefs(o).some((id) => collectorHeld.has(id))) collectorHeld.add(o.id)
+    }
+  }
   // ⭐⭐ F1 — OFF THE LISTING, A `var` LIST OF DRAWINGS HOLDS WHAT THIS RUN NEVER
   // SAW. TradingView ran the script from the symbol's first bar: the list (and the
   // chart) already holds the objects earlier bars made, and the script keeps
@@ -2111,9 +2143,15 @@ export function beginObjects(program, ctx) {
   for (const o of live.values()) {
     if (withheldFams.has(o.family)) withheld[o.family] = (withheld[o.family] || 0) + 1
   }
-  const collectorShown = [...collectorFams].filter((f) => withheld[f] > 0).sort()
   const heldCounts = { ...counts }
   for (const fam of withheldFams) heldCounts[fam] = 0
+  for (const id of collectorHeld) {
+    const o = live.get(id)
+    withheld[o.family] = (withheld[o.family] || 0) + 1
+    heldCounts[o.family] -= 1
+    collectorFams.add(o.family)
+  }
+  const collectorShown = [...collectorFams].filter((f) => withheld[f] > 0).sort()
   // ⭐⭐ C17 — AN OBJECT STILL CARRYING A TAINTED PROPERTY IS NOT DRAWN. Its
   // text, a coordinate, or its very existence reads what a withheld op wrote,
   // so drawing it would show a value TradingView may not hold. It is counted as
@@ -2122,11 +2160,11 @@ export function beginObjects(program, ctx) {
   // unknown goes whole, and a known table drops only its unknown cells.
   const taintHeld = new Set()
   for (const o of live.values()) {
-    if (withheldFams.has(o.family)) continue
+    if (withheldFams.has(o.family) || collectorHeld.has(o.id)) continue
     if (instTaint.has(o.id) || (o.family === 'table' && cellTaint.get(o.id) === '*')) taintHeld.add(o.id)
   }
   for (const o of live.values()) {
-    if (o.family !== 'linefill' || withheldFams.has(o.family) || taintHeld.has(o.id)) continue
+    if (o.family !== 'linefill' || withheldFams.has(o.family) || taintHeld.has(o.id) || collectorHeld.has(o.id)) continue
     if (fillRefs(o).some((id) => taintHeld.has(id))) taintHeld.add(o.id)
   }
   for (const id of taintHeld) {
@@ -2150,7 +2188,7 @@ export function beginObjects(program, ctx) {
   // a creation counter. Sorting by anything else (price, family) would put a
   // later object under an earlier one and quietly change what the author drew.
   const ordered = stopped ? [] : [...live.values()]
-    .filter((o) => !withheldFams.has(o.family) && !taintHeld.has(o.id))
+    .filter((o) => !withheldFams.has(o.family) && !taintHeld.has(o.id) && !collectorHeld.has(o.id))
     .sort((a, b) => a.id - b.id)
   const cellsDropped = stopped ? 0 : ordered.reduce((n, o) => (o.family === 'table'
     ? n + cellsOf(cells.get(o.id)).length - cellsHeld(o.id).length : n), 0)
@@ -2158,7 +2196,7 @@ export function beginObjects(program, ctx) {
   return {
     status,
     reason,
-    ...(withheldFams.size || taintHeld.size ? { withheld } : {}),
+    ...(withheldFams.size || taintHeld.size || collectorHeld.size ? { withheld } : {}),
     ...(offListingFams.size || (collectorShown.length && !stopped) ? { withheldBy: {
       ...(offListingFams.size ? { 'objects:off-listing': [...offListingFams] } : {}),
       // ⛔ only a family that held something here: an empty one hides nothing

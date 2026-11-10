@@ -156,11 +156,49 @@ describe('⭐ the runtime: a known-false measured conjunct is a certain skip; ev
     for (const r0 of rows.filter((x) => x.ambiguous && !x.measured)) expect(lineWithheld).not.toContain(r0.i)
   })
 
-  it('⛔ past the collector\'s trigger the family is withheld WHOLE and NAMED; nothing of it is drawn', () => {
-    const r = run(translate(50))
-    expect(r.live.filter((o) => o.family === 'line')).toEqual([])
+  it('⛔ past the collector\'s trigger the line family is NAMED, and only the lines CERTAINLY among TradingView\'s newest 50 are drawn (W-C22-DEL r3)', () => {
+    const r = run(translate(50), { trace: true })
+    // the rule by hand, off the run's own trace: a line's rank from TradingView's newest
+    // is at most 1 + (our line creates after it) + (line creates Pine MAY have made
+    // after it); the collector always leaves the newest 50, so rank <= 50 is certain
+    const creates = r.events.filter((e) => e.k === 'create' && e.family === 'line')
+    const marks = []
+    let made = 0
+    for (const e of r.events) {
+      if (e.family !== 'line') continue
+      if (e.k === 'create') made += 1
+      else if (e.k === 'withheld') marks.push(made)
+    }
+    const want = creates.filter((c, seq) => 1 + (creates.length - seq - 1) + marks.filter((m) => m > seq).length <= 50)
+      .map((c) => c.id)
+    expect(marks.length).toBeGreaterThan(0)
+    expect(want.length).toBeGreaterThan(5)
+    expect(want.length).toBeLessThan(50)
+    expect(r.live.filter((o) => o.family === 'line').map((o) => o.id)).toEqual(want)
     expect(r.withheld.line).toBeGreaterThan(0)
     expect(r.withheldBy).toEqual({ 'objects:collector': ['line'] })
+  })
+
+  it('⛔ the boundary is exact: a line whose bound rank is EXACTLY the cap is drawn (the collector leaves the newest `cap`), across caps 50..80', () => {
+    let boundaryHits = 0
+    for (let cap = 50; cap <= 80; cap += 1) {
+      const r = run(translate(cap), { trace: true })
+      const creates = r.events.filter((e) => e.k === 'create' && e.family === 'line')
+      const marks = []
+      let made = 0
+      for (const e of r.events) {
+        if (e.family !== 'line') continue
+        if (e.k === 'create') made += 1
+        else if (e.k === 'withheld') marks.push(made)
+      }
+      if (!r.withheldBy) continue
+      const rank = (seq) => 1 + (creates.length - seq - 1) + marks.filter((m) => m > seq).length
+      if (creates.some((c, seq) => rank(seq) === cap)) boundaryHits += 1
+      const want = creates.filter((c, seq) => rank(seq) <= cap).map((c) => c.id)
+      expect(r.live.filter((o) => o.family === 'line').map((o) => o.id), `cap ${cap}`).toEqual(want)
+    }
+    // non-vacuity: some cap really puts a line at rank === cap
+    expect(boundaryHits).toBeGreaterThan(0)
   })
 
   it('⛔ CONTROL: below the trigger (max_lines_count=500) nothing is collected, the unambiguous lines are drawn and nothing is named', () => {
@@ -225,7 +263,8 @@ describe('⛔ N1 — the skip is claimed only where it is certain', () => {
 describe('⭐ the member is told, by name', () => {
   it('the sentence names the families and says why; it joins a document note and stands alone', () => {
     const s = collectorFamiliesSentence(['line', 'linefill'])
-    expect(s).toMatch(/^No line or fill between lines is shown on this chart: /)
+    expect(s).toMatch(/^Older lines and fills between lines are held back on this chart: /)
+    expect(s).toMatch(/Only the ones TradingView certainly still shows are drawn/)
     expect(s).toMatch(/TradingView has already removed/)
     expect(withRenderDrops(null, { dropped: 0, held: 0, families: ['line'] }))
       .toEqual({ name: DRAWING_NOTE_NAME, note: collectorFamiliesSentence(['line']) })

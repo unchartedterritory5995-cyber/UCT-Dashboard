@@ -440,16 +440,23 @@ describe('C33 (8) — a guard with a term nothing reads, gated by an input', () 
     expect(r.stats.withheldUnknown).toBeUndefined()
   })
 
-  it('⛔ every read term true ⇒ UNKNOWN: never drawn, and past the collector\'s trigger the family is withheld whole', () => {
+  it('⛔ every read term true ⇒ UNKNOWN: never drawn, and past the collector\'s trigger only the labels CERTAINLY among TradingView\'s newest 50 are drawn', () => {
     const t = blockUnder('true')
     // few bars: ours + the creates Pine may have made stay under the trigger
     const few = run(t, 20)
     expect(few.live.filter((o) => o.family === 'label').map((l) => l.props.text)).toEqual(Array(20).fill('control'))
     expect(few.stats.withheldUnknown).toBe(20)
-    // many bars: 300 controls + up to 300 creates Pine may have made > 50 + 5
+    // many bars: 300 controls + up to 300 creates Pine may have made > 50 + 5.
+    // ⭐ W-C22-DEL r3 — the control made on bar b has, after it, 299 - b controls and
+    // 299 - b gated labels Pine may have made, so its rank from TradingView's newest is
+    // at most 1 + 2 (299 - b): certainly held for b >= 275 (rank <= 50), the 25 newest.
+    // ⚰️ It was the family WHOLE: none drawn.
     const many = run(t, 300)
-    expect(many.live.filter((o) => o.family === 'label')).toEqual([])
+    const drawn = many.live.filter((o) => o.family === 'label')
+    expect(drawn.map((l) => l.props.text)).toEqual(Array(25).fill('control'))
+    expect(drawn.map((l) => l.createdBar)).toEqual(Array.from({ length: 25 }, (_, k) => 275 + k))
     expect(many.withheld.label).toBeGreaterThan(0)
+    expect(many.withheldBy).toEqual({ 'objects:collector': ['label'] })
   })
 
   it('⛔ a program whose EVERY create stands under such a guard is no program: the door keeps its own sentence', () => {

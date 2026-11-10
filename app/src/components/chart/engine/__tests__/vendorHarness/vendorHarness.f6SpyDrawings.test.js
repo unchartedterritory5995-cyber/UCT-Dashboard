@@ -282,11 +282,12 @@ function steppedReplay(c) {
 // TradingView's, and the oldest lines TradingView had already collected survived
 // here, DRAWN. The fix is C33's existing collector rule (`noteUnknownCreate` →
 // `collectorUnknown`, one authority): a create withheld by `op.withhold` is one Pine
-// MAY have made, so once ours plus those can pass the trigger the family is withheld
-// whole, by name (`withheldBy['objects:collector']`, the member's drawing note). A
+// MAY have made, so once ours plus those can pass the trigger, every line not CERTAINLY
+// among TradingView's newest 500 is held back (r3; r1/r2 held the family whole), by
+// name (`withheldBy['objects:collector']`, the member's drawing note). A
 // bar the guard's MEASURED conjuncts are false (`withholdRuns`) is a certain skip, so
 // only the 20 bars Pine may really have drawn on count: labels stay drawn.
-describe('F6 — vdubus SPY (DIV-1, W-C22-DEL fixed): the lines TradingView\'s collector removed are never drawn; lines are withheld by name, labels match', () => {
+describe('F6 — vdubus SPY (DIV-1, W-C22-DEL fixed): the lines TradingView\'s collector removed are never drawn; older lines are held back by name, labels match', () => {
   const ID = 'vdubus-pattern-gen-v2-restored-refined-spy-1d-2026-10-03'
 
   it('⭐ the cause, stepped: the program deletes nothing, lines leave only by the collector, and creates Pine may have made were withheld (TradingView\'s counter is past ours)', () => {
@@ -313,14 +314,23 @@ describe('F6 — vdubus SPY (DIV-1, W-C22-DEL fixed): the lines TradingView\'s c
     expect(vendorMaxId).toBeGreaterThan(run.stats.nextId - 1)
   }, T)
 
-  it('⭐ FIXED: every object we draw is TradingView\'s, in order; no line is drawn and the lines are withheld BY NAME', () => {
+  it('⭐ FIXED (r3): every object we draw is TradingView\'s, in order; only the lines CERTAINLY among its newest 500 are drawn, the older ones held back BY NAME', () => {
     const c = cap(ID)
     const o = ours(ID)
     const O = ourObjects(o)
     const { pairs, unO } = inOrderPairing(vendorObjects(c), O)
+    // ⛔ THE HONESTY PROPERTY: nothing we draw is an object TradingView does not hold
     expect(unO).toEqual([])
     expect(pairs.length).toBe(O.length)
-    expect(O.filter((x) => x.f === 'line')).toEqual([])
+    // ⭐ r3 — 412 of our 500 lines are certainly among TradingView's newest 500 (rank
+    // <= 1 + later creates + creates Pine may have made later); the 88 older ones, and
+    // the fills on them, are held back. ⚰️ r1/r2 held back all 500 (the family whole).
+    expect(O.filter((x) => x.f === 'line').length).toBe(412)
+    // a fill spans two lines: every fill we draw joins two lines we draw
+    const drawnLines = new Set(o.objects.held.filter((x) => x.family === 'line').map((x) => x.id))
+    const fills = o.objects.held.filter((x) => x.family === 'linefill')
+    expect(fills.length).toBeGreaterThan(0)
+    for (const f of fills) expect([drawnLines.has(f.props.line1.__ref), drawnLines.has(f.props.line2.__ref)], `fill #${f.id}`).toEqual([true, true])
     expect(O.filter((x) => x.f === 'label').length).toBe(129)
     expect(o.objects.withheldFamilies).toEqual(['line', 'linefill'])
     const v = graded(ID)
