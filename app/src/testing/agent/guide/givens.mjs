@@ -61,6 +61,32 @@ export const GIVENS = {
       { match: '^GET /api/j2/note-folders$', body: { folders: [] } },
     ],
   },
+  // Replay running on the board. The cutoff is session state in ChartsWorkspace (replayCutoff: no pref, no route holds it), so
+  // the member starts it the way the product offers: Tools ▾ → Replay Mode → a date → Start replay (ReplayPanel's own controls)
+  replayRunning: {
+    about: 'Replay Mode running on the board (started by the member from Tools ▾ → Replay Mode, a date 60 days back)',
+    async prelude({ b, sleep }) {
+      const box = (sel) => b.evaluate(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) return null; const r = e.getBoundingClientRect(); return r.width ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null })()`)
+      const press = async (sel, wait = 600) => { const at = await box(sel); if (!at) return false; await b.click(at.x, at.y); await sleep(wait); return true }
+      if (!(await press('[data-guide="workspace.tools"]'))) return 'replayRunning: no Tools menu'
+      if (!(await press('[data-guide="workspace.tools.replay"]'))) return 'replayRunning: no Replay Mode item'
+      // a date input takes its parts as typed digit KEYS (not inserted text), in the browser's own order (headless Chrome, en-US:
+      // month, day, year), from its first part: the press lands on the field's left edge
+      const field = await b.evaluate(`(() => { const e = document.querySelector('[data-guide="replay.panel"] input[type="date"]'); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.left + 12, y: r.top + r.height / 2 } })()`)
+      if (!field) return 'replayRunning: no date field'
+      await b.click(field.x, field.y); await sleep(200)
+      const d = new Date(Date.now() - 60 * 86400000)
+      for (const ch of String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0') + d.getFullYear()) {
+        for (const type of ['keyDown', 'keyUp']) await b.send('Input.dispatchKeyEvent', { type, key: ch, code: 'Digit' + ch, text: type === 'keyDown' ? ch : undefined, windowsVirtualKeyCode: 48 + Number(ch) })
+      }
+      await sleep(300)
+      const filled = await b.evaluate(`document.querySelector('[data-guide="replay.panel"] input[type="date"]')?.value || ''`)
+      if (!filled) return 'replayRunning: the date did not take'
+      if (!(await press('[data-guide="replay.start"]', 900))) return 'replayRunning: no Start replay'
+      const closed = await b.evaluate(`!document.querySelector('[data-guide="replay.panel"]')`)
+      return closed ? `replayRunning: started (to ${filled})` : 'replayRunning: Start replay left the panel open'
+    },
+  },
 }
 
 /** The given names a case declares: on the case itself and, by id, in caseGivens.json (deduplicated, in order). */
