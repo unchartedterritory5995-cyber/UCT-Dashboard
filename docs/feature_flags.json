@@ -64,7 +64,10 @@
     "api/services/feature_status.py and take ON/OFF from the per-request auth payload,",
     "never from status here. payload_key is needed only when the payload key is not",
     "the lowercased flag name. An OFF capability is never listed; declare one only if",
-    "its payload key is an explicit false when off (tests/test_feature_status.py)."
+    "its payload key is an explicit false when off (tests/test_feature_status.py).",
+    "",
+    "audit_preconditions: hard preconditions AUDIT holds before a gate or capability",
+    "is WIDENED beyond its current cohort (keyed by finding; not gates, so not in flags)."
   ],
   "flags": {
     "CHART_IQ_ENABLED": {"status": "dark", "since": "2026-11-01", "where": ["web"], "note": "DARK. Chart IQ (pattern recognition drawn on the chart: levels, zones, trendlines, bases, key candles, cycle stages, buy days, what is setting up, plus a one-paragraph thesis and plan and a read box). Gates GET /api/chart-iq/{sym} (api/routers/chart_iq.py), read PER CALL: unset, the route answers 404 for everyone and the engine (api/services/chart_iq) is never imported. On: ADMINS ONLY, until CHART_IQ_MEMBERS_ENABLED is also on. Compute runs in a worker thread, at most 2 at once, 25 s timeout, cached (latest session 15 min, a past day 24 h). Rails: tests/test_chart_iq_router.py. Arm (owner): railway variables --service web --set CHART_IQ_ENABLED=1. Rollback = set it to 0."},
@@ -3707,6 +3710,20 @@
       "owner": "pine parity programme",
       "owner_decision": "2026-11-02 owner decision: the Pine runtime runs server-side as a SEPARATE sandboxed service (docs/pine/SERVER-RUNTIME-DESIGN.md sections 0 and 3.6). The owner creates this key in the Railway dashboard (T20); no agent sets it, and it is set on no service.",
       "note": "A SECRET: its value is never recorded in this ledger, in the repo, in a log, in a sentence or in a chat. W5 T12 (2026-11-02): the HMAC key that signs every request from web to the pine-runtime service (design 3.6); the SAME value is set on BOTH services (the service accepts a comma-separated list so a key can rotate). Here it is only asked about being set: server_lane_refusal step 5 answers runtime:server-unavailable while it is not, so a lane never builds a request it cannot sign. (Design 3.5 step 5 names only the URL; the secret is added to that step so a pod holding one without the other fails closed by name instead of at the first request.) Rotation without a joint restart: add the new key to the service, switch web to it, then remove the old one from the service. Rollback: blank it on web (Railway ignores null) and verify a NEW boot. Rails: tests/test_runtime_server_stage.py."
+    }
+  },
+  "audit_preconditions": {
+    "G1_knowledge_guard_bare_action_names": {
+      "applies_to": [
+        "UCT_AGENT_KNOWLEDGE",
+        "UCT_AGENT_DATA",
+        "knowledge kinds (knowledge.search, setup.playbook, setup.record)"
+      ],
+      "since": "2026-11-10",
+      "status": "hard precondition, open until verified",
+      "precondition": "No widening of UCT_AGENT_KNOWLEDGE, UCT_AGENT_DATA or the knowledge kinds beyond admin until agent/pl/knowledge-guard-bare-names (G1) is merged and verified. Before G1, api/services/uct_agent/knowledge/guard.py failed OPEN on 45 capability action names written bare (e.g. chart.goToDate, watchlist.keepOnly, agent.undo), so a curated verbatim trader post that names an Agent action could reach the planner as clean data.",
+      "verified_by": "tests/test_uct_agent_server_capability_mirrors.py (GUARD_KNOWN_UNWITHHELD empty; registry-derived families; PLANTED quoted posts withheld; ORDINARY prose over-flag 0) green in CI on master after G1 merges, AND an AUDIT check that guard.action_source() == 'registry' on the deployed build.",
+      "doc": "docs/agent/program/PR-knowledge-guard-bare-names.md"
     }
   }
 }
