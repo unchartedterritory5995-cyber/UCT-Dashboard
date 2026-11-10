@@ -1170,7 +1170,38 @@
     "note": "rejected as an example: the first bar closed at 94% of its range on 2.8x volume, but the trigger came only at 9:50 and the stock sat flat for four hours; its 42.9R came from a 3:05 pm surge and the next morning's gap, not from the open. A best-R number without the chart is not a textbook example."
    }
   ],
-  "limits": "One autumn of 5-minute bars, one market regime; 41 strict trades on 21 days, so the cases are not independent. Only 3 of the 10 examples are strict; 7 pass every rule except one 'my proposal' line (volume 1.5x to 2x, RS 77, a stop a shade over 3%). The news behind each gap was not checked and needs the owner's eye. RS is a proxy rank, not the app's rating; no costs; today's liquid names only. The numbers are a floor to argue from, not a statistic."
+  "limits": "One autumn of 5-minute bars, one market regime; 41 strict trades on 21 days, so the cases are not independent. Only 3 of the 10 examples are strict; 7 pass every rule except one 'my proposal' line (volume 1.5x to 2x, RS 77, a stop a shade over 3%). The news behind each gap was not checked and needs the owner's eye. RS is a proxy rank, not the app's rating; no costs; today's liquid names only. The numbers are a floor to argue from, not a statistic.",
+  "near_misses": [
+   {
+    "ticker": "TEAM",
+    "date": "2026-10-09",
+    "criterion": "od.gap_floor",
+    "why": "opened +0.43% (rule 1% or more) on 3.91x first-bar volume; a plain 5-minute range break with no gap behind it; 0.00R, stopped at 9:40."
+   },
+   {
+    "ticker": "NVT",
+    "date": "2026-10-02",
+    "criterion": "od.inv_back_to_open",
+    "why": "traded back under the open 169.59 at 9:35 before the first bar's high was taken at 9:40; an open-test, no trade; 0.2R then stopped at 9:55."
+   },
+   {
+    "ticker": "KEYS",
+    "date": "2026-09-25",
+    "criterion": "od.first_bar_volume",
+    "why": "first 5-minute volume 1.10x its 20-day average (rule 2x or more); a quiet 1.2% gap with no crowd; 0.42R, stopped at 10:15."
+   },
+   {
+    "ticker": "WDC",
+    "date": "2026-10-05",
+    "criterion": "od.stop_width",
+    "why": "the first bar was 3.6% tall, so the stop sits 3.53% under the fill (rule about 3%); a real drive to size down or skip; 0.13R, stopped on the next morning's gap down."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_40-opening-range-breakout.png"
+  }
  },
  "question_seeds": [
   {

@@ -1211,9 +1211,46 @@
     "trigger": "2026-10-09",
     "criterion": "orb.trim_1",
     "note": "5R in session 7, then back to the fixed stop in session 18. QLYS, SNX, TJX and FORM (12.3R) did the same within 20 sessions: the count says stopped, the trims at 3R and 5R and the breakeven move say otherwise. Teach the exit as part of the setup."
+   },
+   {
+    "ticker": "APA",
+    "date": "2026-09-14",
+    "criterion": "orb.reversal_warning",
+    "why": "long at 10:00 on a 2.3% gap over the prior day's high, 1.7x opening volume, RS 90, fill 46.37, stop 45.51 (1.85%): 0.26R, back through the OR high by 10:30, lost VWAP, stopped at 12:45 the same day; closed under the range at 45.05. The card's failure mode in one chart."
    }
   ],
-  "limits": "One 12-week window in one market phase (the only window with 5-minute bars); no different years possible. The parent setup was a proxy (RS 80+ and the OR edge beyond the prior day's extreme), not a hand check for a Kicker, EP or base. RS is a proxy rank, not the app's rating. No slippage, no commissions. Nothing here is a published statistic."
+  "limits": "One 12-week window in one market phase (the only window with 5-minute bars); no different years possible. The parent setup was a proxy (RS 80+ and the OR edge beyond the prior day's extreme), not a hand check for a Kicker, EP or base. RS is a proxy rank, not the app's rating. No slippage, no commissions. Nothing here is a published statistic.",
+  "near_misses": [
+   {
+    "ticker": "IQV",
+    "date": "2026-09-15",
+    "criterion": "orb.opening_volume",
+    "why": "opening volume 1.03x the 20-day mean for 9:30 to 10:00 (rule 1.5x or more); a quiet 10:00 range break with no opening interest; 1.29R then stopped 2026-09-28."
+   },
+   {
+    "ticker": "GKOS",
+    "date": "2026-10-27",
+    "criterion": "orb.stop_width",
+    "why": "30-minute range 4.55% wide, stop 4.58% under the fill (rule 3% or less); skip or size down by the stop; 0.33R then stopped 2026-10-28."
+   },
+   {
+    "ticker": "MANH",
+    "date": "2026-09-14",
+    "criterion": "orb.inv_range_low_first",
+    "why": "the OR low 206.18 traded at 10:00 before the OR high 207.88 traded at 10:30; a reclaim after an undercut is an Oops, red-to-green or VWAP remount entry, not the plain ORB; 1.71R then stopped 2026-09-15."
+   },
+   {
+    "ticker": "DHR",
+    "date": "2026-09-24",
+    "criterion": "orb.leader",
+    "why": "RS 64 (rule 80 or more); a clean 10:00 break on 2.1x opening volume in a non-leader with no parent setup; 0.58R then stopped 2026-09-29."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_41-30-minute-pivot.png"
+  }
  },
  "question_seeds": [
   {

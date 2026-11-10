@@ -986,3 +986,27 @@ recomputation notes (4.3, 4.4). Still unverified by either agent: the Zarattini 
 the 2026-09-30 risk post, the two workshop transcripts, and which library videos the curriculum's ids 52, 83 and 135 are
 (the ids are Desk database ids, not positions in `education_seed.py`; the checker tried that mapping and it does not
 hold).
+
+## 14. Failures and near-misses (from our data)
+
+**Built 2026-11-10 from the same scan (`final/hits.json`) and a one-gate-relaxed rerun (`near_scan41.py`, `final/near_hits.json`); charts by `fail_near41.py`, the winners' renderer: 30-minute candles, the red string boxed, the prior day's level, the buy, the stop, 3R and 5R.** Sheets: `final/fail_1-4.png` (the four failures), `final/near_1-4.png` (the four near-misses), `final/pair_40-opening-range-breakout.png` (a pivot above an ORB). All from the one 12-week window the 30-minute bars allow (2026-08-17 to 2026-11-06), so "different years" was not possible; the four failures come from four different weeks. Buy = a cent over the pivot candle's high; stop = 3 cents under the pivot candle's low. Every number is read off the bars.
+
+**Four valid setups that lost (every gate passed, stopped before 3R).**
+
+| # | Ticker | Date | Buy | Stop (risk) | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|---|
+| 1 | AAPL | 2026-10-16 | 343.15 at 15:30 | 341.10 (0.60%) | the next session's first candle (10-19 09:30) | 5 reds into the 10-day EMA (339.05), pivot candle 15:00, low 341.13, closed near its high; the trigger was the last candle of the day. It never ticked above the buy (0.00R); the next morning's first candle took the stop. A pivot in the last hour has no session left to work; 156 of the 1,477 trades were such late triggers. | pvt.trigger |
+| 2 | MSFT | 2026-09-01 | 501.07 at 13:00 | 498.97 (0.42%) | the next session's first candle (09-02 09:30) | 4 reds into the 10-day EMA (497.14), pivot 12:30, low 499.00. Reached 0.48R the same afternoon, faded into the close, and the next morning's first candle took the stop. A 2-dollar stop on a slow mega-cap sits inside the noise; the originator built the timer for volatile names. | pvt.stop_width |
+| 3 | INTC | 2026-10-06 | 114.94 at 14:00 | 112.96 (1.72%) | 15:30 the same day | 3 reds into the 21-day EMA (112.63), pivot 12:30, low 112.99; the trigger came three candles later. 0.00R; the pivot low broke in the last hour. The second of three stabs in six sessions (09-29, 10-06, 10-07) on a name whose daily trend had already turned; E56 cuts the third try. | pvt.inv_context (pvt.tries) |
+| 4 | AXON | 2026-08-24 | 601.49 at 13:30 | 595.08 (1.07%) | the next session's first candle (08-25 09:30) | 6 reds into the 21-day EMA (589.90), pivot 13:00, the day's low 595.11, closed in its upper half: the A+ shape. Reached 0.35R, drifted, and the next morning's first candle traded through the pivot low. Nothing in the rules was missing; a pivot low breaks about as often as it holds, and the stop is the exit. | pvt.stop |
+
+**Four near-misses (each fails exactly one gate; the chart looks like the setup).**
+
+| # | Ticker | Date | The one criterion that fails | The number | What it really is |
+|---|---|---|---|---|---|
+| 1 | URI | 2026-11-03 | pvt.level | pivot low 1167.55 is 2.4% above the prior day's 10-day EMA (1139.86); the rule is within 1% | A green candle floating in mid-range after 4 reds, with no daily level under it: just a green candle. Bought 1179.05 at 11:00, 0.28R, stopped the next morning. |
+| 2 | CRWD | 2026-09-10 | pvt.red_string | 1 red candle before the pivot; the rule is 2 or more | A one-candle dip to the 10-day EMA (210.39), not a pullback string. Bought 211.78 at 11:00, 1.42R, stopped at 13:30 the same day. |
+| 3 | MRNA | 2026-09-15 | pvt.inv_pivot_low | the 11:30 candle traded under the pivot candle's low (142.41) before the trigger at 12:00 | A void pivot: once the pivot low trades, the setup resets and needs a new red string and a new pivot. Bought 143.81, 0.00R, stopped on the trigger candle. |
+| 4 | IQV | 2026-10-14 | pvt.ema20_rising | 20-day EMA 262.69 under its value 5 sessions earlier (264.36); the rule is rising | 3 reds into the 10-day EMA (261.94) in a stock whose 20-day has turned down: no daily setup under the timer. Bought 262.72 at 12:30, stop 261.60 (0.43%), 0.00R, stopped at 13:00. |
+
+**What the failures have in common.** All four met the candle rules: a red string of 3 to 6 into a rising average, a pivot candle closing near its high, the trigger a cent over it. None ran past 0.48R. Two were stopped before the close and two on the next morning's first candle, so the overnight gap, not the 30-minute chart, took half of them; the stops sat 0.42% to 1.72% under the buy. What separated them from the ten winners was not on the 30-minute chart: the clock (AAPL's 15:00 pivot), a stop inside the stock's noise (MSFT), a daily trend that had already broken (INTC) and the plain fact that a pivot low breaks (AXON). Section 9 grades the clock, the daily picture and the stock's character ahead of the candle count for this reason, and the house exit, the fixed stop that only moves up, is what kept each loss at 1R.

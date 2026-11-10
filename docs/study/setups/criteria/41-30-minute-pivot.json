@@ -1057,9 +1057,52 @@
     "trigger": "2026-09-29",
     "criterion": "pvt.inv_context",
     "note": "pivots at the 10 and 21-day on 09-29, 10-06 and 10-07 (risk 0.8% to 2.8%) all stopped with no follow-through: three stabs in six sessions on a name that had stopped trending, which E56 would have cut off after the third try in a week. The entry and stop rules were met; the daily picture and the clock were the difference."
+   },
+   {
+    "ticker": "AXON",
+    "date": "2026-08-24",
+    "criterion": "pvt.stop",
+    "why": "6 reds into the 21-day EMA (589.90), pivot 13:00 the day's low 595.11, bought 601.49 at 13:30, stop 595.08 (1.07%): 0.35R, then the next morning's first candle traded through the pivot low. The A+ shape with nothing missing; the pivot low broke and the stop was the exit."
+   },
+   {
+    "ticker": "INTC",
+    "date": "2026-10-06",
+    "criterion": "pvt.inv_context",
+    "why": "3 reds into the 21-day EMA (112.63), pivot 12:30, bought 114.94 at 14:00, stop 112.96 (1.72%): 0.00R, stopped at 15:30. The second of three stabs in six sessions on a name whose trend had turned (pvt.tries)."
    }
   ],
-  "limits": "One 12-week window in one market phase (the only window with 30-minute bars); no different years possible. Yahoo bars, no slippage or commissions, which matter with stops this tight; today's liquid names only; the RS stand-in is a 126-session return rank, not the app's rating. The trades cluster on pullback days, so the true uncertainty is wider than the counts suggest. Nothing here is a published statistic; the originator's own rules from his workshops were not available (no transcript)."
+  "limits": "One 12-week window in one market phase (the only window with 30-minute bars); no different years possible. Yahoo bars, no slippage or commissions, which matter with stops this tight; today's liquid names only; the RS stand-in is a 126-session return rank, not the app's rating. The trades cluster on pullback days, so the true uncertainty is wider than the counts suggest. Nothing here is a published statistic; the originator's own rules from his workshops were not available (no transcript).",
+  "near_misses": [
+   {
+    "ticker": "URI",
+    "date": "2026-11-03",
+    "criterion": "pvt.level",
+    "why": "pivot low 1167.55 sits 2.4% above the prior day's 10-day EMA 1139.86 (rule within 1%); a green candle floating in mid-range with no level under it; 0.28R then stopped the next morning."
+   },
+   {
+    "ticker": "CRWD",
+    "date": "2026-09-10",
+    "criterion": "pvt.red_string",
+    "why": "only 1 red candle before the pivot (rule 2 or more); a one-candle dip to the 10-day EMA, not a pullback string; 1.42R then stopped at 13:30 the same day."
+   },
+   {
+    "ticker": "MRNA",
+    "date": "2026-09-15",
+    "criterion": "pvt.inv_pivot_low",
+    "why": "the 11:30 candle traded under the pivot low 142.41 before the 12:00 trigger; a void pivot that needs a new string and a new pivot; 0.00R, stopped on the trigger candle."
+   },
+   {
+    "ticker": "IQV",
+    "date": "2026-10-14",
+    "criterion": "pvt.ema20_rising",
+    "why": "20-day EMA 262.69 under its value 5 sessions earlier 264.36 (rule rising); 3 reds into the 10-day in a stock turning down, no daily setup under the timer; 0.00R, stopped at 13:00."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_40-opening-range-breakout.png"
+  }
  },
  "question_seeds": [
   {

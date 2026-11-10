@@ -1192,3 +1192,28 @@ Hourly bars start 9:30 (bar 1 ends 10:30), so "first hourly candle" here is the 
 clock-aligned chart. Nothing here was trimmed, trailed or moved to breakeven; the R figures are high-water marks against
 the original stop. No example is an earnings reaction day (checked against the report dates); the gaps are ordinary
 pullback gaps, not news gaps, as far as the report dates can tell.
+
+
+## 13. Failures and near-misses (from our data)
+
+**Built 2026-11-10 from the same hourly scan (`final/hits.json`) and a one-gate-relaxed rerun (`final/near_scan_r2g.py`, `final/near_hits.json`, 2024 on); charts by `final/fail_near_r2g.py`, the winners' renderer: the daily context with the 5-session box, the prior close as the buy line, the stop, 3R and 5R, and the hourly cross below it.** Sheets: `final/fail_1-4.png` (the four failures), `final/near_1-4.png` (the four near-misses), `final/pair_30-oops-reversal.png` (a red to green above an Oops reversal). The failures span 2024, 2025 and 2026 (the hourly bars begin 2023-12-12). Buy = a cent over the prior close; stop = 3 cents under the day's low at the buy. Every number is read off the bars.
+
+**Four valid setups that lost (every gate passed, stopped before 3R).**
+
+| # | Ticker | Date | Buy | Stop (risk) | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|---|
+| 1 | AMD | 2024-03-14 | 194.80 | 190.33 (2.29%) | 12:30 the same day | Opened -1.0% (192.92 against 194.79), dipped to 190.36 at the 20-day EMA (191.72) and crossed the prior close in the first hour, RS 96, volume 1.06x. Best 0.06R; the second hour closed back under the line and the 12:30 bar took the stop; the day closed red at 23% of its range. The first-hour cross is the fast one and the whippy one: bar-1 crosses were stopped the same day 29% of the time. | rg.timing |
+| 2 | TSLA | 2025-01-22 | 424.08 | 416.07 (1.89%) | 15:30 the same day | Opened -1.7% (416.72 against 424.07) onto the 9-day EMA (415.02), crossed in hour one, RS 97. Best 0.03R; it spent the whole day under the line and closed at 4% of its range, the stop going in the last hour. The close back under the prior close is the card's warning sign; here it came with the stop. | rg.inv_close_back_under |
+| 3 | NVDA | 2025-08-14 | 181.60 | 179.43 (1.19%) | 2025-08-15, the next session | Opened -1.0% (179.79 against 181.59) onto the 9-day EMA (180.36), crossed in hour one, closed green at 72% of its range, best 0.63R. The next morning's first hour traded down through the stop. A green close is not a free pass: the fixed stop was still 1.2% under the buy and one red open took it. | rg.stop_gap |
+| 4 | CRM | 2026-10-27 | 247.62 | 241.49 (2.48%) | 10:30 the same day | Opened -1.0% (245.20 against 247.61), dipped to 241.52 at the 20-day EMA (239.97), crossed in hour one, RS 82, volume 0.62x. 0.00R: the cross was the high and the second hour took the stop; the day closed at 3% of its range. The third stab in seven sessions after the 10-19 and 10-20 crosses faded (0.6R and 1.5R before their stops). | rg.tries |
+
+**Four near-misses (each fails exactly one gate; the chart looks like the setup).**
+
+| # | Ticker | Date | The one criterion that fails | The number | What it really is |
+|---|---|---|---|---|---|
+| 1 | PLTR | 2026-09-24 | rg.support_tag | the dip low 188.24 is 2.9% above the nearest level (the prior day's low, 182.94); the rule is within 1% | A gap down (-1.4%) and a first-hour cross with nothing under the dip: a trigger with no setup under it (rg.role). Bought 191.80, stop 188.21, closed green, 0.8R, stopped on 2026-09-28. |
+| 2 | APP | 2025-10-17 | rg.ema20_rising | 20-day EMA 612.33 is under its value 5 sessions earlier (624.73); the rule is rising | A cross in a stock rolling over under a falling 20-day: a bounce in a correction, not a pullback in a trend. Bought 605.69, stop 598.97 (1.11%), 0.00R, stopped the same day. |
+| 3 | WWD | 2024-07-24 | rg.earnings_window | a report on 2024-07-29, inside the next 3 sessions; the rule is no report in the next 3 sessions | A red to green at the 50-day SMA three sessions before earnings: B22 says no new buy. Bought 183.84, stop 181.46 (1.29%), 0.00R, stopped the same day. |
+| 4 | DELL | 2026-07-07 | rg.stop_width | the stop 397.66 is 3.44% under the buy 411.81; the rule is within about 3% | A 3.4% gap down to the 20-day EMA whose dip is too deep for the stop: the edge of the gap setups, skip or size down by the stop. 0.00R, stopped the same day even so. |
+
+**What the failures have in common.** All four crossed in the first hour, which is the fast cross and the whippy one. None ran past 0.63R. Three were stopped before the close and closed in the bottom quarter of the day's range (AMD 23%, TSLA 4%, CRM 3%); NVDA closed green and was taken out in the next morning's first hour. The reclaim came on light volume in every one (1.06x, 0.64x, 0.75x, 0.62x of the 50-day average): the line was crossed and nobody followed. The two warnings the card names were both present, a close back under the prior close and a repeat try on the same name, and the fixed stop under the dip's low, 1.2% to 2.5% away, kept each loss at 1R.

@@ -1071,3 +1071,27 @@ its source as described in the opening note.
    count of days, a market reading) and every [source consensus] tag rests on at least two named sources; the [my
    proposal] tags mark the lines that are the writer's own (the 5-minute window, the 2x first-bar volume floor, the
    day-1 close check, the group test).
+
+## 14. Failures and near-misses (from our data)
+
+**Built 2026-11-10 from the same scan (`final/hits.json`) and a one-gate-relaxed rerun (`near_scan44.py`, `final/near_hits.json`); charts by `fail_near44.py`, the winners' renderer: 5-minute candles, the first bar boxed, the session VWAP, the first 5-minute high, the stop, 3R and 5R.** Sheets: `final/fail_1-4.png` (the four failures), `final/near_1-4.png` (the four near-misses), `final/pair_40-opening-range-breakout.png` (a drive above an ORB). All from the one 12-week window the 5-minute bars allow (2026-08-17 to 2026-11-06), so "different years" was not possible; the four failures come from four different weeks. The strict rule gave 41 long hits in the window, 30 of them stopped before 3R; the four below are the ones section 12 already describes in words, now charted. Fill = market order over the first bar's high; stop = 5 cents under the day's low at the fill. Every number is read off the bars.
+
+**Four valid setups that lost (the strict rule passed, stopped before 3R).**
+
+| # | Ticker | Date | Fill | Stop (risk) | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|---|
+| 1 | TSEM | 2026-09-17 | 216.48 at 9:35 | 214.23 (1.04%) | 10:05 the same day | A 6.3% gap over the prior day's high on 2.47x first-bar volume, RS 92; the first bar closed at 75% of its range. Reached 2.13R by 9:50, then fell through its open (215.02) and the stop within the half hour; the day still closed at 77% of its range and the stock was 10% higher within 10 sessions. A tight stop is not a free stop, and a stop-out is not a re-entry without a new trigger (B21). | od.stop |
+| 2 | EAT | 2026-09-22 | 211.21 at 9:40 | 204.95 (2.96%) | 14:20 the same day | A 3.2% gap over the prior high on 2.52x volume, RS 84; the first bar closed at 87% of its range. The high of the day printed at 9:45 (0.37R), a lower high followed, the first close under VWAP came at 9:55 and the slide reached the stop at 14:20; the day closed at 24% of its range. The day-1 close check describes it; the stop came first. | od.day1_close_check |
+| 3 | PAYC | 2026-10-01 | 229.02 at 9:35 | 224.09 (2.15%) | 10:35 the same day | A 3.6% gap over the prior high on 4.98x volume (the second-heaviest in the strict set), RS 90. The fill was the high of the day: the stock never ticked higher (0.00R), slid for an hour and took the stop at 10:35, then recovered to close at 78% of its range. A push that fails in minute six is not a drive. | od.trigger |
+| 4 | RVTY | 2026-10-06 | 165.00 at 9:35 | 161.45 (2.15%) | 9:50 the same day | A 2.7% gap over the prior high on 2.94x volume, RS 91, 48% over its 200-day. 0.21R in the first minutes, then straight back through the open to the stop by 9:50; the day closed at 13% of its range. One of four strict drives that fired that morning (NVT, ARKG, CIBR were the others); all four were stopped. | od.market_reading |
+
+**Four near-misses (each fails exactly one gate; the chart looks like the setup).**
+
+| # | Ticker | Date | The one criterion that fails | The number | What it really is |
+|---|---|---|---|---|---|
+| 1 | TEAM | 2026-10-09 | od.gap_floor | opened +0.43% (204.45 against the prior close); the rule is a gap of 1% or more | An opening push with no gap behind it, on 3.91x first-bar volume and a first bar that closed at 99% of its range: a plain 5-minute range break, not a drive. Bought 207.03 at 9:35, 0.00R, stopped at 9:40. |
+| 2 | NVT | 2026-10-02 | od.inv_back_to_open | price traded back under the open (169.59) at 9:35, before the first bar's high was taken at 9:40 | An open-test, not a drive: the first bar's low was lost before the trigger, so the rule says no trade. Bought 171.44 at 9:40 would have been 0.2R and stopped at 9:55. |
+| 3 | KEYS | 2026-09-25 | od.first_bar_volume | first 5-minute volume 1.10x its 20-day average; the rule is 2x or more | A 1.2% gap over the prior high with no crowd behind it: a quiet gap, not a drive. Bought 363.86 at 9:35, 0.42R, stopped at 10:15. |
+| 4 | WDC | 2026-10-05 | od.stop_width | the stop 429.88 is 3.53% under the fill 445.63 (the first bar was 3.6% tall); the rule is about 3% or less | A real drive (3.5% gap over the prior high, 3.51x volume, RS 92) whose first bar is too tall for the stop: size down by the stop or skip. 0.13R, stopped on the next morning's gap down. |
+
+**What the failures have in common.** All four were stopped on the drive day, three of them by 10:35. In every one the high of the day came inside the first 20 minutes and the stock then traded back through its open, which is the card's failure mode in one sentence. Heavy first-bar volume did not save any of them (2.47x to 4.98x), and the gap over the prior day's high, the A+ mark, was present in all four; in this window that mark ran the wrong way (33 strict hits with it, 6.1% to 3R). The stop under the first bar's low, 1.0% to 3.0% away, is the whole plan: a drive that keeps going pays in minutes, and one that does not is over by 10:00, so the loss is small and quick. Sample caveat: 41 strict trades on 21 days, one autumn; these four are the shape of the loss, not a rate.

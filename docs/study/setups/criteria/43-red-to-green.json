@@ -1093,9 +1093,52 @@
     "trigger": "2026-09-02",
     "criterion": "rg.tries",
     "note": "met every rule at the 20-day EMA, crossed in hour one, stopped the same day (best 0.6R); the retry on 2026-09-15 at the same level ran 14.8R. CRM 2026-10-19 and 10-20 crossed at the 20-day EMA and faded (0.6R and 1.5R before the stop); CRM 2026-10-27 was stopped the same day. His ALAB 2026-08-13, NOW 2026-09 and BE 2026-03 trades did not pass the scan's filters."
+   },
+   {
+    "ticker": "AMD",
+    "date": "2024-03-14",
+    "criterion": "rg.timing",
+    "why": "20-day EMA, gap -1.0%, crossed in hour one on 1.06x volume, bought 194.80, stop 190.33 (2.29%): 0.06R, stopped at 12:30, closed red at 23% of the range. The first-hour cross is the whippy one."
+   },
+   {
+    "ticker": "CRM",
+    "date": "2026-10-27",
+    "criterion": "rg.tries",
+    "why": "20-day EMA, gap -1.0%, crossed in hour one on 0.62x volume, bought 247.62, stop 241.49 (2.48%): 0.00R, stopped at 10:30, closed at 3% of the range; the third stab in seven sessions after 10-19 and 10-20 faded."
    }
   ],
-  "limits": "The RS filter is a proxy rank, not the app's rating. Hourly bars begin 2023-12-12, so the examples span three years; the 25-year daily footprint is blind to same-day stop-outs. Hourly bars start 9:30 (bar 1 ends 10:30), so 'first hourly candle' here is the first hour, not the 10:00 candle of a clock-aligned chart. Nothing was trimmed, trailed or moved to breakeven; the R figures are high-water marks. No example is an earnings reaction day. Today's names only; no costs."
+  "limits": "The RS filter is a proxy rank, not the app's rating. Hourly bars begin 2023-12-12, so the examples span three years; the 25-year daily footprint is blind to same-day stop-outs. Hourly bars start 9:30 (bar 1 ends 10:30), so 'first hourly candle' here is the first hour, not the 10:00 candle of a clock-aligned chart. Nothing was trimmed, trailed or moved to breakeven; the R figures are high-water marks. No example is an earnings reaction day. Today's names only; no costs.",
+  "near_misses": [
+   {
+    "ticker": "PLTR",
+    "date": "2026-09-24",
+    "criterion": "rg.support_tag",
+    "why": "the dip low 188.24 is 2.9% above the nearest level, the prior day's low 182.94 (rule within 1%); a trigger with no setup under it; 0.8R then stopped 2026-09-28."
+   },
+   {
+    "ticker": "APP",
+    "date": "2025-10-17",
+    "criterion": "rg.ema20_rising",
+    "why": "20-day EMA 612.33 under its value 5 sessions earlier 624.73 (rule rising); a bounce in a correction, not a pullback in a trend; 0.00R, stopped the same day."
+   },
+   {
+    "ticker": "WWD",
+    "date": "2024-07-24",
+    "criterion": "rg.earnings_window",
+    "why": "a report on 2024-07-29, three sessions after the buy (rule none in the next 3 sessions); at the 50-day SMA, 0.00R, stopped the same day."
+   },
+   {
+    "ticker": "DELL",
+    "date": "2026-07-07",
+    "criterion": "rg.stop_width",
+    "why": "a 3.4% gap down to the 20-day EMA; the stop 397.66 sits 3.44% under the buy 411.81 (rule about 3%); skip or size down; 0.00R, stopped the same day."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_30-oops-reversal.png"
+  }
  },
  "question_seeds": [
   {
