@@ -2545,7 +2545,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
             newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
             ...listingOptsFor(def, ctx),
             ...semanticsOptsFor(def),
-            ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}),
+            ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}), ...(varOriginAbsoluteFor(def) ? { varOriginAbsolute: true } : {}),
             ...(other ? { symbols: other.symbols } : {}),
             ...(lower ? { lowerTf: lower.supply } : {}), crossMemo,
             chartClockSink: (clock[key] = new Map()) })
@@ -2613,7 +2613,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
       newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
       ...listingOptsFor(def, ctx),
       ...semanticsOptsFor(def),
-      ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}),
+      ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}), ...(varOriginAbsoluteFor(def) ? { varOriginAbsolute: true } : {}),
       ...(other ? { symbols: other.symbols } : {}),
       ...(lower ? { lowerTf: lower.supply } : {}),
       chartClockSink: clock[keys[0]] })
@@ -2624,7 +2624,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
       newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
       ...listingOptsFor(def, ctx),
       ...semanticsOptsFor(def),
-      ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}),
+      ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}), ...(varOriginAbsoluteFor(def) ? { varOriginAbsolute: true } : {}),
       ...(other ? { symbols: other.symbols } : {}),
       ...(lower ? { lowerTf: lower.supply } : {}),
       chartClockSink: new Map() }))
@@ -2835,6 +2835,18 @@ export function listingSeedUnpinnedFor(def) {
  *  the vendor's own print, and the count is graded instead of withheld.
  *  ⛔ It says nothing about the listing: no seed is lifted, no history read is
  *  served by it. Absent, `false`, or anything but `true` means NO. */
+/** ⭐⭐ 2026-11-09 — DOES THIS DOCUMENT'S `accum` MEAN A PINE `var`, SET ON THE
+ *  SYMBOL'S FIRST BAR? The declaration `historyFromListingFor` reads
+ *  (`meta.recurrenceOrigin === 'pine'`). Off the listing such a `var` that still
+ *  holds what it held before the loaded bars is withheld by name
+ *  (`interpret.js::varOriginMask`); a formula's own `accum(…, W)` is a window by
+ *  its declared sentence and is not touched. ⛔ Unlike `barIndexAbsoluteFor`,
+ *  `ctx.barIndexFromFirstBar` does not lift it: that fact names TradingView's bar
+ *  0, and the bounded window still re-seeds 250 bars back on every bar. */
+export function varOriginAbsoluteFor(def) {
+  return !!(def && def.meta && def.meta.recurrenceOrigin === PINE_RECURRENCE_ORIGIN)
+}
+
 export function barIndexAbsoluteFor(def, ctx) {
   return !!(def && def.meta && def.meta.recurrenceOrigin === PINE_RECURRENCE_ORIGIN)
     && !(ctx && ctx.barIndexFromFirstBar === true)

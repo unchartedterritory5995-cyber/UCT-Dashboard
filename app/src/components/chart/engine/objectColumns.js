@@ -31,7 +31,7 @@ import {
 import { barIndexClass } from './ast/barIndexShift'
 import { RECURRENCES } from './ast/parse.js'
 import {
-  resolveInputs, treeScalars, bindConstsFor, historyFromListingFor, listingOptsFor, barIndexAbsoluteFor, otherSymbolsFor, lowerTfFor, computeFor,
+  resolveInputs, treeScalars, bindConstsFor, historyFromListingFor, listingOptsFor, barIndexAbsoluteFor, varOriginAbsoluteFor, otherSymbolsFor, lowerTfFor, computeFor,
   runtimeErrorStopOf,
 } from './nativeRegistry'
 import { periodReadsObjectRefusal } from './periodReads'
@@ -648,6 +648,9 @@ export function objectReaderFor(definition, bars, opts = {}) {
     // ⭐⭐ C45 — whether this document's `barindex` is Pine's `bar_index`, by the
     // SAME declaration the plot lane reads (`nativeRegistry.barIndexAbsoluteFor`).
     barIndexAbsolute: barIndexAbsoluteFor(definition, opts),
+    // ⭐⭐ 2026-11-09 — and whether its `var` state began on the symbol's first bar
+    // (`nativeRegistry.varOriginAbsoluteFor`), the same declaration the plot lane reads.
+    varOriginAbsolute: varOriginAbsoluteFor(definition),
     fold,
     // ⭐⭐ C26 — the other symbols this binding may read, decided by the SAME
     // function the plot lane asks (`nativeRegistry.otherSymbolsFor`), so an object

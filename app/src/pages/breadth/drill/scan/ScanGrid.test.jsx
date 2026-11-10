@@ -13,11 +13,22 @@ vi.mock('../../../../components/StockChart', () => ({
   default: ({ sym }) => (
     <div data-testid={`chart-${sym}`}
       onWheel={() => reached.push(`wheel:${sym}`)}
-      onPointerDown={() => reached.push(`press:${sym}`)} />
+      onPointerDown={() => reached.push(`press:${sym}`)}
+      onMouseDown={() => reached.push(`mousedown:${sym}`)}
+      onMouseUp={() => reached.push(`mouseup:${sym}`)} />
   ),
 }))
 vi.mock('../../../../components/CompanyLogo', () => ({ default: () => null }))
 vi.mock('../../../../utils/prefetchBars', () => ({ prefetchListDeep: vi.fn() }))
+vi.mock('../../../../hooks/usePreferences', () => ({ default: () => ({ prefs: {}, setPref: () => {} }) }))
+vi.mock('../../../../components/chart/ChartSettingsModal', () => ({
+  default: ({ onChange, onClose }) => (
+    <div role="dialog" aria-label="Chart settings">
+      <button type="button" onClick={() => onChange({ textSize: 13 })}>change</button>
+      <button type="button" onClick={onClose}>done</button>
+    </div>
+  ),
+}))
 // Every card gets its chart at once (the queue's ordering is tested separately).
 vi.mock('./gridMountQueue', () => ({
   claimMount: (e) => e.grant(), releaseMount: () => {}, noteScroll: () => {},
@@ -25,7 +36,7 @@ vi.mock('./gridMountQueue', () => ({
 
 const ScanGrid = (await import('./ScanGrid')).default
 
-const rows = (n) => Array.from({ length: n }, (_, i) => ({ sym: `S${i}`, pct: 10 - i * 0.01, price: 10, sector: 'Tech' }))
+const rows = (n) => Array.from({ length: n }, (_, i) => ({ sym: `S${i}`, pct: 10 - i * 0.01, price: 10, sector: 'Tech', industry: i === 0 ? 'Semis' : 'tech' }))
 
 beforeEach(() => { reached.length = 0 })
 
@@ -75,4 +86,54 @@ test('a 900-name list builds only a screenful of cards', () => {
   const n = container.querySelectorAll('[data-grid-card]').length
   expect(n).toBeGreaterThan(0)
   expect(n).toBeLessThan(60)
+})
+
+test('the selecting click never starts a drag: no part of it reaches the chart, even after a re-render mid-press', async () => {
+  render(<ScanGrid rows={rows(2)} />)
+  const chart = screen.getByTestId('chart-S0')
+  // A real mouse: pointerdown, (React re-renders the card as gold in a
+  // microtask), then mousedown / pointerup / mouseup / click.
+  await act(async () => { fireEvent.pointerDown(chart, { buttons: 1 }) })
+  await act(async () => { fireEvent.mouseDown(chart) })
+  fireEvent.pointerUp(chart)
+  fireEvent.mouseUp(chart)
+  fireEvent.click(chart)
+  // The chart saw neither a press nor a release, so it is not mid-drag.
+  expect(reached).toEqual([])
+  await act(async () => { await new Promise(r => setTimeout(r, 5)) })
+  // The NEXT press is the chart's (a held drag pans).
+  fireEvent.mouseDown(chart)
+  fireEvent.mouseUp(chart)
+  expect(reached).toEqual(['mousedown:S0', 'mouseup:S0'])
+})
+
+test('the mouse leaving the card lets the chart go: the wheel scrolls the sheet again', () => {
+  const { container } = render(<ScanGrid rows={rows(2)} />)
+  const chart = screen.getByTestId('chart-S0')
+  act(() => { fireEvent.pointerDown(chart) })
+  fireEvent.click(chart)
+  expect(container.querySelectorAll('[data-selected]')).toHaveLength(1)
+  act(() => { fireEvent.pointerLeave(container.querySelector('[data-selected]'), { buttons: 0 }) })
+  expect(container.querySelectorAll('[data-selected]')).toHaveLength(0)
+  fireEvent.wheel(chart)
+  expect(reached).toEqual([])
+})
+
+test('one-line header: sector · industry after the % change, a repeated name once', () => {
+  render(<ScanGrid rows={rows(2)} />)
+  expect(screen.getByText('Tech · Semis')).toBeTruthy()
+  // S1: industry "tech" repeats the sector, so it shows once.
+  expect(screen.getAllByText('Tech')).toHaveLength(1)
+})
+
+test('the enlarged chart has a settings gear; a change there reaches the host', async () => {
+  const onChange = vi.fn()
+  render(<ScanGrid rows={rows(2)} onChartSettingsChange={onChange} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Enlarge S0 chart' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Chart settings' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'change' }))
+  expect(onChange).toHaveBeenCalledWith({ textSize: 13 })
+  // Escape belongs to the settings window while it is open: the chart stays big.
+  fireEvent.keyDown(window, { key: 'Escape' })
+  expect(screen.getByRole('dialog', { name: 'S0 chart' })).toBeTruthy()
 })

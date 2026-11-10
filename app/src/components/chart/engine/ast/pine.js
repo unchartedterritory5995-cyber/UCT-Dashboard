@@ -100,7 +100,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // 4 that would drift the day the interpreter moves. A translated body that
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
-import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf } from './interpret.js'
+import { FN, MAX_SELF_LAG, SEED_RESIDUAL_TOLERANCE, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL } from '../lowerTf.js'
 import { memberNumber } from './memberValue.js'
 import { timeInputDefaultOf, isTimeInputCall } from '../runtime/runtimeInputs.js'
@@ -4356,7 +4356,9 @@ function containsSelfSeries(node, table) {
  *  carrying the value forward. Only the ARMS must forget.
  *  ⛔ Conservative by construction: an unrecognised shape answers NO. A wrong yes
  *  is invisible in the output; a wrong no is a named refusal somebody can read. */
-export const SEED_RESIDUAL_TOLERANCE = 1e-6
+// ⭐ 2026-11-09 — the constant moved to `interpret.js` (its second reader, `varOriginMask`,
+// lives there and cannot import this module); re-exported under its old name.
+export { SEED_RESIDUAL_TOLERANCE }
 
 /** ⚰️⚰️ A TRANSIENT-GROWTH CEILING WAS WRITTEN BESIDE THE TOLERANCE ABOVE AND
  *  THEN MEASURED AWAY. The worry was real in shape: a multi-lag form is a MATRIX

@@ -9,12 +9,22 @@
 //   breadth    Breadth history and its live row, on the widget's own routes (/api/breadth-monitor, …/live)
 //   savedGrids a saved Multi Chart grid in the layout library (the harness's own ?multichart fixture)
 //   indicatorAlerts  indicator alerts on the chart's symbol, through the (simulated) /api/indicator-alerts route
+//   versions   the server's version store switched on (a layout's Version history)
+//   chartSettings  the chart's own settings pref (custom intervals, compared symbols)
+//   board 'surge' a Volume Surge widget on one of the member's own lists
+//   board 'dock'  the chart with Company Info added and open (its company panel)
+//   teFeed     the TE News feed loaded, on its own /recent route
+//   calendar   a calendar day with reporters and economic events, on the widget's own route
+//   scan       a Scanner widget with a preset scan open (its opts.scanKey), the scan's results on its own route
 //
 // Nothing pokes the DOM: everything is something the app itself reads or writes. `GIVEN` says which cases get what, by the
 // walkthrough they reach (a rule) or by id (an override). A case with no given runs on the plain board.
 
 const chart = (id, color, x, y, w, h, opts = {}) => ({ id, type: 'chart', color, x, y, w, h, opts: { tf: 'D', ...opts } })
 const GROUPS = { A: 'SPY', B: 'AAPL', C: 'AMD', D: 'MSFT' }
+const SCAN = { key: 'highest-volume-1y', name: 'Highest Volume In 1-Year' }
+// pages/charts/CompareSymbolsPanel.jsx: { sym, color, enabled, group? } (a group is its name on each of its symbols)
+const COMPARED = [{ sym: 'AMD', color: '#f5a623', enabled: true }, { sym: 'NVDA', color: '#4fc3f7', enabled: true, group: 'Semis' }, { sym: 'AVGO', color: '#81c784', enabled: true, group: 'Semis' }]
 const watch = (extra = {}) => ({ id: 'w-watch', type: 'watchlist', color: 'A', x: 16, y: 0, w: 8, h: 20, opts: {}, ...extra })
 // one chart and one watchlist fill the board: a widget the walkthrough adds goes through the real Place step
 const PLAIN = [chart('w-chart-a', 'A', 0, 0, 16, 20), watch()]
@@ -22,6 +32,13 @@ const BOARDS = {
   plain: PLAIN,
   // a chart with a second tab of its own, and a watchlist with a second (News) tab: pages/charts/chartTabs.js, widgetTabs.js
   tabs: [chart('w-chart-a', 'A', 0, 0, 16, 20, { chartTabs: [{ id: 'ct-2', tf: 'W' }], activeChartTab: 0 }), watch({ wtabs: [{ id: 'wt-2', type: 'news', opts: {} }], activeWtab: 0 })],
+  // the chart with Company Info added and its panel open: pages/charts/widgets/chartDock.js normalizeDock (opts.dock)
+  dock: [chart('w-chart-a', 'A', 0, 0, 16, 20, { dock: { company: true, open: true, tab: 'overview' } }), watch()],
+  // a Volume Surge widget watching one of the member's own lists (VolumeScanWidget.jsx: opts.volActive; the lists are the
+  // account's own volume_scan_lists pref)
+  surge: [chart('w-chart-a', 'A', 0, 0, 12, 20), watch({ x: 12, w: 6 }), { id: 'w-surge', type: 'volumescan', color: 'A', x: 18, y: 0, w: 6, h: 20, opts: { volActive: 'teach-semis' } }],
+  // a Scanner widget with a preset scan already open: pages/charts/widgets/ScannerWidget.jsx remembers it in opts.scanKey
+  scan: [chart('w-chart-a', 'A', 0, 0, 12, 20), watch({ x: 12, w: 6 }), { id: 'w-scan', type: 'scanner', color: 'A', x: 18, y: 0, w: 6, h: 20, opts: { scanKey: SCAN.key, scanName: SCAN.name } }],
 }
 // pages/charts/grid/gridLayouts.js makeDefaultState: the grid as the app saves it
 const MULTI = { mode: 'grid', layout: '2x2', cells: [['g1', 'SPY'], ['g2', 'QQQ'], ['g3', 'NVDA'], ['g4', 'TSLA']].map(([id, sym]) => ({ id, sym, tf: 'D' })), syncCrosshair: false, syncTimeRange: false, groupsMode: false, group: null }
@@ -49,8 +66,34 @@ export function givenFor(c) {
   if (/Sending News & Catalysts|Filtering catalysts|symbol’s headlines|A headline on the chart/.test(c.title || '')) g.news = true
   if (/Sending Breadth|breadth tiles|Adding or removing a reading/.test(c.title || '')) g.breadth = true
   if (/^(Opening a saved grid|Deleting a saved grid)$/.test(c.title || '')) g.savedGrids = true
+  // a layout's Version history shows only while the server's version store says it is on (components/artifactHistory
+  // ArtifactHistory.jsx probeArtifactVersions: GET /api/artifact-versions/status → { enabled })
+  if (/A layout’s version history/.test(c.title || '')) g.versions = true
+  // a calendar day with reporters and economic events (pages/charts/widgets/CalendarWidget.jsx reads data.days[day])
+  if (/^(Loading a stock from the earnings list|Filtering economic events)$/.test(c.title || '')) g.calendar = true
+  // a control of the chart's company panel: the panel is on the chart (Company Info added, open)
+  if (c.feature === 'dockAction') g.board = 'dock'
+  // one of the member's own Volume Surge lists, open in the widget
+  if (/Volume Surge list/.test(c.title || '')) { g.board = 'surge'; g.prefs = { ...(g.prefs || {}), volume_scan_lists: JSON.stringify([{ id: 'teach-semis', name: 'Semis', syms: ['NVDA', 'AMD'] }]) } }
+  // the TE News feed loaded (lib/tradeExchangeNewsStreamManager.js: GET /recent → { items, epoch, last_seq, first_seq })
+  if (/^(Saving a headline|A headline’s actions: \w+|Back to the live feed)$/.test(c.title || '')) g.teFeed = true
+  // the chart's own settings pref (components/chart/chartDefaults.js parses a partial chart_settings over its defaults):
+  // a custom interval to delete, and symbols (one a group's) the Compare panel lists
+  if (/^Deleting a custom timeframe$/.test(c.title || '')) g.chartSettings = { header: { customTimeframes: ['45'] } }
+  // a row that shows only on a bar chart (Thin bars: the chart type is Bars)
+  if (/^Changing Thin bars$/.test(c.title || '')) g.chartSettings = { chartType: 'bars' }
+  if (c.feature === 'compareAction' && !/^Comparing a whole group$/.test(c.title || '')) g.chartSettings = { comparisonSymbols: COMPARED }
+  // a control that shows on a scan's results, not on the list of scans (picking and searching a scan are on that list)
+  if (/^(Reading a scan’s conditions|Sorting a scan|Choosing a scan’s columns|Sending a scan to the Journal|Refreshing a scan|Back to the list of scans)$/.test(c.title || '')) { g.board = 'scan'; g.scan = true }
   if (c.feature === 'gridAction') g.prefs = { multichart_state: JSON.stringify(MULTI) }
+  // a grid chart that carries settings of its own (GridChartCell.jsx: `cell.settings` forks it; Reset shows then)
+  if (c.feature === 'gridAction' && /^Resetting a chart in the grid$/.test(c.title || '')) g.prefs = { multichart_state: JSON.stringify({ ...MULTI, cells: MULTI.cells.map(x => ({ ...x, settings: { chartType: 'line' } })) }) }
+  // a grid filled from a group: Multi Chart's flyout shows Prev/Next, Refresh group and Exit Groups only while one is set
+  // (pages/charts/grid/MultiChartMenu.jsx `mc.state.group`; gridLayouts.js sanitizeGroup keeps id, by, n, name)
+  if (c.feature === 'gridAction' && /^(Stepping through groups|Refreshing a group|Leaving Groups mode)$/.test(c.title || '')) g.prefs = { multichart_state: JSON.stringify({ ...MULTI, groupsMode: true, group: { id: 'semiconductors', by: 'today', n: 4, name: 'Semiconductors' } }) }
   if (c.feature === 'tabAction' || /tab’s link colour|Renaming a (chart|widget) tab/.test(c.title || '')) g.board = 'tabs'
+  // a per-browser switch the case states itself (a release flag the app reads from localStorage, e.g. widgets/captureRelease.js)
+  if (c.ls) g.ls = c.ls
   g.setup = setupScript(g)
   if (!g.setup) delete g.setup
   return g
@@ -63,10 +106,32 @@ const THEMES = { themes: [
   { name: 'Semiconductors', ticker: 'SMH', theme_id: 101, sector: 'Technology', group_return: ret(2.4), holdings: [{ sym: 'NVDA', name: 'NVIDIA', returns: ret(3.1) }, { sym: 'AMD', name: 'AMD', returns: ret(1.7) }] },
   { name: 'Software', ticker: 'IGV', theme_id: 102, sector: 'Technology', group_return: ret(-0.8), holdings: [{ sym: 'MSFT', name: 'Microsoft', returns: ret(-0.8) }] },
 ] }
+// three headlines in the feed's own item shape (pages/charts/widgets/TradeExchangeNewsReleaseLink.test.jsx `base`), newest first
+const TE_ITEMS = () => [
+  { seq: 3, id: 'teach-3', source: 'TX-Breaking', content: 'NVDA - Nvidia raises full-year guidance', received_at_ms: Date.now() - 60000, category: 'Earnings', tickers: ['NVDA'], mentions: [] },
+  { seq: 2, id: 'teach-2', source: 'TX-Breaking', content: 'AMD - AMD announces new data-center chip', received_at_ms: Date.now() - 120000, category: 'Company News', tickers: ['AMD'], mentions: [] },
+  { seq: 1, id: 'teach-1', source: 'TX-Macro', content: 'US payrolls beat estimates', received_at_ms: Date.now() - 180000, category: 'Macro', tickers: [], mentions: [] },
+]
+// every day of the last two weeks (the widget opens on the last session day, in New York): two reporters before the open, one
+// after, and a high-impact release, in the route's own shape (sym, eps_est; event, time, impact)
+function CALENDAR_DAYS() {
+  const days = {}
+  for (let i = 0; i < 15; i++) {
+    const d = new Date(Date.now() - i * 86400000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+    days[d] = { bmo: [{ sym: 'NVDA', eps_est: 0.75 }, { sym: 'AMD', eps_est: 0.92 }], amc: [{ sym: 'MSFT', eps_est: 3.1 }], tbd: [],
+      econ: [{ time: '08:30', event: 'Nonfarm Payrolls', impact: 'high', estimate: '150K', prior: '142K' }, { time: '10:00', event: 'ISM Services', impact: 'medium' }], fed: [] }
+  }
+  return days
+}
 /** The rig's fixture routes a given needs (lib.mjs: matched on "METHOD /path" before the harness answers). */
 export function fixturesFor(g) {
   const routes = []
   if (g.themes) routes.push({ match: '^GET /api/theme-performance', body: THEMES })
+  if (g.teFeed) routes.push({ match: '^GET /api/trade-exchange-news/recent', body: { items: TE_ITEMS(), epoch: 'teach', last_seq: 3, first_seq: 1, tickers_provisional: false } })
+  if (g.calendar) routes.push({ match: '^GET /api/calendar[?]week=', body: { days: CALENDAR_DAYS() } })
+  if (g.versions) routes.push({ match: '^GET /api/artifact-versions/status', body: { enabled: true } })
+  // pages/charts/widgets/ScannerResults.jsx: { as_of, results: [{ sym }] } from the preset's own route (SCAN_ENDPOINTS)
+  if (g.scan) routes.push({ match: '^GET /api/scans/' + SCAN.key, body: { as_of: '2026-11-07T15:00:00-05:00', results: [{ sym: 'NVDA' }, { sym: 'AMD' }, { sym: 'MSFT' }] } })
   // hooks/useThemeSets.js: the preset picker shows only when the server says sets are on (C3-174)
   if (g.themes) routes.push({ match: '^GET /api/theme-sets' + '$', body: { enabled: true, sets: [{ id: 1, name: 'My Momentum' }] } })
   // BreadthWidget: rows[] from its history route; hooks/useLiveBreadth.js isLiveRowUsable: { ok, row }
@@ -88,7 +153,7 @@ export const queryFor = (g) => ['layouts=1', g.savedGrids ? 'multichart=1' : '']
 
 export function boardFor(g) {
   const widgets = BOARDS[g.board || 'plain']
-  return { charts_workspace_layout: JSON.stringify({ version: 1, cols: 24, widgets }), charts_workspace_groups: JSON.stringify(GROUPS), ...(g.prefs || {}) }
+  return { charts_workspace_layout: JSON.stringify({ version: 1, cols: 24, widgets }), charts_workspace_groups: JSON.stringify(GROUPS), ...(g.chartSettings ? { chart_settings: JSON.stringify(g.chartSettings) } : {}), ...(g.prefs || {}) }
 }
 
 // in the page: the app's own routes and stores, after the board has loaded

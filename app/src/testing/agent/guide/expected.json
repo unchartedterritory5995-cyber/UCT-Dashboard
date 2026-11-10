@@ -152,8 +152,9 @@
   "from": "2026-11-05 matrix Guide feature"
  },
  "C1-049": {
-  "feature": "chartSetting",
-  "from": "2026-11-05 matrix Guide feature"
+  "feature": "control",
+  "title": "The chart’s background",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (was the matrix’s chartSetting: the solid colour is the Background control on the Canvas tab, which the settings table does not carry)"
  },
  "C1-050": {
   "feature": "chartSetting",
@@ -236,8 +237,9 @@
   "from": "2026-11-05 matrix Guide feature"
  },
  "C1-076": {
-  "feature": "chartSetting",
-  "from": "2026-11-05 matrix Guide feature"
+  "feature": "panelAction",
+  "title": "Restoring a chart’s defaults",
+  "from": "cov-4 row reviewed by hand 2026-11-09 (was the matrix’s chartSetting: the Restore defaults button is its own control)"
  },
  "C1-079": {
   "feature": "chartThemes",
@@ -360,12 +362,14 @@
   "from": "2026-11-05 matrix Guide feature"
  },
  "C1-119": {
-  "feature": "alertIndicator",
-  "from": "2026-11-05 matrix Guide feature"
+  "feature": "alertAction",
+  "title": "Pausing an indicator alert",
+  "from": "cov-2 row reviewed by hand 2026-11-09 (was the matrix’s alertIndicator: the form, not the alert’s own control)"
  },
  "C1-120": {
-  "feature": "alertIndicator",
-  "from": "2026-11-05 matrix Guide feature"
+  "feature": "alertAction",
+  "title": "Deleting an indicator alert",
+  "from": "cov-2 row reviewed by hand 2026-11-09 (was the matrix’s alertIndicator: the form, not the alert’s own control)"
  },
  "C1-121": {
   "feature": "drawingEdit",
@@ -924,8 +928,9 @@
   "from": "2026-11-05 matrix Guide feature"
  },
  "C3-063": {
-  "feature": "watchlists",
-  "from": "2026-11-05 matrix Guide feature"
+  "feature": "watchlistAction",
+  "title": "Opening one of your lists",
+  "from": "cov-1 row reviewed by hand 2026-11-08 (was the matrix's watchlists: Using watchlists, which rings no list)"
  },
  "C3-064": {
   "feature": "watchlistAction",
@@ -1508,5 +1513,66 @@
   "feature": "control",
   "title": "A headline on the chart",
   "from": "reviewed by hand 2026-11-07 (round 3)"
+ },
+ "C1-067": {
+  "feature": "chartSetting",
+  "title": "Changing Header colors",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Changing Header colors rings Chart Settings → Header → Title color, the row’s own control)"
+ },
+ "C1-173": {
+  "feature": "multiChart",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: the example (“2x2 grid”) reaches Setting up a chart grid, the grid layout the row cycles)"
+ },
+ "C2-011": {
+  "feature": "indicators",
+  "title": "Adding MA",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: the example reaches Adding MA, which turns the moving average on in the indicator list)"
+ },
+ "C2-017": {
+  "feature": "legendChip",
+  "title": "Removing an indicator",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Removing an indicator ends on the chip menu’s Remove, the same control for an unavailable one)"
+ },
+ "C3-007": {
+  "feature": "link",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Linking charts and widgets ends on the widget’s link-colour control, which sets a panel’s colour group)"
+ },
+ "C3-009": {
+  "feature": "widgetResize",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Resizing a chart or widget ends on the widget’s resize handle)"
+ },
+ "C3-011": {
+  "feature": "widgetMove",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Moving a chart or widget ends on the header bar you drag into another widget’s tabs)"
+ },
+ "C3-015": {
+  "feature": "widgetHeader",
+  "title": "Widget controls: Close",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Widget controls: Close ends on the widget’s own Close)"
+ },
+ "C3-175": {
+  "feature": "widgetAction",
+  "title": "Theme presets",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Theme presets ends on the Themes widget’s sets control, where a set is edited)"
+ },
+ "C1-078": {
+  "feature": "chartView",
+  "title": "Light or dark chart",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Shift+T on the chart switches the light and dark palette)"
+ },
+ "C1-150": {
+  "feature": "control",
+  "title": "A drawing’s Bold",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: the example reaches Bold, one of the Text Note’s own text-style rows)"
+ },
+ "C1-154": {
+  "feature": "control",
+  "title": "A drawing’s Show price label",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Show price label on a horizontal line’s menu)"
+ },
+ "C1-157": {
+  "feature": "control",
+  "title": "A drawing’s Duplicate",
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Duplicate on a drawing’s menu)"
  }
 }
