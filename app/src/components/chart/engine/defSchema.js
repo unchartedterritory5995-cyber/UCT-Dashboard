@@ -1723,6 +1723,23 @@ function validateMeta(meta, def, errors) {
       errors.push(`meta.groupsCollapsed: expected an array of group names, got ${fmt(meta.groupsCollapsed)}`)
     }
   }
+  // ⭐ UCT RS split, unit U1 — `meta.requiresServer: true` gates the WHOLE
+  // definition: every surface that offers indicators to add hides it until the
+  // live server lists its id (`serverCompute.isDefinitionOffered`). BEHAVIOURAL,
+  // so checked like the input-level flag it extends: `true` or absent (`false`,
+  // `'yes'`, `1` would gate nothing and read as a typo), and only on a `server`
+  // definition — no row will ever declare a native or ast definition, so the
+  // flag there could only hide an indicator forever.
+  if (meta.requiresServer !== undefined) {
+    if (meta.requiresServer !== true) {
+      errors.push(`meta.requiresServer: expected true or absent, got ${fmt(meta.requiresServer)}`)
+    } else if (!(isPlainObject(def.compute) && def.compute.kind === 'server')) {
+      errors.push(
+        `meta.requiresServer: compute.kind is ${fmt(isPlainObject(def.compute) ? def.compute.kind : undefined)}, ` +
+        'and only a "server" definition has a live row to declare it, so the definition could never be offered',
+      )
+    }
+  }
   // NOTE: unknown meta.* KEYS are intentionally NOT checked. They are preserved
   // verbatim on the returned def — that is the forward-compatibility half of the
   // asymmetric policy, and the round-trip promise depends on this silence.

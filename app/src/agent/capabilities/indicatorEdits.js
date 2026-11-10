@@ -27,7 +27,7 @@ import { instancesOf } from '../../components/chart/builder/agentSeams'
 import { catalogRows, userCatalogRows } from '../../components/chart/indicatorCatalog'
 import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
 import { visibleInputs } from '../../components/chart/indicatorRegistry'
-import { serverDeclares } from '../../components/chart/engine/serverCompute'
+import { serverDeclares, isCatalogRowOffered } from '../../components/chart/engine/serverCompute'
 import { enumOptionRequiresServer } from '../../components/chart/engine/defSchema'
 import { afterRender } from '../frames'
 import { wordsSelect } from '../routing'
@@ -71,7 +71,9 @@ export function addableRows() {
   const owned = new Set(ownedIds())
   let shipped = []
   let mine = []
-  try { shipped = catalogRows(nativeRegistry).filter(r => !!nativeRegistry.getDefinition(r.id)) } catch { shipped = [] }
+  // ⭐ RS split U1 — and only what the live server lists: a `meta.requiresServer` definition is not
+  // offered until its row exists (`isCatalogRowOffered`, the same gate the library and the sheet read).
+  try { shipped = catalogRows(nativeRegistry).filter(r => !!nativeRegistry.getDefinition(r.id) && isCatalogRowOffered(r, nativeRegistry)) } catch { shipped = [] }
   try { mine = userCatalogRows(nativeRegistry).filter(r => owned.has(r.id)) } catch { mine = [] }
   return [...shipped, ...mine].map(r => {
     const settings = settingsLine(r.inputs, r.id)

@@ -22,6 +22,7 @@
 // does not name exactly once) returns null or stays the model's.
 
 import { catalogRows } from '../../components/chart/indicatorCatalog'
+import { isCatalogRowOffered } from '../../components/chart/engine/serverCompute'
 import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
 import { GUIDE_FEATURES, surfaceOf } from './registry'
 import { CHART_SETTING_DESCRIPTORS } from '../../components/chart/chartSettingsDescriptors'
@@ -66,7 +67,8 @@ function indicatorRow(words) {
   const w = core(words)
   if (!w || w.length > 40) return null
   let rows = []
-  try { rows = catalogRows(nativeRegistry).filter(r => r.description && !r.userDefined) } catch { rows = [] }
+  // ⭐ RS split U1 — a `meta.requiresServer` definition the live server has not listed is not explained as addable.
+  try { rows = catalogRows(nativeRegistry).filter(r => r.description && !r.userDefined && isCatalogRowOffered(r, nativeRegistry)) } catch { rows = [] }
   const named = rows.filter(r => norm(r.name) === w || norm(r.shortName) === w || String(r.id).toLowerCase() === w)
   if (named.length) return named.length === 1 ? { row: named[0], option: null } : null
   const tagged = rows.filter(r => (r.tags || []).some(t => norm(t) === w))
