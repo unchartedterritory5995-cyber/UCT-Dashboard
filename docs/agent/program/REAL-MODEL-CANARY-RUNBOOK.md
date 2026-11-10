@@ -1,7 +1,7 @@
 # REAL-MODEL production canary: runbook (PREPARED, NOT STARTED)
 
 Run this only after: AUDIT GO on the cap (`d22bd7675d`, GO given 2026-11-10); the owner has written both C:/UCT files; and the
-Lead pings. The cap proof is in `REAL-MODEL-CAP-PROOF.md`. Harness head: `a83670784b` (`agent/pl/autotest-2`). The public set hash at
+Lead pings. The cap proof is in `REAL-MODEL-CAP-PROOF.md`. Harness head: `fdcbc2ff44` (last code change; later commits docs-only) (`agent/pl/autotest-2`). The public set hash at
 that head is `6846cf3d6b04afb8eba2f8b1b7c846ff6a77ae4848b305a00f9fa87ffb6db8f5` and the held-out hash is
 `8ac6a1ed4e8323aee42a2bbf9a5b54f071ca71a208dbdbf54d54389641ced48f`, the same values as in the authorization text.
 
@@ -22,7 +22,7 @@ steps marked OWNER.
 
 ```
 git -C C:\w\pl-auto-cap status --short          # empty
-git -C C:\w\pl-auto-cap log -1 --format=%h      # a83670784b (or the head AUDIT names)
+git -C C:\w\pl-auto-cap log -1 --format=%h      # fdcbc2ff44 or a later docs-only commit (or the head AUDIT names)
 node src/testing/agent/autotest/run.mjs --lint  # lintErrors 0, publicHash and heldout.sha256 as above
 ```
 
