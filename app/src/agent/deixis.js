@@ -13,7 +13,7 @@ import { addableRows } from './capabilities/indicatorEdits'
 import { resolvedTicker } from './nl/tickers'
 import { sanitizeChartTabs } from '../pages/charts/chartTabs'
 import { CLICK_ACT_NP } from './clickRef'
-import { namedAnchorRelation, wholeLinesNamed, clickLineMatch, clickLineHits, activeText, relationAnchor, blankStated, negatedClick } from './spatialCheck'
+import { namedAnchorRelation, wholeLinesNamed, clickLineMatch, clickLineHits, activeText, relationAnchor, blankStated, negatedClick, withoutExclusions } from './spatialCheck'
 
 // Words that point at "the chart in front of me". "it" counts only for a CHART-kind op ("make it
 // weekly"), never on its own ("put it in Momentum", "what is it" are not about a chart).
@@ -48,7 +48,7 @@ export const RELATIVE = new RegExp(`\\b(?:(?:right|just|directly|immediately|exa
 // meant is named before the relation ("the chart / the one / the ticker / whatever … above it"). "alert above it" and "a line
 // under it" relate a price or a drawing to "it", not a chart to the click: no relation here.
 const REL_CHART_ANCHOR = new RegExp(`(?:this|that)\\s+${REL_ANCHOR_NOUN}\\b|\\bthe\\s+(?:selected|clicked|current|highlighted|active|focused)\\b|\\bthe\\s+one\\s`, 'i')
-const REL_MEANT = new RegExp(`\\b(?:the|which|whichever|any)\\s+(?:(?:[a-z]+|[1-9](?:st|nd|rd|th))\\s+)?${REL_ANCHOR_NOUN}s?\\b|\\b(?:whatever|whichever)\\b`, 'i')
+const REL_MEANT = new RegExp(`\\b(?:the|which|whichever|any)\\s+(?:[a-z]+\\s+)?${REL_ANCHOR_NOUN}s?\\b|\\b(?:whatever|whichever)\\b`, 'i')
 // ⭐ 2026-11-07 (pl-auto u5-relation-controls-02, revisited after the owner's conversational-targeting decision): an ANCHORLESS
 // relation — "the chart above", "the one to the right", "the one to its left" — reads from the click (or the conversation's
 // target, which stands in for it): with a click and no other context that is the natural reading. Only on a CHART noun, and never
@@ -946,7 +946,8 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
   // chart there is unidentified like any other. A bare "this" still means the clicked chart, and a position word fitting several
   // charts counts the click only if it is one of them.
   const sel = selectedChart(host)
-  const said = chartPositions(words)
+  // (#988) a position said only to EXCLUDE a chart ("log on the one I selected, not the left one") is no place the request names
+  const said = chartPositions(withoutExclusions(words))
   const answered = (pickedRefs || []).some(Boolean)
   // ⛔ AUDIT (single clause): a plain "the other one / the other chart" on a board of TWO names the chart that is NOT the click,
   // and the click is EXCLUDED: a plan on the other chart runs, a plan on the click is asked (unless "this" names it too)

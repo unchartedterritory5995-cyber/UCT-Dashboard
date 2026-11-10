@@ -388,6 +388,13 @@ const NEG_EXCEPT = new RegExp('(?:\\b(?:instead\\s+of|rather\\s+than|besides|asi
   + '|(?:^|[,;:—–]|\\b(?:and|but))\\s*not(?!\\s+(?:just|only|merely|simply|sure|yet|now|too|so)\\b))\\s+(' + CLICK_ACT_NP + '|(?:the\\s+)?[A-Za-z0-9 -]{1,30}?)'
   + '(?=\\s+(?:on|to|in|onto|at|for|from|please|thanks|weekly|daily|monthly|hourly)\\b|\\s*[,.;!?—–]|\\s*$)', 'gi')
 const CLICK_ACT_ONLY = new RegExp('^' + CLICK_ACT_NP + '$', 'i')
+/** The words with every exclusion phrase blanked (EXCEPT and NEG_EXCEPT): a position said only to EXCLUDE a chart ("…, not the
+ * left one") is no place the request is aimed at (deixis.screenUnnamedTargets' said positions). */
+export function withoutExclusions(text) {
+  let s = exceptForm(text)
+  for (const m of [...s.matchAll(EXCEPT), ...s.matchAll(NEG_EXCEPT)]) s = s.slice(0, m.index) + ' '.repeat(m[0].length) + s.slice(m.index + m[0].length)
+  return s
+}
 // (AUDIT control) NEG_EXCEPT's "X" excludes only a CHART or a POSITION — a chart noun, a place / order word, the click, or a ticker
 // on the board. A value or a setting ("weekly, not daily", "log, not linear", "show the 50, not the 200") is a contrast on the
 // change itself and excludes nothing.
