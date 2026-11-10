@@ -422,7 +422,7 @@ export function buildListViewSource({ getWidgets }) {
       return {
         ref, type: v.type, key: v.key, listId: v.type === 'watchlist' && String(v.key).startsWith('user:') ? String(v.key).slice(5) : null,
         label: name, name, rows: live.rows(), cfg: live.cfg, sort: live.sort, columns: live.columns, fixedColumns: live.fixedColumns, persisted: live.persisted,
-        selected: live.selected || null, active: live.active, position: positionWord(w, siblings) || null,
+        selected: live.selected || null, active: live.active, position: positionWord(w, siblings) || null, widgetId: w.id,
         // the saved layout (null: none saved), for the column Undo; absent when the widget keeps none
         ...(typeof live.savedCfg === 'function' && live.savedCfg() !== undefined ? { savedCfg: live.savedCfg() } : {}),
         // the header drag's and the gridline's own results (Watchlists.jsx), for watchlist.arrangeColumns: pure over a cfg

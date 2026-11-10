@@ -348,7 +348,7 @@ export function createStepRunner() {
       if (!bodies) {
         tapRef.current = []
         try {
-          await execute(bound, { path: 'model', mode, member: null, voice: active.voice })
+          await execute(bound, { path: 'model', mode, member: null, voice: active.voice, words: active.text || null })
         } catch (e) {
           bodies = [{ outcome: `That didn't work: ${e?.message || 'error'}`, outcomeData: { kind: 'failed', actions: ops.map(o => o.action) } }]
         } finally {

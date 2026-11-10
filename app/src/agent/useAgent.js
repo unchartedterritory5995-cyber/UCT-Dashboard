@@ -27,6 +27,7 @@ import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
 import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts } from './deixis'
 import { screenWatchlistWidget } from './watchlistTarget'
+import { whichListView, LIST_VIEW_WHICH } from './whichWidget'
 import { groundSymbols } from './nl/tickers'
 import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } from './multiChart'
 import { scopeHostToGrid } from './host'
@@ -1404,7 +1405,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   }, [host, push, patchItem, record, capCtx, withdrawPending])
 
   // Every execution is traced (agent/trace.js): phase timestamps, memory only.
-  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice, chosen = false, approval = null, card = null, onTarget = null, binding = null, subset = false, noDuplicates = null, more = false }) => {
+  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice, chosen = false, approval = null, card = null, onTarget = null, binding = null, subset = false, noDuplicates = null, more = false, words = null }) => {
     // ⭐ Multi Chart: one gate for the instant, model and approved paths — what cannot run on the grid is said, and nothing runs
     const onGrid = gridMode ? screenGridOps(opsIn, host) : null
     if (onGrid?.refuse) {
@@ -1445,7 +1446,13 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         const cap = getCapability(opsIn[i]?.action)
         if (typeof cap?.resolveArgs !== 'function') continue
         let r = null
-        try { r = cap.resolveArgs(opsIn[i].args || {}, host) } catch { r = null }
+        try { r = cap.resolveArgs(opsIn[i].args || {}, host, words ?? member, { approved: suggested === 'approved' }) } catch { r = null }   // `words`: the turn's own message on the model path
+        // F2 (AUDIT #1027): a widget the member's words set aside is never acted on, and with no other of its type nothing is: refused
+        if (r?.refuse) {
+          push({ role: 'refusal', text: r.refuse })
+          record({ member, outcome: r.refuse, outcomeData: { kind: 'refused', actions: opsIn.map(o => o?.action) }, telemetry: { path, refused: true, voice } })
+          return undefined
+        }
         if (r?.ask) {
           pendingRef.current = { kind: 'target', ops: opsIn, path, mode: suggested, member, voice, epoch: epochOf(host), pickArg: { action: opsIn[i].action, arg: r.ask.arg } }
           push({ role: 'question', text: r.ask.text, choices: r.ask.choices, local: true })
@@ -1453,6 +1460,27 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
           return undefined
         }
         if (r?.args) opsIn = opsIn.map((o, j) => (j === i ? { ...o, args: r.args } : o))
+      }
+      // F1 (AUDIT #1027): a LIST-VIEW op (its target is a list view, not a widget arg) acts on the widget the words name, by the same
+      // rule (whichWidget.js); asked → the pick re-aims the op at that widget's view
+      for (let i = 0; i < opsIn.length; i++) {
+        if (!LIST_VIEW_WHICH.has(opsIn[i]?.action)) continue
+        let r = null
+        try { r = whichListView(opsIn[i], host, words ?? member, { approved: suggested === 'approved' }) } catch { r = null }
+        if (r?.refuse) {
+          push({ role: 'refusal', text: r.refuse })
+          record({ member, outcome: r.refuse, outcomeData: { kind: 'refused', actions: opsIn.map(o => o?.action) }, telemetry: { path, refused: true, voice } })
+          return undefined
+        }
+        if (r?.ask) {
+          const action = opsIn[i].action, refOf = r.refOf
+          const then = (filled) => filled.map(o => (o.action === action && o.args?.__widget != null ? { ...o, target: refOf(o.args.__widget) || o.target, args: Object.fromEntries(Object.entries(o.args).filter(([k]) => k !== '__widget')) } : o))
+          pendingRef.current = { kind: 'target', ops: opsIn, path, mode: suggested, member, voice, epoch: epochOf(host), pickArg: { action, arg: '__widget', then } }
+          push({ role: 'question', text: r.ask.text, choices: r.ask.choices, local: true })
+          record({ member, outcome: r.ask.text, outcomeData: { kind: 'clarify-arg', actions: opsIn.map(o => o?.action) }, telemetry: { path, disposition: 'clarify', voice } })
+          return undefined
+        }
+        if (r?.target) opsIn = opsIn.map((o, j) => (j === i ? { ...o, target: r.target } : o))
       }
     }
     const amb = chosen ? null : draftAmbiguity(host, opsIn)
@@ -3000,7 +3028,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         const reversed = cp?.ok ? await doUndo(cp.undoId, { member: null, voice }) : false
         if (!reversed) {
           push({ role: 'agent', text: `I didn't reverse my earlier change${cp && !cp.ok ? ` (${cp.reason})` : ''}, so here is the corrected change on its own — apply it only if you still want it.` })
-          await execute(ops, { path: 'model', mode: 'propose', member: null, voice })
+          await execute(ops, { path: 'model', mode: 'propose', member: null, voice, words: text })
           return
         }
       }
@@ -3008,7 +3036,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         const outer = tapRef.current
         const kinds = []
         tapRef.current = kinds
-        try { await execute(ops, { path: 'model', mode: disposition, member: null, voice }) } finally { tapRef.current = outer; if (outer) outer.push(...kinds) }
+        try { await execute(ops, { path: 'model', mode: disposition, member: null, voice, words: text }) } finally { tapRef.current = outer; if (outer) outer.push(...kinds) }
         // ⭐ NLM-1 STEP PLANS (dark): each step's postcondition read back from the board (and the touched charts' saved copy)
         // — one plain line: what is in place, what is not, what is not saved. A plan waiting on an approval card is read
         // back when the card is decided (approve) — nothing of it has run yet

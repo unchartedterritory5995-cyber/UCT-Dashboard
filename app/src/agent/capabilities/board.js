@@ -53,6 +53,7 @@ import { BASE_GROUPS, EXTRA_GROUPS, NOT_LINKED, isExtraGroup, linkGroups } from 
 import { PRESET_SCANS } from '../../pages/charts/widgets/ScannerPicker'
 import { CHART_THEMES, CHART_THEME_BY_ID } from '../../components/chart/chartThemes'
 import { positionWord } from '../host'
+import { whichWidget, listSwitchable } from '../whichWidget'
 import { loadCatalog, matchListName } from '../watchlistCatalog'
 import { withoutDerivedOpts } from '../derivedOpts'
 import { mergeChartSettings } from '../../components/chart/chartDefaults'
@@ -1280,6 +1281,7 @@ export function registerBoardCapabilities() {
   reg({
     ...common,
     name: 'widget.setOption',
+    resolveArgs: (args, host, member, how) => whichWidget(args, host, member, how),
     summary: 'Change ONE control of a widget on the board, exactly as the widget\'s own control does: a view, a filter, a period, the day shown, the open theme, a universe, an axis, a reading shown or hidden. Undo puts it back.',
     hints: 'target = the board entry; widget = the widget id; key and value from the widgetControls section, by type (never invented): “ask widget.readOptions” = the widget\'s own list right now, and a name is enough. (+/-) takes "+member" or "-member". `set` is how a widget is set now. No entry for its type: use widget.readOptions, which lists them.',
     args: { type: 'object', properties: { widget: widgetArg, key: { type: 'string' }, value: { type: ['string', 'number', 'boolean'] } }, required: ['widget', 'key', 'value'], additionalProperties: false },
@@ -1374,6 +1376,7 @@ export function registerBoardCapabilities() {
   reg({
     ...common,
     name: 'widget.sendToJournal',
+    resolveArgs: (args, host, member, how) => whichWidget(args, host, member, how),
     risk: 'confirm', reversible: false, undo: 'none',
     absentAsNull: ['where'],
     summary: 'Send a frozen capture of what a widget on the board shows now to the member\'s Journal, exactly as the widget\'s Send to Journal door does: a chart, scan, list, breadth, a calendar day, themes… One op per widget. There is no Undo.',
@@ -1503,6 +1506,8 @@ export function registerBoardCapabilities() {
   reg({
     ...common,
     name: 'watchlist.showList',
+    // which Watchlist widget: the words decide (whichWidget.js); a widget bound to a source cannot switch lists, so it is no candidate
+    resolveArgs: (args, host, member, how) => whichWidget(args, host, member, { ...how, type: 'watchlist', can: listSwitchable }),
     // C3-090 (Lead 2026-11-09): a COLOUR TAG on a ticker is not available from the Charts watchlist widget — said in fixed words,
     // naming where it exists (the Journal's ticker tags), never navigating and never changing anything
     fastWhole: true,
@@ -1549,6 +1554,7 @@ export function registerBoardCapabilities() {
   reg({
     ...common,
     name: 'watchlist.exportList',
+    resolveArgs: (args, host, member, how) => whichWidget(args, host, member, { ...how, type: 'watchlist', can: listSwitchable }),
     undo: 'none',
     undoNote: 'Copying or exporting a list changes nothing in your workspace, so there is nothing to undo.',
     summary: 'Copy the list ONE Watchlist widget shows to the clipboard, or download it as CSV or Excel — the list menu\'s own Copy / Export. Excel uses an export from the member\'s quota.',
