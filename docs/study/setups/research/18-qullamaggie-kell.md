@@ -1348,3 +1348,29 @@ not exclude ETFs, so ETF hits should be ignored when reading the base rate for s
 trigger of 8.2 was not tested (5-minute bars exist only for the last 60 trading days), so every example uses the
 daily-chart trigger; there is no RS rating in the sandbox; the 25% depth cap was applied as written, so the owner's MRAM
 caution in 8.1 is still open.
+
+---
+
+## 14. Failures and near-misses (from our data)
+
+(Added 2026-11-10, deliverable 4 of `CRITERIA_PROGRAMME.md`. Every number is read off the sandbox's daily bars with the same scan and the same fixed-stop walk as the examples section above; charts in `_study-resume/scratchpad/setups/18-qullamaggie-kell/final/` (`fail_1-4.png`, `near_1-4.png`, `pair_01-flat-base.png`), numbers in `final/failures.json` and `final/near_misses.json`, scripts `near_scan_*.py` and `failnear_*.py` in the setup's scratchpad folder, outside the repo.)
+
+**Four failures.** Valid Qullamaggie breakout setups by every gate of the card, bought by the rules and stopped before 3R (fixed stop under the day's low, no trims, no breakeven move). Dates are the trigger day; "where it stopped" counts sessions after the trigger.
+
+| Ticker | Date | Buy | Stop (risk) | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|
+| NVDA | 2024-11-06 | 144.43 | 141.91 (1.7%) | day 7 (2024-11-15, low 140.08), best 2.12R | A 23-session, 15.6%-deep base after a 32% run, broke out on 0.86x volume closing at the high. It reached 2.12R and was stopped on day 7 (low 140.08). The prior move was near the smallest the rule allows and the stock was far along its yearly advance: Kell's late-in-the-cycle case, and a trade the breakeven move would have scratched. | `qk.breakout_first_base` |
+| AMZN | 2020-04-30 | 123.06 | 119.75 (2.7%) | day 1 (2020-05-01, low 112.91), best 0.0R | A 14-session, 18%-deep flag after a 41% run, broke out on 1.47x volume and closed at the high (123.70). The report came that evening; the next day gapped down (low 112.91) through the 119.75 stop and the trade never traded above the entry. | `qk.breakout_earnings_window` |
+| QCOM | 2021-12-13 | 188.78 | 183.06 (3.0%) | day 1 (2021-12-14, low 179.41), best 0.0R | A 26-session, 18.8%-deep base after a 38% run, broke out on 1.49x volume and then closed at the low of its range (183.32), back inside the base. The next session's low (179.41) took the stop. | `qk.breakout_inv_failed_breakout` |
+| OXY | 2022-04-18 | 62.10 | 59.88 (3.6%) | day 1 (2022-04-19, low 59.83), best 0.0R | A 16-session, 12.2%-deep base after a 62% run, broke out on 0.82x volume and closed mid-range. The next session's low (59.83) took the 59.88 stop by five cents. A valid base that failed for no visible reason; the stop did its job. | `qk.breakout_stop` |
+
+**Four near-misses.** Charts that look like a Qullamaggie breakout but fail exactly one gate of the card. Each came from re-running the setup's scan with that one gate relaxed and keeping only the hits the strict rule rejects for that criterion; everything else passed. The outcome is the same fixed-stop walk, for information only: a near-miss that worked is still not the setup.
+
+| Ticker | Date | The one criterion that fails | The number | What it really is |
+|---|---|---|---|---|
+| AMZN | 2020-08-06 | `qk.breakout_prior_move` | +23% into the base; the rule is 30% or more in 3 to 20 sessions | A 12-session, 11% shelf surfing the 20 EMA, but the rise into it was 23%, not 30% in 3 to 20 sessions. A rest on a steady large cap with no explosive move in front of it: a flat-base-style shelf, judged under setup 01 or the moving-average pullback cards. Best 0.0R, stopped. |
+| NVDA | 2024-03-21 | `qk.breakout_length` | 8 sessions sideways; the rule is 10 to 40 (under 10 it is a flag) | A 39% run and an 8.9%-deep rest, but only 8 sessions sideways. Under 10 sessions the rest is a bull flag (setup 02). Best 2.11R, stopped. |
+| BIDU | 2007-12-27 | `qk.breakout_higher_lows` | last third's low 34.89 under the first third's 36.52; the rule is rising lows | A 32% run and a 19-session, 14.7% box, but the last third's low (34.89) sat under the first third's (36.52): a lower low, not rising swing lows. A loose box at a top, a flat base candidate at best. Best 0.0R, stopped. |
+| CVNA | 2024-06-24 | `qk.breakout_holds_20` | 58% of the base's closes near or above the 20 EMA; the rule is 80% or more | A 46% run and a 19-session, 15.2% rest, but only 58% of its closes held near or above the 20 EMA. A base that lost the 20-day and came back is a wedge pop or an EMA reclaim, not a consolidation surfing the averages. It worked (best 14.05R) under another card. |
+
+**What the failures have in common.** Three of the four were stopped the next session and the one that reached 2R (NVDA) gave it back. Breakout-day volume did not separate them: AMZN and QCOM broke out on 1.47x and 1.49x and failed at once. The closes and the calendar did: QCOM closed at the day's low back inside the base, AMZN closed at the high and gapped down on its report, NVDA was a late base in a long advance, and OXY is the base rate itself, a valid base that fails without a tell. Check the report date first, read the close second, count the bases third; the rest is what the stop is for.

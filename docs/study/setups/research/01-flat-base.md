@@ -1158,3 +1158,29 @@ are not in the scan, so the base rate mixes A+ and C setups. The database has no
 leans toward survivors. ETFs were scanned but excluded from the examples. The scan predates the 2026-11-09 `C.scan`
 helper; the same rules were run over every ticker to completion, so coverage is full. Everything here is from bars;
 nothing is a published statistic, and none of it should be quoted as one.
+
+---
+
+## 13. Failures and near-misses (from our data)
+
+(Added 2026-11-10, deliverable 4 of `CRITERIA_PROGRAMME.md`. Every number is read off the sandbox's daily bars with the same scan and the same fixed-stop walk as the examples section above; charts in `_study-resume/scratchpad/setups/01-flat-base/final/` (`fail_1-4.png`, `near_1-4.png`, `pair_06-vcp.png`), numbers in `final/failures.json` and `final/near_misses.json`, scripts `near_scan_*.py` and `failnear_*.py` in the setup's scratchpad folder, outside the repo.)
+
+**Four failures.** Valid flat base setups by every gate of the card, bought by the rules and stopped before 3R (fixed stop under the day's low, no trims, no breakeven move). Dates are the trigger day; "where it stopped" counts sessions after the trigger.
+
+| Ticker | Date | Buy | Stop (risk) | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|
+| AMZN | 2024-03-21 | 180.15 | 178.10 (1.14%) | day 1 (2024-03-22, low 176.75), best 0.0R | A 6.4-week, 8.0% shelf with four taps after a 33% run. The breakout day closed at 178.15, the low of its range, back inside the base, on 0.72x volume. The next session's low (176.75) took the 178.10 stop. | `fb.close_back_in_base` |
+| META | 2020-06-23 | 241.28 | 236.86 (1.83%) | day 1 (2020-06-24, low 232.68), best 0.0R | A 5-week, 12.5% base with four taps after a 73% run. It gapped open at 241.28 above the 241.21 pivot, closed mid-range at 242.24 on 1.0x volume, and the next day's low (232.68) hit the stop. | `fb.stop` |
+| XOM | 2026-03-20 | 160.46 | 159.05 (0.88%) | day 1 (2026-03-23, low 155.02), best 0.0R | A 6-week, 10.4% base, two taps, breakout on 2.52x volume, but a close at 159.67 near the day's low. The stop sat 0.88% under the fill against a 2.54% average daily range; the next morning's low of 155.02 took it. | `fb.stop_width` |
+| BHC | 2015-04-09 | 206.85 | 203.95 (1.4%) | day 6 (2015-04-17, low 203.46), best 1.63R | A 6.4-week, 10.0% shelf with four taps after a 55% run, volume in the second half of the base a quarter of the first. The breakout came on 0.5x volume and closed low in its range at 205.72; it reached 1.63R and was stopped on day 6 (low 203.46). | `fb.breakout_volume` |
+
+**Four near-misses.** Charts that look like a flat base but fail exactly one gate of the card. Each came from re-running the setup's scan with that one gate relaxed and keeping only the hits the strict rule rejects for that criterion; everything else passed. The outcome is the same fixed-stop walk, for information only: a near-miss that worked is still not the setup.
+
+| Ticker | Date | The one criterion that fails | The number | What it really is |
+|---|---|---|---|---|
+| AMZN | 2020-05-19 | `fb.depth` | 18.5% deep; the rule is 15% or less | A 27-session rest after a 51% run with three taps, but 18.5% deep. Past 15% it is not a flat base; it is a cup-shaped base (04-cup-handle territory). Best 1.1R, stopped. |
+| NVDA | 2026-05-08 | `fb.length_min` | 13 sessions from the left-side high; the rule is 25 or more | A 13-session, 10.2% pause after a 32% run. Too short for a flat base; a rest of 10 to 40 sessions after a 30% move is the Qullamaggie breakout base (setup 18). Best 4.9R, stopped. |
+| MSFT | 2024-03-21 | `fb.prior_trend` | +28% before the base; the rule is 30% or more | A 39-session, 7.2% shelf with two taps, but only a 28% rise before it. A large-cap drift with no leader's run in front of it, graded under the moving-average pullback cards rather than as a flat base. Best 0.0R, stopped. |
+| BBY | 2026-07-09 | `fb.above_mas` | close +14.3% against the 200-day, 50-day -1.6% against it; the rule is close > 50-day > 200-day | A 28-session, 14.5% base after a 42% rebound; the close was 14.3% above the 200-day but the 50-day was still 1.6% under it. A base built in a recovery out of a downtrend, not a leader resting above a settled 50 over 200 order. It worked (best 6.3R) but it is not ours. |
+
+**What the failures have in common.** All four passed every structure gate and none reached 3R; three were stopped the next session. Two closed the breakout day in the lower part of its range (AMZN at the low, XOM near it), three broke out on volume at or under the 50-day average (AMZN 0.72x, META 1.0x, BHC 0.5x), and the one with heavy volume (XOM, 2.52x) carried a stop inside the stock's normal daily range. The breakout day's close and volume are what grade the trade, and the stop under the day's low only works when it sits outside the day-to-day noise.

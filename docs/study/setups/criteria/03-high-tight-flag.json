@@ -1365,9 +1365,52 @@
     "trigger": "2026-05-13",
     "criterion": "htf.breakeven",
     "note": "+107% in 33 sessions, a tight 5-day flag, breakout volume 1.21x; it reached 2.35R and was then stopped at the original stop. Under the house plan the stop would already have been at breakeven, so this fixed-stop loss is a scratch in practice; the scan's 29.6% understates the plan for this reason."
+   },
+   {
+    "ticker": "FSLR",
+    "date": "2022-08-26",
+    "criterion": "htf.strong_close",
+    "why": "A 101% pole in 40 sessions, a 9-day flag 8.8% deep on 0.74x the pole's volume. The breakout day gapped open at 125.50 over the 121.91 buy point on 1.47x volume, then closed at the low of its range (121.75), back under the buy point; the next session's low (118.13) took the stop."
+   },
+   {
+    "ticker": "MDB",
+    "date": "2023-06-28",
+    "criterion": "htf.stop",
+    "why": "A 101% pole in 39 sessions, a 15-day flag 8.5% deep on 0.92x the pole's volume, breakout on 1.48x volume closing mid-range. It reached 1.66R, stalled, and was stopped on day 7 (low 376.49). A valid flag that simply failed."
    }
   ],
-  "limits": "A strict, tiny sample: 54 hits in 42 years at the house floor, so no cuts. No RS rating, group, market reading or trims in the scan; survivorship (the sandbox holds today's tickers); one hit was a leveraged ETF (LABU, a failure); the 10% close tightness and the no-close-under-the-21-EMA test reject flags a human would still call an HTF. MGA 2014-02-28 scored 18.5R on a data gap and was thrown out. Bulkowski's numbers are the only published statistics and they got worse over time."
+  "limits": "A strict, tiny sample: 54 hits in 42 years at the house floor, so no cuts. No RS rating, group, market reading or trims in the scan; survivorship (the sandbox holds today's tickers); one hit was a leveraged ETF (LABU, a failure); the 10% close tightness and the no-close-under-the-21-EMA test reject flags a human would still call an HTF. MGA 2014-02-28 scored 18.5R on a data gap and was thrown out. Bulkowski's numbers are the only published statistics and they got worse over time.",
+  "near_misses": [
+   {
+    "ticker": "TSLA",
+    "date": "2023-07-14",
+    "criterion": "htf.pole_size",
+    "why": "pole +78% in 40 sessions; the rule is 90% or more. A tight 8-day, 6.7% flag on 0.78x volume, but the pole was 78% in 40 sessions. A tight flag in a leader that never doubled is a bull flag (setup 02), however tight. Best 1.88R, stopped."
+   },
+   {
+    "ticker": "PDD",
+    "date": "2020-12-08",
+    "criterion": "htf.flag_volume",
+    "why": "flag volume 1.27x the pole's; the rule is below 1x. A 123% pole and a 16-day, 17.2% flag, but flag volume ran 1.27x the pole's. Supply was coming in during the rest (htf.inv_volume_rising), not drying up. Best 0.0R, stopped."
+   },
+   {
+    "ticker": "SE",
+    "date": "2019-04-26",
+    "criterion": "htf.holds_fast_averages",
+    "why": "5 flag close(s) under the 21-day EMA; the rule is none. A 99% pole and a 24-day, 12.7% flag on 0.69x volume, but five flag closes sat under the 21-day EMA. A base that lost the fast averages is a flat base or a cup, not a high tight flag. Best 1.65R, stopped."
+   },
+   {
+    "ticker": "TVTX",
+    "date": "2025-10-24",
+    "criterion": "htf.flag_length",
+    "why": "flag of 32 sessions; the rule is 5 to 30. A 91% pole in 27 sessions and a tight, 23.1%-deep rest that ran 32 sessions. Past 30 sessions it is a different base and is graded as that base (htf.inv_length). It worked (best 18.92R) as the base it was."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_02-bull-flag.png"
+  }
  },
  "question_seeds": [
   {

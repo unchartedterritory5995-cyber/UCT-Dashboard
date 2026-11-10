@@ -1776,9 +1776,52 @@
     "trigger": "2024-02-15",
     "criterion": "qk.breakout_stop",
     "note": "a 9.7%-deep, 13-session flag after a 34% run broke out on 0.7x volume and was stopped at once with 0.0R; the pattern was textbook, the leader simply failed, which is what the stop is for."
+   },
+   {
+    "ticker": "QCOM",
+    "date": "2021-12-13",
+    "criterion": "qk.breakout_inv_failed_breakout",
+    "why": "A 26-session, 18.8%-deep base after a 38% run, broke out on 1.49x volume and then closed at the low of its range (183.32), back inside the base. The next session's low (179.41) took the stop."
+   },
+   {
+    "ticker": "OXY",
+    "date": "2022-04-18",
+    "criterion": "qk.breakout_stop",
+    "why": "A 16-session, 12.2%-deep base after a 62% run, broke out on 0.82x volume and closed mid-range. The next session's low (59.83) took the 59.88 stop by five cents. A valid base that failed for no visible reason; the stop did its job."
    }
   ],
-  "limits": "Part A only: the Kell phases are context and exits, and their buy phases are charted in dossiers 14 and 15. The scan covers 1,969 of 2,630 names and breakouts from 2000 on; the opening-range trigger was not tested (5-minute bars exist only for the last 60 trading days); no RS rating in the sandbox; the 25% depth cap was applied as written while the owner's MRAM caution is still open; QQQ 2020-05-21 was a hit, so ETF hits should be ignored when reading the base rate for stocks; survivorship. Nothing here is a published statistic. Kullamagi's own FAQ gives a 25% win rate for 2019."
+  "limits": "Part A only: the Kell phases are context and exits, and their buy phases are charted in dossiers 14 and 15. The scan covers 1,969 of 2,630 names and breakouts from 2000 on; the opening-range trigger was not tested (5-minute bars exist only for the last 60 trading days); no RS rating in the sandbox; the 25% depth cap was applied as written while the owner's MRAM caution is still open; QQQ 2020-05-21 was a hit, so ETF hits should be ignored when reading the base rate for stocks; survivorship. Nothing here is a published statistic. Kullamagi's own FAQ gives a 25% win rate for 2019.",
+  "near_misses": [
+   {
+    "ticker": "AMZN",
+    "date": "2020-08-06",
+    "criterion": "qk.breakout_prior_move",
+    "why": "+23% into the base; the rule is 30% or more in 3 to 20 sessions. A 12-session, 11% shelf surfing the 20 EMA, but the rise into it was 23%, not 30% in 3 to 20 sessions. A rest on a steady large cap with no explosive move in front of it: a flat-base-style shelf, judged under setup 01 or the moving-average pullback cards. Best 0.0R, stopped."
+   },
+   {
+    "ticker": "NVDA",
+    "date": "2024-03-21",
+    "criterion": "qk.breakout_length",
+    "why": "8 sessions sideways; the rule is 10 to 40 (under 10 it is a flag). A 39% run and an 8.9%-deep rest, but only 8 sessions sideways. Under 10 sessions the rest is a bull flag (setup 02). Best 2.11R, stopped."
+   },
+   {
+    "ticker": "BIDU",
+    "date": "2007-12-27",
+    "criterion": "qk.breakout_higher_lows",
+    "why": "last third's low 34.89 under the first third's 36.52; the rule is rising lows. A 32% run and a 19-session, 14.7% box, but the last third's low (34.89) sat under the first third's (36.52): a lower low, not rising swing lows. A loose box at a top, a flat base candidate at best. Best 0.0R, stopped."
+   },
+   {
+    "ticker": "CVNA",
+    "date": "2024-06-24",
+    "criterion": "qk.breakout_holds_20",
+    "why": "58% of the base's closes near or above the 20 EMA; the rule is 80% or more. A 46% run and a 19-session, 15.2% rest, but only 58% of its closes held near or above the 20 EMA. A base that lost the 20-day and came back is a wedge pop or an EMA reclaim, not a consolidation surfing the averages. It worked (best 14.05R) under another card."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_01-flat-base.png"
+  }
  },
  "question_seeds": [
   {

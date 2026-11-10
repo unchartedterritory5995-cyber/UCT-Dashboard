@@ -1581,9 +1581,46 @@
     "trigger": "2024-08-30",
     "criterion": "bf.inv_third_flag",
     "note": "a five-day flag at all-time highs after a +30% pole, stop 2.25%, best 0.56R; the breakout failed the same week and the stock drifted under the 50-day for two months. A later flag in a long run, in a stock already extended on the weekly chart."
+   },
+   {
+    "ticker": "TSLA",
+    "date": "2023-07-12",
+    "criterion": "bf.stop_width",
+    "why": "A 5-day flag 6.7% deep (26% of a 36% pole) on 0.71x the pole's volume. The trigger day traded through the prior high and closed at the low of its range (271.99) on 0.69x volume; the stop was 1.78% under the fill against a 3.91% average daily range and the next session's low (270.60) took it."
    }
   ],
-  "limits": "No RS rating, group rank, market colour or flag count in the scan; the intraday T1 reclaim cannot be seen on daily bars; survivorship (the database leans to names that still trade); a fixed stop. Nothing here is a published statistic. Bulkowski's own flag counts are weak: 44% break-even failures, Not ranked."
+  "limits": "No RS rating, group rank, market colour or flag count in the scan; the intraday T1 reclaim cannot be seen on daily bars; survivorship (the database leans to names that still trade); a fixed stop. Nothing here is a published statistic. Bulkowski's own flag counts are weak: 44% break-even failures, Not ranked.",
+  "near_misses": [
+   {
+    "ticker": "META",
+    "date": "2025-07-09",
+    "criterion": "bf.pole",
+    "why": "pole +18.2% in 20 sessions; the rule is 20% or more. A tidy 5-day, 4.7% pause on 0.75x volume, but the rise before it was 18.2% in 20 sessions. No pole, no flag: a pullback in an uptrend, judged under the moving-average pullback card (setup 12). Best 1.58R, stopped."
+   },
+   {
+    "ticker": "AXON",
+    "date": "2024-04-04",
+    "criterion": "bf.length",
+    "why": "flag of 21 sessions; the rule is 3 to 15 (16 to 20 B-), past 20 it is a base. A 30% pole and a 6.6%-deep pause on 0.81x volume that ran 21 sessions. Past 20 sessions it is a base, judged as a flat base (setup 01) or a Qullamaggie consolidation (setup 18). Best 0.0R, stopped."
+   },
+   {
+    "ticker": "DKNG",
+    "date": "2021-02-19",
+    "criterion": "bf.depth_half_pole",
+    "why": "flag low gives back 55% of the pole; the rule is half or less. A 7-day flag only 12.8% under the top on half the pole's volume, but the low gave back 55% of the pole. A pullback that retraced more than half the pole is a deeper retest, closer to a pullback to the 21 EMA or the 50-day (setup 12) than to a flag. Best 3.01R, stopped."
+   },
+   {
+    "ticker": "BA",
+    "date": "2020-12-01",
+    "criterion": "bf.shape",
+    "why": "flag highs rise +5.6% across the flag; the rule is a flat or falling line of highs. A 7-day pause 10.7% deep after a 58% pole, but its highs rose 5.6% across the pause. Higher highs and higher lows through the rest is a wedge up (bf.inv_wedge_up), not a flag. Best 0.0R, stopped."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_03-high-tight-flag.png"
+  }
  },
  "question_seeds": [
   {

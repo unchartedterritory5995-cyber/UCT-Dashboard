@@ -1072,3 +1072,29 @@ earnings report sat inside the pole it is named (from the sandbox's Yahoo + SEC 
 - Excluded from the examples: MGA, 2014-02-28, scored 18.5R but the sandbox's MGA series jumps from 2010-05 to 2014-02
   with no bars between, so its "pole" is a data gap, not a move. Any scan result on a name with a history gap should be
   thrown out the same way.
+
+---
+
+## 14. Failures and near-misses (from our data)
+
+(Added 2026-11-10, deliverable 4 of `CRITERIA_PROGRAMME.md`. Every number is read off the sandbox's daily bars with the same scan and the same fixed-stop walk as the examples section above; charts in `_study-resume/scratchpad/setups/03-high-tight-flag/final/` (`fail_1-4.png`, `near_1-4.png`, `pair_02-bull-flag.png`), numbers in `final/failures.json` and `final/near_misses.json`, scripts `near_scan_*.py` and `failnear_*.py` in the setup's scratchpad folder, outside the repo.)
+
+**Four failures.** Valid high tight flag setups by every gate of the card, bought by the rules and stopped before 3R (fixed stop under the day's low, no trims, no breakeven move). Dates are the trigger day; "where it stopped" counts sessions after the trigger.
+
+| Ticker | Date | Buy | Stop (risk) | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|
+| SRRK | 2020-12-22 | 52.01 | 49.95 (4.0%) | day 1 (2020-12-23, low 49.01), best 0.0R | The biggest pole in the scan (291% in 34 sessions) and a 6-day, 15.5% flag, but flag volume was 0.13x the pole's and the breakout day traded 0.10x its 50-day average, closing low in its range at 51.01, under the 52.00 buy point. Stopped the next session (low 49.01). | `htf.breakout_volume` |
+| MRVL | 2026-05-13 | 175.81 | 168.86 (4.0%) | day 3 (2026-05-18, low 165.10), best 2.35R | A 107% pole in 33 sessions, a tight 5-day flag 10.1% deep, breakout on 1.21x volume closing high in its range. It reached 2.35R and was stopped on day 3 (low 165.10) at the original stop; under the house plan the stop would already have been at breakeven. | `htf.breakeven` |
+| FSLR | 2022-08-26 | 125.50 | 120.92 (3.6%) | day 1 (2022-08-29, low 118.13), best 0.0R | A 101% pole in 40 sessions, a 9-day flag 8.8% deep on 0.74x the pole's volume. The breakout day gapped open at 125.50 over the 121.91 buy point on 1.47x volume, then closed at the low of its range (121.75), back under the buy point; the next session's low (118.13) took the stop. | `htf.strong_close` |
+| MDB | 2023-06-28 | 398.90 | 386.96 (3.0%) | day 7 (2023-07-10, low 376.49), best 1.66R | A 101% pole in 39 sessions, a 15-day flag 8.5% deep on 0.92x the pole's volume, breakout on 1.48x volume closing mid-range. It reached 1.66R, stalled, and was stopped on day 7 (low 376.49). A valid flag that simply failed. | `htf.stop` |
+
+**Four near-misses.** Charts that look like a high tight flag but fail exactly one gate of the card. Each came from re-running the setup's scan with that one gate relaxed and keeping only the hits the strict rule rejects for that criterion; everything else passed. The outcome is the same fixed-stop walk, for information only: a near-miss that worked is still not the setup.
+
+| Ticker | Date | The one criterion that fails | The number | What it really is |
+|---|---|---|---|---|
+| TSLA | 2023-07-14 | `htf.pole_size` | pole +78% in 40 sessions; the rule is 90% or more | A tight 8-day, 6.7% flag on 0.78x volume, but the pole was 78% in 40 sessions. A tight flag in a leader that never doubled is a bull flag (setup 02), however tight. Best 1.88R, stopped. |
+| PDD | 2020-12-08 | `htf.flag_volume` | flag volume 1.27x the pole's; the rule is below 1x | A 123% pole and a 16-day, 17.2% flag, but flag volume ran 1.27x the pole's. Supply was coming in during the rest (htf.inv_volume_rising), not drying up. Best 0.0R, stopped. |
+| SE | 2019-04-26 | `htf.holds_fast_averages` | 5 flag close(s) under the 21-day EMA; the rule is none | A 99% pole and a 24-day, 12.7% flag on 0.69x volume, but five flag closes sat under the 21-day EMA. A base that lost the fast averages is a flat base or a cup, not a high tight flag. Best 1.65R, stopped. |
+| TVTX | 2025-10-24 | `htf.flag_length` | flag of 32 sessions; the rule is 5 to 30 | A 91% pole in 27 sessions and a tight, 23.1%-deep rest that ran 32 sessions. Past 30 sessions it is a different base and is graded as that base (htf.inv_length). It worked (best 18.92R) as the base it was. |
+
+**What the failures have in common.** Two died on the first session after the buy (SRRK, FSLR), and in both the breakout day had closed back under the buy point. The other two reached 1.66R and 2.35R before coming back to the original stop, where the house breakeven move between 2R and 5R would have made MRVL a scratch. Breakout volume told the SRRK story (0.10x) but not the others: FSLR and MDB broke out on 1.47x and 1.48x and still failed, so volume alone does not rescue a weak close. The data are thin: 54 hits in all, 38 stopped before 3R, and the one-gate-relaxed scans found 715 pole near-misses, 20 volume, 12 averages, 10 tightness, 1 length and none for depth (a flag deeper than 25% never passed the 10% close tightness), so the four near-misses are what the data gives.

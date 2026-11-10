@@ -1161,3 +1161,29 @@ as teaching charts; AAPL 2026-07-24 and NVDA 2021-06-11 had a jagged run into th
 - LLY 2024-08-30: a five-day flag at all-time highs after a +30% pole, stop 2.25%, best 0.56R. The breakout failed
   the same week and the stock drifted under the 50-day for two months. A later flag in a long run (the "third or
   fourth flag" of 8.8) in a stock already extended on the weekly chart.
+
+---
+
+## 14. Failures and near-misses (from our data)
+
+(Added 2026-11-10, deliverable 4 of `CRITERIA_PROGRAMME.md`. Every number is read off the sandbox's daily bars with the same scan and the same fixed-stop walk as the examples section above; charts in `_study-resume/scratchpad/setups/02-bull-flag/final/` (`fail_1-4.png`, `near_1-4.png`, `pair_03-high-tight-flag.png`), numbers in `final/failures.json` and `final/near_misses.json`, scripts `near_scan_*.py` and `failnear_*.py` in the setup's scratchpad folder, outside the repo.)
+
+**Four failures.** Valid bull flag setups by every gate of the card, bought by the rules and stopped before 3R (fixed stop under the day's low, no trims, no breakeven move). Dates are the trigger day; "where it stopped" counts sessions after the trigger.
+
+| Ticker | Date | Buy | Stop (risk) | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|
+| QCOM | 2019-05-10 | 84.85 | 83.30 (1.83%) | day 1 (2019-05-13, low 82.99), best 0.0R | A 5-day flag 8.9% deep (23% of the pole) on 0.44x the pole's volume after a 62% pole made in 14 days on one April 2019 gap. The trigger day closed at the high (85.84) on 0.76x volume and was the top; the next session's low (82.99) took the stop and the stock fell for four weeks. | `bf.not_after_burst` |
+| STZ | 2013-03-04 | 44.34 | 43.55 (1.78%) | day 2 (2013-03-06, low 43.07), best 0.85R | A 4-day flag 3.1% deep (8% of a 59% pole) on a quarter of the pole's volume. The trigger day closed at the high on 0.32x volume, reached 0.85R and hit the stop on day 2 (low 43.07); the stock then ran to 50 without us. | `bf.stop` |
+| LLY | 2024-08-30 | 957.53 | 935.95 (2.25%) | day 3 (2024-09-05, low 906.17), best 0.56R | A 5-day flag 3.8% deep after a 30% pole at all-time highs, on 0.51x the pole's volume. The trigger day closed at the high on 0.76x volume, made 0.56R and was stopped on day 3 (low 906.17). A later flag in a long run in a stock already extended on the weekly chart. | `bf.inv_third_flag` |
+| TSLA | 2023-07-12 | 276.33 | 271.41 (1.78%) | day 1 (2023-07-13, low 270.60), best 0.0R | A 5-day flag 6.7% deep (26% of a 36% pole) on 0.71x the pole's volume. The trigger day traded through the prior high and closed at the low of its range (271.99) on 0.69x volume; the stop was 1.78% under the fill against a 3.91% average daily range and the next session's low (270.60) took it. | `bf.stop_width` |
+
+**Four near-misses.** Charts that look like a bull flag but fail exactly one gate of the card. Each came from re-running the setup's scan with that one gate relaxed and keeping only the hits the strict rule rejects for that criterion; everything else passed. The outcome is the same fixed-stop walk, for information only: a near-miss that worked is still not the setup.
+
+| Ticker | Date | The one criterion that fails | The number | What it really is |
+|---|---|---|---|---|
+| META | 2025-07-09 | `bf.pole` | pole +18.2% in 20 sessions; the rule is 20% or more | A tidy 5-day, 4.7% pause on 0.75x volume, but the rise before it was 18.2% in 20 sessions. No pole, no flag: a pullback in an uptrend, judged under the moving-average pullback card (setup 12). Best 1.58R, stopped. |
+| AXON | 2024-04-04 | `bf.length` | flag of 21 sessions; the rule is 3 to 15 (16 to 20 B-), past 20 it is a base | A 30% pole and a 6.6%-deep pause on 0.81x volume that ran 21 sessions. Past 20 sessions it is a base, judged as a flat base (setup 01) or a Qullamaggie consolidation (setup 18). Best 0.0R, stopped. |
+| DKNG | 2021-02-19 | `bf.depth_half_pole` | flag low gives back 55% of the pole; the rule is half or less | A 7-day flag only 12.8% under the top on half the pole's volume, but the low gave back 55% of the pole. A pullback that retraced more than half the pole is a deeper retest, closer to a pullback to the 21 EMA or the 50-day (setup 12) than to a flag. Best 3.01R, stopped. |
+| BA | 2020-12-01 | `bf.shape` | flag highs rise +5.6% across the flag; the rule is a flat or falling line of highs | A 7-day pause 10.7% deep after a 58% pole, but its highs rose 5.6% across the pause. Higher highs and higher lows through the rest is a wedge up (bf.inv_wedge_up), not a flag. Best 0.0R, stopped. |
+
+**What the failures have in common.** Three of the four were stopped within three sessions and all four triggered on below-average volume (0.76x, 0.32x, 0.76x and 0.69x the 50-day). Three closed the trigger day at the high and still failed (QCOM, STZ, LLY): a strong close on a light-volume T2 does not make a flag work, and two of them were late or one-gap poles (LLY, QCOM). TSLA closed at the low with a stop inside its daily range. The answer the card gives stands: the small stop, the time stop and the next trigger, not a wider stop.

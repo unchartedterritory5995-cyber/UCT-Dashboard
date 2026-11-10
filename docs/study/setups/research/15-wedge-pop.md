@@ -1235,3 +1235,29 @@ old range, not an obvious picture), RIO 2008-04-02 (a bear-market rally that gav
   that closed at 211.40, but on only 1.04 times the 50-day volume and with a 4.7% stop. Two sessions later the low of
   194.10 took the stop out. In the scan, pops with volume under 1.5 times the base and a stop wider than 3% were the
   weakest groups; this one was both.
+
+---
+
+## 14. Failures and near-misses (from our data)
+
+(Added 2026-11-10, deliverable 4 of `CRITERIA_PROGRAMME.md`. Every number is read off the sandbox's daily bars with the same scan and the same fixed-stop walk as the examples section above; charts in `_study-resume/scratchpad/setups/15-wedge-pop/final/` (`fail_1-4.png`, `near_1-4.png`, `pair_14-ema-crossback.png`), numbers in `final/failures.json` and `final/near_misses.json`, scripts `near_scan_*.py` and `failnear_*.py` in the setup's scratchpad folder, outside the repo.)
+
+**Four failures.** Valid wedge pop setups by every gate of the card, bought by the rules and stopped before 3R (fixed stop under the day's low, no trims, no breakeven move). Dates are the trigger day; "where it stopped" counts sessions after the trigger.
+
+| Ticker | Date | Buy | Stop (risk) | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|
+| MU | 2022-03-29 | 82.10 | 79.21 (3.52%) | day 1 (2022-03-30, low 78.60), best 0.0R | A 31% decline, 14 of 15 closes under the 20 EMA, a 9-day base 68.34 to 81.20, then a gap open at 82.10 over the pivot on 1.59x the base days' volume (1.8x the 50-day), closing at the high. Micron reported that evening; the next day's low of 78.60 went through the 79.21 stop. | `wp.earnings_window` |
+| COIN | 2024-08-23 | 209.81 | 199.95 (4.7%) | day 2 (2024-08-27, low 194.10), best 0.11R | A 41% decline, 15 of 15 closes under the 20 EMA, a 13-day base 161.13 to 209.80, a pop that closed at the high (211.40) but on 1.24x the base days' volume (1.04x the 50-day) and with a 4.7% stop. The low of 194.10 took the stop on day 2. | `wp.volume` |
+| PLTR | 2025-12-10 | 184.95 | 182.70 (1.22%) | day 1 (2025-12-11, low 180.21), best 0.0R | A 29% decline, 10 of 15 closes under the 20 EMA, an 11-day base 147.56 to 183.88, a gap open at 184.95 on 1.86x the base days' volume, closing high in its range at 187.91. The next session's low (180.21) took the 182.70 stop. A valid pop that failed; the stop did its job. | `wp.stop` |
+| AMZN | 2018-11-07 | 84.88 | 83.15 (2.04%) | day 3 (2018-11-12, low 81.50), best 2.5R | A 28% decline, 15 of 15 closes under the 20 EMA, a 5-day base 73.82 to 84.87, a pop closing at the high (87.77) on 1.19x the base days' volume. It reached 2.5R in two sessions and was stopped on day 3 (low 81.50) in the late-2018 selloff. Under the house plan the stop would have been at breakeven by then. | `wp.breakeven` |
+
+**Four near-misses.** Charts that look like a wedge pop but fail exactly one gate of the card. Each came from re-running the setup's scan with that one gate relaxed and keeping only the hits the strict rule rejects for that criterion; everything else passed. The outcome is the same fixed-stop walk, for information only: a near-miss that worked is still not the setup.
+
+| Ticker | Date | The one criterion that fails | The number | What it really is |
+|---|---|---|---|---|
+| DECK | 2024-05-14 | `wp.prior_decline` | 7 of the 15 closes before the pop under the 20 EMA; the rule is 8 or more | A 12-day base after an 18% dip with a 1.4x pop, but only 7 of the 15 closes before it were under the 20 EMA. A pullback inside an uptrend the stock already rides: the EMA Crossback (setup 14) or a moving-average pullback, not a pop from under the averages. Best 9.2R. |
+| TSLA | 2023-11-14 | `wp.base_tight` | last 5 sessions' ranges 1.11x the 10 before; the rule is under 0.85x | A 30% decline, 14 of 15 closes under the 20 EMA, a 9-day base, but the last 5 sessions' ranges were 1.11x the 10 before them: nothing tightened. A wide, loose rebound through the averages is a remount (setup 13), not a wedge pop. Best 2.68R, stopped. |
+| AMZN | 2019-01-04 | `wp.above_200` | pop closed -7.3% against the 200-day; the rule is a close above it | A 36% decline, a 6-day base and a pop on 1.1x the base's volume, but the pop closed 7.3% under the 200-day. A bear-market rally pop under the 200-day is not ours (B26). It worked (best 7.46R) without us. |
+| CSCO | 2026-07-27 | `wp.volume` | pop volume 0.88x the base days and 0.83x the prior day; the rule is above both | An 18% decline, 12 of 15 closes under the 20 EMA, a 6-day tight base, a trade through the pivot and a close above both EMAs, but on 0.88x the base days' volume and 0.83x the prior day's. A cross of the averages with no demand (wp.inv_no_volume). Best 0.0R, stopped. |
+
+**What the failures have in common.** All four pop days closed strong, at or near the high and above both averages, so nothing on the pop day's candle separated them from the winners. What did was the calendar (MU's report that night), the volume (COIN 1.24x and AMZN 1.19x the base, under the 1.5x cut that the scan found strongest) and the stop width (COIN 4.7%). Two were stopped the next session and the other two within three. The earnings check and the volume read happen before the fill; the pop day's close only confirms what the fill already risked.

@@ -1253,9 +1253,46 @@
     "trigger": "2026-03-20",
     "criterion": "fb.stop_width",
     "note": "breakout on 2.5x volume but a close in the bottom fifth of the range; the stop sat 0.88% under the fill while the 20-day average range was 2.5%; a 2% gap down stopped it, then it ran to 176 in six sessions."
+   },
+   {
+    "ticker": "BHC",
+    "date": "2015-04-09",
+    "criterion": "fb.breakout_volume",
+    "why": "A 6.4-week, 10.0% shelf with four taps after a 55% run, volume in the second half of the base a quarter of the first. The breakout came on 0.5x volume and closed low in its range at 205.72; it reached 1.63R and was stopped on day 6 (low 203.46)."
    }
   ],
-  "limits": "Base count, the real RS rating and group, the market reading and the owner's grade are not in the scan. No delisted names, so the base rate leans toward survivors. Nothing here is a published statistic."
+  "limits": "Base count, the real RS rating and group, the market reading and the owner's grade are not in the scan. No delisted names, so the base rate leans toward survivors. Nothing here is a published statistic.",
+  "near_misses": [
+   {
+    "ticker": "AMZN",
+    "date": "2020-05-19",
+    "criterion": "fb.depth",
+    "why": "18.5% deep; the rule is 15% or less. A 27-session rest after a 51% run with three taps, but 18.5% deep. Past 15% it is not a flat base; it is a cup-shaped base (04-cup-handle territory). Best 1.1R, stopped."
+   },
+   {
+    "ticker": "NVDA",
+    "date": "2026-05-08",
+    "criterion": "fb.length_min",
+    "why": "13 sessions from the left-side high; the rule is 25 or more. A 13-session, 10.2% pause after a 32% run. Too short for a flat base; a rest of 10 to 40 sessions after a 30% move is the Qullamaggie breakout base (setup 18). Best 4.9R, stopped."
+   },
+   {
+    "ticker": "MSFT",
+    "date": "2024-03-21",
+    "criterion": "fb.prior_trend",
+    "why": "+28% before the base; the rule is 30% or more. A 39-session, 7.2% shelf with two taps, but only a 28% rise before it. A large-cap drift with no leader's run in front of it, graded under the moving-average pullback cards rather than as a flat base. Best 0.0R, stopped."
+   },
+   {
+    "ticker": "BBY",
+    "date": "2026-07-09",
+    "criterion": "fb.above_mas",
+    "why": "close +14.3% against the 200-day, 50-day -1.6% against it; the rule is close > 50-day > 200-day. A 28-session, 14.5% base after a 42% rebound; the close was 14.3% above the 200-day but the 50-day was still 1.6% under it. A base built in a recovery out of a downtrend, not a leader resting above a settled 50 over 200 order. It worked (best 6.3R) but it is not ours."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_06-vcp.png"
+  }
  },
  "question_seeds": [
   {
