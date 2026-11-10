@@ -6658,6 +6658,7 @@
       "type": "string",
       "enum": [
        "control",
+       "chartKey",
        "builderAction",
        "gridAction",
        "drawingEdit",
