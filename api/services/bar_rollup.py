@@ -85,7 +85,9 @@ def aggregate(prev: Optional[dict], bar: dict) -> dict:
 #
 # TradingView builds intraday bars from SESSION START:
 #   * RTH view (9:30-16:00 ET): 60m buckets are 9:30, 10:30, ..., 14:30, and a
-#     15:30-16:00 half bar. Outside RTH (a pre/post print the RTH chart hides
+#     15:30-16:00 half bar. On an NYSE 13:00 early close the session ends at
+#     13:00 (12:30-13:00 half bar) and post-close prints use clock hours —
+#     they never land in an RTH bucket (`nyse_calendar.NYSE_EARLY_CLOSES_YYYYMMDD`). Outside RTH (a pre/post print the RTH chart hides
 #     anyway) we fall back to clock hours, with the 9:00 pre-market hour cut at
 #     9:30 so it never overlaps the 9:30 RTH bucket.
 #   * ETH view (04:00-20:00 ET): 60m buckets are clock hours 04:00 ... 19:00
@@ -103,23 +105,29 @@ _RTH_OPEN_MIN = 9 * 60 + 30
 _RTH_CLOSE_MIN = 16 * 60
 
 
-def _rth_close_min(ymd: int) -> int:
-    """Regular close in ET minutes: 16:00, or 13:00 on an NYSE half-day — the
-    12:30 bar ends at 13:00 and 13:00-13:59 is a post-market clock hour (never
-    fused into the last regular bar). (W-E, 2026-11-10: the one change to the
-    #1032 helper; REST + stream share it.)"""
-    try:
-        from api.services.nyse_calendar import NYSE_EARLY_CLOSES_YYYYMMDD
-        if int(ymd) in NYSE_EARLY_CLOSES_YYYYMMDD:
-            return 13 * 60
-    except Exception:  # noqa: BLE001 — unreadable calendar → full day
-        pass
-    return _RTH_CLOSE_MIN
-
-
 def _et_zone():
     from zoneinfo import ZoneInfo
     return ZoneInfo("America/New_York")
+
+
+_EARLY_CLOSE_MIN = 13 * 60
+
+
+def _rth_close_min(ymd: int) -> int:
+    """Regular-session close (minutes after ET midnight) for an ET date.
+
+    An unreadable calendar falls back to the FULL day (16:00) and says so loudly —
+    a half-day then buckets 13:00-13:59 post-market into the 12:30 bar, which is
+    visible, rather than raising out of every 60m bucket call (REST + stream)."""
+    try:
+        from api.services.nyse_calendar import NYSE_EARLY_CLOSES_YYYYMMDD
+    except Exception:  # noqa: BLE001
+        import logging
+        logging.getLogger(__name__).error(
+            "[bar_rollup] NYSE calendar unreadable — 60m buckets assume a FULL day (16:00 close)",
+            exc_info=True)
+        return _RTH_CLOSE_MIN
+    return _EARLY_CLOSE_MIN if ymd in NYSE_EARLY_CLOSES_YYYYMMDD else _RTH_CLOSE_MIN
 
 
 @lru_cache(maxsize=16384)
@@ -128,10 +136,10 @@ def _tv_bounds_cached(minute_ms: int, tf: str, session: str) -> tuple[int, int]:
     et = _et_zone()
     dt = datetime.fromtimestamp(minute_ms / 1000, tz=et)
     mod = dt.hour * 60 + dt.minute
-    close = _rth_close_min(dt.year * 10000 + dt.month * 100 + dt.day)
-    if session == "rth" and _RTH_OPEN_MIN <= mod < close:
+    close_min = _rth_close_min(dt.year * 10000 + dt.month * 100 + dt.day)
+    if session == "rth" and _RTH_OPEN_MIN <= mod < close_min:
         start = _RTH_OPEN_MIN + (mod - _RTH_OPEN_MIN) // 60 * 60
-        end = min(start + 60, close)
+        end = min(start + 60, close_min)
     else:
         start = mod // 60 * 60
         end = start + 60
