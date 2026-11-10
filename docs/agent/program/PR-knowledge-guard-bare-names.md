@@ -41,10 +41,11 @@ Ratchet: `GUARD_KNOWN_UNWITHHELD` is now empty. The rule is kept as a comment: t
 
 | commit | what |
 |---|---|
-| `76f63d712a` | tests only. Before the fix: ratchet lists the 45; registry rail 58 open; PLANTED 7/10 pass the guard; `action_families`/`action_clause` missing. 5 G1 failures. |
+| `76f63d712a` | tests only. Before the fix: ratchet lists the 45; registry rail 58 open; PLANTED 7/10 pass the guard; `action_families`/`action_clause` missing. 5 G1 failures (standalone stub runner, not pytest). |
 | `8dac880bfb` | the fix, `guard.py`. |
 | `3a3496d6fd` | #1030's board-domain test called `turn.validate_manifest(CAPS)` with all 159 caps. The per-request limit is 60, so it raised `TurnError` instead of asserting. Now `limit=len(CAPS)`. **#1030 needs the same one-line fix, or its CI is red.** |
 | `1fdad827b9` | AUDIT precondition in `docs/feature_flags.json`. |
+| `c141581c77` | AUDIT round 2 (items b, d, e): boot log line + `source_line()`, registry and fallback rails, one planted post per family, precondition reworded. |
 
 New rails in `tests/test_uct_agent_server_capability_mirrors.py`:
 * families are derived (manifest prefixes and registry-literal prefixes are in `action_families()`; source == registry)
@@ -56,21 +57,28 @@ New rails in `tests/test_uct_agent_server_capability_mirrors.py`:
   compare / undo / day / history normally. This includes the no-space typos `breadth.Then`, `volume.so`,
   `chart.It` and the domains `news.google.com`, `stock.twits`. Over-flag must be 0.
 
-## Verification (no local pytest; standalone runner)
+## Verification (standalone stub runner, not pytest)
 
 The runner imports the test modules with a pytest stub, expands parametrize, and runs every test in the mirrors file
 plus every `*guard*` test in `tests/test_uct_agent_knowledge.py` (fixture tests skipped).
 
-* At `76f63d712a`: 43 passed, 6 failed (5 G1 rails plus #1030's limit bug).
-* After the fix: **49 passed, 0 failed.**
+* At `76f63d712a`: 43 passed, 6 failed (5 G1 rails plus #1030's limit bug) (standalone stub runner, not pytest).
+* After the fix: **49 passed, 0 failed** (standalone stub runner, not pytest).
+* After the AUDIT items (b, d below): **53 passed, 0 failed** (standalone stub runner, not pytest).
 * **False-positive check:** 0 of 34 controls flagged. The existing knowledge-guard precision lists still pass.
   Old guard vs new guard over all 816 string constants in `tests/test_uct_agent_knowledge*.py`: 0 newly passed.
   1 newly flagged: the bare literal `stock.profile`, an action name in a `step_result_text` test, never guarded.
-* **Mutations**, each red:
+* **Mutations**, each red (standalone stub runner, not pytest):
   * **M1**: the old hand-typed list restored. 3 fail: PLANTED 7/10 missed, registry 58 open, manifest ratchet 45.
   * **M2**: golden only, no registry scan. 3 fail: PLANTED 1/10 (`playbook.record`), registry 15 open, derived-families rail.
   * **M3**: no camelCase verbs. 4 fail: PLANTED 3/10, registry 24 open, manifest ratchet, new-family rail.
   * **M4**: camelCase test made case-insensitive. 1 fails: over-flag 5/34 controls.
+  * With the AUDIT tests added, M1 also fails the per-family planted rail (13/32 families pass) and the fallback rail;
+    M2 fails the per-family rail (fewer than 32 families); M3 fails it with 3/32 (`history`, `indicatorCopy`, `indicatorStyle`).
+  * **M5**: boot log not once (the `_BOOT_LOGGED` check removed). 1 fails: fallback rail (second call logs again).
+  * **M6**: `source_line()` always says `registry`. 1 fails: fallback rail.
+  * **M7**: the no-registry clause fails OPEN (matches nothing). 1 fails: fallback rail (`chart.goToDate` passes).
+  * **M8**: one family (`volume`) dropped from the clause. 3 fail: per-family planted (`volume`), registry rail, manifest ratchet.
 
 CI/AUDIT runs pytest.
 
@@ -78,7 +86,63 @@ CI/AUDIT runs pytest.
 
 `docs/feature_flags.json` gains a new top-level section, `audit_preconditions.G1_knowledge_guard_bare_action_names`.
 It is not a gate, so it is not in `flags`, and the readme says so. **No widening of UCT_AGENT_KNOWLEDGE, UCT_AGENT_DATA
-or the knowledge kinds beyond admin until this fix is merged and verified.**
+or the knowledge kinds beyond admin until this fix is merged and the precondition is lifted by AUDIT after production
+check.** Its status reads "lifted by AUDIT after production check" and `lifted_on` is `null`. A green rail does not
+close it.
+
+## AUDIT items on #1039 (round 2)
+
+**b. Boot log line.** `guard.log_action_source_once()` logs `guard.source_line()` once per process through the guard's
+existing module logger (`logging.getLogger("api.services.uct_agent.knowledge.guard")`, the same logger its
+"unreadable" warnings use). It runs at server boot: `api/routers/uct_agent.py` calls it at import, and `api/main.py`
+imports that router at module load (`from api.routers import uct_agent as uct_agent_router`). From the repo it reads
+`[uct-agent] knowledge guard action source: registry (178 names, 32 families)` at INFO; a fallback source logs at
+WARNING. A failure in the call is caught and logged, so it can never stop boot.
+**Log line only, no status field.** The only existing admin endpoint that reports server Agent state is
+`GET /api/agent/config`, and it is the browser's contract (stream, nl1, data, planner, coach, routing_v2), not a
+status or health endpoint. The knowledge health report (`knowledge/health.py`) is a reindex-time file, not an
+endpoint. Neither fits, so nothing was added to them.
+Rails: `test_the_action_source_is_REGISTRY_from_the_repo_root` (source == "registry", line format and counts);
+`test_the_FALLBACK_path_reports_fallback_and_fails_closed` loads a copy of `guard.py` from a temp tree with no
+`app/`, so the real fallback path runs: source "fallback", 0 names / 0 families, `chart.goToDate` still withheld,
+and the line logged once (second call returns None); `test_the_server_boot_logs_the_action_source_once` (the router
+calls it exactly once and main.py imports the router). Not verified by importing the router locally: this machine
+has no fastapi.
+
+**c. A bare `stock.profile` test argument never reaches the guard.** Every caller, from
+`grep -rn -E "knowledge(\.| import )[^#]*guard|guard\.(check|suspicious|action_clause|action_source|action_families)" api`
+(there is no `screen()`: the guard's entry points are `check()` and `suspicious()`; `coach/__init__.py:173`
+`guard.check` is the separate coach guard, `api/services/uct_agent/coach/guard.py`):
+
+```
+data read (gateway Kind registry; knowledge/kinds.py register(): knowledge.search, setup.playbook)
+ ├─ kinds.search(params, ctx)                      knowledge.search
+ │    for r in index.query(...)                    retrieved brain-pack rows
+ │      guard.suspicious(r["content"])             kinds.py:236  the whole passage
+ │      guard.check(_focus(r["content"]...))       kinds.py:239  the shown excerpt
+ │      guard.check(r["title"])                    kinds.py:240
+ │      guard.check(policy.trader(r["trader"]))    kinds.py:247
+ └─ kinds.playbook(params, ctx)                    setup.playbook
+      _clean_value(template field)                 kinds.py:463/467/474 -> guard.check   kinds.py:436
+api/routers/uct_agent.py                           guard.log_action_source_once()  (boot; no text)
+```
+
+`setup.record` does not call the guard. Every string the guard screens is retrieved content (a KB passage, its title,
+its trader label, or a stored setup-template field). None of them is a capability name, a tool argument, or a step
+result. The test that carries the literal, `tests/test_uct_agent_knowledge.py:766`, calls
+`turn_v2.step_result_text({"name": "stock.profile"}, ...)`. `turn_v2.py` does not import the knowledge guard, and
+`step_result_text` formats an executed step's name and result for the model. So the one newly-flagged literal from
+the 816-string sweep never meets the guard in production.
+
+**d. One planted post per family, all 32.** `test_PLANTED_one_quoted_post_per_FAMILY_is_WITHHELD` takes the first
+name of each family from the guard's own registry-derived list, puts it mid-sentence in one of 4 quoted-post shapes,
+and requires every one withheld. It also requires the planted families to equal `action_families()` (at least 32), so a
+family the registry gains is planted automatically. No family is exempt: KB text can quote any dotted name, so all 32
+can occur.
+
+**e.** See "AUDIT hard precondition" above (`docs/feature_flags.json`).
+
+**f.** File counts below are git's own.
 
 ## Known separate item (not fixed here): G2
 
@@ -87,21 +151,37 @@ gap (frozen in #1030's `DOMAIN_KNOWN_UNLISTED = {"calendar"}`), so planner v2 te
 `calendar.nextReport` live under market-breadth history. A silent misfile, not a refusal. It needs its own
 branch: decide the right domain, add `_DOMAIN_OF["calendar"]`, and shrink that freeze to empty.
 
-## Files (git-derived; this doc excluded)
+## Files (git-derived)
 
-`git diff --stat 5f5bdcd7e6 HEAD`:
-
-```
- api/services/uct_agent/knowledge/guard.py         |  78 ++++++++++++-
- docs/feature_flags.json                           |  19 +++-
- tests/test_uct_agent_server_capability_mirrors.py | 127 ++++++++++++++++++++--
- 3 files changed, 207 insertions(+), 17 deletions(-)
-```
-
-`git diff --stat origin/master...HEAD` (merge-base `292983f4bc`; includes all of #1030):
+**5 files vs `5f5bdcd7e6` (#1030's head), including this doc.** `git diff --name-status 5f5bdcd7e6 HEAD`:
 
 ```
- api/services/uct_agent/knowledge/guard.py          |  78 +++-
+M	api/routers/uct_agent.py
+M	api/services/uct_agent/knowledge/guard.py
+A	docs/agent/program/PR-knowledge-guard-bare-names.md
+M	docs/feature_flags.json
+M	tests/test_uct_agent_server_capability_mirrors.py
+```
+
+Line counts for the 4 non-doc files (`git diff --stat 5f5bdcd7e6 HEAD`, this doc left out because its own count
+changes as it is committed):
+
+```
+ api/routers/uct_agent.py                          |   8 +
+ api/services/uct_agent/knowledge/guard.py         |  98 ++++++++++-
+ docs/feature_flags.json                           |  20 ++-
+ tests/test_uct_agent_server_capability_mirrors.py | 195 ++++++++++++++++++++--
+ 4 files changed, 304 insertions(+), 17 deletions(-)
+```
+
+The round-1 doc said 3 files there; that left the doc out. With the doc it was 4; the boot-log call in
+`api/routers/uct_agent.py` makes it 5.
+
+`git diff --stat origin/master...HEAD` (merge-base `292983f4bc`; includes all of #1030; this doc left out):
+
+```
+ api/routers/uct_agent.py                           |   8 +
+ api/services/uct_agent/knowledge/guard.py          |  98 ++++-
  .../uct_agent/scan/sat/section_b_requests.json     | 120 ++++++
  api/services/uct_agent/turn_v2.py                  |   3 +-
  app/src/agent/agentRouting.test.jsx                |   2 +-
@@ -122,14 +202,14 @@ branch: decide the right domain, add `_DOMAIN_OF["calendar"]`, and shrink that f
  app/src/pages/charts/grid/useMultiChartState.js    |  18 +-
  docs/agent/CHARTS_EXECUTION_STATUS.md              |  59 +--
  docs/agent/program/PR-exec-multichart-grid.md      | 144 +++++++
- docs/feature_flags.json                            |  19 +-
+ docs/feature_flags.json                            |  20 +-
  tests/fixtures/nl1_assemble_parity.json            |  33 +-
  tests/test_uct_agent_contract.py                   |   4 +-
- tests/test_uct_agent_server_capability_mirrors.py  | 201 +++++++++
- 25 files changed, 2247 insertions(+), 144 deletions(-)
+ tests/test_uct_agent_server_capability_mirrors.py  | 269 ++++++++++++
+ 26 files changed, 2344 insertions(+), 144 deletions(-)
 ```
 
-Plus this doc, `docs/agent/program/PR-knowledge-guard-bare-names.md`. No JS product code changed, so the
+Plus this doc. No JS product code changed, so the
 no-lookbehind rule doesn't apply. The guard is Python.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
