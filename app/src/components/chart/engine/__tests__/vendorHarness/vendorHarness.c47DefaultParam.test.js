@@ -201,13 +201,17 @@ describe('C47 — liquidity-heatmap: past the default, onto its request (by name
     expect(diag.dropReasons).toEqual({ 'guard:create': 14 })
   }, 60000)
 
-  it('⛔ graded: labels stay withheld (27 / 0), the table cell still agrees (1 / 1)', () => {
+  // ⭐ OZ RE-PIN (2026-11-09): the withheld labels are now withheld BY NAME
+  // (`objects:not-carried`): INCONCLUSIVE, with the drawn table cell still agreeing.
+  it('⛔ graded: labels stay withheld, now by name (27 / withheld), the table cell still agrees (1 / 1)', () => {
     vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
     const { verdict, integrity } = gradeCapture(capture(HEATMAP))
     expect(integrity.ok).toBe(true)
     const counts = Object.fromEntries(verdict.objects.counts.map((c) => [c.family, [c.vendor, c.ours]]))
-    expect(counts.labels).toEqual([27, 0])
+    expect(counts.labels).toEqual([27, null])
+    expect(verdict.objects.counts.find((c) => c.family === 'labels').withheld).toBe(true)
     expect(counts.tableCells).toEqual([1, 1])
-    expect(verdict.objects.verdict).toBe('DIVERGE')
+    expect(verdict.objects.verdict).toBe('INCONCLUSIVE')
+    expect(verdict.objects.withheld).toBe('objects:not-carried')
   }, 60000)
 })

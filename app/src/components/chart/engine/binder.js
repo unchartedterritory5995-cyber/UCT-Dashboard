@@ -75,7 +75,7 @@ import { semanticsOf, SEMANTICS_UNKNOWN_PROPAGATES } from './definitionSemantics
 // provide one simply draws no objects.
 import { evaluateObjects } from './objectRuntime'
 // ⭐⭐ RT5 — a runtime document's drawings, made by its own run (imports nothing).
-import { runtimeObjectsOf, drawsRuntimeObjects } from './runtime/runtimeObjects.js'
+import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects } from './runtime/runtimeObjects.js'
 // ⭐⭐ W9-T12 — a strategy's trade markers, from the run's record (refused by name until W9-MK1)
 import { drawsTradeMarkers, memberTradeMarkers, tradeMarkerObjects, publishTradeMarkers, markersWithheldWith,
   joinMarkersToState } from './runtime/tradeMarkers.js'
@@ -114,8 +114,7 @@ import { setChartClockNotes } from './chartClockNotice'
 import { serverDeclares } from './serverCompute'
 // ⭐ P2b — what a render state dropped, for the member's drawing note.
 import { setObjectRenderDrops, renderDroppedCount, renderHeldCount } from './objectRenderNotice'
-import { runtimeWithheldWhy, NOT_SHOWN } from './ast/objectLoss'
-import { MERGED_HEAD_REWRITE_SENTENCE } from './objectCells.js'
+import { runtimeWithheldWhy, stoppedRunSentence, STOPPED_KEY } from './ast/objectLoss'
 import { ThinVolumeSeries } from '../thinVolumeSeries'
 
 /** RTH filter for an intraday FRAME on a chart that hides extended hours — the same
@@ -1139,20 +1138,6 @@ export function createBinder({ chart, LWC, scope = '' }) {
     if (n || fams.length || whyN) dropsPublished.add(instanceId)
     else dropsPublished.delete(instanceId)
   }
-  // ⭐ OZ — the host run's sentences, less a `objects:not-computable` one where this
-  // chart's clock note already says why (C36: a drawing that reads `time(<tf>)` is
-  // withheld on this chart, `publishClock`): one cause, one sentence.
-  // ⚠️ The run does not say WHICH unknown withheld a family, so with a clock note
-  // present a family withheld for another unknown is not named twice, nor at all.
-  const hostWithheldWhy = (run, chartClock) => {
-    const why = run && run.withheldWhy
-    if (!why) return null
-    const clockSaid = Array.isArray(chartClock) && chartClock.length
-      ? new Set(((run.withheldBy || {})[NOT_SHOWN.NOT_COMPUTABLE]) || []) : null
-    if (!clockSaid || !clockSaid.size) return why
-    const out = Object.fromEntries(Object.entries(why).filter(([f]) => !clockSaid.has(f)))
-    return Object.keys(out).length ? out : null
-  }
   // ⭐⭐ W9-T12 — the marker outcome per instance (served, or the refusal's sentence), for the
   // member surface that shows it (T13b). Zero calls for a chart with no strategy on it.
   const markersPublished = new Set()
@@ -1228,14 +1213,25 @@ export function createBinder({ chart, LWC, scope = '' }) {
           : objPayload ? { ...objPayload, live: objPayload.live.concat(markLive) }
             : markLive.length ? { live: markLive, withheld: {}, reason: null, stats: { nextId: `mk${markLive.length}` }, pineVersion: null }
               : null
-        if (!payload) { publishDrops(inst.instanceId, null); attempt(() => rlayer.set(null, '')); continue }
+        if (!payload) {
+          // ⭐ OZ r1 — a run that withheld its drawings whole (`WITHHELD`) says why
+          const wr = runtimeObjectsWithheldOf(memo && memo.cols)
+          const ws = wr ? stoppedRunSentence(wr.reason, 'withheld') : null
+          publishDrops(inst.instanceId, null, null, ws ? { [STOPPED_KEY]: ws } : null)
+          attempt(() => rlayer.set(null, '')); continue
+        }
         const rstate = attempt(() => toRenderState(payload.live,
           { bars, tf: ctx.tf, theme, pineVersion: payload.pineVersion })).value
         if (!rstate) { markersCleared(); publishDrops(inst.instanceId, null); attempt(() => rlayer.set(null, '')); continue }
         // ⭐ OZ — a family the RUN withheld whole draws none; its name reaches the
         // member's drawing note on this lane too (`runtimeWithheldWhy`).
+        // ⭐ OZ r1 — and a run STOPPED on a step no capture settles (`OBJECT_UNWITNESSED`,
+        // C40) draws nothing; its reason reached only the layer's meta until now.
+        const rStop = payload.status && payload.status !== 'ok' && objPayload
+          ? stoppedRunSentence(payload.reason, 'unmeasured') : null
+        const rWhy = runtimeWithheldWhy(payload.withheld)
         publishDrops(inst.instanceId, rstate, null,
-          runtimeWithheldWhy(payload.withheld, [MERGED_HEAD_REWRITE_SENTENCE]))
+          rStop || rWhy ? { ...(rStop ? { [STOPPED_KEY]: rStop } : {}), ...(rWhy || {}) } : null)
         const rsig = `rt:${bars.length}:${bars.length ? bars[bars.length - 1].t : 0}:${(payload.stats || {}).nextId}:${theme.fg || ''}/${theme.bg || ''}`
           + markSig
         const rset = attempt(() => rlayer.set(rstate, rsig, {
@@ -1308,6 +1304,10 @@ export function createBinder({ chart, LWC, scope = '' }) {
           // ⭐ C12: an op reading a `var` before its warm-up is withheld, not
           // drawn off a `NaN` that reads as Pine's `na` (`objectRuntime.js`).
           readUnknown: reader.readUnknown,
+          // ⭐ OZ r1 — and the same with the chart clock's channel out, so a family the
+          // clock note (C36) already explains is not said twice, and one withheld for
+          // another reason is still said (`objectRuntime.js` `famUnknownOther`).
+          readUnknownOther: reader.readUnknownOther,
           // ⭐ F1 — off the listing a `var` list of drawings is withheld whole.
           offListing: reader.historyFromListing !== true,
         })
@@ -1402,7 +1402,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         } else markersCleared()
       }
       publishDrops(inst.instanceId, hstate, (built.value.run.withheldBy || {})['objects:collector'] || null,
-        hostWithheldWhy(built.value.run, built.value.chartClock))
+        built.value.run.withheldWhy || null)
       if (!attempt(() => layer.set(hstate, sig + markSig, meta)).ok) markersCleared()
     }
     for (const [id, layer] of objectLayers) {

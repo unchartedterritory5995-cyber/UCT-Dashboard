@@ -32,6 +32,9 @@
 // decision (`paneObjectsGate`), for the reason its header gives: one place, not
 // four slightly different `if`s.
 
+import { ENUM_NA_SENTENCE } from '../enumNaRule.js'
+import { MERGED_HEAD_REWRITE_SENTENCE } from '../objectCells.js'
+
 /** The five answers a lost operation can have. */
 export const LOSS = Object.freeze({
   /** Its loss leaves on screen something Pine removed. Never drawn around. */
@@ -590,6 +593,9 @@ export const NOT_SHOWN = Object.freeze({
   NOT_CARRIED: 'objects:not-carried',
   NOT_COMPUTABLE: 'objects:not-computable',
   UNMEASURED: 'objects:unmeasured',
+  // r1 — the runtime store's own two named reasons, each with its own sentence
+  ENUM_NA: 'objects:enum-na',
+  COLLECTOR_HELD: 'objects:collector-held',
 })
 
 const NOT_SHOWN_BECAUSE = Object.freeze({
@@ -599,6 +605,11 @@ const NOT_SHOWN_BECAUSE = Object.freeze({
     + 'work out here, so none are drawn rather than a guess.',
   [NOT_SHOWN.UNMEASURED]: 'the script handles them in a way whose result on TradingView has not been '
     + 'measured yet, so none are drawn rather than a guess.',
+  [NOT_SHOWN.ENUM_NA]: "the script can leave a drawing's style, size or position empty, and how TradingView "
+    + 'draws that has not been measured yet, so none are drawn rather than a guess.',
+  [NOT_SHOWN.COLLECTOR_HELD]: 'TradingView removes the oldest ones once the script holds more than its limit, '
+    + 'and which ones it spares when the script keeps them in a list has not been measured yet, so none are '
+    + 'drawn rather than a guess.',
 })
 
 /** The member's sentence for families shown as NONE for one engine-side cause. */
@@ -613,21 +624,59 @@ export function notShownSentence(families, cause) {
 /** ⭐⭐ OZ — THE RUNTIME LANE'S WITHHELD FAMILIES, AS THE MEMBER'S SENTENCES. The run
  *  (`runtime/objectStore.js`) withholds a family WHOLE by name (`withheld`: family →
  *  the engine's reason) and draws none of it; until now that name stopped at the
- *  layer and the member saw the family vanish. A reason that is already a member
- *  sentence (`memberSentences`, e.g. the merged-head rewrite) is said as written, the
- *  same words the host lane says; every other family is said in ONE sentence
- *  (`NOT_SHOWN.UNMEASURED`). Answers family → sentence, the binder's `why`. */
-export function runtimeWithheldWhy(withheld, memberSentences = []) {
+ *  layer and the member saw the family vanish. Each reason the store gives is said
+ *  in plain words of its own (r1, review): the merged-head rewrite in the same words
+ *  the host lane says, an `na` style/size/position (`ENUM_NA_SENTENCE`) and the
+ *  collector reaching an object held in a list as their own sentences, any other in
+ *  ONE sentence (`NOT_SHOWN.UNMEASURED`). Families sharing a reason share a sentence.
+ *  Answers family → sentence, the binder's `why`. */
+export function runtimeWithheldWhy(withheld) {
   if (!withheld || typeof withheld !== 'object') return null
-  const own = new Set(memberSentences)
   const out = {}
-  const rest = []
+  const byCause = new Map()
   for (const fam of Object.keys(withheld).sort()) {
     const why = withheld[fam]
-    if (typeof why === 'string' && own.has(why)) out[fam] = why
-    else rest.push(fam)
+    if (why === MERGED_HEAD_REWRITE_SENTENCE) { out[fam] = why; continue }
+    const cause = runtimeWithheldCause(why)
+    if (!byCause.has(cause)) byCause.set(cause, [])
+    byCause.get(cause).push(fam)
   }
-  const t = notShownSentence(rest, NOT_SHOWN.UNMEASURED)
-  for (const fam of rest) out[fam] = t
+  for (const [cause, fams] of byCause) {
+    const t = notShownSentence(fams, cause)
+    for (const fam of fams) out[fam] = t
+  }
   return Object.keys(out).length ? out : null
+}
+
+/** The guard a runtime store reason is said under (`NOT_SHOWN`); the merged-head
+ *  rewrite keeps the host's own guard. */
+export function runtimeWithheldCause(why) {
+  if (why === MERGED_HEAD_REWRITE_SENTENCE) return 'table:merged-head-rewrite'
+  if (why === ENUM_NA_SENTENCE) return NOT_SHOWN.ENUM_NA
+  if (typeof why === 'string' && COLLECTOR_HELD_RE.test(why)) return NOT_SHOWN.COLLECTOR_HELD
+  return NOT_SHOWN.UNMEASURED
+}
+
+/** The runtime store's collector reason (`runtime/objectStore.js::collect`). */
+export const COLLECTOR_HELD_RE = /^TradingView's collector deletes the oldest /
+
+/** ⭐⭐ OZ r1 — A RUN THAT STOPPED DRAWS NOTHING, AND SAYS WHY. The host run stops on
+ *  a Pine runtime error it models (C9: TradingView stops the script and draws none);
+ *  the runtime run stops on a step no capture settles (C40, `OBJECT_UNWITNESSED`) or
+ *  withholds its drawings whole (`WITHHELD`). Each keeps its own reason; here it is
+ *  said to the member, with the code marks taken out. `kind`: `error` | `unmeasured`
+ *  | `withheld`. Keyed `*` in the binder's `why` (every family). */
+export const STOPPED_KEY = '*'
+export function stoppedRunSentence(reason, kind) {
+  const plain = String(reason || '').replace(/`/g, '').replace(/\s+/g, ' ').trim().replace(/[.\s]+$/, '')
+  if (!plain) return null
+  if (kind === 'error') {
+    return `None of this script's drawings are shown on this chart: it stops with an error here (${plain}), `
+      + 'and TradingView draws none of them then either.'
+  }
+  if (kind === 'unmeasured') {
+    return "None of this script's drawings are shown on this chart: it reaches a step whose result on "
+      + `TradingView has not been measured yet (${plain}), so none are drawn rather than a guess.`
+  }
+  return `None of this script's drawings are shown on this chart: ${plain}.`
 }

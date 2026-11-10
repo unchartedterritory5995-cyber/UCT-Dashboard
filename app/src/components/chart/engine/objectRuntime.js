@@ -46,7 +46,7 @@ const BAR_COORDS = new Set(BAR_COORD_PROPS)
 // passed. This is the seam it was built for.
 import { POOL_LIMITS, resolveCapacity, collectsAbove } from './objectPool'
 import { writeCell, spanned, MERGED_HEAD_REWRITE, MERGED_HEAD_REWRITE_SENTENCE } from './objectCells.js'
-import { NOT_SHOWN, notShownSentence } from './ast/objectLoss.js'
+import { NOT_SHOWN, notShownSentence, stoppedRunSentence, STOPPED_KEY } from './ast/objectLoss.js'
 // ⭐ A GUARD THAT READS OBJECT STATE (`{v:'bool'|'cmp'|'cross'|'get'|'size'}`, see
 // `LIVE_GUARD_KINDS`) is combined with `interpret`'s OWN operator table and its
 // OWN carried crossing step — never a second copy of either.
@@ -251,6 +251,15 @@ export function beginObjects(program, ctx) {
   const unknownAt = (op, bar) => {
     if (!readUnknown) return false
     for (const n of nodesOfOp(op)) if (readUnknown(n, bar)) return true
+    return false
+  }
+  /** ⭐ OZ r1 — the same question with the chart-clock channel taken out
+   *  (`objectColumns.js::clockSplitMask`): unknown for a reason the C36 clock note
+   *  does NOT give. A caller that cannot split answers as `unknownAt`. */
+  const readUnknownOther = typeof ctx.readUnknownOther === 'function' ? ctx.readUnknownOther : readUnknown
+  const unknownOtherAt = (op, bar) => {
+    if (!readUnknownOther) return false
+    for (const n of nodesOfOp(op)) if (readUnknownOther(n, bar)) return true
     return false
   }
   let withheldUnknown = 0
@@ -523,6 +532,11 @@ export function beginObjects(program, ctx) {
   /** ⭐ C40 — a family one of whose creates was WITHHELD (C17): TradingView may
    *  hold an object of it this run does not, so `<family>.all` is unknown. */
   const famUnknown = new Set()
+  /** ⭐ OZ r1 — of those, the families one of whose creates was withheld for a
+   *  reason the chart-clock note (C36, `bar-index:window`) does not already give the
+   *  member. `taintCause` is the reason the op being withheld right now carries. */
+  const famUnknownOther = new Set()
+  let taintCause = 'other'
   /** ⭐⭐ C9 — every `{v:'at'}` history read an op's values carry (see
    *  `MAX_BARS_BACK_CAP` in objectProgram.js), once per op. */
   const atAtoms = new Map()
@@ -1378,6 +1392,7 @@ export function beginObjects(program, ctx) {
           if (op.once) onceUnknown.add(op.site)
           siteTaint.add(op.site)
           famUnknown.add(op.family)
+          if (taintCause !== 'clock') famUnknownOther.add(op.family)
           break
         case 'update':
           for (const id of targetsOf(op.target)) taintInst(id, Object.keys(op.props || {}))
@@ -1480,7 +1495,11 @@ export function beginObjects(program, ctx) {
         if (op.indexHeld) withheldBarIndex += 1
         withheldUnknown += 1
         noteUnknownCreate(op)
+        // ⭐ OZ r1 — withheld ONLY by the chart clock (a `time(<tf>)` read C36 names,
+        // or a bar index held off the window, `bar-index:window`): the clock note says why.
+        taintCause = readsUnknownLatch(op.when) || unknownOtherAt(op, bar) ? 'other' : 'clock'
         taintOutputs(op)
+        taintCause = 'other'
         continue
       }
       // ⭐⭐ C11c — a step whose value reads an UNMEASURED window reduction on this
@@ -2178,7 +2197,7 @@ export function beginObjects(program, ctx) {
     for (const fam of Object.keys(counts)) {
       if (withheldFams.has(fam) || drawnFams.has(fam)) continue
       if (lost.has(fam)) notShown[NOT_SHOWN.NOT_CARRIED].push(fam)
-      else if (famUnknown.has(fam) || taintFams.has(fam)) notShown[NOT_SHOWN.NOT_COMPUTABLE].push(fam)
+      else if (famUnknownOther.has(fam) || taintFams.has(fam)) notShown[NOT_SHOWN.NOT_COMPUTABLE].push(fam)
     }
   }
   const notShownBy = Object.fromEntries(Object.entries(notShown).filter(([, fs]) => fs.length))
@@ -2187,7 +2206,12 @@ export function beginObjects(program, ctx) {
     const t = notShownSentence(fs, guard)
     for (const f of fs) notShownWhy[f] = t
   }
+  // ⭐⭐ OZ r1 — A STOPPED RUN DRAWS NOTHING (C9 / C40 above), AND SAYS WHY: its
+  // reason, which until now reached only the layer's meta, in the member's note.
+  const stoppedWhy = stopped ? stoppedRunSentence(reason,
+    status === OBJECT_STATUS.RUNTIME_ERROR ? 'error' : 'unmeasured') : null
   const whyOut = {
+    ...(stoppedWhy ? { [STOPPED_KEY]: stoppedWhy } : {}),
     ...notShownWhy,
     ...(cellGuards.has(MERGED_HEAD_REWRITE) && !stopped ? { table: MERGED_HEAD_REWRITE_SENTENCE } : {}),
   }

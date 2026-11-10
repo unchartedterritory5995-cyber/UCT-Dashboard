@@ -30,7 +30,7 @@ import { createFakeChart } from './fakeChart'
 import { enterMemberDoor, toProductBars, HARNESS_DEF_ID } from './vendorHarness/ourSide'
 import { objectRenderDropsFor, resetObjectRenderDrops } from '../objectRenderNotice'
 import { MERGED_HEAD_REWRITE_SENTENCE } from '../objectCells'
-import { NOT_SHOWN, notShownSentence, withRenderDrops } from '../ast/objectLoss'
+import { NOT_SHOWN, notShownSentence, withRenderDrops, STOPPED_KEY } from '../ast/objectLoss'
 import { runtimeColumnsFor } from '../runtime/runtimeColumns'
 import { __permitRuntimePaneForTests } from '../runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests } from '../runtimeKill'
@@ -62,6 +62,34 @@ const RT_MERGED = src(['var float acc = 0', 'acc += close', 'plot(acc)', 'var t 
   '    table.cell(t, 0, 0, "again")'])
 const RT_ENUM_NA = RT(['label.new(bar_index, close, str.tostring(acc, "#"), style = close > 0 ? na : label.style_label_up)'])
 const RT_OK = RT(['label.new(bar_index, close, str.tostring(acc, "#"))'])
+// RUNTIME — every bar pushes a label into a list, the script's limit is 1: TradingView's
+// collector reaches a label held only in the list (C7: unmeasured), the family is withheld.
+const RT_COLLECTOR = ['//@version=6', 'indicator("oz", overlay = true, max_labels_count = 1)',
+  'var float acc = 0', 'acc += close', 'plot(acc)', 'var arr = array.new_label()',
+  'arr.push(label.new(bar_index, close, str.tostring(acc, "#")))'].join(LF)
+// RUNTIME — a cell written outside its table: the run stops on a step no capture settles (C40).
+const RT_STOP = (col) => src(['var float acc = 0', 'acc += close', 'plot(acc)', 'var t = table.new(position.top_right, 2, 2)',
+  'if barstate.islast', `    table.cell(t, ${col}, 0, str.tostring(acc, "#"))`])
+// HOST — a history offset that goes NEGATIVE on bar 120: a Pine runtime error (C9).
+const HOST_STOP = (bad) => src([`n = bar_index == 120 ? ${bad} : 0`, 'if bar_index % 20 == 0',
+  '    label.new(bar_index, close[n], "x")', 'plot(close)'])
+// HOST — a label reading `time("60")` on a daily chart (the C36 clock note says why) beside
+// the window-ambiguity line (withheld for a reason the clock note does NOT give).
+const CLOCK_AND_OTHER = src(['var float[] w = array.new_float()', 'if close > 0', '    w.unshift(high)',
+  'if close > 0', '    w.unshift(low)', 'if w.size() > 3', '    w.pop()',
+  'if barstate.islast', '    label.new(bar_index, high, na(time("W")) ? "a" : "b")',
+  'if barstate.islast and w.size() >= 2', '    line.new(bar_index - 1, w.get(1), bar_index, w.get(1))', 'plot(close)'])
+// HOST — the same clock label beside a line placed on the FIRST bar at a `var` the lane
+// cannot compute before its warm-up off the listing (C12): withheld through `readUnknown`,
+// for a reason the clock note does not give.
+const CLOCK_AND_WARMUP = src(['var float acc = 0', 'acc := acc * 0.9 + close',
+  'if barstate.islast', '    label.new(bar_index, high, na(time("W")) ? "a" : "b")',
+  'if barstate.isfirst', '    line.new(bar_index, acc, bar_index + 1, acc)', 'plot(close)'])
+const CLOCK_ONLY = src(['if barstate.islast', '    label.new(bar_index, high, na(time("W")) ? "a" : "b")', 'plot(close)'])
+// RUNTIME — a plot that converges from any first bar (a decaying max) beside a label
+// whose text is a running total: off the listing two starts end with different drawings.
+const RT_TWO_STARTS = src(['var float m = 0', 'm := math.max(m * 0.5, close)', 'plot(m)',
+  'var float acc = 0', 'acc += close', 'if barstate.islast', '    label.new(bar_index, close, str.tostring(acc, "#"))'])
 
 beforeAll(() => {
   vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
@@ -73,7 +101,7 @@ beforeAll(() => {
 afterAll(() => { registry.registerRuntimeLane(null); vi.unstubAllEnvs() })
 afterEach(() => { cleanup(); resetObjectRenderDrops(); registry.uninstallUserDefinition(HARNESS_DEF_ID) })
 
-function mount(source, { fromListing = false } = {}) {
+function mount(source, { fromListing = false, tf = 'D' } = {}) {
   const door = enterMemberDoor(source)
   if (!door.def) throw new Error(door.refusal)
   const def = door.def
@@ -84,7 +112,7 @@ function mount(source, { fromListing = false } = {}) {
   const layerStates = []
   binder.sync({
     enabled: true, cs, instances, registry,
-    bars: toProductBars(RDDT), tf: 'D',
+    bars: toProductBars(RDDT), tf,
     symbol: { ticker: 'RDDT', exchange: 'NYSE' }, newestBarIsForming: false,
     ...(fromListing ? { historyFromListing: true } : {}),
     adjustTime: (t) => t, applyData: (series, data) => series.setData(data), plan: { fresh: true },
@@ -99,7 +127,8 @@ function mount(source, { fromListing = false } = {}) {
 
 const LOST_LABEL = notShownSentence(['label'], NOT_SHOWN.NOT_CARRIED)
 const UNKNOWN_LINE = notShownSentence(['line'], NOT_SHOWN.NOT_COMPUTABLE)
-const UNMEASURED_LABEL = notShownSentence(['label'], NOT_SHOWN.UNMEASURED)
+const ENUM_NA_LABEL = notShownSentence(['label'], NOT_SHOWN.ENUM_NA)
+const COLLECTOR_LABEL = notShownSentence(['label'], NOT_SHOWN.COLLECTOR_HELD)
 
 describe('⭐⭐ OZ — the HOST lane says why a family is shown as none', () => {
   it('⭐ a lost create: no label is drawn, and the member reads why', () => {
@@ -154,8 +183,9 @@ describe('⭐⭐ OZ — the RUNTIME lane says why a family it withheld is shown 
     expect(m.def.compute.kind).toBe('runtime')
     expect(m.def.compute.objects).toBe(true)
     expect(m.last.labels).toEqual([])
-    expect(objectRenderDropsFor(m.id).why).toEqual({ label: UNMEASURED_LABEL })
-    expect(m.text).toContain(UNMEASURED_LABEL)
+    expect(objectRenderDropsFor(m.id).why).toEqual({ label: ENUM_NA_LABEL })
+    expect(m.text).toContain(ENUM_NA_LABEL)
+    expect(m.text).not.toContain('Q-HS1')
     m.binder.teardown()
   })
 
@@ -174,6 +204,95 @@ describe('⭐⭐ OZ — the RUNTIME lane says why a family it withheld is shown 
     expect(m.last.labels.length).toBe(1)
     expect(objectRenderDropsFor(m.id)).toBe(null)
     expect(m.text).not.toContain('is shown on this chart')
+    m.binder.teardown()
+  })
+})
+
+describe("⭐⭐ OZ r1 — the runtime store's own reasons, each in its own plain words", () => {
+  it('⭐ the collector reaching a label held in a list', () => {
+    const m = mount(RT_COLLECTOR, { fromListing: true })
+    expect(m.def.compute.objects).toBe(true)
+    expect(m.last.labels).toEqual([])
+    expect(objectRenderDropsFor(m.id).why).toEqual({ label: COLLECTOR_LABEL })
+    expect(m.text).toContain(COLLECTOR_LABEL)
+    m.binder.teardown()
+  })
+})
+
+describe('⭐⭐ OZ r1 — a STOPPED run draws nothing and says why, on both lanes', () => {
+  it('⭐ host: a negative history offset stops the run (C9); the member reads the reason', () => {
+    const m = mount(HOST_STOP('-1'), { fromListing: true })
+    expect(m.def.objects).toBeTruthy()
+    expect(m.last.labels).toEqual([])
+    const why = objectRenderDropsFor(m.id).why
+    expect(Object.keys(why)).toEqual([STOPPED_KEY])
+    expect(why[STOPPED_KEY]).toMatch(/^None of this script's drawings are shown on this chart: it stops with an error here \(.*bar 120/)
+    expect(why[STOPPED_KEY]).not.toContain('`')
+    expect(m.text).toContain(why[STOPPED_KEY])
+    m.binder.teardown()
+  })
+
+  it('⛔ CONTROL — host: the offset stays 0, the labels draw, nothing is said', () => {
+    const m = mount(HOST_STOP('0'), { fromListing: true })
+    expect(m.last.labels.length).toBeGreaterThan(0)
+    expect(objectRenderDropsFor(m.id)).toBe(null)
+    m.binder.teardown()
+  })
+
+  it('⭐ runtime: a cell outside its table stops the run (C40); the member reads the reason', () => {
+    const m = mount(RT_STOP(3), { fromListing: true })
+    expect(m.def.compute.objects).toBe(true)
+    expect(m.last.tables).toEqual([])
+    const why = objectRenderDropsFor(m.id).why
+    expect(why[STOPPED_KEY]).toMatch(/^None of this script's drawings are shown on this chart: it reaches a step whose result on TradingView has not been measured yet \(table.cell addresses cell \(3, 0\) outside a 2 x 2 table\)/)
+    expect(m.text).toContain(why[STOPPED_KEY])
+    m.binder.teardown()
+  })
+
+  it('⛔ CONTROL — runtime: the cell is inside the table, it draws, nothing is said', () => {
+    const m = mount(RT_STOP(1), { fromListing: true })
+    expect(m.last.tables).toHaveLength(1)
+    expect(objectRenderDropsFor(m.id)).toBe(null)
+    m.binder.teardown()
+  })
+
+  it('⭐ runtime: drawings withheld whole off the listing (two starts disagree); the member reads the reason', () => {
+    const m = mount(RT_TWO_STARTS)
+    expect(m.def.compute.objects).toBe(true)
+    const why = objectRenderDropsFor(m.id).why
+    expect(why[STOPPED_KEY]).toMatch(/^None of this script's drawings are shown on this chart: its drawings are not drawn on a chart whose history does not start/)
+    expect(m.text).toContain(why[STOPPED_KEY])
+    m.binder.teardown()
+  })
+})
+
+describe('⭐⭐ OZ r1 — with a chart-clock note, a family withheld for ANOTHER reason is still said', () => {
+  it('⭐ the clock-withheld label is left to the clock note; the window-withheld line is named', () => {
+    const m = mount(CLOCK_AND_OTHER, { tf: '30' })
+    expect(m.last.labels).toEqual([])
+    expect(m.last.lines).toEqual([])
+    expect(objectRenderDropsFor(m.id).why).toEqual({ line: UNKNOWN_LINE })
+    expect(m.text).toContain(UNKNOWN_LINE)
+    expect(m.text).toContain('time(')
+    expect(m.text).not.toContain(notShownSentence(['label'], NOT_SHOWN.NOT_COMPUTABLE))
+    m.binder.teardown()
+  })
+
+  it('⭐ a warm-up unknown (not the clock) withholds the line through the same read: it is named', () => {
+    const m = mount(CLOCK_AND_WARMUP, { tf: '30' })
+    expect(m.def.objects).toBeTruthy()
+    expect(m.last.labels).toEqual([])
+    expect(m.last.lines).toEqual([])
+    expect(objectRenderDropsFor(m.id).why).toEqual({ line: UNKNOWN_LINE })
+    expect(m.text).toContain('time(')
+    m.binder.teardown()
+  })
+
+  it("⛔ CONTROL — the clock alone: one note (the clock's), no drawing sentence", () => {
+    const m = mount(CLOCK_ONLY, { tf: '30' })
+    expect(m.last.labels).toEqual([])
+    expect(objectRenderDropsFor(m.id)).toBe(null)
+    expect(m.text).toContain('time(')
     m.binder.teardown()
   })
 })
