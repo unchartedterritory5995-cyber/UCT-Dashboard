@@ -14,7 +14,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-export default function useStaggeredMount(ids, { limit = 3, slotTimeoutMs = 5000 } = {}) {
+export default function useStaggeredMount(ids, { limit = 3, slotTimeoutMs = 5000, slotTimeoutFor = null } = {}) {
   const [mountedIds, setMountedIds] = useState(() => new Set(ids.slice(0, limit)))
   const mountedRef = useRef(null)
   const pendingRef = useRef(null)   // mounted but not yet released (holds a slot)
@@ -27,10 +27,16 @@ export default function useStaggeredMount(ids, { limit = 3, slotTimeoutMs = 5000
   }
 
   const releaseRef = useRef(null)
+  // A per-id safety timeout, consulted when each slot is armed (a ref, so its identity can never
+  // change armTimer or admit). Undefined falls back to `slotTimeoutMs`. It only shortens a timer
+  // that already exists: admissions, and so commits, stay one per panel.
+  const slotTimeoutForRef = useRef(slotTimeoutFor)
+  slotTimeoutForRef.current = slotTimeoutFor
 
   const armTimer = useCallback((id) => {
-    if (!(slotTimeoutMs > 0)) return
-    const t = setTimeout(() => releaseRef.current?.(id), slotTimeoutMs)
+    const ms = slotTimeoutForRef.current?.(id) ?? slotTimeoutMs
+    if (!(ms > 0)) return
+    const t = setTimeout(() => releaseRef.current?.(id), ms)
     timersRef.current.set(id, t)
   }, [slotTimeoutMs])
 

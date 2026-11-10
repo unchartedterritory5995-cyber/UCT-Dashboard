@@ -29,6 +29,7 @@ import { buildWidgetEmbedAttrs } from '../../journal-2-0/lib/widgetEmbedCore'
 import { kickSnapshotWarm } from '../../journal-2-0/lib/embedArchive'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
 import { useWidgetDoor } from '../widgetDoors'
+import { PanelSlotContext } from '../panelSlot'
 import { chartJournalCapture } from './chartJournalCapture'
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 import { WORKSPACE_PICKER_TYPES, labelMap, catalogMeta } from '../../../widgets/registry'
@@ -110,6 +111,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // A host may set its own wait (chartHostOverlay.js): the screener sets 0, because it already
   // warms the rows on screen into memory and a pause there is only latency on every step.
   const hostOverlay = useContext(ChartHostOverlayContext)
+  const panelSlotReady = useContext(PanelSlotContext)
   const symDebounceMs = Number.isFinite(hostOverlay?.symbolDebounceMs) ? hostOverlay.symbolDebounceMs : 90
   const [debouncedSym, setDebouncedSym] = useState(groupSym)
   useEffect(() => {
@@ -671,6 +673,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
           // `stockChartProps` onto `StockChart`, which forwards it to
           // `ChartToolbar` → `IndicatorAlertPopover` → the `?scope=` request.
           chartId: paneChartId,
+          // The workspace's mount queue: this panel's bars are up, so the next queued one may
+          // start. Once per mount (StockChart's latch); null outside the main board.
+          onBarsReady: panelSlotReady || undefined,
           // Custom-Period Sort: drag-to-highlight mode + the completed selection,
           // tagged with THIS chart's symbol for the config popover's % readout.
           periodSelect: !!periodSortMode,

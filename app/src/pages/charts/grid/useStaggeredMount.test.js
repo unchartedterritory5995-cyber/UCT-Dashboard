@@ -53,4 +53,32 @@ describe('useStaggeredMount', () => {
     expect(result.current.mountedIds.has('c7')).toBe(false)
     expect(result.current.mountedIds.has('c0')).toBe(true)
   })
+  // Speed pass 2026-11-09: a panel with no ready signal must not hold its slot for the safety timer.
+  it('a per-id timeout frees that slot on its own schedule; everyone else keeps the default', () => {
+    vi.useFakeTimers()
+    const { result } = renderHook(() => useStaggeredMount(ids(6), {
+      limit: 3, slotTimeoutMs: 5000, slotTimeoutFor: (id) => (id === 'c0' ? 300 : undefined),
+    }))
+    expect(result.current.mountedIds.size).toBe(3)
+    act(() => { vi.advanceTimersByTime(299) })
+    expect(result.current.mountedIds.size).toBe(3)
+    act(() => { vi.advanceTimersByTime(2) })
+    expect(result.current.mountedIds.has('c3')).toBe(true)
+    expect(result.current.mountedIds.size).toBe(4)   // c1, c2 still hold theirs
+    act(() => { vi.advanceTimersByTime(4801) })
+    expect(result.current.mountedIds.size).toBe(6)
+  })
+
+  it('a per-id timeout commits once per admission, however the releases land', () => {
+    vi.useFakeTimers()
+    let commits = 0
+    const { result } = renderHook(() => {
+      commits += 1
+      return useStaggeredMount(ids(9), { limit: 3, slotTimeoutMs: 5000, slotTimeoutFor: () => 300 })
+    })
+    const seeded = commits
+    act(() => { vi.advanceTimersByTime(3000) })
+    expect(result.current.mountedIds.size).toBe(9)
+    expect(commits - seeded).toBeLessThanOrEqual(6)   // six admissions, never a loop
+  })
 })
