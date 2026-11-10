@@ -179,7 +179,6 @@ export async function readFundamentalsFacts(symbol) {
  *  carries its snapshot fields alone. -> { lines, items, source } like fundamentalsFacts. */
 export function fundamentalsUnread(symbol, e) {
   const sym = String(symbol || '').toUpperCase()
-  // eslint-disable-next-line no-console
   console.warn(`[uct-agent] stock.profile: the fundamentals read for ${sym} failed (${e?.message || 'error'}); the profile says so and states no statement figure`)
   return { lines: [`Financial statements: I couldn't read ${sym}'s financial statements from UCT's data gateway right now; no statement figure is stated.`], items: [], source: null }
 }

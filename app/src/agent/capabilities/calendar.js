@@ -50,7 +50,6 @@ async function request(u) {
       try { return { ok: true, body: await r.json() } } catch { why = 'an unreadable answer' }
     } else why = `HTTP ${r.status}`
   } catch { why = "the request didn't reach UCT" }
-  // eslint-disable-next-line no-console
   console.warn(`[uct-agent] calendar: ${u} failed (${why})`)
   return { ok: false, why }
 }

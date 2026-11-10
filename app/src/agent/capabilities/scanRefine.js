@@ -92,7 +92,6 @@ export const LAST_SCREEN_FAILED = Object.freeze({ lastScreenFailed: true })
 const unsaved = new Set()
 export function _forgetUnsavedScreens() { unsaved.clear() }
 const causeOf = (r) => (r?.status ? `HTTP ${r.status}` : (r?.error || r?.message || 'error'))
-// eslint-disable-next-line no-console
 const warnScreen = (msg) => console.warn(`[uct-agent] screener: ${msg}`)
 /** Persist the screener's last screen for the member's current conversation. Never throws, never awaited by answers. */
 export function persistLastScreen(last) {
