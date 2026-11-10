@@ -1064,6 +1064,11 @@ from api.flow_router_mount import mount_flow_routers as _mount_flow_routers  # n
 
 
 def main():
+    try:  # AI-spend ledger: set LLM_USAGE_FORWARD_URL on this service so rows reach web's ledger
+        from api.services import llm_usage
+        llm_usage.install()
+    except Exception:  # noqa: BLE001
+        logging.getLogger(__name__).warning('llm_usage install failed (non-fatal)', exc_info=True)
     log.info("worker boot starting")
     # An unreadable bars.db makes init_db raise, so repair comes first.
     try:
