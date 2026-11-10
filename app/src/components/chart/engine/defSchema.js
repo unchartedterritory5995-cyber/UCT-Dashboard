@@ -2770,7 +2770,7 @@ function validateActiveWhen(input, index, inputsByKey, errors) {
   }
 }
 
-function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
+function validatePlot(plot, index, seenKeys, inputsByKey, errors, presentationKey) {
   const path = `plots[${index}]`
   if (!isPlainObject(plot)) {
     errors.push(`${path}: expected an object, got ${fmt(plot)}`)
@@ -3182,7 +3182,7 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
   // point (`RS 96`, MarketSurge's line-end rating). Declared per plot, drawn by
   // the surface from the host series' own coordinates; fail-closed in `endLabel.js`.
   if (plot.endLabel !== undefined) validateEndLabel(plot.endLabel, `${path}.endLabel`, inputsByKey.keys(), errors)
-  validatePlotActiveWhen(plot, path, inputsByKey, errors)
+  validatePlotActiveWhen(plot, path, inputsByKey, errors, presentationKey)
 }
 
 /**
@@ -3195,16 +3195,32 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
  * column), and a second switch over the same pixels would be a second authority.
  * The key must name a declared input, for the reason `validateActiveWhen` gives.
  */
-function validatePlotActiveWhen(plot, path, inputsByKey, errors) {
+/**
+ * ⭐ UCT RS split, U7 (2026-11-09) — THE ONE EXCEPTION, AND WHY IT IS SOUND. A
+ * data plot of a SERVER definition may carry a condition keyed on a PRESENTATION
+ * input: one the definition never sends (`meta.serverInputs` does not list it),
+ * so the server cannot blank the column for it and the member's own switch is
+ * the only authority over those pixels — exactly the `fill.activeWhen` rule
+ * (design round, 2026-11-08). The slim RS Line's `rsMa` draws only while
+ * `showAverage` holds. A condition keyed on a SERVER input is still refused: the
+ * server already blanks that column, and a second switch over it would be a
+ * second authority. `presentationKey` is `(key) => boolean`, computed by the
+ * caller from the definition; absent, nothing is excepted (the pre-U7 answer).
+ */
+function validatePlotActiveWhen(plot, path, inputsByKey, errors, presentationKey) {
   const aw = plot.activeWhen
   if (aw === undefined || aw === null) return
   const where = `${path}.activeWhen`
   if (plot.style !== 'hlines') {
-    errors.push(
-      `${where}: only an "hlines" guide carries a condition — a data plot draws what its column holds, ` +
-      `and the compute blanks that column when the plot is off (got style ${fmt(plot.style)})`,
-    )
-    return
+    const key = isPlainObject(aw) && typeof aw.key === 'string' ? aw.key : null
+    const excepted = !!(key && typeof presentationKey === 'function' && presentationKey(key))
+    if (!excepted) {
+      errors.push(
+        `${where}: only an "hlines" guide carries a condition — a data plot draws what its column holds, ` +
+        `and the compute blanks that column when the plot is off (got style ${fmt(plot.style)})`,
+      )
+      return
+    }
   }
   if (!isPlainObject(aw) || typeof aw.key !== 'string') {
     errors.push(`${where}: expected {key, equals} naming a declared input, got ${fmt(aw)}`)
@@ -4105,7 +4121,15 @@ export function validateDefinition(def) {
       errors.push(`plots: expected an array, got ${fmt(out.plots)}`)
     }
     const plots = Array.isArray(out.plots) ? out.plots : []
-    plots.forEach((plot, i) => validatePlot(plot, i, plotKeyIndex, inputsByKey, errors))
+    // ⭐ U7 — a presentation input of a server definition: declared, and NOT in
+    // `meta.serverInputs` (the list the fetch is keyed by), so the server never
+    // hears of it. `validatePlotActiveWhen` says what it excepts and why.
+    const sentKeys = isPlainObject(out.compute) && out.compute.kind === 'server'
+      && isPlainObject(out.meta) && Array.isArray(out.meta.serverInputs) ? out.meta.serverInputs : null
+    const presentationKey = sentKeys
+      ? (key) => inputsByKey.has(key) && !sentKeys.includes(key)
+      : null
+    plots.forEach((plot, i) => validatePlot(plot, i, plotKeyIndex, inputsByKey, errors, presentationKey))
 
     // ─ events ─
     const eventKeyIndex = new Map()

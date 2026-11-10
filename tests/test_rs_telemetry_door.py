@@ -35,7 +35,7 @@ _JS_TEL = pathlib.Path("app/src/lib/rsTelemetry.js")
 # ── the JS, parsed ─────────────────────────────────────────────────────────
 
 def _rs_body() -> str:
-    return _JS_DEF.read_text(encoding="utf-8").split("const RS_LINE_RAW = {", 1)[1]
+    return _JS_DEF.read_text(encoding="utf-8").split("const RS_LINE_V5_RAW = {", 1)[1]
 
 
 def _js_presets() -> set:

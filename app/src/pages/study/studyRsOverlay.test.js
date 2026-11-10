@@ -8,7 +8,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
-import { computeFor, getDefinition, resolveInputs } from '../../components/chart/engine/nativeRegistry'
+import { computeFor, getDefinition, resolveInputs, RS_CLASSIC_INPUTS } from '../../components/chart/engine/nativeRegistry'
 import { cachedColumns, clearServerColumns, pickServerInputs, revMismatch, SERVER_COLUMNS_PATH } from '../../components/chart/engine/serverCompute'
 import { validateInstance } from '../../components/chart/engine/instances'
 import { legendChips, paneReadoutLabel, readoutChipName } from '../../components/chart/engine/readout'
@@ -75,10 +75,17 @@ describe('the rev comes from the definition', () => {
   })
 })
 
-describe('the Classic preset', () => {
-  it('is the definition preset, and every instance it makes validates', () => {
+describe('the Classic look', () => {
+  // ⭐ U7 (RS split): read from the registry's `RS_CLASSIC_INPUTS`, plus Show
+  // average (the drill wire carries the 21 EMA column). While the registered
+  // definition still declares presets (the build flag off), its Classic preset IS
+  // that object; the slim definition declares none.
+  it('is the registry\'s Classic object plus Show average, and every instance it makes validates', () => {
     const def = getDefinition(RS_DEF_ID)
-    expect(classicInputs()).toEqual(def.meta.presets.find((p) => p.id === 'classic').inputs)
+    expect(classicInputs()).toEqual({ ...RS_CLASSIC_INPUTS, showAverage: true })
+    if (Array.isArray(def.meta.presets)) {
+      expect(def.meta.presets.find((p) => p.id === 'classic').inputs).toEqual(RS_CLASSIC_INPUTS)
+    }
     for (const raw of [tap, pair, redDay]) {
       const it0 = served(raw)
       for (const inst of rsInstances(primeRsColumns(it0, it0.id, 'D'))) {

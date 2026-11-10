@@ -637,7 +637,7 @@ def _js_rs_line_inputs() -> dict:
     import pathlib
     import re
     src = pathlib.Path("app/src/components/chart/engine/nativeRegistry.js").read_text(encoding="utf-8")
-    body = src.split("const RS_LINE_RAW = {", 1)[1]
+    body = src.split("const RS_LINE_V5_RAW = {", 1)[1]
     block = body.split("\n  inputs: [", 1)[1].split("\n  plots: [", 1)[0]
     # Prose is not a field: drop comment lines and tooltip strings before any
     # `default:` / `min:` / `max:` is read, so a sentence can never masquerade.
@@ -1151,7 +1151,7 @@ def _js_rs_line_source() -> str:
 
 def _js_rs_readout_sources() -> list:
     import re
-    body = _js_rs_line_source().split("const RS_LINE_RAW = {", 1)[1]
+    body = _js_rs_line_source().split("const RS_LINE_V5_RAW = {", 1)[1]
     block = body.split("\n  readout: [", 1)[1].split("\n  ],", 1)[0]
     block = "\n".join(line for line in block.split("\n") if not line.lstrip().startswith("//"))
     out = []
@@ -1263,7 +1263,7 @@ def test_every_readout_source_resolves_in_a_real_provider_payload(v4_row, monkey
 
 def _js_rs_pane_table_sources() -> list:
     import re
-    body = _js_rs_line_source().split("const RS_LINE_RAW = {", 1)[1]
+    body = _js_rs_line_source().split("const RS_LINE_V5_RAW = {", 1)[1]
     block = body.split("\n    paneTable: {", 1)[1].split("\n    },", 1)[0]
     out = []
     for line in block.split("\n"):
