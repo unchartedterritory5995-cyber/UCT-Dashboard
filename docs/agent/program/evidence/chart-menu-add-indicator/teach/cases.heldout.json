@@ -1,0 +1,32 @@
+[
+ {
+  "id": "HA-1",
+  "say": "how do I add an indicator from the right-click menu",
+  "feature": "chartMenu",
+  "title": "Adding an indicator by right-click"
+ },
+ {
+  "id": "HA-2",
+  "say": "show me how to right-click the chart to add an indicator",
+  "feature": "chartMenu",
+  "title": "Adding an indicator by right-click"
+ },
+ {
+  "id": "HA-3",
+  "say": "where is add indicator in the chart menu",
+  "feature": "chartMenu",
+  "title": "Adding an indicator by right-click"
+ },
+ {
+  "id": "HA-4",
+  "say": "how do I add indicator from menu",
+  "feature": "chartMenu",
+  "title": "Adding an indicator by right-click"
+ },
+ {
+  "id": "HA-5",
+  "say": "how do I add a study by right clicking the chart",
+  "feature": "chartMenu",
+  "title": "Adding an indicator by right-click"
+ }
+]
