@@ -1332,3 +1332,38 @@ Limits: the earnings database is complete only from about 2005, so VRSN (2008) a
 on the absence of a report in the reaction window; any pre-2005 hit would be a guess and none was picked. None of the
 ten is an ETF; none shows a split or a reused ticker in the bars. The ten are the scan's winners chosen for clarity and
 spread, not a random sample: the base rate above is the honest number.
+
+
+## 13. Failures and near-misses (from our data)
+
+(Charts 2026-11-10, same scan and same render as section 12, in `_study-resume/scratchpad/setups/27-bear-gap/final/`:
+`fail_1-4.png`, `near_1-4.png`, `pair_23-news-failure.png`. The near-misses come from `near_scan.py`, the Version R
+rule re-run with the gap-day and rejection-day gates turned into flags, keeping the candidates that fail exactly one
+gate (`final/near_hits.json`, 2,630 of 2,630 names). Short = the rejection day's low less two cents (or the open if it
+gapped through); stop two cents over the rejection day's high; "where it stopped" is the first session whose high
+reached the stop. QQQ against its 50-day is read off the bars; the market reading itself is not in the scan.)
+
+**Four valid bear gap retest shorts that lost (every scan gate passed, traded by the rules).**
+
+| # | Ticker, date | The gap and the rejection | Short | Stop | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|---|
+| 1 | DIS 2015-09-10 | gap 2015-08-05 (earnings; -8.9% open, -9.2% day, 10.1x volume), the top set 1 session before the gap; rejected at the 20-day EMA on 2015-09-09, 24 sessions after the gap | 101.66 | 104.97 (3.3%) | day 5, 2015-09-17, high 105.95 | 0R: the trigger day was the low of the move. 20 sessions later the close was 104.61, 2.9% above the entry. QQQ was 3.1% under its 50-day, so the market was not the problem. | bg.earnings_breakdown (an earnings collapse straight off a fresh high, the shape he cut); bg.stop_width (3.3%, over the 3% line) |
+| 2 | CIEN 2017-09-29 | gap 2017-08-31 (earnings; -8.7%, -11.0%, 11.0x), the top 63 sessions before; rejected at the 20-day EMA on 2017-09-28, 19 sessions after the gap | 21.96 | 22.25 (1.3%) | day 1, 2017-10-02, high 22.57 | 0R, stopped the next session. QQQ closed 1.0% above its 50-day that day: no Red or Orange reading. The stock was 4.7% lower 20 sessions later, but the stop had already gone. | bg.market |
+| 3 | BMRN 2020-09-24 | gap 2020-08-19 (news; -27.6%, -35.3%, 26.6x), the top 22 sessions before; rejected at the 20-day EMA on 2020-09-23, 24 sessions after the gap | 77.40 | 80.26 (3.7%) | day 12, 2020-10-12, high 80.46 | 1.26R at best, -0.77R at the close of day 10, then through the stop. The short came 40.9% off the top, with the 20-day far under the zone. | bg.not_late; bg.time_stop (under 1R after 10 sessions: cover); bg.stop_width |
+| 4 | NFLX 2021-05-04 | gap 2021-04-21 (earnings; -7.6%, -7.4%, 6.2x), the top 63 sessions before; rejected at the gap zone on 2021-05-03, 8 sessions after the gap | 50.50 | 51.92 (2.8%) | day 36, 2021-06-24, high 52.10 | 1.86R by day 11 and never 3R. The close went back over the 20-day EMA on day 12 (2021-05-20) and the stop finally went on the close back over the 200-day. | bg.trail (the close over the average is the cover); bg.inv_200 |
+
+**Four near-misses (the chart looks like a bear gap retest short; exactly one gate fails).**
+
+| # | Ticker, date | The one criterion that fails | The number | What it really is |
+|---|---|---|---|---|
+| 1 | TSLA 2014-10-30 | bg.below_200 | the rejection day closed 5.9% above the 200-day SMA (rule: under it) | a gap in a stock still above its 200-day: a pullback in a leader, the owner's mean-reversion buy side, not a short. Stopped at 0R |
+| 2 | CMCSA 2015-09-04 | bg.gap_day | the gap day (2015-08-24) opened -6.0% but closed down only 4.2%, at 70% of its range (rule: down 5% or more, in the lower half) | a gap bought back the same day: the news failing, closer to a News Failure (23) than a bear gap. Stopped at 0R |
+| 3 | CDNS 2024-08-12 | bg.rejection_candle | the rejection day (2024-08-09) closed at 82% of its range (rule: the lower half) | a strong bounce into the 20-day with buyers in control (bg.inv_strong_bounce). Stopped at 0R |
+| 4 | VZ 2026-07-20 | bg.gap | the open was 2.1% (0.89 ATR) under the prior close (rule: at least 1 ATR or 4%) | an ordinary down day with no gap zone to defend. 0.2R, then stopped |
+
+**What the four losses have in common.** In all four the gap itself was textbook (6x to 27x volume, 7% to 35% days,
+a clean rejection candle). The loss came from what surrounded the gap: a top only one session old (DIS), a strong
+general market (CIEN), a short taken 41% off the top with the zone far overhead (BMRN), and a slow trade that needed
+the trail rather than the fixed stop (NFLX). Three of the four were stopped at 0R within five sessions; the fourth was
+a management lesson. For the member: the gap is the level, and the bounce, the market and the distance from the top
+decide the trade.

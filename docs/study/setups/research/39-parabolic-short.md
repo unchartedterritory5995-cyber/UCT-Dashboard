@@ -1164,3 +1164,41 @@ the 9 EMA, but the stock made a marginal higher high eight sessions later and th
 2021-01-26; the first climax of a mania is not always the last. SLV, AGQ and SIVR on 2026-01-26 all hit and all lost
 (stopped on the next leg up), which sides with the dossier's counter-examples in 8.10 and with keeping commodity ETFs
 out of this setup.
+
+## 14. Failures and near-misses (from our data)
+
+(Charts 2026-11-10, same scan and same render as section 13, in `_study-resume/scratchpad/setups/39-parabolic-short/final/`:
+`fail_1-4.png`, `near_1-4.png`, `pair_38-parabolic-long.png`. The strict scan has only 48 hits (27 stopped), so the
+four losses are what the data gives; they are the four clean stock climaxes among the stopped hits, in four different
+years. The near-misses come from `near_scan.py`, the section 13 rule re-run with the seven daily-bar gates (prior move,
+extension, parabolic shape, boxes, climax gap, climax volume, red close) turned into flags, keeping the days that fail
+exactly one gate and still sit 5%+ over the 9 EMA and 20%+ over the 50-day (`final/near_hits.json`, 2,630 of 2,630
+names). Short = the climax close (the daily-bar proxy); stop 0.1% plus a cent over the climax high; "where it stopped"
+is the first session whose high reached the stop. "9 EMA" is the first session whose low touched the daily 9 EMA, with
+the open R at that average.)
+
+**Four valid Parabolic Shorts that lost (every scan gate passed, traded by the proxy rules).**
+
+| # | Ticker, date | The climax | Short | Stop | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|---|
+| 1 | QCOM 1999-12-22 | +174% in 60 sessions; 12% over the 9 EMA, 55% over the 50-day, ATR x13.4; 3 of 4 boxes; gap +4.6%, 1.14x the 20-day volume high, closed at the low | 60.68 | 65.34 (7.7%) | day 3, 1999-12-28, high 66.06 | The 9 EMA on day 2 at 0.52R (the cover rule takes it there); a new high on day 3 took the stop; 20 sessions later the close was 27.7% above the entry. The first climax of a mania was not the last. | ps.window (a 1 to 2 day window, then drop the idea); ps.cover_9ema |
+| 2 | TSLA 2020-07-13 | +129%; 18%, 63%, x12.6; 3 boxes; gap +7.4%, 1.67x, closed near the low | 99.80 | 119.80 (20.0%) | day 25, 2020-08-17, high 123.06 | 0.44R at best. The 9 EMA was only touched on day 8, and by then it sat above the entry (-0.07R). Twenty-five sessions of chop under the climax high, with the report of 2020-07-23 eight sessions after entry. | ps.time_limit (no 9 EMA within 3 sessions: cover); ps.earnings (the report inside the hold) |
+| 3 | SMCI 2024-02-16 | +300%; 28%, 136%, x22.3; 4 of 4 boxes; gap +4.1%, 1.35x, closed at the low | 80.33 | 107.90 (34.3%) | day 10, 2024-03-04, high 115.50 | The 9 EMA on day 1 at 0.06R; 0.40R at best; a new high on day 10 took the stop; 20 sessions later +24.6%. Bracco's own five-star example, lost by the proxy entry. | ps.cover_9ema; ps.stop_width (a 34% stop does not fit the risk budget: skip, or the VWAP entry with its 4% median stop) |
+| 4 | RGTI 2025-09-24 | +191%; 28%, 85%, x12.3; 3 boxes but only 2 up closes before the gap; gap +3.9%, 1.11x, closed at 41% of the range | 31.64 | 34.44 (8.8%) | day 6, 2025-10-02, high 35.81 | The 9 EMA on day 5 at 0.99R; 1.14R at best; a new high on day 6 took the stop; 20 sessions later +14.0%. Fresh out of a base, Bracco's "very short lived". | ps.not_this (week 1 out of a base, day 1 or 2 of a burst) |
+
+**Four near-misses (the chart looks like a climax day; exactly one gate fails).**
+
+| # | Ticker, date | The one criterion that fails | The number | What it really is |
+|---|---|---|---|---|
+| 1 | TSLA 2020-02-03 | ps.red_close_daily | the day closed 15.8% above its open, at 95% of its range (rule: a close under the open) | a green climax day with no crack: the real top came the next day (2020-02-04). A short at that close was stopped the next session at 0R |
+| 2 | NVDA 2024-03-08 | ps.parabolic_not_linear | the last three 5-day ranges were 12.33, 5.27, 13.33: the middle week shrank (rule: each larger than the one before) | a steady leader's one-day reversal, the AAPL 2023 case of 8.10; 1.19R, then stopped |
+| 3 | AAOI 2026-03-02 | ps.burst_boxes | 2 of 4 boxes: no 3 straight up closes, no acceleration (rule: 3 of 4) | a one-day 27.7% gap after a slow rise, the News Failure shape (23); 2.16R, then stopped |
+| 4 | AVGO 2025-06-05 | ps.extension | the prior close was 6% over the 9 EMA and 31% over the 50-day (rule: 10% and 40%) | a leader at new highs, not stretched; the dip reached 3.6R before the stop, but it is a mean-reversion trade (36), not this setup |
+
+**What the four losses have in common.** The proxy's entry at the climax close put the stop 8% to 34% away, so one R
+was large and 3R was never the right yardstick: in three of the four the 9 EMA arrived within one to five sessions at
+0.06R to 0.99R, and the cover rule (ps.cover_9ema) would have closed the trade before the stop. In three of the four a
+new high came within three to ten sessions: the first climax of a mania is often not the last, which is what the 1 to
+2 day window and the three-tries cap are for. The fourth (TSLA 2020) never reached the average in three sessions and
+should have been covered by the time limit. For the member: this setup is paid at the 9 EMA, inside a few sessions, or
+not at all.

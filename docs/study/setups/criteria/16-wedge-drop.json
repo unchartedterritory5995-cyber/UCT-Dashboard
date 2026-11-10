@@ -1282,9 +1282,46 @@
     "trigger": "2023-05-15",
     "criterion": "wd.not_new_bull",
     "note": "Kell's own short trigger ('If lost 166.50'), 19% under the 200-day, a 2.1% stop; lost 1R and the stock rose 55.5% over the next 20 sessions. He had flagged it 'a laggard name. Might just be an avoid'; a strong uptrending market and the stock's own 2023 recovery ran it over."
+   },
+   {
+    "ticker": "HPQ",
+    "date": "2008-06-11",
+    "criterion": "wd.inv_reclaim",
+    "why": "a lower high under the 200-day, a 3-day stall 3.2% wide, a 2.4% stop; stopped on day 2 at 0R when the close reclaimed both EMAs (a shakeout); the slide through the 5R level came in July without the trade."
    }
   ],
-  "limits": "The RS rating, the group, the market reading and the owner's grade are not in the scan. Survivors only, which biases every short result downward. Some same-day clusters (2011-08-02, 2022-06-08 to 06-10) are one market event counted many times. Best R is the deepest point before the stop, not a realised result. Nothing here is a published statistic."
+  "limits": "The RS rating, the group, the market reading and the owner's grade are not in the scan. Survivors only, which biases every short result downward. Some same-day clusters (2011-08-02, 2022-06-08 to 06-10) are one market event counted many times. Best R is the deepest point before the stop, not a realised result. Nothing here is a published statistic.",
+  "near_misses": [
+   {
+    "ticker": "V",
+    "date": "2021-05-10",
+    "criterion": "wd.below_200",
+    "why": "the trigger close is 8.3% above the 200-day SMA: a sell signal for a long in an uptrend, not a short; 0.93R then stopped as the stock made new highs."
+   },
+   {
+    "ticker": "WFC",
+    "date": "2016-09-09",
+    "criterion": "wd.stall_tight",
+    "why": "a stall close sat 1.42 ATR from the 10-day EMA (rule: 1 ATR or less): an extension turn with no real stall, the mean-reversion short, not a Wedge Drop."
+   },
+   {
+    "ticker": "LOW",
+    "date": "2007-09-07",
+    "criterion": "wd.close_position",
+    "why": "the trigger day closed at 56% of its range (rule: the lower 40%): an undecided close under the averages; stopped at 0R."
+   },
+   {
+    "ticker": "VZ",
+    "date": "2010-06-30",
+    "criterion": "wd.stall_volume",
+    "why": "the stall's up days averaged 2.84x the volume of its down days (rule: under 1x): accumulation, not distribution; 0.54R then stopped."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_15-wedge-pop.png"
+  }
  },
  "question_seeds": [
   {

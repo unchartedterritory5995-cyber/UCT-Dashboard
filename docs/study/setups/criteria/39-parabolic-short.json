@@ -825,8 +825,51 @@
     "trigger": "2026-01-26",
     "criterion": "ps.commodity_etf",
     "note": "SLV, AGQ and SIVR all hit the scan that day and all lost, stopped on the next leg up; the case for keeping commodity ETFs out."
+   },
+   {
+    "ticker": "QCOM",
+    "date": "1999-12-22",
+    "criterion": "ps.window",
+    "why": "+174% in 60 sessions, 12% over the 9 EMA, ATR multiple 13.4, 3 boxes, gap +4.6% on the run's record volume, closed at the low; short 60.68, stop 65.34 (7.7%); the 9 EMA on day 2 at 0.52R, a new high on day 3 took the stop, 27.7% higher 20 sessions later: the first climax of the mania was not the last."
+   },
+   {
+    "ticker": "TSLA",
+    "date": "2020-07-13",
+    "criterion": "ps.time_limit",
+    "why": "+129%, 18% over the 9 EMA, 3 boxes, gap +7.4% on 1.67x the 20-day volume high; short 99.80, stop 119.80 (20.0%); 0.44R at best, the 9 EMA only on day 8 and above the entry, 25 sessions of chop to the stop on 2020-08-17, with the 2020-07-23 report inside the hold."
    }
   ],
+  "near_misses": [
+   {
+    "ticker": "TSLA",
+    "date": "2020-02-03",
+    "criterion": "ps.red_close_daily",
+    "why": "the day closed 15.8% above its open at 95% of its range (rule: a close under the open): a green climax day with no crack; the real top came the next day; a short at that close was stopped at 0R."
+   },
+   {
+    "ticker": "NVDA",
+    "date": "2024-03-08",
+    "criterion": "ps.parabolic_not_linear",
+    "why": "the last three 5-day ranges were 12.33, 5.27, 13.33, the middle week smaller (rule: each larger than the one before): a steady leader's one-day reversal; 1.19R then stopped."
+   },
+   {
+    "ticker": "AAOI",
+    "date": "2026-03-02",
+    "criterion": "ps.burst_boxes",
+    "why": "2 of 4 boxes, no 3 straight up closes and no acceleration (rule: 3 of 4): a one-day 27.7% gap after a slow rise, the News Failure shape; 2.16R then stopped."
+   },
+   {
+    "ticker": "AVGO",
+    "date": "2025-06-05",
+    "criterion": "ps.extension",
+    "why": "the prior close was 6% over the 9 EMA and 31% over the 50-day (rule: 10% and 40%): a leader at new highs, not stretched; a mean-reversion dip, not this setup."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+  "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_38-parabolic-long.png"
+  },
   "limits": "Daily bars cannot see the VWAP break, the opening volume or a premarket spike (CIFR 2025-09-25 is invisible on regular-hours bars). The close-entry proxy fills worse and risks more than Bracco's real entry. The A+, gap and four-box cuts need an out-of-sample check. Results cluster in 2020-21 and 2024-26. Survivors only, no borrow fees, no halts, no slippage. The ten examples' last six did not reach 3R and are shown for the structure."
  },
  "question_seeds": [

@@ -1299,3 +1299,38 @@ plus the ETFs in the top of the list (SPXU, SDS, SPXS, QID, IVV, SPY, EWY, EWT, 
   form". It never got past 0.34R, was stopped on day 8 (2006-02-07, its earnings reaction day) and closed 11.6% above the
   entry twenty sessions later. Heavy volume is a grading cue, not a gate, and an earnings date inside the first two weeks
   belongs in the checklist.
+
+## 14. Failures and near-misses (from our data)
+
+(Charts 2026-11-10, same scan and same render as section 13, in `_study-resume/scratchpad/setups/16-wedge-drop/final/`:
+`fail_1-4.png` (the four losses), `near_1-4.png` (the four near-misses), `pair_15-wedge-pop.png` (the confusable pair).
+The near-misses come from `near_scan.py`, the section 13 rule re-run with every gate turned into a flag, keeping the
+candidates that fail exactly one gate (`final/near_hits.json`, 2,630 of 2,630 names). Entry is the short at the trigger
+close; the stop is $0.03 over the 2-day high; "where it stopped" is the first session whose high reached the stop.)
+
+**Four valid Wedge Drops that lost (every gate passed, traded by the rules).**
+
+| # | Ticker, date | Short | Stop | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|
+| 1 | DIS 2006-01-26 | 24.74 | 25.26 (2.1%) | day 8, 2006-02-07, high 26.52 | A failed-push top, a 3-day stall, trigger volume 3.3x. 0.34R at best. The close was back above both EMAs on day 2 (2006-01-30) and the stop went on the earnings reaction day. 20 sessions later the close was 27.60, 11.6% above the entry. | wd.inv_reclaim; the 3.3x volume is a cue, not a gate (wd.trigger_volume); the report inside the first two weeks belongs in the checklist |
+| 2 | HPQ 2008-06-11 | 21.11 | 21.61 (2.4%) | day 2, 2008-06-13, high 21.83 | A lower high right under the 200-day, a 3-day stall 3.2% wide. 0R: the close reclaimed both EMAs on day 2. The slide came anyway, through the 5R level (18.61) in July, without the trade. | wd.inv_reclaim (a shakeout) |
+| 3 | GOOGL 2019-01-14 | 52.58 | 53.70 (2.1%) | day 1, 2019-01-15, high 54.41 | Stopped the next session at 0R; that close (54.33) reclaimed both EMAs. The trigger came three weeks after the December 2018 low with QQQ still under its 50-day. 20 sessions later 56.38, 7.2% above the entry. | wd.not_new_bull; wd.inv_reclaim |
+| 4 | DXCM 2022-04-18 | 120.16 | 123.03 (2.4%) | day 1, 2022-04-19, high 124.00 | An extension-plus-failed-push top and an 8-day stall 9.6% wide. Stopped at 0R by a 124.00 high, then the stock fell 32.5% in 20 sessions. | wd.wide_loose (graded down); the stop that fits 3% was the wrong stop for the name |
+
+**Four near-misses (the chart looks like a Wedge Drop; exactly one gate fails).**
+
+| # | Ticker, date | The one criterion that fails | The number | What it really is |
+|---|---|---|---|---|
+| 1 | V 2021-05-10 | wd.below_200 | the trigger close is 8.3% above the 200-day SMA | a sell signal for a long in an uptrend, not a short; the short ran 0.93R and was stopped as the stock went to new highs |
+| 2 | WFC 2016-09-09 | wd.stall_tight | a stall close sat 1.42 ATR from the 10-day EMA (rule: 1 ATR or less) | an extension turn with no real stall; the mean-reversion short (36), not a Wedge Drop. It fell anyway (3.98R before the stop) |
+| 3 | LOW 2007-09-07 | wd.close_position | the trigger day closed at 56% of its range (rule: the lower 40%) | an undecided close under the averages; wait for the next close. Shorted at the close it was stopped at 0R |
+| 4 | VZ 2010-06-30 | wd.stall_volume | the stall's up days averaged 2.84x the volume of its down days (rule: under 1x) | accumulation under flat averages, not distribution; 0.54R, then stopped as the stock rallied through the averages |
+
+**What the four losses have in common.** Three of the four were stopped inside two sessions by a close back above
+both EMAs, the 38% shakeout that section 4.3 and section 13 measured; the loss was 1R each time because the stop sat
+over the 2-day high and the stop was honoured. The other one (DXCM) was stopped by a wide-stall name whose first bounce
+exceeded a 2.4% stop and then fell 32%. Two of the four came where the setup is weakest: early in a new bull market
+(GOOGL, three weeks after the December 2018 low) and in a stock that was not weak (DIS, back above both averages in two
+sessions and 11.6% higher a month later). For the member: the Wedge Drop is a one-day event that the next day confirms
+or cancels; the close back above both averages is the exit, and a second short needs a new stall and a new close under
+both, as a new trade.

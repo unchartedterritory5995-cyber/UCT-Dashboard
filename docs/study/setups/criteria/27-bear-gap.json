@@ -1493,9 +1493,46 @@
     "trigger": "2026-01-15",
     "criterion": "bg.p_day2",
     "note": "Version P: day 2 opened 9.3% under Wednesday's close after the climax; Bracco's '3 failed attempts over 2 sessions'; the next session it fell further, then on 2026-01-20 it opened over the day-2 high."
+   },
+   {
+    "ticker": "NFLX",
+    "date": "2021-05-04",
+    "criterion": "bg.trail",
+    "why": "gap 2021-04-21 (earnings, -7.4% on 6.2x), rejected at the gap zone after 8 sessions, a 2.8% stop; 1.86R by day 11 and never 3R; the close went back over the 20-day EMA on day 12 (the trail covers there) and the fixed stop went on day 36 on the close back over the 200-day (bg.inv_200)."
    }
   ],
-  "limits": "The earnings database is complete only from about 2005, so VRSN and OI are classed as news gaps on the absence of a report. None of the ten is an ETF. The ten are the scan's winners chosen for clarity and spread; the base rate is the honest number. Survivors only, so delisted collapses are thin. The 39 bank drafts were ranked by what happened next (gap_held first) and are not a sample."
+  "limits": "The earnings database is complete only from about 2005, so VRSN and OI are classed as news gaps on the absence of a report. None of the ten is an ETF. The ten are the scan's winners chosen for clarity and spread; the base rate is the honest number. Survivors only, so delisted collapses are thin. The 39 bank drafts were ranked by what happened next (gap_held first) and are not a sample.",
+  "near_misses": [
+   {
+    "ticker": "TSLA",
+    "date": "2014-10-30",
+    "criterion": "bg.below_200",
+    "why": "the rejection day closed 5.9% above the 200-day SMA: a pullback in a leader, not a short; stopped at 0R."
+   },
+   {
+    "ticker": "CMCSA",
+    "date": "2015-09-04",
+    "criterion": "bg.gap_day",
+    "why": "the gap day opened -6.0% but closed down only 4.2%, at 70% of its range (rule: down 5% or more in the lower half): a gap bought back the same day, closer to a News Failure; stopped at 0R."
+   },
+   {
+    "ticker": "CDNS",
+    "date": "2024-08-12",
+    "criterion": "bg.rejection_candle",
+    "why": "the rejection day closed at 82% of its range (rule: the lower half): a strong bounce with buyers in control; stopped at 0R."
+   },
+   {
+    "ticker": "VZ",
+    "date": "2026-07-20",
+    "criterion": "bg.gap",
+    "why": "the open was 2.1% (0.89 ATR) under the prior close (rule: at least 1 ATR or 4%): an ordinary down day with no gap zone; 0.2R then stopped."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_23-news-failure.png"
+  }
  },
  "question_seeds": [
   {

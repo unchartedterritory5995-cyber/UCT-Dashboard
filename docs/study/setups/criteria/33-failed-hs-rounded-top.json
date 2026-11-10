@@ -1224,9 +1224,46 @@
     "trigger": "2023-03-29",
     "criterion": "fh.no_chase",
     "note": "the failure completed on an earnings gap 11.4% over the right shoulder (C28 says skip); bought anyway, -1.0R."
+   },
+   {
+    "ticker": "GILD",
+    "date": "2014-12-19",
+    "criterion": "fh.stop_gap",
+    "why": "a 67-bar pattern (shoulders 110.64 / 107.58, head 19.1% over the neckline, a 2.0% undercut), buy 107.59, stop 104.59 (2.8%); the next session opened at 96.73, under the stop, and the stock lost 20.1% within 60 sessions: the top worked, and the first 30-minute low with the 2R cap is the exit."
    }
   ],
-  "limits": "The scan is the H&S half of 8A only; no rounded-top scan was written. The stop, chase and stretch rules are house defaults with no discretion; the market reading, the RS rating and the grading were not applied, so the base rate is a floor for an ungraded signal. The earnings table was used only to flag trigger days. The house run's R results were read from the writer's summary files, not re-executed. Survivors only; no costs."
+  "limits": "The scan is the H&S half of 8A only; no rounded-top scan was written. The stop, chase and stretch rules are house defaults with no discretion; the market reading, the RS rating and the grading were not applied, so the base rate is a floor for an ungraded signal. The earnings table was used only to flag trigger days. The house run's R results were read from the writer's summary files, not re-executed. Survivors only; no costs.",
+  "near_misses": [
+   {
+    "ticker": "VGK",
+    "date": "2021-07-12",
+    "criterion": "fh.depth",
+    "why": "the head is 4.7% over the neckline (rule: 5% to 30%): a flat shelf in an uptrend, not a top; an ETF; stopped at 0R."
+   },
+   {
+    "ticker": "JPM",
+    "date": "2025-05-05",
+    "criterion": "fh.hs_structure",
+    "why": "shoulders 226.75 / 254.67, 11.0% apart (rule: within 10%): a V recovery with the right shoulder near the head, a late and high trigger; stopped at 0R."
+   },
+   {
+    "ticker": "CSCO",
+    "date": "2025-05-13",
+    "criterion": "fh.inv_deep_break",
+    "why": "a close 10.9% under the neckline before the trigger (rule: more than 10% and the top worked): a completed top and a V recovery; stopped at 0R."
+   },
+   {
+    "ticker": "AMZN",
+    "date": "2014-06-11",
+    "criterion": "fh.above_200",
+    "why": "the trigger close is 2.6% under the 200-day SMA (rule: above it, B26): a bounce inside a decline; stopped at 0R."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_28-2b-reversal.png"
+  }
  },
  "question_seeds": [
   {

@@ -998,3 +998,40 @@ name the pattern, 9 of 103, with the one inverse-H&S mention that is not this se
 **Still unverified, and said so in the text.** Brandt's 1937 date; "Charles Dow" as the pattern's origin; the simulated
 R results in 4.5 and 4.6 (the writer's scripts and outputs were read, not re-executed); the NY Fed and NBER papers
 (listed, never quoted); the owner's Discord archive entries (paraphrased from the house brain files, not from Discord).
+
+## 14. Failures and near-misses (from our data)
+
+(Charts 2026-11-10, same scan and same render as section 12, in
+`_study-resume/scratchpad/setups/33-failed-hs-rounded-top/final/`: `fail_1-4.png`, `near_1-4.png`,
+`pair_28-2b-reversal.png`. The near-misses come from `near_scan.py`, the section 12 rule re-run with the structure,
+trend, depth, length, neckline, deep-break, 200-day, 50-day, chase and stretch gates turned into flags, keeping the
+candidates that fail exactly one gate (`final/near_hits.json`, 2,630 of 2,630 names). All eight are version B. Buy =
+the trade over the right-shoulder high (or the open if it gapped over); stop 5 cents under the lower of the trigger
+day's and prior day's lows; "where it stopped" is the first session whose low reached the stop. The scan is still the
+H&S half of 8A: no rounded-top failures were charted.)
+
+**Four valid failed H&S longs that lost (every scan gate passed, traded by the rules).**
+
+| # | Ticker, date | The pattern | Buy | Stop | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|---|
+| 1 | AAPL 2026-08-28 | 51 bars, shoulders 317.40 / 320.28, head 344.57 (13.5% over the neckline), a 2.8% undercut | 320.29 | 315.40 (1.5%) | day 1, 2026-08-31, low 312.80 | 0R. The stock then rose 11% within 60 sessions without the trade. A whipsaw, not a wrong read. | fh.retries (count the tries; a second entry over the same level is allowed) |
+| 2 | CAT 2024-07-18 | 73 bars, shoulders 334.87 / 364.43 (8.1% apart), head 382.01 (15.4% over), a 6.5% undercut | 364.44 | 355.70 (2.4%) | day 1, 2024-07-19, open 355.35 (a gap under the stop) | 0R. Two months of chop followed (15.7% under the entry at the 60-session low) before the autumn run. | fh.hs_structure (uneven shoulders put the trigger near the head; graded down); fh.stop_gap |
+| 3 | DDOG 2025-01-28 | 39 bars, shoulders 133.66 / 147.64, head 170.08 (22.7% over), a 6.5% undercut; the neckline at the trigger (151.23) sits 2.4% above the buy level | 147.65 | 143.35 (2.9%) | day 1, 2025-01-29, low 141.96 | 0R, then the stock lost 44.7% within 60 sessions. | fh.neckline (a neckline above the buy point: the pattern was mis-drawn, skip) |
+| 4 | GILD 2014-12-19 | 67 bars, shoulders 110.64 / 107.58, head 116.83 (19.1% over), a 2.0% undercut | 107.59 | 104.59 (2.8%) | day 1, 2014-12-22, open 96.73 (a gap under the stop) | The fill was far under the stop; the stock lost 20.1% within 60 sessions: the top worked. | fh.stop_gap (the first 30-minute low is the new stop, out past 2R); fh.inv_after_buy |
+
+**Four near-misses (the chart looks like a failed H&S; exactly one gate fails).**
+
+| # | Ticker, date | The one criterion that fails | The number | What it really is |
+|---|---|---|---|---|
+| 1 | VGK 2021-07-12 (an ETF) | fh.depth | the head is 4.7% over the neckline (rule: 5% to 30%) | a flat shelf in an uptrend, not a top; the "failed break" was a 1.5% dip. Stopped at 0R |
+| 2 | JPM 2025-05-05 | fh.hs_structure | shoulders 226.75 / 254.67, 11.0% apart (rule: within 10% of each other) | a V-shaped recovery whose right shoulder sits near the head; the trigger is late and high. Stopped at 0R |
+| 3 | CSCO 2025-05-13 | fh.inv_deep_break | a close 10.9% under the neckline before the trigger (rule: more than 10% and the top worked) | a completed top and a full V recovery; the buy over 62.04 was stopped at 0R |
+| 4 | AMZN 2014-06-11 | fh.above_200 | the trigger close is 2.6% under the 200-day SMA (rule: above it) | a bounce inside a decline under the 200-day; B26 says no long. Stopped at 0R |
+
+**What the four losses have in common.** All four were stopped on the very next session, two of them on a gap under
+the stop. The stop under a big stock's trigger-day low is 1.5% to 2.9% away, tight against the next day's range, which
+is why the whipsaw (AAPL) and the second try matter. Two of the four (DDOG, GILD) were tops that then worked, and the
+fast failure of the buy was itself the signal: a close back under the neckline after the buy is the failure of the
+failure. The other two (AAPL, CAT) were pattern reads that the stock later rewarded without the trade. For the member:
+the trigger-day low is the stop and the failed-break low is only the invalidation line; a gap under the stop is handled
+by the 30-minute rule; and uneven shoulders or a neckline above the buy point are reasons to pass, not to adjust.
