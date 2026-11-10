@@ -94,9 +94,9 @@ READING_PARAMETERS = {
 }
 EXPLAIN_DESCRIPTION = (
     "Explain a UCT Relative Strength (RS) term in the indicator's own words: a readout card "
-    "(Rating, RS line, Last RS high, Before price, On a red day, Agreement, Regime, Checks, "
-    "Mansfield...), a glossary term (gold dot, blue dot, RS new high, Mansfield RS, rotation "
-    "quadrant, leader and laggard...) or a common myth ('RS is RSI', 'a rising RS line means the "
+    "(Benchmark, Rating, RS line, Last RS high, Before price, On a red day, Checks), a glossary "
+    "term (gold dot, blue dot, RS new high, Mansfield RS, rotation quadrant, leader and laggard, "
+    "UCT RS Rating, UCT RS Phases, UCT RS vs 21 EMA...) or a common myth ('RS is RSI', 'a rising RS line means the "
     "price is going up'). Returns the text verbatim plus the Desk lesson link when there is one. "
     "For 'is RS the same as RSI' pass 'RSI' and answer 'No, they are different things' with the "
     "returned truth; never present RSI as an alternative to RS. Call for 'what does the gold "
