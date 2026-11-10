@@ -85,3 +85,18 @@ position in reading order where a dossier numbers nothing (02, 03, 07, 08, 09, 1
 Each such card's first `conflicts` line records the map. If a section 11 is re-ordered, those citations shift. Known
 quirks: 03's S14 is a Bulkowski table header the reader counts (nothing cites it); 26's ids come from the numbered
 "Removed in checking" list inside section 11 while the card cites the unnumbered table rows by position, both in range.
+
+## 8. What the failure and near-miss run found (2026-11-10)
+
+Every setup now has four correctly traded losses and four near-misses charted, each tied to the one criterion it
+fails (176 near-misses on 176 distinct criteria, 244 failures listed on the cards, 44 confusable-pair sheets), written
+into each dossier's "Failures and near-misses (from our data)" section and the card's `examples`. Checking every pick
+against the bars and the earnings table corrected some earlier text:
+
+- **Earnings-window violations mislabelled as setup failures:** Slingshot FSLR 2013-05-06 and BIIB 2022-10-24 (report the next session; relabelled `ss.earnings_window`), Trendline IFF 2020-08-10, Capitulation WDC 2024-07-29, and the AVWAP picks JNJ 2020-07-15 and INTU 2014-05-20. The earnings gate is in no scan, so "valid" in the base rates means every scan gate passed.
+- **Bars contradicted the text:** WDAY's cup breakout closed in the lower third, not "near its high"; ULTA's cup held one wide week, not two; SEDG's gapper buy day is 2019-05-10 (05-13 is the stop day); NVDA's Go Signal stop traded in the 12:30 candle of the signal day, not the next morning; NVDA's Red to Green stop was taken in the next session's first hour, not two sessions later; RGTI's parabolic short counts 3 boxes, not 2.
+- **Stops outside the rule:** several dossier-named failures carry stops wider than the card allows (HVE NAVN, MBX, KOD, PRTA; U&R LULU 2020; Mean Reversion NFLX, IONQ, DASH; AVWAP DIS) and were not reused as by-the-rules losses.
+- **Near-misses the rules reject that then worked** (grade-question material, D-005 and the depth decisions): RIG 5.4R, COST 4.4R, ADC 6.4R, AAPL 9.3R, ENOV 20.7R, ESS 14.9R; the borderline ones are flagged in the dossier sections.
+- **Near-miss scans that found nothing:** the AVWAP U&R look-alike (3 hits in 1,162 names), Wick Play's day-1 wick and no-chase gates, Opening Drive's late trigger, Red to Green's gap ceiling; the Holy Grail's long pullback fails two gates at once, so the trigger was used instead.
+- **Intraday windows:** 40, 41 and 44 could not spread failures over different years (one 12-week window); different weeks were used.
+- **Coverage:** most near-miss scans covered the full 2,630-name universe; 06, 09, 18 and the reversal family ran on budgets or subsets (stated in each section). Enough for examples, not for a base rate.

@@ -16,6 +16,8 @@ they do not yet give the course builder is a uniform, measurable statement of ea
 4. 21 dossiers say nothing about look-alikes (Flat Base against VCP against Cup; Kicker against a plain gap).
 5. Shared words drift between dossiers: "tight", "dry-up", "prior trend", "a few cents", "high volume".
 
+**Status 2026-11-10:** all four deliverables built and committed; `CARD_NOTES.md` holds what the writers flagged and what the chart run corrected. Nothing is a ruling until the owner answers `DECISIONS.md`.
+
 ## The four deliverables
 
 | # | Deliverable | Where | Built by |
