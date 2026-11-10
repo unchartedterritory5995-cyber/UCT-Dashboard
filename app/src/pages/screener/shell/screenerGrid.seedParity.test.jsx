@@ -4,6 +4,13 @@
  * (same method as journalGrids.seedParity.test.jsx). The migration may change
  * where the sort decisions come from; it may not change one byte a member or a
  * screen reader gets, one onSort request, or one row of the live re-sort order.
+ *
+ * RE-RECORDED ONCE, BY CAUSE, 2026-11-10 (UCT RS split, fix lane F2), through `vitest -u`,
+ * never by hand. The five header entries changed in exactly one attribute, read off the
+ * snapshot's word diff: the `rs_rank` column's `title="…"` (its `desc` in
+ * `pages/screener/columnDefs.js`), which U5a rewrote from "Price-performance rank, 1-99…"
+ * to "The RS Rating, 1-99…" so the column reads as the one RS Rating the chart shows. A
+ * deliberate member-visible copy change; no element, class, order or sort state differs.
  */
 import { describe, it, expect, vi } from 'vitest'
 import { render, fireEvent, cleanup } from '@testing-library/react'
