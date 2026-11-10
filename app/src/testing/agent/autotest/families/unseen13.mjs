@@ -18,7 +18,7 @@ export function unseen13(L) {
   const l = family(L, 'u13-lists', { inv: ['C3-076', 'C3-079'], board: 'ONE', select: null })
   l('phrasing', 'throw META and AMD on the Swing list', [add('Swing', ['META', 'AMD'])], { outcome: 'change', expect: [wl('Swing', 'has', 'META'), wl('Swing', 'has', 'AMD'), wl('Swing', 'len', 3)], undo: true })
   l('phrasing', 'drop AAPL from my momentum names', [rem('Momentum', ['AAPL'])], { outcome: 'change', expect: [wl('Momentum', 'lacks', 'AAPL'), wl('Momentum', 'len', 3)], undo: true })
-  l('params', 'put COIN in Long Term', [add('Long Term', ['COIN'])], { outcome: 'change', expect: [wl('Long Term', 'has', 'COIN'), wl('Long Term', 'len', 1)], undo: true })
+  l('params', 'put AVGO in Long Term', [add('Long Term', ['AVGO'])], { outcome: 'change', expect: [wl('Long Term', 'has', 'AVGO'), wl('Long Term', 'len', 1)], undo: true })
   l('multistep', 'move MSFT from Swing over to Momentum', [rem('Swing', ['MSFT']), add('Momentum', ['MSFT'])], { outcome: 'change', expect: [wl('Momentum', 'has', 'MSFT'), wl('Momentum', 'len', 5), wl('Swing', 'len', 0)], undo: true })
   l('followup', [say('add AMD to Momentum', [add('Momentum', ['AMD'])]), say('actually, take it back out', [rem('Momentum', ['AMD'])])], null, { outcome: 'change', expect: [wl('Momentum', 'lacks', 'AMD'), wl('Momentum', 'len', 4)] })
   l('invalid', 'pull SNOW off the Swing list', [rem('Swing', ['SNOW'])], refuses({ expect: [wl('Swing', 'len', 1)] }))
