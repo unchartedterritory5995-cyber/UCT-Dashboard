@@ -1320,22 +1320,63 @@
     "ticker": "META",
     "trigger": "2020-05-11",
     "criterion": "w4b.higher_low",
-    "note": "after the March 2020 low it reclaimed the 50-day and then the 200-day, paused 13 and later 34 sessions (a second trigger on 2020-06-10), broke the pause high, and was stopped without trading above the entry both times (best 0.0R each); the real move came later from a third base. A 4B- after a V bottom can fail twice before it goes; the rule re-arms on a new pause."
+    "note": "after the March 2020 low it reclaimed the 50-day and then the 200-day, paused 13 and later 34 sessions (a second trigger on 2020-06-10), broke the pause high, and was stopped without trading above the entry both times (best 0.0R each); the real move came later from a third base. A 4B- after a V bottom can fail twice before it goes; the rule re-arms on a new pause.",
+    "stopped": "stopped 1 session after the buy, 2020-05-12, low 210.00"
    },
    {
     "ticker": "MSFT",
     "trigger": "2001-05-07",
     "criterion": "w4b.long_averages_flat",
-    "note": "a 66% Stage 4 decline from the 2000 top, a long base, 18- and 38-day pauses above the 50-day (a second trigger on 2001-06-05), both breaks stopped (0.3R, 0.6R) under a 200-day that was still falling. Room to run passed on paper, but a falling long average over the trade is a different picture from PENN's or NUS's flat ones: a grading cue."
+    "note": "a 66% Stage 4 decline from the 2000 top, a long base, 18- and 38-day pauses above the 50-day (a second trigger on 2001-06-05), both breaks stopped (0.3R, 0.6R) under a 200-day that was still falling. Room to run passed on paper, but a falling long average over the trade is a different picture from PENN's or NUS's flat ones: a grading cue.",
+    "stopped": "stopped 7 sessions after the buy, 2001-05-16, low 33.66"
    },
    {
     "ticker": "TGT",
     "trigger": "2008-09-03",
     "criterion": "w4b.market_reading",
-    "note": "two 4B- triggers in the 2008-2009 bear (the second on 2009-04-30), each under a falling 200-day, each stopped without ever trading above the entry (0.0R). The market reading, which the scan could not test, is the missing filter (B18, F65, forest to the trees)."
+    "note": "two 4B- triggers in the 2008-2009 bear (the second on 2009-04-30), each under a falling 200-day, each stopped without ever trading above the entry (0.0R). The market reading, which the scan could not test, is the missing filter (B18, F65, forest to the trees).",
+    "stopped": "stopped 1 session after the buy, 2008-09-04, low 53.71"
+   },
+   {
+    "ticker": "F",
+    "trigger": "2024-02-12",
+    "criterion": "w4b.after_entry_stop",
+    "note": "A 37.5% decline to 9.63, a higher low 3.6% above it, 70 sessions off the low, a 12-day pause; the trigger day closed near its high and the next session fell through the 3.1% stop. Best 0.0R.",
+    "stopped": "stopped 1 session after the buy, 2024-02-13, low 12.48"
    }
   ],
-  "limits": "The hit count is high because the rule fires on most 50-day-pause breakouts after any 30% decline; the ten were picked from the 5R winners by eye, so they say what a textbook one looks like, not how often it comes. No group or market reading; prices split-adjusted by the vendor; SNPS and FDX predate the earnings table. The 26-of-39-weeks time option was not tested. Two named examples (NFLX, DXCM) are not a test of the edge. Nothing here is a published statistic, and none exists for the 4B- itself."
+  "limits": "The hit count is high because the rule fires on most 50-day-pause breakouts after any 30% decline; the ten were picked from the 5R winners by eye, so they say what a textbook one looks like, not how often it comes. No group or market reading; prices split-adjusted by the vendor; SNPS and FDX predate the earnings table. The 26-of-39-weeks time option was not tested. Two named examples (NFLX, DXCM) are not a test of the edge. Nothing here is a published statistic, and none exists for the 4B- itself.",
+  "near_misses": [
+   {
+    "ticker": "BAC",
+    "date": "2020-06-04",
+    "criterion": "w4b.version_h_200",
+    "why": "close -10.2% under the 200-day on the day before the trigger; the house version (H) needs the close above it (B26). Weinstein's own version (W): a 50% decline, a 12% higher low and a 50-day reclaim with the close still 10% under the 200-day."
+   },
+   {
+    "ticker": "COST",
+    "date": "2022-07-22",
+    "criterion": "w4b.stage4",
+    "why": "at the cycle low the 150-day was rising (528.74 against 521.41 20 sessions earlier). A 34% drop under a 150-day that was still rising at the low: a pullback in an uptrend, so a Remount (13) or a pullback buy, not a Stage 4 turn."
+   },
+   {
+    "ticker": "CVX",
+    "date": "2024-11-21",
+    "criterion": "w4b.depth",
+    "why": "cycle low 21% under the 52-week high; the rule needs 30%. A 21% dip and a 50-day reclaim on a stock whose 52-week high was never far away: a pullback inside a range, not a 4B-."
+   },
+   {
+    "ticker": "AAPL",
+    "date": "2019-03-22",
+    "criterion": "w4b.higher_low",
+    "why": "no 5% rally before the higher low (the high off the low was 4.1% above it). A V off the January 2019 low: the higher low sits 6.8% above the cycle low but no 5% rally came before it, so it is one leg, not a base."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_13-ma-reclaim.png"
+  }
  },
  "question_seeds": [
   {

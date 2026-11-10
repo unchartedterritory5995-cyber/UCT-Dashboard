@@ -901,3 +901,43 @@ FDX predate the earnings table, so B22 could not be checked for them.
   falling long average over the trade is a different picture from PENN's or NUS's flat ones; a grading cue (section 9).
 - TGT 2008-09-03 and 2009-04-30: two 4B- triggers in the 2008-2009 bear, each under a falling 200-day, each stopped without ever trading above the entry (0.0R). The market
   reading, which the scan could not test, is the missing filter (B18, F65, "forest to the trees").
+
+## 13. Failures and near-misses (from our data)
+
+Charts in `_study-resume/scratchpad/setups/10-weinstein-4b/final/`: `fail_1-4.png` (the four failures, one column),
+`near_1-4.png` (the four near-misses), `pair_13-ma-reclaim.png` (a 4B- above an MA Reclaim). Every chart carries the
+same buy point (the pause high), stop, 3R and 5R lines, the pause box and the cycle-low and higher-low marks the
+winners carry, with the 50, 150 and 200-day lines. Numbers are read off the daily bars; "N sessions later" counts
+from the day after the entry day. All four failures are Version H (close above the 200-day), the version the house
+trades; the first three are the ones section 12 names.
+
+**Four failures (every rule in section 12 passed; the stop was hit before 3R).**
+
+| # | Ticker | Trigger | Buy / stop | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|
+| 1 | MSFT | 2001-05-07 | 35.59 / 33.93 (4.7%, day low) | 7 sessions later, 2001-05-16, low 33.66 | A 66% Stage 4 decline from the 2000 top to a 20.16 low, a 92-session base, an 18-day pause over the 50-day; the trigger day closed mid-range, the trade reached 0.28R and was stopped a week later. The 200-day over the trade was still falling. A second trigger on 2001-06-05 also stopped (0.63R). | w4b.long_averages_flat (a falling long average over the trade; a grading cue) |
+| 2 | TGT | 2008-09-03 | 55.50 / 53.95 (2.8%, day low) | 1 session later, 2008-09-04, low 53.71 | A 40% decline to 42.32, a higher low only 4% above it, a 13-day pause; the trigger day closed mid-range and the next session fell through the 2.8% stop. Best 0.0R, in the 2008 bear. A second trigger on 2009-04-30 did the same. | w4b.market_reading (the missing filter; not in the scan) |
+| 3 | META | 2020-05-11 | 213.22 / 210.32 (1.4%, day low) | 1 session later, 2020-05-12, low 210.00 | A 39% drop to the March 2020 low, a higher low 10% above it, 37 sessions off the low, a 13-day pause above the 50-day; the break of the pause high closed mid-range and the next day took the 1.4% stop. Best 0.0R; the second trigger on 2020-06-10 also stopped. The real move came from a third base. | w4b.higher_low (a V bottom; the rule re-arms on a new pause) |
+| 4 | F | 2024-02-12 | 12.99 / 12.59 (3.1%, day low) | 1 session later, 2024-02-13, low 12.48 | A 37.5% decline to 9.63, a higher low 3.6% above it, 70 sessions off the low, a 12-day pause; the trigger day closed near its high and the next session fell through the 3.1% stop. Best 0.0R. | w4b.after_entry_stop (nothing in the setup was wrong) |
+
+**Four near-misses (each looks like a 4B- and fails exactly one gate of the card).** Found by re-running the section
+12 scan with every gate relaxed and keeping the candidates that fail one and only one gate (2,546 of 2,630 names in
+the 420-second budget); the Version W case comes from the strict scan itself, which recorded hits under the 200-day
+for the comparison in section 12. Room to run (851), the higher low (834) and volume into the higher low (810) were
+the gates most often missed on their own.
+
+| # | Ticker | Date | The one criterion that fails | The number | What it really is |
+|---|---|---|---|---|---|
+| 1 | BAC | 2020-06-04 | w4b.version_h_200 | close -10.2% under the 200-day on the day before the trigger; the house version (H) needs the close above it (B26) | Weinstein's own version (W): a 50% decline, a 12% higher low and a 50-day reclaim with the close still 10% under the 200-day. The scan's W hits did better (30% reached 3R against 22% for H), but B26 forbids a long under the 200-day; BAC reached 3.37R. |
+| 2 | COST | 2022-07-22 | w4b.stage4 | at the cycle low the 150-day was rising (528.74 against 521.41 20 sessions earlier) | A 34% drop under a 150-day that was still rising at the low: a pullback in an uptrend, so a Remount (13) or a pullback buy, not a Stage 4 turn. Best 0.17R. |
+| 3 | CVX | 2024-11-21 | w4b.depth | cycle low 21% under the 52-week high; the rule needs 30% | A 21% dip and a 50-day reclaim on a stock whose 52-week high was never far away: a pullback inside a range, not a 4B-. Best 0.86R. |
+| 4 | AAPL | 2019-03-22 | w4b.higher_low | no 5% rally before the higher low (the high off the low was 4.1% above it) | A V off the January 2019 low: the higher low sits 6.8% above the cycle low but no 5% rally came before it, so it is one leg, not a base. Stopped at a best of 0.0R. |
+
+**What the failures have in common.** All four triggered under a 200-day that was still falling on the trigger day
+(the close was above it, as Version H requires, but the line itself had not turned), and three of the four were out
+the next session with a best of 0.0R: the break of the pause high had no follow-through at all. Two came in a bear
+market (TGT 2008, MSFT 2001) and one off a V bottom (META 2020), the three contexts the dossier already flags; F 2024
+is the plain case of a correct 4B- that lost. The stops were close (1.4% to 4.7%) and the room-to-run test passed on
+paper, so none of the four cost more than 1R; the learner's read is that a 4B- is a bottoming trade with a 22% hit
+rate at 3R, that the falling long averages overhead are the grading cue that separates these four from PENN and
+NUS, and that a second trigger after a failed one (META, MSFT, TGT all had one) is not a better trade.

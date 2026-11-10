@@ -1456,28 +1456,69 @@
     "ticker": "MA",
     "trigger": "2007-01-17",
     "criterion": "ipo.after_entry_stop",
-    "note": "listed 2006-05-25, day 161: a 6.6-week, 17% base at the IPO high, breakout on 1.6 times the base's volume, a 5% stop; stopped in the next sessions at 0R before the stock went on to a years-long advance. The textbook stock, the textbook base, and still a stop: the rule is a probability, not a promise."
+    "note": "listed 2006-05-25, day 161: a 6.6-week, 17% base at the IPO high, breakout on 1.6 times the base's volume, a 5% stop; stopped in the next sessions at 0R before the stock went on to a years-long advance. The textbook stock, the textbook base, and still a stop: the rule is a probability, not a promise.",
+    "stopped": "stopped 1 session after the buy, 2007-01-18, low 10.18"
    },
    {
     "ticker": "APTV",
     "trigger": "2012-11-02",
     "criterion": "ipo.market_reading",
-    "note": "listed 2011-11-17, day 240: a 5.6-week, 10% base, breakout on 2.8 times the base's volume with a tight 2.3% stop, stopped at 0R; the first APTV base in February 2012 had also stopped (0.99R). Two clean-looking failures in a flat 2012 market: the market reading is the missing line in the scan."
+    "note": "listed 2011-11-17, day 240: a 5.6-week, 10% base, breakout on 2.8 times the base's volume with a tight 2.3% stop, stopped at 0R; the first APTV base in February 2012 had also stopped (0.99R). Two clean-looking failures in a flat 2012 market: the market reading is the missing line in the scan.",
+    "stopped": "stopped 1 session after the buy, 2012-11-05, low 26.92"
    },
    {
     "ticker": "MDB",
     "trigger": "2018-07-24",
     "criterion": "ipo.stop_width",
-    "note": "listed 2017-10-19, day 190: a 5.4-week, 20% base, 1.8 times volume, a 6.7% stop, 0.6R and out. The stop was near the 8% ceiling, which is the risk 8.3 warns about: a wide honest stop on a volatile new issue."
+    "note": "listed 2017-10-19, day 190: a 5.4-week, 20% base, 1.8 times volume, a 6.7% stop, 0.6R and out. The stop was near the 8% ceiling, which is the risk 8.3 warns about: a wide honest stop on a volatile new issue.",
+    "stopped": "stopped 4 sessions after the buy, 2018-07-30, low 53.81"
    },
    {
     "ticker": "VRSK",
     "trigger": "2009-11-12",
     "criterion": "ipo.inv_ipo_price",
     "note": "a base inside the first 26 sessions whose low had undercut the listing-day open; stopped at or near 0R. NAVN 2026-08-27 and BIRK 2024-02-21 (0.76R) also stopped at or near 0R."
+   },
+   {
+    "ticker": "NAVN",
+    "trigger": "2026-08-27",
+    "criterion": "ipo.after_entry_stop",
+    "note": "Listed 2025-10-30; a 2-week, 7% shelf at the IPO high on day 206 broke out on 2.1x volume and closed near its high, then fell through the 4.6% stop the next session. Best 0.0R.",
+    "stopped": "stopped 1 session after the buy, 2026-08-28, low 28.43"
    }
   ],
-  "limits": "The listing day is inferred from the bars (a first-day volume signature), not from the app's listing date, so a stock whose first stored bar is a later data start is excluded by the signature rather than by knowledge of its listing. The offer price is not in the data, so the listing-day low stands in for it. RS, the market reading, earnings dates near the trigger, fundamentals and the 200-day rule were not applied. A full-day volume figure is used where a live trade would judge the pace. Nothing here is a published statistic."
+  "limits": "The listing day is inferred from the bars (a first-day volume signature), not from the app's listing date, so a stock whose first stored bar is a later data start is excluded by the signature rather than by knowledge of its listing. The offer price is not in the data, so the listing-day low stands in for it. RS, the market reading, earnings dates near the trigger, fundamentals and the 200-day rule were not applied. A full-day volume figure is used where a live trade would judge the pace. Nothing here is a published statistic.",
+  "near_misses": [
+   {
+    "ticker": "SPOT",
+    "date": "2018-05-02",
+    "criterion": "ipo.above_ipo_price",
+    "why": "base low 135.51 under the IPO open 165.90. A direct listing (2018-04-03) whose first base undercut the IPO open by 18%; the breakout on day 21 reached 0.0R."
+   },
+   {
+    "ticker": "CAVA",
+    "date": "2024-09-20",
+    "criterion": "ipo.window",
+    "why": "breakout on session 318 after listing; the rule needs 252 or fewer. A clean 3.6-week, 14% shelf on 2.2x volume, but 318 sessions after listing: a regular base on a stock past its first year (a flat base or cup, judged by its own rules)."
+   },
+   {
+    "ticker": "NWSA",
+    "date": "2013-10-24",
+    "criterion": "ipo.breakout_volume",
+    "why": "breakout volume 0.75x the base's average; the rule needs 1.4x. A spin-off listing (2013-06-19); a 6-week, 10% base at the high, but the breakout came on 0.75x the base's volume: no demand on the day."
+   },
+   {
+    "ticker": "CRWD",
+    "date": "2019-08-09",
+    "criterion": "ipo.length_min",
+    "why": "8 sessions from the IPO high to the trigger; the rule needs 10. Listed 2019-06-12; the high was taken only 8 sessions after it was set: a pause, not a base."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_04-cup-handle.png"
+  }
  },
  "question_seeds": [
   {

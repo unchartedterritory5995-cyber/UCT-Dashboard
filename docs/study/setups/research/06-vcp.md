@@ -1078,3 +1078,42 @@ mis-attributed. Each was fixed in place where the truth could be found, or remov
 the 2014 blog's "2012" credit line for the 2013 book; ChartMill's flat-base row and cheat-entry definition; Chart IQ
 relabelling a failed strict VCP as a flat base; the ATR floor-versus-ceiling conflict (8.8 line 10, question 3); the
 three VCP-mentioning Substack posts the first pass did not quote; sources 28 and 29.
+
+## 13. Failures and near-misses (from our data)
+
+Charts in `_study-resume/scratchpad/setups/06-vcp/final/`: `fail_1-4.png` (the four failures, one column),
+`near_1-4.png` (the four near-misses), `pair_01-flat-base.png` (a VCP above a flat base). Every chart carries the
+same buy point, stop, 3R and 5R lines, the base box and the T1..Tn marks the winners carry. Numbers are read off the
+daily bars; "N sessions later" counts from the day after the entry day.
+
+**Four failures (every rule in section 12 passed; the stop was hit before 3R).** All four are the ones section 12
+names; AXON 2025-02-18 (the 0.3% stop under a gap) was left out as a stop-placement case rather than a pattern failure.
+
+| # | Ticker | Trigger | Buy / stop | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|
+| 1 | ALGN | 2007-10-17 | 28.65 / 27.70 (3.3%) | 1 session later, 2007-10-18, low 27.64 | Two contractions (27.5%, 7.1%), a 59-session base, 2.3x volume through the 28.64 pivot, but the day closed at 28.14, back inside the base and in the lower third of its range; the next day's low took the stop. Best 0.0R. | vcp.squat (a breakout that closes back in the base) |
+| 2 | CMG | 2020-12-16 | 27.60 / 26.32 (4.6%) | 11 sessions later, 2021-01-04, low 26.25 | Contractions 14.2% and 4.6%, 2.0x volume, closed above the pivot mid-range: an A grade on its face. It reached 0.87R and drifted to the stop 11 sessions later. | vcp.after_entry_stop (nothing in the setup was wrong) |
+| 3 | CRWD | 2021-04-22 | 55.82 / 52.95 (5.1%) | 5 sessions later, 2021-04-29, low 52.10 | A 31.5% first contraction (inside the 40% ceiling, but deep), 1.2x volume, and a close back under the pivot (54.18 against 55.81); a 5.1% stop, hit five sessions later at a best of 0.34R. | vcp.inv_first_t_deep (a deep first leg plus a squat) |
+| 4 | META | 2024-07-05 | 522.89 / 505.97 (3.2%) | 5 sessions later, 2024-07-12, low 494.23 | Contractions 22.0% and 5.7%, 61 sessions, 1.4x volume, closed above the pivot near its high; best 1.18R, then a five-session fade through the 3.2% stop (low 494.23). | vcp.breakeven (B19 would not yet apply at 1.18R) |
+
+**Four near-misses (each looks like a VCP and fails exactly one gate of the card).** Found by re-running the section
+12 scan with every gate relaxed and keeping the candidates that fail one and only one gate; the 420-second budget
+covered 1,367 of the 2,630 liquid names (a shuffled half), enough for four clean cases. Volume dry-up was the gate
+most often missed on its own (1,853 of 3,762 single-gate near-misses), then a heavy-volume down day on the right side
+(546) and a first contraction under 10% (412).
+
+| # | Ticker | Date | The one criterion that fails | The number | What it really is |
+|---|---|---|---|---|---|
+| 1 | CAT | 2010-01-11 | vcp.ratio | T2 9.0% is 0.79x T1 11.5%; the rule needs 0.75x or less | Two pullbacks of almost the same size (11.5%, 9.0%): a wide and loose base, not a contraction. Reached 1.26R, then stopped. |
+| 2 | BIIB | 2014-05-28 | vcp.final_t | final contraction 11.5%; the rule allows at most 10% | A 24% first leg and a 12% second leg: the final pullback is still too wide to be the tight last T a VCP needs; a loose cup. Best 1.87R. |
+| 3 | AMZN | 2020-08-06 | vcp.volume_dry | final-T volume 1.13x the 50-day average, 0.89x the first T's, quietest day 0.81x; the rule needs below 1x, below the first T and a day at 0.5x or under | Two shrinking pullbacks (14%, 4%) but no dry-up: the final leg traded above the 50-day average volume with no quiet day. Stopped at a best of 0.0R. |
+| 4 | UNH | 2021-08-04 | vcp.first_t | first contraction 9.1%; the rule needs 10% to 40% | A 9% first leg: a base too shallow to contract from; by Minervini's own waiver it is a flat base, judged by the flat-base rules. Best 0.0R. |
+
+**What the failures have in common.** Two of the four (ALGN, CRWD) closed back under the pivot on the breakout day,
+the squat that 8.4 names as the worst sign in the scan, and both were out within five sessions. The other two
+(CMG, META) did everything right on the day, closed above the pivot, reached 0.87R and 1.18R, and still came back to
+the stop in five to eleven sessions: a VCP's tight stop (3.2% to 5.1% here) sits inside normal noise, which is why
+the base rate shows 85% of hits touching the stop at some point. The base itself was not the problem in any of the
+four; the first leg was deep on CRWD (31.5%) and the breakout volume light on CRWD (1.2x) and META (1.4x), both grade
+cues, not gates. The learner's read: the squat is the one sign to act on the same day; after a good close the stop is
+the exit and nothing else, and a loss on a correct VCP is the cost of the next ON or SHOP.

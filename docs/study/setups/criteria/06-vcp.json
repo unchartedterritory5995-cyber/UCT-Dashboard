@@ -1429,19 +1429,22 @@
     "ticker": "ALGN",
     "trigger": "2007-10-17",
     "criterion": "vcp.squat",
-    "note": "two contractions (27.5%, 7.1%), a 59-session base, 2.3x volume through the 28.64 pivot, but the day closed at 28.14, back inside the base; the next day's low, 27.64, took out the 27.70 stop. Best 0R. A breakout that closes back in the base is the warning sign with the worst numbers in the scan."
+    "note": "two contractions (27.5%, 7.1%), a 59-session base, 2.3x volume through the 28.64 pivot, but the day closed at 28.14, back inside the base; the next day's low, 27.64, took out the 27.70 stop. Best 0R. A breakout that closes back in the base is the warning sign with the worst numbers in the scan.",
+    "stopped": "stopped 1 session after the buy, 2007-10-18, low 27.64"
    },
    {
     "ticker": "CMG",
     "trigger": "2020-12-16",
     "criterion": "vcp.after_entry_stop",
-    "note": "contractions 14.2% and 4.6%, 2.0x volume, a close above the pivot, an A grade on its face; it reached only 0.87R and fell to the stop 11 sessions later (2021-01-04). A failure with nothing wrong in the setup: the reason the stop, not an opinion, is the exit."
+    "note": "contractions 14.2% and 4.6%, 2.0x volume, a close above the pivot, an A grade on its face; it reached only 0.87R and fell to the stop 11 sessions later (2021-01-04). A failure with nothing wrong in the setup: the reason the stop, not an opinion, is the exit.",
+    "stopped": "stopped 11 sessions after the buy, 2021-01-04, low 26.25"
    },
    {
     "ticker": "META",
     "trigger": "2024-07-05",
     "criterion": "vcp.breakeven",
-    "note": "contractions 22.0% and 5.7%, 61 sessions, 1.4x volume, a close above the pivot at 539.91 against a 522.88 pivot; best 1.18R, then stopped 5 sessions later (2024-07-12, low 494.23). The stop was 3.2% under; the breakeven move (B19) would not yet have applied at 1.18R."
+    "note": "contractions 22.0% and 5.7%, 61 sessions, 1.4x volume, a close above the pivot at 539.91 against a 522.88 pivot; best 1.18R, then stopped 5 sessions later (2024-07-12, low 494.23). The stop was 3.2% under; the breakeven move (B19) would not yet have applied at 1.18R.",
+    "stopped": "stopped 5 sessions after the buy, 2024-07-12, low 494.23"
    },
    {
     "ticker": "AXON",
@@ -1453,10 +1456,42 @@
     "ticker": "CRWD",
     "trigger": "2021-04-22",
     "criterion": "vcp.inv_first_t_deep",
-    "note": "a 31.5% first contraction, a close back under the pivot (54.18 against 55.81), a 5.1% stop; stopped after 5 sessions with a best of 0.34R. A deep first leg plus a squat: two of the warnings at once."
+    "note": "a 31.5% first contraction, a close back under the pivot (54.18 against 55.81), a 5.1% stop; stopped after 5 sessions with a best of 0.34R. A deep first leg plus a squat: two of the warnings at once.",
+    "stopped": "stopped 5 sessions after the buy, 2021-04-29, low 52.10"
    }
   ],
-  "limits": "Daily bars only, so the moment price trades through the pivot is modelled as the pivot plus a cent (or the open) with no intraday confirmation; the RS gate is a 126-day return against SPY, not an RS rating; no earnings filter (B22) and no market filter (F65); the stop is fixed for 80 sessions, so the base rate understates what the trims and the breakeven move would produce. MOG-A is Moog's class A share, a stock, not an ETF. Nothing here is a published statistic, and Minervini publishes none."
+  "limits": "Daily bars only, so the moment price trades through the pivot is modelled as the pivot plus a cent (or the open) with no intraday confirmation; the RS gate is a 126-day return against SPY, not an RS rating; no earnings filter (B22) and no market filter (F65); the stop is fixed for 80 sessions, so the base rate understates what the trims and the breakeven move would produce. MOG-A is Moog's class A share, a stock, not an ETF. Nothing here is a published statistic, and Minervini publishes none.",
+  "near_misses": [
+   {
+    "ticker": "CAT",
+    "date": "2010-01-11",
+    "criterion": "vcp.ratio",
+    "why": "T2 9.0% is 0.79x T1 11.5%; the rule needs 0.75x or less. Two pullbacks of almost the same size (11.5%, 9.0%): a wide and loose base, not a contraction."
+   },
+   {
+    "ticker": "BIIB",
+    "date": "2014-05-28",
+    "criterion": "vcp.final_t",
+    "why": "final contraction 11.5%; the rule allows at most 10%. A 24% first leg and a 12% second leg: the final pullback is still too wide to be the tight last T a VCP needs; a loose cup."
+   },
+   {
+    "ticker": "AMZN",
+    "date": "2020-08-06",
+    "criterion": "vcp.volume_dry",
+    "why": "final-T volume 1.13x the 50-day average, 0.89x the first T's, quietest day 0.81x; the rule needs below 1x, below the first T and a day at 0.5x or under. Two shrinking pullbacks (14%, 4%) but no dry-up: the final leg traded above the 50-day average volume with no quiet day."
+   },
+   {
+    "ticker": "UNH",
+    "date": "2021-08-04",
+    "criterion": "vcp.first_t",
+    "why": "first contraction 9.1%; the rule needs 10% to 40%. A 9% first leg: a base too shallow to contract from; by Minervini's own waiver it is a flat base, judged by the flat-base rules."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_01-flat-base.png"
+  }
  },
  "question_seeds": [
   {

@@ -1595,28 +1595,63 @@
     "ticker": "BX",
     "trigger": "2019-11-26",
     "criterion": "ch.stop_width",
-    "note": "a 10-week, 18%-deep cup, a 5-day handle, breakout on 4.9x volume, the heaviest in the scan; it reached 2.4R on the second session, then a one-day dip on the fifth session touched the 1.2% stop and the stock made new highs without us. A very tight trigger-day stop is cheap but fragile; the house answer is the breakeven move at 2R to 5R (B19), not a wider stop."
+    "note": "a 10-week, 18%-deep cup, a 5-day handle, breakout on 4.9x volume, the heaviest in the scan; it reached 2.4R on the second session, then a one-day dip on the fifth session touched the 1.2% stop and the stock made new highs without us. A very tight trigger-day stop is cheap but fragile; the house answer is the breakeven move at 2R to 5R (B19), not a wider stop.",
+    "stopped": "stopped 4 sessions after the buy, 2019-12-03, low 51.78"
    },
    {
     "ticker": "ULTA",
     "trigger": "2016-12-16",
     "criterion": "ch.shape_no_wild_weeks",
-    "note": "a 16-week, 19%-deep cup after a 76% run with an 8-day handle, at a glance the FFIV chart; inside the cup were two heavy-volume 10%-range weeks (the two the rule allows), and the breakout faded within days to the stop with a best of 0.9R. The ceiling of two wide weeks is the maximum, not the grade: a cup with two violent weeks is a B- base."
+    "note": "a 16-week, 19%-deep cup after a 76% run with an 8-day handle, at a glance the FFIV chart; inside the cup were a 10%-range week (the scan counts one; the rule allows two) and heavy-volume days, and the breakout faded within days to the stop with a best of 0.9R. The ceiling of two wide weeks is the maximum, not the grade: a cup with violent weeks inside it is a B- base.",
+    "stopped": "stopped 4 sessions after the buy, 2016-12-22, low 256.36"
    },
    {
     "ticker": "WDAY",
     "trigger": "2021-09-22",
     "criterion": "ch.base_count",
-    "note": "a 30-week, 23%-deep cup with an 8-day handle sitting on the 50-day; the breakout day closed near its high, then the stock fell straight through the stop (best 0.0R) and later broke out again from a lower pivot. A cup over 6 months old with the handle resting on the 50-day is a late, tired base; the base-count rule is the filter the scan cannot apply."
+    "note": "a 30-week, 23%-deep cup with an 8-day handle sitting on the 50-day; the breakout day closed in the lower third of its range (270.71 against a 273.63 buy), then the stock fell straight through the stop the next day (best 0.0R) and later broke out again from a lower pivot. A cup over 6 months old with the handle resting on the 50-day is a late, tired base; the base-count rule is the filter the scan cannot apply.",
+    "stopped": "stopped the next session, 2021-09-23, low 264.55; the breakout day closed in the lower third"
    },
    {
     "ticker": "SCHW",
     "trigger": "2024-11-06",
     "criterion": "ch.no_chase",
-    "note": "gapped over the pivot at the open, filled at the open and never traded above that fill in the window (best 0.0R); KMI 2016-09-08 did the same. A gap through a cup pivot without follow-through is what the chase limit (C28) and the 30-minute gap rule (B20) are there for."
+    "note": "gapped over the pivot at the open, filled at the open and never traded above that fill in the window (best 0.0R); KMI 2016-09-08 did the same. A gap through a cup pivot without follow-through is what the chase limit (C28) and the 30-minute gap rule (B20) are there for.",
+    "stopped": "stopped the next session, 2024-11-07, low 72.90"
    }
   ],
-  "limits": "Daily bars, weeks counted as 5 sessions. Base count, the real RS rating and group, the market reading, the 2.5x-the-index ceiling and the bear-market 50% allowance are not in the scan. Stops are evaluated on daily lows. Best R is the high before the stop, not a realised trade. ARCB 2023-07-18 (best 78R) was left out of the ten because its stop was 0.29% under the buy. Nothing here is a published statistic."
+  "limits": "Daily bars, weeks counted as 5 sessions. Base count, the real RS rating and group, the market reading, the 2.5x-the-index ceiling and the bear-market 50% allowance are not in the scan. Stops are evaluated on daily lows. Best R is the high before the stop, not a realised trade. ARCB 2023-07-18 (best 78R) was left out of the ten because its stop was 0.29% under the buy. Nothing here is a published statistic.",
+  "near_misses": [
+   {
+    "ticker": "PEP",
+    "date": "2009-10-02",
+    "criterion": "ch.cup_depth",
+    "why": "cup 6.6% deep; the rule needs 12% to 35%. A shallow shelf, closer to a flat base."
+   },
+   {
+    "ticker": "MPWR",
+    "date": "2023-06-28",
+    "criterion": "ch.cup_length_min",
+    "why": "cup 20 sessions (4.0 weeks); the rule needs 35 sessions (7 weeks). A four-week dip, not a cup."
+   },
+   {
+    "ticker": "AAPL",
+    "date": "2021-04-29",
+    "criterion": "ch.handle_drift",
+    "why": "handle lows rise +0.53 a day (a wedge); the rule needs flat or down. A wedging handle with no shakeout."
+   },
+   {
+    "ticker": "META",
+    "date": "2024-06-26",
+    "criterion": "ch.shape_u",
+    "why": "12% of the cup's bars have lows in the bottom quarter; the rule needs 30%. A V, not a U."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_01-flat-base.png"
+  }
  },
  "question_seeds": [
   {

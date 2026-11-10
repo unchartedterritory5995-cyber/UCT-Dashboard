@@ -1155,3 +1155,43 @@ chart was looked at.
 stored bar is a later data start is excluded by the volume signature rather than by knowledge of its listing. The offer
 price is not in the data, so the listing-day low stands in for it. RS, the market reading, earnings dates near the
 trigger and fundamentals were not applied. The base rate counts a fixed stop with no trims over 60 sessions.
+
+## 13. Failures and near-misses (from our data)
+
+Charts in `_study-resume/scratchpad/setups/05-ipo-base/final/`: `fail_1-4.png` (the four failures, one column),
+`near_1-4.png` (the four near-misses), `pair_04-cup-handle.png` (an IPO base above a cup with handle). Every chart
+carries the same IPO-high buy line, stop, 3R, 5R and listing-day-low lines and the base box the winners carry.
+Numbers are read off the daily bars; "N sessions later" counts from the day after the entry day. The scan found only
+57 hits (36 stopped before 3R), so the failures are what the data gives: three are the ones section 12 names, the
+fourth (NAVN) is the most recent clean stop.
+
+**Four failures (every rule in section 12 passed; the stop was hit before 3R).**
+
+| # | Ticker | Breakout | Buy / stop | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|
+| 1 | MA | 2007-01-17 | 10.96 / 10.41 (5.0%) | 1 session later, 2007-01-18, low 10.18 | Listed 2006-05-25; a 6.6-week, 17% base at the IPO high broke out on 1.6x the base's volume and closed near its high, then the next session fell through the 5% stop. Best 0.0R. The stock went on to a years-long advance. | ipo.after_entry_stop (the rule is a probability, not a promise) |
+| 2 | APTV | 2012-11-02 | 28.05 / 27.41 (2.3%) | 1 session later, 2012-11-05, low 26.92 | Listed 2011-11-17; a 5.6-week, 10% base, 2.8x volume, a tight 2.3% stop; the breakout day closed in the lower third of its range and the next session took the stop. Best 0.0R. The first APTV base, 2012-02-17, had also stopped (0.99R). | ipo.market_reading (a flat 2012 market; not in the scan) |
+| 3 | MDB | 2018-07-24 | 59.64 / 55.66 (6.7%) | 4 sessions later, 2018-07-30, low 53.81 | Listed 2017-10-19; a 5.4-week, 20% base, 1.8x volume, closed near its high; the honest stop was 6.7% away, the trade reached 0.6R and fell to the stop four sessions later. | ipo.stop_width (a wide honest stop on a volatile new issue, near the 8% ceiling) |
+| 4 | NAVN | 2026-08-27 | 30.09 / 28.70 (4.6%) | 1 session later, 2026-08-28, low 28.43 | Listed 2025-10-30; a 2-week, 7% shelf at the IPO high on day 206 broke out on 2.1x volume and closed near its high, then fell through the 4.6% stop the next session. Best 0.0R. | ipo.after_entry_stop (nothing in the setup was wrong) |
+
+**Four near-misses (each looks like an IPO base and fails exactly one gate of the card).** Found by re-running the
+section 12 scan with every gate relaxed and keeping the candidates that fail one and only one (2,630 of 2,630 names,
+224 seconds); the IPO-price case comes from the strict scan itself, whose floor was the listing-day low where the
+card's rule is the IPO price (the offer price, else the IPO open). VRSK 2009-11-12, named in section 12, is the same
+kind of case (base low under the listing-day open).
+
+| # | Ticker | Date | The one criterion that fails | The number | What it really is |
+|---|---|---|---|---|---|
+| 1 | SPOT | 2018-05-02 | ipo.above_ipo_price | base low 135.51 under the IPO open 165.90 | A direct listing (2018-04-03) whose first base undercut the IPO open by 18%; the breakout on day 21 reached 0.0R. The card's ipo.above_ipo_price says the base low stays above the IPO price. |
+| 2 | CAVA | 2024-09-20 | ipo.window | breakout on session 318 after listing; the rule needs 252 or fewer | A clean 3.6-week, 14% shelf on 2.2x volume, but 318 sessions after listing: a regular base on a stock past its first year (a flat base or cup, judged by its own rules). Best 0.77R. |
+| 3 | NWSA | 2013-10-24 | ipo.breakout_volume | breakout volume 0.75x the base's average; the rule needs 1.4x | A spin-off listing (2013-06-19); a 6-week, 10% base at the high, but the breakout came on 0.75x the base's volume: no demand on the day. Best 0.82R. |
+| 4 | CRWD | 2019-08-09 | ipo.length_min | 8 sessions from the IPO high to the trigger; the rule needs 10 | Listed 2019-06-12; the high was taken only 8 sessions after it was set: a pause, not a base. The 7% stop was hit; best 0.78R. |
+
+**What the failures have in common.** None of the four broke a rule; all four were out within four sessions, three
+of them the day after the buy with a best of 0.0R. Three broke out on volume of 1.6x to 2.1x and closed near the
+high of the day, which is what the card asks for, and still gave nothing back the next morning: on a young stock the
+breakout day's strength is not the tell it is on a seasoned one. Two carried the wide stops the setup is known for
+(5.0% and 6.7%), so the loss in dollars was larger than on a cup or flat base, which is the point of 8.3's ceiling and
+of sizing from the stop. The one line the scan cannot read, the market reading, is the one section 12 blames for
+APTV; the learner's read is that an IPO base is a probability trade with a quick answer, and the answer is more often
+no than on the older setups (26% reached 3R against 30% for the cup).

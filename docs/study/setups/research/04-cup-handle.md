@@ -1051,3 +1051,37 @@ the scan. Stops are evaluated on daily lows (a stop touched intraday counts as h
 not a realised trade. The scan ran once, in full, within its 420-second budget (about 240 seconds used); nothing was
 charted from a partial scan. ARCB 2023-07-18 (18-week cup, 3.6x breakout, best 78R) was left out of the ten because its
 trigger-day stop was 0.29% under the buy, which makes the R count meaningless for a learner.
+
+## 13. Failures and near-misses (from our data)
+
+Charts in `_study-resume/scratchpad/setups/04-cup-handle/final/`: `fail_1-4.png` (the four failures, one column),
+`near_1-4.png` (the four near-misses), `pair_01-flat-base.png` (a cup above a flat base). Every chart carries the same
+buy point, stop, 3R and 5R lines and the cup box the winners carry, so the eye can compare. Numbers are read off the
+daily bars; "stopped N sessions after the buy" counts from the day after the entry day.
+
+**Four failures (every rule above passed; the stop was hit before 3R).**
+
+| # | Ticker | Trigger | Buy / stop | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|
+| 1 | ULTA | 2016-12-16 | 260.96 / 257.75 (1.23%) | 4 sessions later, 2016-12-22, low 256.36 | 16-week, 19% cup after a 76% run, 8-day handle, 1.6x volume; the breakout day closed mid-range, the stock faded for four days and touched the stop at a best of 0.91R. The cup held a 10%-range week and heavy-volume days: a B- base. | ch.shape_no_wild_weeks (a grade cue here: 1 wide week, the ceiling is 2) |
+| 2 | BX | 2019-11-26 | 53.11 / 52.49 (1.17%) | 4 sessions later, 2019-12-03, low 51.78 | 10-week, 18% cup, 5-day handle, 4.9x volume, closed near its high; reached 2.37R on the second session, then one dip took out the 1.2% stop and the stock went on without us. | ch.stop_width (a very tight trigger-day stop is fragile; the house answer is the breakeven move, B19) |
+| 3 | WDAY | 2021-09-22 | 273.63 / 266.70 (2.53%) | the next session, 2021-09-23, low 264.55 | 30-week, 23% cup, 8-day handle resting on the 50-day; the breakout day closed in the lower third of its range (close 270.71 against a 273.63 buy) and the next day fell through the stop. Best 0.0R. | ch.base_count (a late, tired base; the scan cannot count bases) |
+| 4 | SCHW | 2024-11-06 | 74.57 / 73.36 (1.62%) | the next session, 2024-11-07, low 72.90 | 23-week, 23% cup, 6-day handle; gapped over the 72.58 pivot at the open and filled 2.7% above it, closed near its high, then fell through the stop the next day without ever trading above the fill. Best 0.0R. The stock made new highs three weeks later. | ch.no_chase (inside the 4% limit, but a gap fill with no follow-through is what C28 and the 30-minute gap rule B20 are for) |
+
+**Four near-misses (each looks like a cup with handle and fails exactly one gate of the card).**
+
+| # | Ticker | Date | The one criterion that fails | The number | What it really is |
+|---|---|---|---|---|---|
+| 1 | PEP | 2009-10-02 | ch.cup_depth | cup 6.6% deep; the rule needs 12% to 35% | A shallow shelf, 8.4 weeks, 9-day handle, 2.25x volume: closer to a flat base (01) than a cup. Best 2.5R. |
+| 2 | MPWR | 2023-06-28 | ch.cup_length_min | cup 20 sessions (4.0 weeks); the rule needs 35 sessions (7 weeks) | A four-week dip and recovery after a 64% run with a 7-day handle: too short to be a cup, a flag or a short base at best. Best 1.05R. |
+| 3 | AAPL | 2021-04-29 | ch.handle_drift | handle lows rise +0.53 a day (a wedge); the rule needs flat or down | A 13-week, 20% cup, then six days of rising lows into the pivot: a wedging handle, no shakeout. Stopped at a best of 0.0R. |
+| 4 | META | 2024-06-26 | ch.shape_u | 12% of the cup's bars have lows in the bottom quarter; the rule needs 30% | An 11-week, 22% drop and a straight climb back: a V, not a U; the 5-day handle sits on a V. Best 0.79R. |
+
+**What the failures have in common.** None of the four was wrong on the rules; three of the four were weak on the day
+of the buy. WDAY closed in the lower third of its breakout bar, SCHW gapped and could not add to its open, ULTA closed
+mid-range on 1.6x volume, and all three were out within four sessions with a best of 0.91R or less. Three of the four
+carried a stop under 1.7%, which is cheap but fragile: BX reached 2.37R before a one-day dip took it. The structure
+cues the card already grades (a wide week in the cup, a handle on the 50-day, a base older than six months) were
+present on ULTA and WDAY, and the scan's gates cannot see the base count or the market reading. The learner's read:
+a valid cup gives no promise; what it gives is a close stop and a quick answer, and a breakout day that closes weak
+or opens with a gap it cannot build on is the first sign the answer is no.
