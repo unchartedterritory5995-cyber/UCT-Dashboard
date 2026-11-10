@@ -116,12 +116,82 @@ https://claude.ai/code/session_01Dhm4qhJhGoto7iixuJEEzM
   `src/pages/charts/widgets`; 412 files). It is not a whole-tree run:
   - `Test Files 3 failed | 404 passed | 5 skipped (412)`, `Tests 4 failed | 10884 passed | 14 skipped (10902)`.
   - All four failures are the pre-existing master reds (command ×3, entitykeys golden).
-- **Outside that scope (reconciled 2026-11-10, LOCAL / SIMULATED):** a whole-tree run elsewhere found 51 test files
-  outside the scope failing on master: censuses, goldens and others, owned by other teams. The 51 were rerun here at the
-  master base `388dee7fce` and at `0d605b91fd`. Both gave `50 failed | 702 passed | 48 skipped (800)`, with an
-  identical failing set, so this branch adds no failure in them.
+- **Outside that scope (reconciled 2026-11-10, LOCAL / SIMULATED):** a partial whole-tree run elsewhere (teach-keys)
+  failed 51 test files. Those 51 were rerun here, in pl-teach-wl2, at the master base `388dee7fce` and at `0d605b91fd`:
+  - both: `Test Files 46 failed | 5 passed (51)`, `Tests 50 failed | 702 passed | 48 skipped (800)`;
+  - the 46 failing FILE NAMES are identical at both, so this branch adds no failing file;
+  - 3 of the 46 are inside the scope above and are its known reds (`Watchlists.entitykeys`, `keyListenerCensus`,
+    `shortcutRegistry`); the other 43 are outside it, belong to other teams, and are morning-report material;
+  - the 5 that pass here were teach-keys' own (3 golden manifests for its new enum id) and 2 load-only reds;
+  - the 3 census files checked (formControls.census, formControls.terminal, persistenceManifest) fail identically on
+    pl-mc-fw's own fresh install, which rules out the shared install for them;
   - `0d605b91fd..002cfb5516` changes only `teach.mjs` (the opt-in evidence capture) and docs.
-  - The 51 fail the same way on pl-mc-fw's own fresh install, so they are not environmental.
+
+  <details><summary>The 46 failing files at <code>388dee7fce</code> and <code>0d605b91fd</code> (identical)</summary>
+
+  - `src/__tests__/sourcesAreText.test.js`
+  - `src/components/StockChart.firstVisitFraming.test.jsx`
+  - `src/components/StockChart.focusWarmStep.test.jsx`
+  - `src/components/chart/engine/ast/symbolFoldParity.test.js`
+  - `src/components/chart/engine/ast/targetScriptReport.measure.test.js`
+  - `src/components/chart/engine/runtime/__tests__/hostParity.v8.rail.test.js`
+  - `src/components/chart/engine/useServerColumns.test.jsx`
+  - `src/components/provenance/freshnessAge.test.js`
+  - `src/components/provenance/panelAdoption.ratchet.test.js`
+  - `src/components/screener/reachable.test.js`
+  - `src/components/ui/formControls.census.test.js`
+  - `src/hub/writePathsTransitive.test.js`
+  - `src/lib/context/symbolLinkChannels.test.js`
+  - `src/lib/persistence/persistenceManifest.test.js`
+  - `src/lib/presentation/dataGrid/dataGridSeed.rail.test.js`
+  - `src/lib/presentation/handRolledFormatters.census.test.js`
+  - `src/lib/swallowedFetch.census.test.js`
+  - `src/noRegexLookbehind.test.js`
+  - `src/pages/Watchlists.entitykeys.test.jsx` (in scope: known red)
+  - `src/pages/command/keyListenerCensus.test.js` (in scope: known red)
+  - `src/pages/command/shortcutRegistry.test.js` (in scope: known red)
+  - `src/pages/journal-2-0/components/notebook/ChartEmbed.touchTargets.test.js`
+  - `src/pages/journal-2-0/components/notebook/frozenWorkspace.test.jsx`
+  - `src/pages/journal-2-0/components/notebook/myTools/VersionHistory.test.jsx`
+  - `src/pages/journal-2-0/lib/calloutNode.variant.test.js`
+  - `src/pages/journal-2-0/lib/captureContext.test.js`
+  - `src/pages/journal-2-0/lib/dateMentionNode.test.js`
+  - `src/pages/journal-2-0/lib/formula/offlineNeverStoresComputed.test.js`
+  - `src/pages/journal-2-0/lib/importer/evernoteLinks.test.js`
+  - `src/pages/journal-2-0/lib/importer/exportFormats.roundtrip.test.js`
+  - `src/pages/journal-2-0/lib/importer/exportRoundtrip.test.js`
+  - `src/pages/journal-2-0/lib/importer/fidelityCarryovers.roundtrip.test.js`
+  - `src/pages/journal-2-0/lib/iteratorGlobalFloor.test.js`
+  - `src/pages/journal-2-0/lib/noteBatch.jsonRoundtrip.test.js`
+  - `src/pages/journal-2-0/lib/offline/noteCopy.test.js`
+  - `src/pages/journal-2-0/lib/selectionExport.roundtrip.test.js`
+  - `src/pages/journal-2-0/lib/templateLibrary.server.test.js`
+  - `src/pages/journal-2-0/lib/widgetFormula/widgetFormula.lazy.test.js`
+  - `src/pages/journal-2-0/rawErrorSurface.test.js`
+  - `src/pages/terminal/a11y/terminalA11yStatic.test.js`
+  - `src/pages/terminal/a11y/terminalReachableContrast.test.js`
+  - `src/pages/terminal/formControls.terminal.test.js`
+  - `src/pages/terminal/themeColours.rail.test.js`
+  - `src/styles/tokens.reachable.test.js`
+  - `src/surfaces/manifest.test.js`
+  - `src/utils/jsonFetcher.test.js`
+
+  </details>
+
+## Limits, and the rail that proves each (LOCAL / SIMULATED)
+- **listRefs.js only reads.** `app/src/agent/guide/listRefs.js` touches the host in one place,
+  `host?.watchlists?.snapshot?.()` (`listNamesOf`). It writes nothing: it only rewrites the words for routing. Its one
+  caller is `capabilities/guide.js` (guide.show's fast path). Rails: `agentGuideHeldOutListNames.test.js` (a host
+  that has nothing but `watchlists.snapshot`), and `agentGuideWlWidgetRails.test.jsx` (below) on the real board.
+- **Teach only, and no workspace writes.** `agentGuideWlWidgetRails.test.jsx`, "rings a real control, names the
+  member's step, and writes nothing": no non-GET request outside `/api/agent/`, no watchlist store key written, and the
+  board's widgets byte-identical before, during and after Exit. `agentGuideTargets.test.js:113`: guide.explain and
+  guide.show are queries (`query: true`, no `apply`), so they can never change the workspace.
+- **Ask before acting.** `agentGuide.test.jsx:375` D2, "nothing runs on a guess": the board is unchanged and the
+  chart's timeframe is untouched. `agentGuidePages.test.jsx:163`, "DO IT FOR ME … says so — nothing runs".
+- **No navigation without a yes.** This branch has no page walk (#1011's revert holds; see above). A walkthrough for
+  another page only says where it lives: `agentGuidePages.test.jsx:262`, "points the member there — nothing is
+  highlighted".
 
 ## R-RAW browser evidence: the 9 title-menu cases (`docs/agent/program/evidence/teach-wl-widget/`)
 LOCAL headless Chrome on the agent harness, real CDP input, scripted model. Same format as
