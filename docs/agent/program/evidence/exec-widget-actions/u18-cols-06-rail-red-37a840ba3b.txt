@@ -1,0 +1,88 @@
+# head 37a840ba3b 2026-11-10T23:28:50Z dirty: 1 tracked file(s) modified
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+# cmd: cd app && npx vitest run src/agent/whichWidget.rules.rail.test.js
+ RUN  v4.0.18 C:/w/pl-widget/app
+ ❯ src/agent/whichWidget.rules.rail.test.js (19 tests | 2 failed) 12ms
+     ✓ "put Leaders in the NVDA watchlist" (plan picked the left one): aimed at the one linked to NVDA, no question 2ms
+     ✓ the plan already on it: acted as planned, no question 0ms
+     ✓ control: a ticker neither widget is linked to names none: asked 0ms
+     ✓ "put Leaders in the left SPY watchlist" (plan picked the right one): aimed left, no question 0ms
+     ✓ "put Leaders in the SPY watchlist": the ticker names neither: asked 0ms
+     ✓ words undefined with two Watchlist widgets: asked, never the planner's pick 0ms
+     ✓ words null with two Watchlist widgets: asked, never the planner's pick 0ms
+     ✓ words  with two Watchlist widgets: asked, never the planner's pick 0ms
+     ✓ control: one Watchlist widget and no words: nothing to ask 0ms
+     ✓ approved, words name none: runs on the widget it carries (no question) 0ms
+     ✓ control: the same words, not approved: asked 0ms
+     ✓ "hide the logos, but don't touch the watchlist" (plan: the Watchlist): refused in words; no other widget is asked about or aimed at 1ms
+     ✓ control: the same op without the negation acts on the Watchlist, no question 0ms
+     ✓ plan widget R, words name none: the one switchable widget, no question 0ms
+     ✓ plan widget null, words name none: the one switchable widget, no question 0ms
+     ✓ control: with no `can` (a setOption on the same board), both are candidates: asked 0ms
+     × the view of Swing (the plan is right): acted on, no question 4ms
+     × the plan aimed at Momentum: re-aimed at Swing, no question 2ms
+     ✓ control: "the right one" side by side is still a place 0ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  src/agent/whichWidget.rules.rail.test.js > u18-cols-06 (over-ask found by the static count): "right after" / "right before" is not a place > the view of Swing (the plan is right): acted on, no question
+AssertionError: expected { ask: { arg: 'widget', …(2) } } to be null // Object.is equality
+- Expected: 
+null
++ Received: 
+{
+  "ask": {
+    "arg": "widget",
+    "choices": [
+      {
+        "label": "Watchlist (top)",
+        "ref": "m1",
+      },
+      {
+        "label": "Watchlist (bottom)",
+        "ref": "s1",
+      },
+    ],
+    "text": "Which Watchlist — Watchlist (top) or Watchlist (bottom)?",
+  },
+}
+ ❯ src/agent/whichWidget.rules.rail.test.js:96:52
+     94|   const text = 'on the Swing list, move volume right after symbol'
+     95|   it('the view of Swing (the plan is right): acted on, no question', (…
+     96|     expect(whichWidget({ widget: 's1' }, H, text)).toBe(null)
+       |                                                    ^
+     97|   })
+     98|   it('the plan aimed at Momentum: re-aimed at Swing, no question', () …
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+ FAIL  src/agent/whichWidget.rules.rail.test.js > u18-cols-06 (over-ask found by the static count): "right after" / "right before" is not a place > the plan aimed at Momentum: re-aimed at Swing, no question
+AssertionError: expected { ask: { arg: 'widget', …(2) } } to deeply equal { args: { widget: 's1' } }
+- Expected
++ Received
+  {
+-   "args": {
+-     "widget": "s1",
++   "ask": {
++     "arg": "widget",
++     "choices": [
++       {
++         "label": "Watchlist (top)",
++         "ref": "m1",
++       },
++       {
++         "label": "Watchlist (bottom)",
++         "ref": "s1",
++       },
++     ],
++     "text": "Which Watchlist — Watchlist (top) or Watchlist (bottom)?",
+    },
+  }
+ ❯ src/agent/whichWidget.rules.rail.test.js:99:52
+     97|   })
+     98|   it('the plan aimed at Momentum: re-aimed at Swing, no question', () …
+     99|     expect(whichWidget({ widget: 'm1' }, H, text)).toEqual({ args: { w…
+       |                                                    ^
+    100|   })
+    101|   it('control: "the right one" side by side is still a place', () => {
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+ Test Files  1 failed (1)
+      Tests  2 failed | 17 passed (19)
+   Start at  18:28:52
+   Duration  1.81s (transform 835ms, setup 253ms, import 962ms, tests 12ms, environment 452ms)

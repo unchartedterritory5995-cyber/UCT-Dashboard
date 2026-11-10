@@ -85,3 +85,21 @@ describe('`can`: a Watchlist widget bound to a source cannot switch lists, so it
     expect(whichWidget({ widget: 'R', key: 'showLogos', value: false }, H, 'hide the logos in the watchlist')?.ask).toBeTruthy()
   })
 })
+
+describe('u18-cols-06 (over-ask found by the static count): "right after" / "right before" is not a place', () => {
+  // the DATA2 board's shape: a chart on the left, two Watchlist widgets stacked on the right (Momentum above, Swing below)
+  const chartW = { id: 'C', type: 'chart', x: 0, y: 0, w: 8, h: 20, color: 'A', opts: {} }
+  const stack = (id, y, name) => ({ id, type: 'watchlist', x: 16, y, w: 8, h: 10, color: 'A', opts: { watchKey: `user:${id}`, watchName: name, watchTab: 'mine' } })
+  const H = host([chartW, stack('m1', 0, 'Momentum'), stack('s1', 10, 'Swing')], { A: 'SPY' })
+  const text = 'on the Swing list, move volume right after symbol'
+  it('the view of Swing (the plan is right): acted on, no question', () => {
+    expect(whichWidget({ widget: 's1' }, H, text)).toBe(null)
+  })
+  it('the plan aimed at Momentum: re-aimed at Swing, no question', () => {
+    expect(whichWidget({ widget: 'm1' }, H, text)).toEqual({ args: { widget: 's1' } })
+  })
+  it('control: "the right one" side by side is still a place', () => {
+    const side = host([{ ...stack('m1', 0, 'Momentum'), x: 12, h: 20 }, { ...stack('s1', 0, 'Momentum'), x: 18, h: 20 }], { A: 'SPY' })
+    expect(whichWidget({ widget: 'm1' }, side, 'move volume after symbol in the right one')).toEqual({ args: { widget: 's1' } })
+  })
+})
