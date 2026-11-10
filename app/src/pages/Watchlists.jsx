@@ -1975,7 +1975,6 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     return colCfg.widths?.[k] ?? COL_META[k]?.def
   }
   // Columns in the user's chosen ORDER; flag + sym always shown, price/vol/chg unless hidden.
-  const colOrder = (Array.isArray(colCfg.order) && colCfg.order.length ? colCfg.order : DEFAULT_COL_ORDER).filter(k => COL_META[k])
   // Memoized so its reference is stable across selection-change re-renders (WatchRow is
   // React.memo — a new array here would break row memoization on every keypress).
   const orderedKeys = useMemo(() => {

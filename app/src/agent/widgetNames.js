@@ -26,7 +26,7 @@ export const AGENT_CONTROLS = {
   // C3-108 (pl-widget): leave a scan, back to the Scanner widget's picker, as its own "change scan" does (ScannerWidget onBack:
   // scanKey and scanName cleared). Picking a scan stays widget.showScan.
   scanner: [{ key: 'scan', type: 'enum', options: ['picker'], default: 'picker', path: 'scanKey', labels: { picker: 'the scan picker' },
-    words: ['leave', 'picker', 'back', 'exit'], write: (opts) => ({ ...(opts || {}), scanKey: null, scanName: null }) }],
+    words: ['leave', 'picker', 'back', 'exit'], write: (opts) => (opts?.scanKey || opts?.scanName ? { ...opts, scanKey: null, scanName: null } : opts) }],
   // C3-201: open one of the member's notes in a Notebook widget, as its own rows do (opts.noteId); the choices are the widget's own
   notebook: [{ key: 'note', type: 'enum', from: 'door', path: 'noteId' }],
   watchlist: [
