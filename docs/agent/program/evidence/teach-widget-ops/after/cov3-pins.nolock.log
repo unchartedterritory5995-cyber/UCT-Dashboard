@@ -1,0 +1,15 @@
+﻿# NO LOCK (<=25 files), BelowNormal | cmd: npx vitest run src/agent/agentGuideHeldOutCov3.test.js src/agent/agentGuideHeldOutWidgetOps.test.js src/agent/agentGuideHeldOutWlTitleMenu.test.js | head=dc4b67d574 | start 18:26:09
+# node_modules LinkType= Target=
+
+ RUN  v4.0.18 C:/w/pl-teach-wops/app
+
+ ✓ src/agent/agentGuideHeldOutWidgetOps.test.js (18 tests) 53ms
+ ✓ src/agent/agentGuideHeldOutWlTitleMenu.test.js (13 tests) 63ms
+ ✓ src/agent/agentGuideHeldOutCov3.test.js (21 tests) 77ms
+
+ Test Files  3 passed (3)
+      Tests  52 passed (52)
+   Start at  18:26:13
+   Duration  10.61s (transform 20.68s, setup 982ms, import 27.01s, tests 192ms, environment 2.80s)
+
+# exit=0 end 18:26:24
