@@ -3671,6 +3671,46 @@
    "shape": null
   },
   {
+   "name": "watchlist.exportList",
+   "domain": "watchlist",
+   "target": "board",
+   "summary": "Copy the list ONE Watchlist widget shows to the clipboard, or download it as CSV or Excel — the list menu's own Copy / Export. Excel uses an export from the member's quota.",
+   "hints": "target = the board entry; widget = the Watchlist widget's id, or null when only one; format = clipboard | csv | xlsx.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "format": {
+      "type": "string",
+      "enum": [
+       "clipboard",
+       "csv",
+       "xlsx"
+      ]
+     }
+    },
+    "required": [
+     "widget",
+     "format"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "widget.showScan",
    "domain": "widget",
    "target": "board",

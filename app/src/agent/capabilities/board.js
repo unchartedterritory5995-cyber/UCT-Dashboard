@@ -235,12 +235,14 @@ export const boardKind = {
   name: 'board',
   list: (host) => { const s = snapOf(host); return s ? [s] : [] },
   read: (host, ref) => (ref === 'board' ? snapOf(host) : null),
-  stateOf: (s) => ({ board: clone(s.raw), layoutTheme: s.layoutTheme ?? null, did: [], adds: [], grid: null, doors: clone(s.doors || {}), sends: [], itemOps: [] }),
+  stateOf: (s) => ({ board: clone(s.raw), layoutTheme: s.layoutTheme ?? null, did: [], adds: [], grid: null, doors: clone(s.doors || {}), sends: [], outs: [], itemOps: [] }),
   patch(before, after) {
     // chartGrid.set: its own write (charts added, cells, links and tickers together), alone
     if (after.grid) return after.grid.noop ? null : { grid: clone(after.grid) }
     // widget.sendToJournal: nothing on the board changes
     if ((after.sends || []).length) return { sends: clone(after.sends) }
+    // watchlist.exportList: nothing on the board changes either (the list menu's own Copy / Export)
+    if ((after.outs || []).length) return { outs: clone(after.outs) }
     const removed = before.board.filter(w => !after.board.some(x => x.id === w.id)).map(w => w.id)
     const set = {}
     for (const w of after.board) {
@@ -292,6 +294,7 @@ export const boardKind = {
       return { undoData: { added } }
     }
     if (patch.sends) return sendToJournal(host, patch.sends)
+    if (patch.outs) return listOut(host, patch.outs)
     const { doors, itemOps, ...rest } = patch
     if (itemOps) await writeItemOps(host, itemOps)
     if (doors) await writeDoors(host, doors)
@@ -301,6 +304,7 @@ export const boardKind = {
   landed(snap, patch) {
     if (!snap) return false
     if (patch.sends) return true                   // nothing on the board to read: commit threw if the Journal refused
+    if (patch.outs) return true                    // the same: commit threw unless the clipboard / download resolved
     if (patch.grid) return gridLanded(snap, patch.grid)
     if (patch.gridUndo) return gridUndone(snap, patch.gridUndo)
     if (patch.add) return patch.add.every(a => snap.raw.some(w => w.type === a.type && same(w.opts?.watchKey, a.opts?.watchKey)))
@@ -324,6 +328,7 @@ export const boardKind = {
     // chartGrid.set: exactly what its commit recorded (the charts it added, the cells, links and tickers it changed)
     if (p.grid) return item.undoData?.grid ? { gridUndo: clone(item.undoData.grid) } : null
     if (p.sends) return null                       // a capture stays until the member deletes it, as at the door
+    if (p.outs) return null                        // a copy or a download changes nothing in the workspace: nothing to undo
     // A widget this change ADDED: Undo removes exactly it (the board writer's remove).
     if (p.add) return item.undoData?.added?.length ? { remove: [...item.undoData.added] } : null
     // ⛔ AUDIT S1-C: an item delete (or create) offers NO Undo; a rename goes back by the inverse rename of that one item
@@ -428,6 +433,29 @@ async function writeItemOps(host, ops) {
     const list = () => { const v = host.widgets.door?.(o.widget)?.read?.()?.[o.key]; return Array.isArray(v) ? v : [] }
     if (!(await settle(() => itemOpLanded(list(), o)))) throw new Error(`the ${o.op} of “${o.label}” did not go through`)
   }
+}
+// watchlist group D: the list menu's own Copy / Export, through the Watchlist widget's door (Watchlists.jsx listOut / copyList /
+// exportList — the menu's handlers). "Copied" only once the clipboard write RESOLVED; a refusal fails the change in words.
+const OUT_WORD = { clipboard: 'Copied', csv: 'Downloaded a CSV of', xlsx: 'Downloaded an Excel file of' }
+async function listOut(host, outs) {
+  const lines = []
+  for (const { id, format } of outs) {
+    const door = host.widgets.door?.(id)
+    const lo = door?.listOut?.()
+    if (!lo) throw new Error('That Watchlist widget has no list menu to copy or export from right now')
+    try {
+      const r = format === 'clipboard' ? door.copyList() : door.exportList(format)
+      if (r == null) throw new Error('not offered')
+      await r
+    } catch {
+      throw new Error(format === 'clipboard'
+        ? 'Your browser did not let me copy to the clipboard, so nothing was copied — use the list menu’s “Copy list to clipboard” (right-click the list title)'
+        : format === 'xlsx' ? 'The Excel export did not finish, so nothing was downloaded — try the list menu’s “Export Excel”'
+          : 'The CSV export did not run, so nothing was downloaded — use the list menu’s “Export CSV”')
+    }
+    lines.push(`${OUT_WORD[format]} “${lo.name || 'the list'}”${format === 'clipboard' ? ' to your clipboard' : ''}`)
+  }
+  return { lines }
 }
 // The door's own capture and the Journal's one send path. The receipt is the Journal's own line; a refusal fails the change.
 const SENT = /\b(?:sent to|captured|started)\b/
@@ -1390,6 +1418,8 @@ export function registerBoardCapabilities() {
   // list or the mode; Undo puts the previous watchKey back exactly). A colour-tag list has no door in the widget: refused. A name
   // that matches nothing (or several) is said with the near names — never picked. Several widgets and none named: asked.
   const SHOW_SOURCES = ['mine', 'prebuilt', 'community', 'flagged', 'picker', 'tag']
+  const TAG_ASK = /^(?:please\s+)?(?:(?:colou?r[-\s]?)?tag|mark|give)\s+\$?[a-z]{1,5}\s+(?:with\s+)?(?:an?\s+)?(?:red|blue|green|yellow|orange|purple|pink)(?:\s+tag)?[.!]?$/
+  const TAG_SAY = 'Colour tags can\'t be set from the Charts watchlist widget — tickers are colour-tagged in the Journal (its ticker tags). Nothing changed.'
   const SOURCE_WORD = { mine: 'your list', prebuilt: 'UCT prebuilt list', community: 'community list' }
   const showable = (st, env) => st.board.filter(w => w.type === 'watchlist' && !w.opts?.source && !w.opts?.listSub
     && !(env?.target?.detached || []).includes(String(w.id)))
@@ -1431,6 +1461,10 @@ export function registerBoardCapabilities() {
   reg({
     ...common,
     name: 'watchlist.showList',
+    // C3-090 (Lead 2026-11-09): a COLOUR TAG on a ticker is not available from the Charts watchlist widget — said in fixed words,
+    // naming where it exists (the Journal's ticker tags), never navigating and never changing anything
+    fastWhole: true,
+    fast: ({ lower }) => (TAG_ASK.test(String(lower || '').trim()) ? { __say: TAG_SAY } : null),
     summary: 'Make ONE Watchlist widget show a list exactly as its picker does: one of the member\'s lists, a UCT prebuilt or community list, Flagged — or go back to its list picker. Undo puts back what it showed.',
     hints: 'target = the board entry; widget = the Watchlist widget\'s id, or null when only one; source = mine | prebuilt | community | flagged | picker (tag = a colour tag: refused); name = the list\'s name as said, null for flagged / picker.',
     args: { type: 'object', properties: { widget: { type: ['string', 'null'] }, source: { type: 'string', enum: SHOW_SOURCES }, name: { type: ['string', 'null'] } }, required: ['widget', 'source', 'name'], additionalProperties: false },
@@ -1463,6 +1497,45 @@ export function registerBoardCapabilities() {
       return `${where[0].toUpperCase()}${where.slice(1)} now shows “${sh.name}”${SOURCE_WORD[sh.source] ? ` (${SOURCE_WORD[sh.source]})` : ''}`
     },
     noop: (st, _a, { source, name } = {}) => (source === 'picker' ? 'That Watchlist widget is already on its list picker' : `It already shows “${name || 'Flagged'}”`),
+  })
+
+  // ── watchlist.exportList (pl-exec, watchlist group D; Lead decisions 2026-11-09): the list menu's own Copy list to clipboard /
+  // Export CSV / Export Excel on the list ONE Watchlist widget shows — the same handlers and conditions (Copy: any list it has a
+  // menu for; Export: the member's own lists; Excel: only with the export quota, and always proposed first: it spends one).
+  // Nothing in the workspace changes, so there is no Undo. "Copied" only once the write resolved.
+  const OUT_FORMATS = ['clipboard', 'csv', 'xlsx']
+  reg({
+    ...common,
+    name: 'watchlist.exportList',
+    undo: 'none',
+    undoNote: 'Copying or exporting a list changes nothing in your workspace, so there is nothing to undo.',
+    summary: 'Copy the list ONE Watchlist widget shows to the clipboard, or download it as CSV or Excel — the list menu\'s own Copy / Export. Excel uses an export from the member\'s quota.',
+    hints: 'target = the board entry; widget = the Watchlist widget\'s id, or null when only one; format = clipboard | csv | xlsx.',
+    args: { type: 'object', properties: { widget: { type: ['string', 'null'] }, format: { type: 'string', enum: OUT_FORMATS } }, required: ['widget', 'format'], additionalProperties: false },
+    confirmIf: (st, { format } = {}) => format === 'xlsx',                     // a quota is spent: shown first, never silently
+    check(st, args, env) {
+      const t = showTarget(st, args.widget, env)
+      if (t.why) return t.why
+      const lo = (() => { try { return doorFor(env, t.w)?.listOut?.() || null } catch { return null } })()
+      if (!lo) return 'That Watchlist widget has no list menu right now (a prebuilt, tag or scan list has none), so there is nothing I can copy or export from it.'
+      if (args.format !== 'clipboard' && !lo.own) return `Export works on your own lists only (as the list menu offers it) — “${lo.name || 'this list'}” isn't one. I can copy it to your clipboard instead.`
+      if (args.format === 'xlsx' && !lo.xlsx) return 'Excel export isn\'t available on your account right now (no export quota), so nothing was downloaded — CSV works without one.'
+      if (st.outs.some(o => o.id === t.w.id && o.format === args.format)) return 'That is already in this request.'
+      return null
+    },
+    apply(st, args, env) {
+      const t = showTarget(st, args.widget, env)
+      if (t.why) return st
+      return { ...st, outs: [...st.outs, { id: t.w.id, format: args.format }] }
+    },
+    describe(b, a, { format } = {}) {
+      const t = a.outs.at(-1)
+      const w = t ? b.board.find(x => x.id === t.id) : null
+      const where = w ? `the ${nameOf(w, b.board)}` : 'the Watchlist widget'
+      return format === 'clipboard' ? `Copy the list in ${where} to your clipboard`
+        : format === 'csv' ? `Download the list in ${where} as a CSV`
+          : `Download the list in ${where} as an Excel file (this uses one export from your quota)`
+    },
   })
 
   reg({

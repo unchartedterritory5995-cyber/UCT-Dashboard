@@ -295,11 +295,13 @@ export const GROUPS = [
       /\btake (?:it|that|this|them|those|everything|all (?:of )?(?:that|it|this)) (?:all )?back\b|\btake back (?:that|what (?:you|u)|the last|my last|your last|those changes|that change|everything|whatever (?:you|u))\b/] },
   // watchlist group A (pl-exec): what ONE Watchlist widget shows — its own, UCT's prebuilt, community or Flagged lists, or back to
   // its picker. Its OWN one-action group by action name, WORDS-ONLY (never a filler: the lists group and every request keep their size)
-  { id: 'watchlistShow', title: 'What one Watchlist widget shows: one of your lists, a UCT prebuilt or community list, Flagged, or its list picker',
-    domains: [], actions: ['watchlist.showList'], fillLast: true, wordsOnly: true,
+  { id: 'watchlistShow', title: 'What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel',
+    domains: [], actions: ['watchlist.showList', 'watchlist.exportList'], fillLast: true, wordsOnly: true,
     words: [/\b(?:list\s+)?picker\b/, /\b(?:prebuilt|community|public|flagged|uct['’]s)\b.*\b(?:lists?|watch ?lists?|widget|tickers)\b|\b(?:lists?|watch ?lists?)\b.*\b(?:prebuilt|community|flagged)\b/,
       /\b(?:switch|change|put|show|open|load)\b.*\bwatch ?list(?:\s+widget)?\b.*\bto\b|\b(?:in|into|on)\s+(?:my|the|this)\s+(?:left |right |top |bottom |other )?watch ?list\b/,
-      /\b(?:red|blue|green|yellow|orange|purple|pink)\s+(?:tags?|tag list)\b/] },
+      /\b(?:red|blue|green|yellow|orange|purple|pink)\s+(?:tags?|tag list)\b/,
+      // group D: a list out of the widget (the list menu's Copy / Export)
+      /\b(?:copy|export|download|save)\b.*\b(?:lists?|watch ?lists?|tickers)\b|\b(?:csv|excel|xlsx|clipboard)\b/] },
   // ⭐ PHASE 2 Workstream B: EXPLAIN a term or feature, SHOW ME where a control is — both change nothing
   { id: 'guide', title: 'Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing', domains: ['guide'],
     // (show-me words only: an explanation question is the model's to answer, as before — it may reroute to this group)

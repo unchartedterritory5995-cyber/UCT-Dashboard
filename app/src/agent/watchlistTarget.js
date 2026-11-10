@@ -6,12 +6,12 @@
 //   several, and the words name none (or more than one) → { ask }: nothing runs
 import { positionWord } from './host'
 
-const SHOW = 'watchlist.showList'
+const SHOW_ACTIONS = new Set(['watchlist.showList', 'watchlist.exportList'])
 const POS = /\b(top|bottom|upper|lower|left|right|first|second|other)(?:[\s-]+(left|right))?\s+(?:watch ?list|list widget|watch ?list widget|one)\b/gi
 
 /** → null (nothing to screen) | { ops } (aimed at the widget the words name) | { ask: text } (nothing runs). */
 export function screenWatchlistWidget({ host, ops, text }) {
-  const shows = (ops || []).filter(o => o?.action === SHOW)
+  const shows = (ops || []).filter(o => SHOW_ACTIONS.has(o?.action))
   if (!shows.length) return null
   let raw = []
   try { raw = host?.widgets?.snapshot?.()?.raw || [] } catch { raw = [] }
@@ -30,5 +30,5 @@ export function screenWatchlistWidget({ host, ops, text }) {
     return { ask: `You have ${free.length} Watchlist widgets — which one: ${which}? Nothing changed yet.` }
   }
   const id = [...named][0]
-  return { ops: (ops || []).map(o => (o?.action === SHOW ? { ...o, args: { ...(o.args || {}), widget: id } } : o)) }
+  return { ops: (ops || []).map(o => (SHOW_ACTIONS.has(o?.action) ? { ...o, args: { ...(o.args || {}), widget: id } } : o)) }
 }

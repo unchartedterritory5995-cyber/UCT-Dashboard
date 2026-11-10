@@ -1115,8 +1115,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   }
 
   function handleCopyList(symbols) {
-    navigator.clipboard.writeText(symbols.join(', '))
+    const wrote = navigator.clipboard.writeText(symbols.join(', '))
     setCtxMenu(null)
+    return wrote
   }
 
   const { user, watchlistCopyOrLinkEnabled } = useAuth()
@@ -2392,6 +2393,19 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     capture: () => {
       const rows = listViewRef.current?.rows() || []
       return rows.length ? { kind: 'watchlist', capture: buildListCapture(pickList, pickName, rows), label: pickName } : null
+    },
+    // UCT Agent (watchlist group D): the list menu's own Copy / Export items, under the menu's own conditions and handlers
+    listOut: () => (titleMenuList ? {
+      name: pickName || null, own: !!titleMenuList.isOwner && titleMenuList.id !== 'flagged',
+      csv: !!titleMenuList.isOwner && titleMenuList.id !== 'flagged', xlsx: !!serverExport && !!titleMenuList.isOwner && titleMenuList.id !== 'flagged',
+      quota: serverExport || null,
+    } : null),
+    copyList: () => (titleMenuList ? handleCopyList(titleMenuList.symbols) : null),
+    exportList: (format) => {
+      if (!titleMenuList || !titleMenuList.isOwner || titleMenuList.id === 'flagged') return null
+      if (format === 'csv') { const wl = myLists?.find(w => w.id === titleMenuList.id); if (wl) { exportCSV(wl); return true } return null }
+      if (format === 'xlsx' && serverExport) return downloadExport(`/api/exports/watchlists/${encodeURIComponent(titleMenuList.id)}`, { format: 'xlsx' })
+      return null
     },
   }))
 
