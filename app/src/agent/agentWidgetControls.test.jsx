@@ -227,7 +227,7 @@ describe('widget.readOptions: how a widget is set, read back', () => {
     expect(flow.split('\n')[0]).toMatch(/lead biggest, .*callPut Puts, /)
     expect(flow).toMatch(/lead: tape, biggest, sentiment/)
     expect(flow).toMatch(/callPut: All, Calls, Puts/)
-    expect(flow).toMatch(/minPremium All,/)
+    expect(flow).toMatch(/minPremium All,/)   // corrected after F-16 run 2: the premium chip reads as its own word (All), not 0 — docs/agent/program/evidence/f16-run2-dark-pool.txt
     const th = read(host, 't')
     expect(th).toMatch(/period 1w/)
     expect(th).toMatch(/openTheme Theme 3/)
