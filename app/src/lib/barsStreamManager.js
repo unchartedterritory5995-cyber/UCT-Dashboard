@@ -271,6 +271,15 @@ function _connectBucket(bucket) {
         _pendingBar.delete(key)
         _dispatchBar(key, _pend)
       }
+      // A server FINAL bar (optional `final: true`) is the closed bucket's truth — dispatch
+      // it at once instead of letting a following developing frame for the next bucket (or
+      // a straggler for the same one) coalesce it away inside the 500ms window.
+      if (data.bar && data.bar.final === true) {
+        _pendingBar.delete(key)
+        _dispatchBar(key, data)
+        if (!wasDelivering) _notifyStatusForKey(key)
+        return
+      }
       _pendingBar.set(key, data)
       if (!_barThrottleTimer) _barThrottleTimer = setTimeout(_flushPendingBars, BAR_THROTTLE_MS)
       if (!wasDelivering) _notifyStatusForKey(key)  // first bar → status flip

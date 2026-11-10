@@ -203,3 +203,31 @@ describe('barsStreamManager', () => {
     expect(s.delivering).toBe(false)  // a dropped feed must not read as delivering
   })
 })
+
+describe('barsStreamManager — optional `final` / `trade_ts` bar fields', () => {
+  it('a FINAL bar dispatches immediately and is never coalesced away by a straggler', () => {
+    const got = []
+    bars.subscribe('AAPL', '5', { onBar: d => got.push(d.bar) })
+    flush()
+    const es = MockES.instances[0]
+    es._open()
+    es._emit('bar', { sym: 'AAPL', tf: '5', bar: { t: 1, o: 1, h: 2, l: 1, c: 1.5, v: 10 } })
+    es._emit('bar', { sym: 'AAPL', tf: '5', bar: { t: 1, o: 1, h: 2, l: 1, c: 1.6, v: 12, final: true, trade_ts: 1500 } })
+    expect(got.length).toBe(1)                       // dispatched without waiting for the throttle
+    expect(got[0]).toMatchObject({ final: true, trade_ts: 1500, c: 1.6 })
+    es._emit('bar', { sym: 'AAPL', tf: '5', bar: { t: 301, o: 1.6, h: 1.6, l: 1.6, c: 1.6, v: 1 } })
+    bars._flushBars()
+    expect(got.map(b => b.t)).toEqual([1, 301])      // the superseded non-final frame was dropped
+  })
+
+  it('absent fields: legacy {t,o,h,l,c,v} frames pass through unchanged', () => {
+    const got = []
+    bars.subscribe('AAPL', '5', { onBar: d => got.push(d.bar) })
+    flush()
+    const es = MockES.instances[0]
+    es._open()
+    es._emit('bar', { sym: 'AAPL', tf: '5', bar: { t: 1, o: 1, h: 2, l: 1, c: 1.5, v: 10 } })
+    bars._flushBars()
+    expect(got).toEqual([{ t: 1, o: 1, h: 2, l: 1, c: 1.5, v: 10 }])
+  })
+})
