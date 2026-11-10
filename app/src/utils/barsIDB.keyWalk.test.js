@@ -111,9 +111,21 @@ describe('idbCountKeys reads in pieces', () => {
     expect(f.reads().length).toBe(n * 2)
   })
 
-  it('still resolves 0 on a failed read, and never throws', async () => {
+  it('a failed walk rejects, so the caller can treat the probe as unanswered, not as an empty store', async () => {
     installFakeIDB(keysFor(2500, 'D'), { failOnCall: 2 })
-    await expect(idbCountKeys('_D')).resolves.toBe(0)
+    await expect(idbCountKeys('_D')).rejects.toThrow('read failed')
+  })
+
+  it('through the real caller, a failed walk means "assume present", so nothing re-ingests', async () => {
+    installFakeIDB(keysFor(2500, 'D'), { failOnCall: 2 })
+    const { _packDataPresent } = await import('../lib/barsPackClient')
+    await expect(_packDataPresent({ presenceSuffix: '_D' }, { ticker_count: 1000 })).resolves.toBe(true)
+  })
+
+  it('every pack sharing a failed walk sees the failure, and none is told the store is empty', async () => {
+    installFakeIDB(keysFor(2500, 'D'), { failOnCall: 2 })
+    const results = await Promise.allSettled([idbCountKeys('_D'), idbCountKeys('_5')])
+    expect(results.map((r) => r.status)).toEqual(['rejected', 'rejected'])
   })
 
   it('still resolves 0 when the database cannot open', async () => {

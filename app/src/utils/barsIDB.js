@@ -336,7 +336,7 @@ export async function idbDelete(sym, tf) {
 // pack self-heal: a stamped-but-empty store (an ingest that reported success on failed
 // shards, or IDB evicted under storage pressure while the tiny localStorage stamp
 // survived) reads far below the universe size, so the client re-ingests instead of
-// trusting the stamp and staying cold forever. Never throws — returns 0 on any failure.
+// trusting the stamp and staying cold forever. Returns 0 if the database cannot open; a failed read rejects.
 //
 // ⛔ THE READ IS IN PIECES ON PURPOSE. One getAllKeys() over the 45-47k keys took 1.1-3.0 s, each of
 // the three packs ran one per load, and IndexedDB work queues behind it. A chart's idbGet then outlasted
@@ -366,10 +366,10 @@ export async function idbCountKeys(suffix = '') {
   let db
   try { db = await _open() } catch { return 0 }
   if (!_keyWalk) _keyWalk = _readAllKeys(db).finally(() => { _keyWalk = null })
-  try {
-    const keys = await _keyWalk
-    return suffix ? keys.filter((k) => String(k).endsWith(suffix)).length : keys.length
-  } catch { return 0 }
+  // A failed walk REJECTS instead of counting 0. "Could not read" is not "empty": a 0 here told every
+  // pack sharing the walk to re-download the universe. _packDataPresent's catch reads it as unverified.
+  const keys = await _keyWalk
+  return suffix ? keys.filter((k) => String(k).endsWith(suffix)).length : keys.length
 }
 
 export async function idbImportPack(entries, { batchSize = 250, yieldBetween = false, replaceIfNewer = false } = {}) {
