@@ -2990,12 +2990,18 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
             {/* A host may put its own controls where the title sits (the breadth
                 drill: group-by + filters, since its window already names the list). */}
             {pickTitleSlot ?? (
-              <span
-                className={styles.pickTitle}
-                data-guide="watchlist.title"
-                onContextMenu={titleMenuList ? (e => { e.preventDefault(); e.stopPropagation(); openTitleMenu(e.clientX, e.clientY) }) : undefined}
-                {...(titleMenuList ? longPressMenu(e => ({ x: Math.min(e.clientX, window.innerWidth - 220), y: Math.min(e.clientY, window.innerHeight - 300), ...titleMenuList, fromTitle: true })) : {})}
-              >{pickName || 'Watchlist'}</span>
+              // The label is full-width and pointer-events: none (presses fall through to ‹ Lists and the buttons beside it).
+              // Only the name's own TEXT takes a press (pickTitleHit, pointer-events: auto), and only for the list menu: a
+              // right-click or a long-press. It has no click handler, so a left click on it bubbles to the same header and
+              // ancestors as before (it used to land on the header itself).
+              <span className={styles.pickTitle}>
+                <span
+                  className={styles.pickTitleHit}
+                  data-guide="watchlist.title"
+                  onContextMenu={titleMenuList ? (e => { e.preventDefault(); e.stopPropagation(); openTitleMenu(e.clientX, e.clientY) }) : undefined}
+                  {...(titleMenuList ? longPressMenu(e => ({ x: Math.min(e.clientX, window.innerWidth - 220), y: Math.min(e.clientY, window.innerHeight - 300), ...titleMenuList, fromTitle: true })) : {})}
+                >{pickName || 'Watchlist'}</span>
+              </span>
             )}
             {titleMenuList && (
               <button
