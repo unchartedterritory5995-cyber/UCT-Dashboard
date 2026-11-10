@@ -17,6 +17,7 @@
  */
 
 import { fibLevelPrice, isFib as isFibType } from './drawingFib'
+import { pointUnixTime } from './drawingTimeBase'
 
 // Bar spacing for a timeframe, in seconds. Matches how the chart lays out its
 // uniform logical axis, so a point placed PAST the last candle resolves to a real
@@ -190,6 +191,10 @@ export function anchorsForDrawing(drawing, { bars = [], tf = 'D', etOffset = 0, 
       const lastUtc = typeof lt === 'number' ? lt : toUtcSec(lt, etOffset)
       return Number.isFinite(lastUtc) ? lastUtc + fb * barSec : NaN
     }
+    // ONE time base (drawingTimeBase.js): a numeric point is raw unix; only a legacy
+    // Agent chart-time anchor is converted. (Inverting EVERY point put a hand-drawn
+    // trendline's anchors 4-5h late against its future point.)
+    if (typeof p?.time === 'number') return Number.isFinite(p.time) ? pointUnixTime(p.time, drawing) : NaN
     return toUtcSec(p?.time, etOffset)
   }
   const t1 = anchorUtc(a), t2 = anchorUtc(b)
