@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 // Mock the IDB import so the hot-pack ingest can be asserted without a real
 // IndexedDB. vi.hoisted lets the mock factory (hoisted to top) reference the spies.
@@ -7,7 +7,9 @@ const { idbImportPack, idbApplyDelta, idbCountKeys } = vi.hoisted(() => ({
 }))
 vi.mock('../utils/barsIDB', () => ({ idbImportPack, idbApplyDelta, idbCountKeys }))
 
-import { decodeShardPayload, _shardIdx, _ingestHotPack, _ingestFull, _packDataPresent } from './barsPackClient'
+import { decodeShardPayload, _shardIdx, _ingestHotPack, _ingestFull, _packDataPresent, _oneWindowAtATime, _run, packLock } from './barsPackClient'
+import fs from 'node:fs'
+import path from 'node:path'
 
 const HOT_CFG = { base: '/api/barspack', hotVersionKey: 'barspack.hotVersion', ingestBatchSize: 60, ingestYield: true }
 
@@ -205,5 +207,86 @@ describe('_packDataPresent — verify the pre-seed before trusting the stamp', (
     idbCountKeys.mockResolvedValue(0)
     expect(await _packDataPresent({ presenceSuffix: '_D' }, {})).toBe(true)
     expect(idbCountKeys).not.toHaveBeenCalled()  // short-circuits before the probe
+  })
+})
+
+describe('one window at a time per pack (2026-11-10)', () => {
+  // Measured: 12 Terminal pop-outs that started together each wrote the whole universe pack into the
+  // SAME IndexedDB store at once (~33,000 store reads in 6 s), because the version stamp lands only
+  // when an ingest completes. Under a Web Lock the second window waits, re-reads the stamp, and skips.
+  const RUN_CFG = { ...FULL_CFG, versionKey: 'barspack.test.version', seedKey: 'barspack.test.seed' }
+  const manifest = { version: '2026-11-10', shards: [{ idx: 0 }] } // no ticker_count: presence is trusted
+  let hadLocks, savedLocks
+
+  function serialLocks() {
+    let chain = Promise.resolve()
+    return {
+      request: vi.fn((name, cb) => {
+        const run = chain.then(() => cb())
+        chain = run.catch(() => {})
+        return run
+      }),
+    }
+  }
+  function setLocks(value) {
+    Object.defineProperty(globalThis.navigator, 'locks', { value, configurable: true, writable: true })
+  }
+
+  beforeEach(() => {
+    hadLocks = 'locks' in globalThis.navigator
+    savedLocks = globalThis.navigator.locks
+    localStorage.removeItem(RUN_CFG.versionKey)
+    localStorage.removeItem(RUN_CFG.seedKey)
+    idbImportPack.mockReset()
+    idbImportPack.mockResolvedValue({ written: 300, skipped: 0, aborted: false })
+    globalThis.fetch = vi.fn(async (url) => (String(url).endsWith('/manifest')
+      ? { ok: true, json: async () => manifest }
+      : { ok: true, json: async () => okShard }))
+  })
+  afterEach(() => {
+    if (hadLocks) setLocks(savedLocks)
+    else delete globalThis.navigator.locks
+  })
+
+  it('takes the named Web Lock when the browser has one', async () => {
+    const locks = serialLocks()
+    setLocks(locks)
+    const fn = vi.fn(async () => 'ran')
+    expect(await _oneWindowAtATime('uct-barspack:x', fn)).toBe('ran')
+    expect(locks.request).toHaveBeenCalledWith('uct-barspack:x', expect.any(Function))
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
+
+  it('runs directly where Web Locks are missing', async () => {
+    setLocks(undefined)
+    const fn = vi.fn(async () => 'ran')
+    expect(await _oneWindowAtATime('uct-barspack:x', fn)).toBe('ran')
+  })
+
+  it('a second window that waited on the lock skips the ingest the first one finished', async () => {
+    setLocks(serialLocks())
+    const window = () => _oneWindowAtATime(packLock(RUN_CFG), () => _run(RUN_CFG)) // initBarsPack's shape
+    await Promise.all([window(), window()])
+    expect(idbImportPack).toHaveBeenCalledTimes(1)
+    expect(localStorage.getItem(RUN_CFG.versionKey)).toBe('2026-11-10')
+  })
+
+  it('CONTROL: without the lock, two windows that start together both ingest', async () => {
+    setLocks(undefined)
+    const window = () => _oneWindowAtATime(packLock(RUN_CFG), () => _run(RUN_CFG))
+    await Promise.all([window(), window()])
+    expect(idbImportPack).toHaveBeenCalledTimes(2)
+  })
+
+  it('every pack run in initBarsPack goes through its lock', () => {
+    const src = fs.readFileSync(path.resolve(globalThis.process.cwd(), 'src/lib/barsPackClient.js'), 'utf8')
+    const body = src.slice(src.indexOf('export function initBarsPack'), src.indexOf('export async function _ingestHotPack'))
+    const runs = body.match(/_run\(PACK_[A-Z_]+\)/g) || []
+    expect(runs.length).toBeGreaterThanOrEqual(3)
+    for (const r of runs) {
+      const pack = r.slice(5, -1)
+      expect(body, `${r} must be wrapped in _oneWindowAtATime(packLock(${pack}), ...)`).toContain(`_oneWindowAtATime(packLock(${pack}), () => ${r})`)
+    }
+    expect(body).toContain("_oneWindowAtATime('uct-barspack:hot', () => _ingestHotPack(PACK_DAILY))")
   })
 })

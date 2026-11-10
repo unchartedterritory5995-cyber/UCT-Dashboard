@@ -95,9 +95,12 @@ export function initBarsPack() {
   // and it's fully redundant with the packs (D/W/M pack + intraday pack already
   // cover the popular names, edge-cached). The edge hot shard is the heal; racing
   // the origin was the bandage.
-  _ingestHotPack(PACK_DAILY).catch(() => {})
-  _whenIdle(() => { _run(PACK_DAILY).catch(() => {}) })
-  _whenIdle(() => { _run(PACK_BREADTH).catch(() => {}) })
+  // Under its own lock, like the full packs (see _oneWindowAtATime): it reads its stamp first, so a
+  // window that waited finds the hot set already ingested and skips.
+  Promise.resolve(_oneWindowAtATime('uct-barspack:hot', () => _ingestHotPack(PACK_DAILY))).catch(() => {})
+  // Each pack under its own lock: one window at a time (see _oneWindowAtATime).
+  _whenIdle(() => { Promise.resolve(_oneWindowAtATime(packLock(PACK_DAILY), () => _run(PACK_DAILY))).catch(() => {}) })
+  _whenIdle(() => { Promise.resolve(_oneWindowAtATime(packLock(PACK_BREADTH), () => _run(PACK_BREADTH))).catch(() => {}) })
   // Intraday pack RE-ENABLED (2026-08-19). An offline Playwright harness
   // (tools/intraday_repro.py) proved the client path is sound: the prior-session pack
   // paints in ~200ms (render cap slices any bloat to 3k), the since-fetch fills today,
@@ -105,7 +108,7 @@ export function initBarsPack() {
   // — it was the server 5m serve hanging under Massive saturation from over-aggressive
   // prewarming (PREWARM_5M_CAP), now dialed back so 5m serves ~0.15s. The non-blocking
   // ingest below keeps a fresh full ingest from write-locking the store.
-  _whenIdle(() => { _run(PACK_INTRADAY).catch(() => {}) })
+  _whenIdle(() => { Promise.resolve(_oneWindowAtATime(packLock(PACK_INTRADAY), () => _run(PACK_INTRADAY))).catch(() => {}) })
 }
 
 // Eagerly ingest the server HOT SHARD — one small edge-cached gzipped file
@@ -181,7 +184,27 @@ export async function _packDataPresent(cfg, manifest) {
   } catch { return true }
 }
 
-async function _run(cfg) {
+// ⛔ ONE WINDOW AT A TIME PER PACK (2026-11-10, measured). Every separately loaded page of the app (a
+// Terminal pop-out, a second tab, a desk that restores several windows at launch) runs initBarsPack,
+// and the version stamp is written only when an ingest COMPLETES. So windows that start together all
+// saw "not ingested yet" and each wrote the whole universe into the SAME IndexedDB store at once: a
+// trace of 12 Terminal pop-outs showed ~33,000 store reads in 6 s and ~3.5 s spent decoding values,
+// every morning the pack version changes. Under a Web Lock the second window waits, then re-reads
+// the stamp the first one wrote and skips. Where Web Locks are missing it runs unlocked, as before.
+export function _oneWindowAtATime(name, fn) {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.locks && typeof navigator.locks.request === 'function') {
+      return navigator.locks.request(name, () => fn())
+    }
+  } catch { /* fall through to running unlocked */ }
+  return fn()
+}
+
+/** The lock name for one pack. Used at each `_run(PACK_...)` call site in initBarsPack, which keeps
+ *  those calls direct (the persistence census follows `_run(PACK_DAILY)` to its storage keys). */
+export const packLock = (cfg) => `uct-barspack:${cfg.versionKey}`
+
+export async function _run(cfg) {
   if (_connectionTooCostly()) return
 
   let manifest
