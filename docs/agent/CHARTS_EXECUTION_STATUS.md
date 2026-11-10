@@ -8,12 +8,21 @@ Built on `agent/pl/bar-time-coverage` from `agent/pl/integration-1` `b07a97d526`
 
 ## The number
 
-**225 of 484 actions, 46.5%, are VERIFIED at panel level with a scripted model** (158 in the 2026-11-05 run, plus 67 on 2026-11-10: 29 from the chart-settings outcome test, 3 from the Multi Chart outcome test, 35 from the cited-test re-run). A further 9 are PARTIAL (SIMULATED): part of the action passes, part is not covered. See "Update 2026-11-10: combined execution packets (PR #1016)" below. That proves the Agent is given what it needs and that a correct plan reaches the right state. It does not prove the real model picks that plan, and it does not prove the real chart redraws.
+**233 of 484 actions, 48.1%, are VERIFIED at panel level with a scripted model** (158 in the 2026-11-05 run, plus 75 on 2026-11-10: 29 from the chart-settings outcome test, 3 from the Multi Chart outcome test, 35 from the cited-test re-run, 8 from the held-out-12 outcome test). A further 13 are PARTIAL (SIMULATED): part of the action passes, part is not covered. See "Update 2026-11-10: combined execution packets (PR #1016)" below. That proves the Agent is given what it needs and that a correct plan reaches the right state. It does not prove the real model picks that plan, and it does not prove the real chart redraws.
 
 - Production evidence with the real planner covers 13 of those 158 rows, from the 2026-11-03 live run on the older build `463a4bcba5`, read by receipt and some server reads.
 - Real component in a browser, Agent executing: 0 rows. The browser runs in teach-status.md prove walkthroughs, where a person clicks. They never ran an Agent plan.
-- A further 29 rows have a passing runtime test (capability and writer, no panel). They are IMPLEMENTED / UNVERIFIED and are not in the 225. (It was 43 on 2026-11-05; 14 of them were raised on 2026-11-10.)
+- A further 25 rows have a passing runtime test (capability and writer, no panel). They are IMPLEMENTED / UNVERIFIED and are not in the 233. (It was 43 on 2026-11-05; 18 of them were raised on 2026-11-10.)
 - P0 actions: 58 of 74 VERIFIED (as of 2026-11-05; this doc carries no per-row P0 tag, so the 2026-11-10 update did not recount it).
+
+## Update 2026-11-10 (2): the 12 held-out-only rows (agent/pl/exec-heldout12)
+
+Test: `app/src/agent/qa/chartsOutcome/heldout12.outcome.test.jsx` (one file, real Agent panel over one fixture board holding the selected chart and one widget of every type the rows name; scripted model, jsdom, SIMULATED). Each case reads the end state back from the stored opts, or the chart blob through `headerFieldKeys` / `barInfoFieldsOf`, checks the chart and every other widget are byte-identical, and checks Undo. Totals: `Tests 33 passed | 4 todo (37)`. Method, per-row table, gaps: `docs/agent/program/EXEC-HELDOUT12.md`.
+
+- VERIFIED (8): C1-065, C1-066, C3-125, C3-133, C3-159, C3-164, C3-165, C3-194; was MISSING (4): C1-065, C1-066, C3-159, C3-194; was IMPLEMENTED / UNVERIFIED (4): C3-125, C3-133, C3-164, C3-165.
+- PARTIAL (SIMULATED) (4): C3-151, C3-166, C3-195, C3-206; was IMPLEMENTED / UNVERIFIED (1): C3-151; was MISSING (3): C3-166, C3-195, C3-206.
+- Known gaps, each an `it.fails` outcome plus a plain `it` pinning today's exact output: C3-151 held-out phrasings route without the board-edit group (calendar.day only); C3-166 "only show sweeps in the options flow" is refused pre-model by the stale `FLOW_WIDGET_REFUSAL` (useAgent.js:2299-2305), which `widget.setOption printType` can already do (product fix for pl-exec). it.todo: C3-195 zoom; C3-206 replay, start mark, ungroup.
+- Recounted from the "All actions" table by `recount-h12.mjs` (it first reproduces the previous "Counts by area" exactly from the previous rows).
 
 ## Update 2026-11-10: combined execution packets (PR #1016)
 
@@ -53,6 +62,7 @@ The 10 non-held-out test files named by 40 NOT VERIFIED rows (ledger `docs/agent
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | 2026-11-05 | 158 | 0 | 112 | 154 | 47 | 13 | 484 | 19 |
 | after chart settings + multichart + cited re-run | 225 | 9 | 69 | 126 | 43 | 12 | 484 | 19 |
+| after the held-out 12 (agent/pl/exec-heldout12) | 233 | 13 | 64 | 119 | 43 | 12 | 484 | 19 |
 
 - VERIFIED 225 of 484, 46.5%. PARTIAL is in scope but never VERIFIED (the PARTIAL column PR #1016 introduced).
 - Re-run on the combined branch (after both merges): all 12 test files of the three packets were run once each, single-file, under the suite lock, and all passed (chartSettings.outcome 40 passed + 5 known-gap (pinned) + 7 todo; multiChart.outcome 8 passed + 17 todo; the 10 cited files as in EXEC-CITED-RERUN.md). Totals lines: `docs/agent/program/PR-exec-chart-settings.md`.
@@ -142,7 +152,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1 | Go to date | 2 | 0 | 1 | 1 | 0 | 0 | 4 | 0 |
 | C1 | Compare | 1 | 0 | 4 | 3 | 0 | 0 | 8 | 0 |
 | C1 | Replay | 2 | 0 | 0 | 1 | 1 | 1 | 5 | 0 |
-| C1 | Settings | 24 | 2 | 0 | 6 | 0 | 0 | 32 | 0 |
+| C1 | Settings | 26 | 2 | 0 | 4 | 0 | 0 | 32 | 0 |
 | C1 | Themes | 2 | 0 | 0 | 1 | 0 | 0 | 3 | 0 |
 | C1 | Templates | 3 | 0 | 0 | 0 | 0 | 0 | 3 | 1 |
 | C1 | Volume | 5 | 0 | 1 | 0 | 0 | 0 | 6 | 1 |
@@ -187,13 +197,13 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3 | Multi Chart | 3 | 1 | 0 | 2 | 15 | 0 | 21 | 0 |
 | C3 | Watchlist | 15 | 0 | 4 | 15 | 5 | 1 | 40 | 4 |
 | C3 | Scanner | 8 | 0 | 0 | 4 | 2 | 0 | 14 | 0 |
-| C3 | Volume Surge | 1 | 0 | 2 | 3 | 0 | 0 | 6 | 0 |
+| C3 | Volume Surge | 2 | 0 | 1 | 3 | 0 | 0 | 6 | 0 |
 | C3 | Alerts | 4 | 0 | 0 | 2 | 0 | 0 | 6 | 0 |
-| C3 | News | 1 | 0 | 1 | 3 | 0 | 0 | 5 | 0 |
+| C3 | News | 2 | 0 | 0 | 3 | 0 | 0 | 5 | 0 |
 | C3 | TE News | 1 | 1 | 2 | 6 | 0 | 0 | 10 | 0 |
-| C3 | Calendar | 5 | 0 | 1 | 3 | 0 | 0 | 9 | 0 |
-| C3 | Breadth | 3 | 0 | 0 | 4 | 0 | 0 | 7 | 0 |
-| C3 | Options Flow | 1 | 0 | 2 | 2 | 0 | 0 | 5 | 0 |
+| C3 | Calendar | 5 | 1 | 0 | 3 | 0 | 0 | 9 | 0 |
+| C3 | Breadth | 4 | 0 | 0 | 3 | 0 | 0 | 7 | 0 |
+| C3 | Options Flow | 3 | 1 | 0 | 1 | 0 | 0 | 5 | 0 |
 | C3 | Themes | 5 | 1 | 0 | 3 | 0 | 0 | 9 | 0 |
 | C3 | Fundamentals | 2 | 0 | 0 | 1 | 0 | 0 | 3 | 0 |
 | C3 | Profile | 2 | 0 | 0 | 0 | 0 | 0 | 2 | 0 |
@@ -201,18 +211,18 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3 | Market Context | 0 | 0 | 0 | 1 | 0 | 1 | 2 | 0 |
 | C3 | NH/NL | 3 | 0 | 0 | 1 | 0 | 0 | 4 | 0 |
 | C3 | H/L Pulse | 0 | 0 | 0 | 1 | 0 | 0 | 1 | 0 |
-| C3 | Market Map | 1 | 1 | 0 | 2 | 0 | 0 | 4 | 0 |
+| C3 | Market Map | 2 | 2 | 0 | 0 | 0 | 0 | 4 | 0 |
 | C3 | AI Search | 0 | 0 | 1 | 4 | 0 | 0 | 5 | 0 |
 | C3 | Notebook | 1 | 1 | 0 | 1 | 1 | 0 | 4 | 0 |
-| C3 | Period Sort | 0 | 0 | 0 | 4 | 0 | 0 | 4 | 0 |
+| C3 | Period Sort | 0 | 1 | 0 | 3 | 0 | 0 | 4 | 0 |
 | C3 | Replay | 2 | 0 | 1 | 1 | 0 | 0 | 4 | 0 |
 | C3 | Review | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 3 |
 | C3 | Company dock | 3 | 0 | 2 | 0 | 0 | 0 | 5 | 0 |
 | C3 | Workspace | 0 | 0 | 0 | 1 | 1 | 1 | 3 | 0 |
-| C1 | **all** | 103 | 4 | 17 | 28 | 11 | 5 | 168 | 11 |
+| C1 | **all** | 105 | 4 | 17 | 26 | 11 | 5 | 168 | 11 |
 | C2 | **all** | 39 | 0 | 32 | 20 | 5 | 4 | 100 | 1 |
-| C3 | **all** | 83 | 5 | 20 | 78 | 27 | 3 | 216 | 7 |
-| | **Total** | 225 | 9 | 69 | 126 | 43 | 12 | 484 | 19 |
+| C3 | **all** | 89 | 9 | 15 | 73 | 27 | 3 | 216 | 7 |
+| | **Total** | 233 | 13 | 64 | 119 | 43 | 12 | 484 | 19 |
 
 ## Raised to VERIFIED (47)
 
@@ -406,8 +416,8 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-062 | Settings | Title shows ticker/company/both | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-062 "show the ticker and the company name in the title" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-063 | Settings | Day change beside title | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-063 "hide the day change next to the title" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-064 | Settings | Legend mode | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-064 "only show the legend when I hold the crosshair" | pass 33/33 (7 todo) | panel, scripted model |
-| C1-065 | Settings | Legend bar-info fields | MISSING | none; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | n/a | none |
-| C1-066 | Settings | Info-row fields | MISSING | none; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | n/a | none |
+| C1-065 | Settings | Legend bar-info fields | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | heldout12.outcome.test.jsx: C1-065 "I don't need the open price in the bar readout"; "show the percent change in the OHLC strip"; "drop the date from the bar info" | pass 33/33 (4 todo) | panel, scripted model |
+| C1-066 | Settings | Info-row fields | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | heldout12.outcome.test.jsx: C1-066 "put the dollar volume in the info row"; "take market cap off the header stats"; "remove the UCT rating from the info row"; "info row: add 30 day change"; "add RVOL to the stat strip above the chart" | pass 33/33 (4 todo) | panel, scripted model |
 | C1-067 | Settings | Header colours | MISSING | none; gap: docs/agent/program/EXEC-CHART-SETTINGS.md (gap list) | n/a | none |
 | C1-068 | Settings | Swing labels on/off and sensitivity | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-068 "turn on swing labels with high sensitivity" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-069 | Settings | Swing label background, tint, colours | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-069 "swing labels on, tinted by high and low, green highs, red lows, dark grey background" | pass 33/33 (7 todo) | panel, scripted model |
@@ -742,7 +752,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-122 | Volume Surge | Create, rename or delete a scope list | MISSING | none | n/a | none |
 | C3-123 | Volume Surge | Add a ticker to a scope list | MISSING | none | n/a | none |
 | C3-124 | Volume Surge | Set thresholds (RVOL, burst, move, $ floor) | MISSING | none | n/a | none |
-| C3-125 | Volume Surge | Toggle logos | IMPLEMENTED / UNVERIFIED | agentWidgetOptions.test.jsx:49; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | pass 1/1 | runtime, no panel |
+| C3-125 | Volume Surge | Toggle logos | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | heldout12.outcome.test.jsx: C3-125 "show logos in the volume surge"; "volume-surge logos on" | pass 33/33 (4 todo) | panel, scripted model |
 | C3-126 | Volume Surge | Click a row or remove it from the list | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
 | C3-127 | Alerts | See my alerts | VERIFIED | alerts.outcome: nothing reaches the server until Apply | pass 1/1 | panel, scripted model |
 | C3-128 | Alerts | Create a price alert | VERIFIED | c:alert.price-above; alerts.outcome: nothing reaches the server until Apply | pass 7/7 | panel, scripted model |
@@ -750,7 +760,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-130 | Alerts | Click an alert to load the symbol | VERIFIED | c:symbol.switch | pass 7/7 | panel, scripted model |
 | C3-131 | Alerts | Change Alerts widget appearance | MISSING | none | n/a | none |
 | C3-132 | Alerts | Send alerts to Journal | MISSING | none | n/a | none |
-| C3-133 | News | Filter catalysts up, down or all | IMPLEMENTED / UNVERIFIED | agentWidgetOptions.test.jsx:49; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | pass 1/1 | runtime, no panel |
+| C3-133 | News | Filter catalysts up, down or all | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | heldout12.outcome.test.jsx: C3-133 "news widget: only bullish catalysts" | pass 33/33 (4 todo) | panel, scripted model |
 | C3-134 | News | Read stored headlines for a symbol | VERIFIED | c:news.latest; c:news.catalysts | pass 9/9 | panel, scripted model |
 | C3-135 | News | Place a headline on the chart | MISSING | none | n/a | none |
 | C3-136 | News | Change News widget appearance | MISSING | none | n/a | none |
@@ -768,7 +778,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-148 | Calendar | Step days in the widget | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetControls.outcome.test.jsx: "show tomorrow on the terminal" (UCT Terminal, C3-148); see docs/agent/program/EXEC-CITED-RERUN.md | pass 7/7 | panel, scripted model |
 | C3-149 | Calendar | Ask who reports on a day from Charts | MISSING | none | n/a | none |
 | C3-150 | Calendar | Ask when a stock reports from Charts | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | boardArrangement.outcome.test.jsx: C3-150 (held-out phrasings) "the earnings read answers with the date, no change to the board"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 13/13 | panel, scripted model |
-| C3-151 | Calendar | Filter economic events by stars | IMPLEMENTED / UNVERIFIED | agentWidgetOptions.test.jsx:49; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | pass 1/1 | runtime, no panel |
+| C3-151 | Calendar | Filter economic events by stars | PARTIAL (SIMULATED) — covered: econStars set, read back and undone, from "change the calendar widget filter to 3 stars" (tune phrasing); not covered: both held-out phrasings ("show only 3 star economic events", "calendar widget: only 3 star economic events") reach the model without widget.setOption (calendar.day only), a KNOWN GAP pinned | heldout12.outcome.test.jsx: C3-151 "change the calendar widget filter to 3 stars"; KNOWN GAP (routed) x2 | pass 33/33 (4 todo) | panel, scripted model |
 | C3-152 | Calendar | Toggle the TBD section | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetControls.outcome.test.jsx: "expand the time tbd list on the terminal" (C3-152); see docs/agent/program/EXEC-CITED-RERUN.md | pass 7/7 | panel, scripted model |
 | C3-153 | Calendar | Sort earnings columns | MISSING | none | n/a | none |
 | C3-154 | Calendar | Show all earnings in a section | MISSING | none | n/a | none |
@@ -776,14 +786,14 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-156 | Calendar | Send a day to Journal | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetDoorRows.outcome.test.jsx: "Send to Journal over the real widgets' own capture doors", case C3-156; see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
 | C3-157 | Breadth | Read breadth tiles | VERIFIED | c:breadth.now; c:breadth.measure-now | pass 11/11 | panel, scripted model |
 | C3-158 | Breadth | Add or remove a reading | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetDoorRows.outcome.test.jsx: C3-158 "take the up 4% reading off the breadth widget"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
-| C3-159 | Breadth | Switch heatmap and ratio view | MISSING | none; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | n/a | none |
+| C3-159 | Breadth | Switch heatmap and ratio view | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | heldout12.outcome.test.jsx: C3-159 "show the ratio view on breadth"; "switch the breadth widget back to the heatmap" | pass 33/33 (4 todo) | panel, scripted model |
 | C3-160 | Breadth | Change tile style | MISSING | none | n/a | none |
 | C3-161 | Breadth | Change palette, intensity or background | MISSING | none | n/a | none |
 | C3-162 | Breadth | Drill into a reading | MISSING | none | n/a | none |
 | C3-163 | Breadth | Send a snapshot to Journal | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetDoorRows.outcome.test.jsx: "Send to Journal over the real widgets' own capture doors", case C3-163; see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
-| C3-164 | Options Flow | Switch market or symbol scope | IMPLEMENTED / UNVERIFIED | agentWidgetOptions.test.jsx:49; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | pass 1/1 | runtime, no panel |
-| C3-165 | Options Flow | Switch the lead view | IMPLEMENTED / UNVERIFIED | none; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | n/a | source only |
-| C3-166 | Options Flow | Set filters (premium, call/put, type, direction) | MISSING | none; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | n/a | none |
+| C3-164 | Options Flow | Switch market or symbol scope | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | heldout12.outcome.test.jsx: C3-164 "switch options flow to just this symbol"; "put the options flow back on the whole market" | pass 33/33 (4 todo) | panel, scripted model |
+| C3-165 | Options Flow | Switch the lead view | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | heldout12.outcome.test.jsx: C3-165 "lead with the biggest trades in options flow" | pass 33/33 (4 todo) | panel, scripted model |
+| C3-166 | Options Flow | Set filters (premium, call/put, type, direction) | PARTIAL (SIMULATED) — covered: call/put ("options flow: puts only", "options-flow: calls only"), print type ("options flow: sweeps only"), premium floor and direction (tune phrasings), each read back from opts.filters and undone; not covered: the held-out "only show sweeps in the options flow" is refused before the model by the stale FLOW_WIDGET_REFUSAL (useAgent.js:2299-2305), a KNOWN GAP pinned (product fix for pl-exec) | heldout12.outcome.test.jsx: C3-166 x5; KNOWN GAP (refused) x1 | pass 33/33 (4 todo) | panel, scripted model |
 | C3-167 | Options Flow | Read the flow | MISSING | none | n/a | none |
 | C3-168 | Options Flow | Click a flow row | VERIFIED | c:symbol.switch | pass 7/7 | panel, scripted model |
 | C3-169 | Themes | Pick a period or ranking | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | themeTracker.outcome.test.jsx: C3-169 "show the theme tracker for the past month"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
@@ -811,8 +821,8 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-191 | H/L Pulse | Change Pulse settings | MISSING | none | n/a | none |
 | C3-192 | Market Map | Pick or remove a universe | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetDoorRows.outcome.test.jsx: "C3-192 / C3-193: add the Nasdaq 100 to the Market Map ... remove it again"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
 | C3-193 | Market Map | Pick X, Y or size axis | PARTIAL (SIMULATED) — covered: the Y axis and the size axis (yKey, sizeKey read back); not covered: picking an X axis (only the refusal of an axis the map lacks is tested) | widgetDoorRows.outcome.test.jsx: "C3-192 / C3-193: ... day change on Y and size by market cap" + NEGATIVE axis; see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
-| C3-194 | Market Map | Follow the linked list | MISSING | none; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | n/a | none |
-| C3-195 | Market Map | Cycle labels or zoom | MISSING | none; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | n/a | none |
+| C3-194 | Market Map | Follow the linked list | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | heldout12.outcome.test.jsx: C3-194 "have the market map follow my watchlist" | pass 33/33 (4 todo) | panel, scripted model |
+| C3-195 | Market Map | Cycle labels or zoom | PARTIAL (SIMULATED) — covered: labels off / all (labelMode read back, Undo); not covered: zoom in / out / reset, an echarts dataZoom with no capability (it.todo) | heldout12.outcome.test.jsx: C3-195 "turn off labels on the market map"; "set the market-map labels off"; "label every dot on the market map" | pass 33/33 (4 todo) | panel, scripted model |
 | C3-196 | AI Search | Ask a question or follow one up | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
 | C3-197 | AI Search | Change ask mode, stop or retry | MISSING | none | n/a | none |
 | C3-198 | AI Search | Save, reopen or remove an answer | MISSING | none | n/a | none |
@@ -823,7 +833,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-203 | Notebook | Edit a note's title or body | BLOCKED | none | n/a | none |
 | C3-204 | Notebook | Browse folders | MISSING | none | n/a | none |
 | C3-205 | Period Sort | Start a custom-period sort | MISSING | none | n/a | none |
-| C3-206 | Period Sort | Choose grouping, replay and start mark | MISSING | none; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | n/a | none |
+| C3-206 | Period Sort | Choose grouping, replay and start mark | PARTIAL (SIMULATED) — covered: grouping by theme / sector / industry (group read back, Undo); not covered: replay to the end date, the start mark, and ungrouping back to stocks (it.todo each) | heldout12.outcome.test.jsx: C3-206 "group period sort by industry" | pass 33/33 (4 todo) | panel, scripted model |
 | C3-207 | Period Sort | Dock the panel or add it as a tab | MISSING | none | n/a | none |
 | C3-208 | Period Sort | Refresh results | MISSING | none | n/a | none |
 | C3-209 | Replay | Start replay at a date | VERIFIED | c:chart.replay; agentChartReplay: replay from Oct 15 | pass 5/5 | panel, scripted model |
