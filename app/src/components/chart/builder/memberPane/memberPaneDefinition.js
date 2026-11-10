@@ -22,7 +22,7 @@
 // where the product can call it. That test is the reason this is a productised
 // path rather than a first attempt: the rows, the manifest placements and the
 // `buildDefinition` call are the shapes it already proved land a valid document.
-import { translatePine, lexPine, blockStatements, parseWholeExpression, findTop, isPunct, boundName } from '../../engine/ast/pine'
+import { translatePine, lexPine, blockStatements, parseWholeExpression, findTop, isPunct, boundName, PAINT_RUNTIME_COLOUR } from '../../engine/ast/pine'
 import { withAlphaByte } from '../../designTokens'
 import { DEFAULT_SERIES_COLOUR, V3_DEFAULT_SERIES_OPACITY } from '../../engine/pinePalette'
 import { paneGate, paneObjectsGate, runtimeRouteOf, runtimeFallbackOf } from '../../engine/ast/paneGate'
@@ -787,6 +787,20 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   // ⭐⭐ B1 — THE PAINTS RIDE ON THE DOCUMENT (`defSchema.validatePaints`), and
   // only when there are any, so every other document keeps its exact shape.
   if (docPaints.length) definition.paints = docPaints
+  // ⭐⭐ DIV-4 — A `barcolor` WHOSE COLOUR THE HOST LANE WITHHELD, READ FROM THE
+  // PER-BAR RUN (`runtimeReadPaints`). Behind the runtime pane's own switch: off,
+  // the document is exactly what it was.
+  const rtRead = runtimePaneEnabled() ? runtimeReadPaints(source, t, allPaints) : null
+  if (rtRead) {
+    definition.compute = { ...definition.compute, runtimeColours: rtRead.compute }
+    // source order within a kind is what decides which `barcolor` paints a bar
+    // (`vw-bgcolor-barcolor` P1/P2), so the merged list is put back in line order
+    definition.paints = [...(definition.paints || []), ...rtRead.paints]
+      .map((p, i) => ({ p, i }))
+      .sort((a, b) => ((a.p.line ?? 1e9) - (b.p.line ?? 1e9)) || (a.i - b.i))
+      .map((x) => x.p)
+  }
+  const rtReadLines = new Set(rtRead ? rtRead.paints.map((p) => `${p.kind}@${p.line}`) : [])
   // ⛔⛔ THE DOOR NEVER GUESSES A PLACEMENT. Every locator above is one the
   // translator TAGGED (`paramLocatorsIn`): a literal that came from the parameter.
   // ⚰️ Round 2 also ran the saved-document migration here, which matched the call
@@ -828,7 +842,11 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   for (const p of allPaints) {
     if (!p.withheld) continue
     const name = `\`${p.kind}\`${Number.isInteger(p.line) ? ` (line ${p.line})` : ''}`
-    const note = `${name} is not drawn: ${p.withheld.reason}.`
+    const note = rtReadLines.has(`${p.kind}@${p.line}`)
+      ? `${name} takes its colour from running the script bar by bar, the way TradingView does. It is `
+        + "drawn only where that run is exact: on bars that start at the symbol's listing, at the "
+        + "script's own settings; anywhere else it is not drawn."
+      : `${name} is not drawn: ${p.withheld.reason}.`
     const key = `${name} :: ${note}`
     if (seen.has(key)) continue
     seen.add(key)
@@ -953,6 +971,59 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     // series has loaded; the producer still owns the wording.
     requirementTags,
   }
+}
+
+/** ⭐⭐ DIV-4 — THE COLUMN KEY a runtime-read paint colour lands in (`k` = its place
+ *  in `compute.runtimeColours.at`). A name no host row takes (`keyAt` mints
+ *  `value`, `out2`, …). */
+const RUNTIME_COLOUR_KEY = (k) => `rtcolour${k + 1}`
+
+/** ⭐⭐ DIV-4 — THE `barcolor`s THE HOST LANE WITHHELD FOR THEIR COLOUR, READ FROM THE
+ *  PER-BAR RUN: `{compute, paints}` for the document, or null.
+ *
+ *  The host lane cannot say every colour as a formula — SuperTrend STRATEGY's
+ *  `buy1[1] < sell1[1] ? color.green : …` compares two unbounded `barssince` of a
+ *  recurrence, which the columnar lane refuses by name (`pine.js`, "NOT OVER A
+ *  RECURRENCE"). The per-bar runtime lane runs it as Pine does. Pine's own rule for
+ *  the call (reference, `barcolor`): "color (series color) Color of bars"; an `na`
+ *  colour leaves the bar its own colour. So each such paint is asked of the run at
+ *  its own statement, as a colour (`objectTreesAt`, kind `colour` — the C18 door
+ *  objects already use), and draws the packed colour the run left on each bar
+ *  (`pool.packedPointColour`: `na` paints nothing, an alpha is drawn as computed).
+ *
+ *  ⛔ Exact or not drawn, and decided where the colour is computed
+ *  (`nativeRegistry.js::withRuntimeColours`): bars from the listing, inputs at the
+ *  author's defaults, a run that completes and whose probe runs agree on every bar.
+ *  ⛔ Only a `barcolor` (no style transparency) of a v4+ script, only where the host
+ *  withheld it for its COLOUR (`paint:colour`); every other withholding stands, and
+ *  so does this one when the run cannot build the script with the colour read. */
+function runtimeReadPaints(source, t, allPaints) {
+  const version = t && t.version
+  if (!(Number.isInteger(version) && version >= 4)) return null
+  const picked = allPaints.filter((p) => p && p.kind === 'barcolor' && p.withheld
+    && p.withheld.code === 'paint:colour' && p[PAINT_RUNTIME_COLOUR] && Number.isInteger(p.line))
+  if (!picked.length) return null
+  // the runtime pane's own per-script gates, first (the kill list, the starter allowlist)
+  if (runtimeKillOf({ source }) || runtimeNotGradedOf({ source })) return null
+  const at = picked.map((p) => {
+    const c = p[PAINT_RUNTIME_COLOUR]
+    return { line: c.line, column: c.column, node: c.node, kind: 'colour' }
+  })
+  let probe
+  try { probe = probeObjectRuntime(source, at, { paneLane: true }) } catch { probe = null }
+  if (!probe || !probe.ok) return null
+  const keys = at.map((_, k) => RUNTIME_COLOUR_KEY(k))
+  const paints = picked.map((p, k) => ({
+    kind: p.kind,
+    line: p.line,
+    ...(typeof p.title === 'string' && p.title ? { title: p.title } : {}),
+    // ⭐ F1 — render-time placement rides beside the colour, as on every paint
+    ...(Number.isInteger(p.offset) && p.offset !== 0 ? { offset: p.offset } : {}),
+    ...(Number.isInteger(p.showLast) ? { showLast: p.showLast } : {}),
+    colorMode: `column:${keys[k]}`,
+    colorPacked: {},
+  }))
+  return { compute: { source, at, keys }, paints }
 }
 
 /** The Pine outputs a runtime document draws: the ones a chart row carries.
