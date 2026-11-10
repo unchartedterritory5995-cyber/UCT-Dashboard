@@ -144,9 +144,11 @@ function _key(sym, tf) {
 // window outage (verified 2026-05-24 incident, reverted in dd5ce85).
 // Without the bump, this detector heals affected users gradually on each
 // chart open instead of all at once.
-function _hasIntradayGap(bars, tf) {
-  if (!['1','5','15','30','60'].includes(tf)) return false
-  if (!bars || bars.length < 2) return false
+// ⭐ (2026-11-10) RETURNS WHERE THE HOLE STARTS (unix sec of the bar before it), or null.
+// The caller no longer discards the cache on a hole — see idbGet.
+export function _intradayGapStart(bars, tf) {
+  if (!['1','5','15','30','60'].includes(tf)) return null
+  if (!bars || bars.length < 2) return null
 
   // Max acceptable in-session gap. Tuned to catch a real interior hole without
   // false-flagging normal spacing or the 30-min open-bar adjustment on hourly
@@ -174,15 +176,26 @@ function _hasIntradayGap(bars, tf) {
     const currEtDate = new Date(bars[i].t * 1000)
       .toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
     if (prevEtDate !== currEtDate) continue
-    return true
+    return bars[i - 1].t
   }
-  return false
+  return null
 }
 
 /**
  * Read cached bars for (sym, tf).
  * Returns { bars, lastT, savedAt } or null if not found / stale.
  */
+export { INTRADAY_MAX_BARS }
+
+/** The bars idbPut persists: intraday capped to the newest INTRADAY_MAX_BARS (what
+ *  idbGet reads back); D/W/M untouched. */
+export function _capForWrite(tf, bars) {
+  if (Array.isArray(bars) && ['1','5','15','30','60'].includes(String(tf)) && bars.length > INTRADAY_MAX_BARS) {
+    return bars.slice(bars.length - INTRADAY_MAX_BARS)
+  }
+  return bars
+}
+
 export async function idbGet(sym, tf) {
   try {
     const db = await _open()
@@ -226,11 +239,20 @@ export async function idbGet(sym, tf) {
         if (isIntraday && bars.length > INTRADAY_MAX_BARS) {
           bars = bars.slice(bars.length - INTRADAY_MAX_BARS)
         }
-        // Mid-session gap guard: delta-merge cannot heal interior gaps, so a cached series
-        // with one is permanently broken until a full refetch. Treat as absent → caller
-        // refetches without `since`.
-        if (_hasIntradayGap(bars, tf)) return resolve(null)
-        resolve(bars === entry.bars ? entry : { ...entry, bars, lastT: bars[bars.length - 1]?.t })
+        // Mid-session gap guard: a `since=<tail>` delta cannot heal an interior hole.
+        // ⛔⛔ BUT A HOLE IS NOT A REASON TO THROW THE CACHE AWAY (2026-11-10). On a thin
+        // name a same-day hole is usually LEGITIMATE (no prints for 20 minutes), and
+        // nulling the entry made every open of that name a cold full refetch with nothing
+        // on screen — forever, because the hole comes straight back from the server. Keep
+        // the bars (the tail may well be current and paintable) and report where the hole
+        // starts: the chart asks `since=<repairFromT-1>`, which returns every row after
+        // it — the hole's bars if they exist, an empty stretch if the name simply did not
+        // trade. `lastT` stays the TRUE tail so currentness is judged on what we hold.
+        const repairFromT = _intradayGapStart(bars, tf)
+        const out = (bars === entry.bars && repairFromT == null)
+          ? entry
+          : { ...entry, bars, lastT: bars[bars.length - 1]?.t, ...(repairFromT != null ? { repairFromT } : {}) }
+        resolve(out)
       }
       req.onerror = () => resolve(null)
     })
@@ -269,6 +291,13 @@ export async function idbDeleteIntraday() {
  */
 export async function idbPut(sym, tf, bars) {
   if (!bars?.length) return
+  // ⛔ WRITE WHAT idbGet CAN READ BACK (2026-11-10). idbGet hands the chart only the
+  // newest INTRADAY_MAX_BARS, so persisting a 9k-32k scroll-back series bought nothing
+  // on the next open — yet every 30s poll merge rewrote all of it (a multi-MB
+  // structured clone per poll), and the deep warmer, comparing a 3000-bar read against
+  // a 30000 target, re-downloaded deep history on every pass. Persist the window that
+  // is read; deep scroll-back is a network fetch by design.
+  bars = _capForWrite(tf, bars)
   try {
     const db  = await _open()
     const lastT = bars[bars.length - 1]?.t
