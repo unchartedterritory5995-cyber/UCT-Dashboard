@@ -1,0 +1,538 @@
+{
+ "mode": "BROWSER-MOCK-MODEL",
+ "evidence": "LOCAL agent harness, scripted model, synthetic bars and fixtures: not production, not gate evidence",
+ "at": "2026-11-10T18:37:48.174Z",
+ "base": "http://127.0.0.1:5306",
+ "results": [
+  {
+   "id": "GF-01",
+   "say": "how do I make one chart in the grid fill the whole grid",
+   "feature": "gridAction",
+   "title": "Maximizing a chart in the grid",
+   "given": [
+    "prefs"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "This fills the grid with this chart. Click it again to restore the grid.",
+     "onPrimary": true,
+     "pr": [
+      568,
+      71,
+      26,
+      26
+     ],
+     "rr": [
+      564,
+      67,
+      34,
+      34
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "GF-02",
+   "say": "show me how to blow up a single grid chart to full size",
+   "feature": "gridAction",
+   "title": "Maximizing a chart in the grid",
+   "given": [
+    "prefs"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "This fills the grid with this chart. Click it again to restore the grid.",
+     "onPrimary": true,
+     "pr": [
+      568,
+      71,
+      26,
+      26
+     ],
+     "rr": [
+      564,
+      67,
+      34,
+      34
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "GF-03",
+   "say": "how do I put a grid chart back to its normal size after maximizing it",
+   "feature": "gridAction",
+   "title": "Maximizing a chart in the grid",
+   "given": [
+    "prefs"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "This fills the grid with this chart. Click it again to restore the grid.",
+     "onPrimary": true,
+     "pr": [
+      568,
+      71,
+      26,
+      26
+     ],
+     "rr": [
+      564,
+      67,
+      34,
+      34
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "GF-04",
+   "say": "how do I reset a grid chart to my own chart settings",
+   "feature": "gridAction",
+   "title": "Resetting a chart in the grid",
+   "given": [
+    "prefs"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click this to drop this chart’s own settings and match your main chart.",
+     "onPrimary": true,
+     "pr": [
+      154,
+      76,
+      116,
+      16
+     ],
+     "rr": [
+      150,
+      72,
+      124,
+      24
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "GF-05",
+   "say": "show me how to drop the custom look on one chart in the grid",
+   "feature": "gridAction",
+   "title": "Resetting a chart in the grid",
+   "given": [
+    "prefs"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click this to drop this chart’s own settings and match your main chart.",
+     "onPrimary": true,
+     "pr": [
+      154,
+      76,
+      116,
+      16
+     ],
+     "rr": [
+      150,
+      72,
+      124,
+      24
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "GF-06",
+   "say": "how do I change the grid to four by four",
+   "feature": "multiChart",
+   "title": "Setting up a 4×4 chart grid",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open Layouts ▾.",
+     "onPrimary": true,
+     "pr": [
+      230,
+      17,
+      95,
+      26
+     ],
+     "rr": [
+      226,
+      13,
+      103,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Multi Chart.",
+     "onPrimary": true,
+     "pr": [
+      231,
+      134,
+      228,
+      29
+     ],
+     "rr": [
+      227,
+      130,
+      236,
+      37
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Click 4×4. Your board is kept: Workspace brings it back.",
+     "onPrimary": true,
+     "pr": [
+      358,
+      121,
+      52,
+      51
+     ],
+     "rr": [
+      354,
+      117,
+      60,
+      59
+     ]
+    },
+    {
+     "i": 3,
+     "text": "This is your grid. Click Workspace whenever you want your board back.",
+     "onPrimary": true,
+     "pr": [
+      231,
+      17,
+      102,
+      25
+     ],
+     "rr": [
+      227,
+      13,
+      110,
+      33
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "GF-07",
+   "say": "show me how to set up a 2x3 grid of charts",
+   "feature": "multiChart",
+   "title": "Setting up a 2×3 chart grid",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open Layouts ▾.",
+     "onPrimary": true,
+     "pr": [
+      230,
+      17,
+      95,
+      26
+     ],
+     "rr": [
+      226,
+      13,
+      103,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Multi Chart.",
+     "onPrimary": true,
+     "pr": [
+      231,
+      134,
+      228,
+      29
+     ],
+     "rr": [
+      227,
+      130,
+      236,
+      37
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Click 2×3. Your board is kept: Workspace brings it back.",
+     "onPrimary": true,
+     "pr": [
+      414,
+      79,
+      52,
+      38
+     ],
+     "rr": [
+      410,
+      75,
+      60,
+      46
+     ]
+    },
+    {
+     "i": 3,
+     "text": "This is your grid. Click Workspace whenever you want your board back.",
+     "onPrimary": true,
+     "pr": [
+      231,
+      17,
+      102,
+      25
+     ],
+     "rr": [
+      227,
+      13,
+      110,
+      33
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "GF-08",
+   "say": "how do I go back from the grid to my normal board",
+   "feature": "gridAction",
+   "title": "Leaving Multi Chart",
+   "given": [
+    "prefs"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click Workspace to go back to your board. Your grid is kept.",
+     "onPrimary": true,
+     "pr": [
+      231,
+      17,
+      102,
+      25
+     ],
+     "rr": [
+      227,
+      13,
+      110,
+      33
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "GF-09",
+   "say": "how do I sync crosshairs across the grid",
+   "feature": "gridAction",
+   "title": "Syncing the crosshair",
+   "given": [
+    "prefs"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open Layouts ▾.",
+     "onPrimary": true,
+     "pr": [
+      121,
+      17,
+      95,
+      26
+     ],
+     "rr": [
+      117,
+      13,
+      103,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Multi Chart.",
+     "onPrimary": true,
+     "pr": [
+      122,
+      77,
+      228,
+      31
+     ],
+     "rr": [
+      118,
+      73,
+      236,
+      39
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Tick this to move one crosshair across every chart.",
+     "onPrimary": true,
+     "pr": [
+      123,
+      223,
+      244,
+      18
+     ],
+     "rr": [
+      119,
+      219,
+      252,
+      26
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "GF-10",
+   "say": "how do I turn off crosshair sync on my grid",
+   "feature": "gridAction",
+   "title": "Syncing the crosshair",
+   "given": [
+    "prefs"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open Layouts ▾.",
+     "onPrimary": true,
+     "pr": [
+      121,
+      17,
+      95,
+      26
+     ],
+     "rr": [
+      117,
+      13,
+      103,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Multi Chart.",
+     "onPrimary": true,
+     "pr": [
+      122,
+      77,
+      228,
+      31
+     ],
+     "rr": [
+      118,
+      73,
+      236,
+      39
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Tick this to move one crosshair across every chart.",
+     "onPrimary": true,
+     "pr": [
+      123,
+      223,
+      244,
+      18
+     ],
+     "rr": [
+      119,
+      219,
+      252,
+      26
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "GF-11",
+   "say": "show me how to keep every grid chart on the same time range",
+   "feature": "gridAction",
+   "title": "Syncing the time range",
+   "given": [
+    "prefs"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open Layouts ▾.",
+     "onPrimary": true,
+     "pr": [
+      121,
+      17,
+      95,
+      26
+     ],
+     "rr": [
+      117,
+      13,
+      103,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Multi Chart.",
+     "onPrimary": true,
+     "pr": [
+      122,
+      77,
+      228,
+      31
+     ],
+     "rr": [
+      118,
+      73,
+      236,
+      39
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Tick this so every chart shows the same dates.",
+     "onPrimary": true,
+     "pr": [
+      123,
+      241,
+      244,
+      18
+     ],
+     "rr": [
+      119,
+      237,
+      252,
+      26
+     ]
+    }
+   ],
+   "consoleErrors": []
+  }
+ ]
+}

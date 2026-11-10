@@ -1,0 +1,68 @@
+[
+ {
+  "id": "GF-01",
+  "say": "how do I make one chart in the grid fill the whole grid",
+  "feature": "gridAction",
+  "title": "Maximizing a chart in the grid"
+ },
+ {
+  "id": "GF-02",
+  "say": "show me how to blow up a single grid chart to full size",
+  "feature": "gridAction",
+  "title": "Maximizing a chart in the grid"
+ },
+ {
+  "id": "GF-03",
+  "say": "how do I put a grid chart back to its normal size after maximizing it",
+  "feature": "gridAction",
+  "title": "Maximizing a chart in the grid"
+ },
+ {
+  "id": "GF-04",
+  "say": "how do I reset a grid chart to my own chart settings",
+  "feature": "gridAction",
+  "title": "Resetting a chart in the grid"
+ },
+ {
+  "id": "GF-05",
+  "say": "show me how to drop the custom look on one chart in the grid",
+  "feature": "gridAction",
+  "title": "Resetting a chart in the grid"
+ },
+ {
+  "id": "GF-06",
+  "say": "how do I change the grid to four by four",
+  "feature": "multiChart",
+  "title": "Setting up a 4×4 chart grid"
+ },
+ {
+  "id": "GF-07",
+  "say": "show me how to set up a 2x3 grid of charts",
+  "feature": "multiChart",
+  "title": "Setting up a 2×3 chart grid"
+ },
+ {
+  "id": "GF-08",
+  "say": "how do I go back from the grid to my normal board",
+  "feature": "gridAction",
+  "title": "Leaving Multi Chart"
+ },
+ {
+  "id": "GF-09",
+  "say": "how do I sync crosshairs across the grid",
+  "feature": "gridAction",
+  "title": "Syncing the crosshair"
+ },
+ {
+  "id": "GF-10",
+  "say": "how do I turn off crosshair sync on my grid",
+  "feature": "gridAction",
+  "title": "Syncing the crosshair"
+ },
+ {
+  "id": "GF-11",
+  "say": "show me how to keep every grid chart on the same time range",
+  "feature": "gridAction",
+  "title": "Syncing the time range"
+ }
+]
