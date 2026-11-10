@@ -158,6 +158,30 @@ describe('C3-074: rename the Flagged list, as its title menu\'s Rename does', ()
   }, 60000)
 })
 
+// F4 (u18-flagged-01 / u18-flagged-02): the Flagged hook took the new name, but the widget's own title went on reading "Flagged"
+// (it drew opts.watchName, the name the list had when it was picked), so the receipt said "is now Top Ideas" over a face that
+// did not change. Asserted here on THE FACE: the title text inside this widget, and the door's read-back is that same title.
+// A second Watchlist widget (Momentum) is the control: its title never changes.
+const titleOf = (id = 'wa') => document.querySelector(`[data-testid="w-${id}"] [data-guide="watchlist.title"]`)?.textContent ?? null
+describe('F4 u18-flagged-01/02: the widget\'s own title (the face the member sees) shows the new name', () => {
+  it.each([
+    ['u18-flagged-01', 'rename flagged to Top Ideas', 'Top Ideas'],
+    ['u18-flagged-02', 'call my flagged list Shortlist instead', 'Shortlist'],
+  ])('%s "%s": the title reads the new name and the read-back is that title; Undo puts "Flagged" back on the face', async (_id, text, want) => {
+    const m = board([wl('wa', FLAGGED), wl('wb', MINE, 18)])
+    await waitFor(() => expect(titleOf()).toBe('Flagged'))
+    expect(titleOf('wb')).toBe('Momentum')
+    await m.say(text, setOption({ key: 'flaggedName', value: want }))
+    await waitFor(() => expect(titleOf()).toBe(want))
+    expect(readOf().flaggedName).toBe(titleOf())
+    expect(titleOf('wb')).toBe('Momentum')
+    await m.say('undo')
+    await waitFor(() => expect(titleOf()).toBe('Flagged'))
+    expect(readOf().flaggedName).toBe('Flagged')
+    expect(titleOf('wb')).toBe('Momentum')
+  }, 60000)
+})
+
 describe('NEGATIVE: refused in words; nothing is written', () => {
   it.each(LOOK_REFUSE_HELD_OUT.map(c => [c.text, c]))('held-out "%s"', async (text, c) => {
     const m = board([wl('wa', c.notFlagged ? MINE : MINE)])
