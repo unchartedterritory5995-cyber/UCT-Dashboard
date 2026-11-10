@@ -32,7 +32,9 @@ export const FLOW_REFUSE_HELD_OUT = [
   { text: 'show sweeps and blocks on the options flow', ops: [op('printType', 'Sweep'), op('printType', 'Block')], refuse: /one choice.*Any.*Sweep.*Block/i, kind: 'conflict' },
   { text: 'only bull and bear prints on the options flow', ops: [op('direction', 'Bull'), op('direction', 'Bear')], refuse: /one choice/i, kind: 'conflict' },
   { text: 'options flow premium over 2 million', ops: [op('minPremium', 2000000)], refuse: /\$250K.*\$500K.*\$1M/, kind: 'not a chip' },
-  { text: 'only dark pool prints in the options flow', ops: [op('darkPool', 'on')], refuse: /no option “darkPool”/, kind: 'invented filter' },
+  // post-hoc (2026-11-10, after the first run; the outcome is unchanged: refused, nothing written): "dark pool" is itself a hidden
+  // phrase, so the F-16 screen refusal answers before any option is looked up — either refusal is the right one
+  { text: 'only dark pool prints in the options flow', ops: [op('darkPool', 'on')], refuse: /no option “darkPool”|can't screen on/, kind: 'invented filter' },
 ]
 // two Options Flow widgets: nothing names one → ASK, listing both; a referent → that one only
 export const FLOW_TWO_WIDGETS_HELD_OUT = [

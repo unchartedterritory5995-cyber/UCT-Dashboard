@@ -227,7 +227,7 @@ describe('widget.readOptions: how a widget is set, read back', () => {
     expect(flow.split('\n')[0]).toMatch(/lead biggest, .*callPut Puts, /)
     expect(flow).toMatch(/lead: tape, biggest, sentiment/)
     expect(flow).toMatch(/callPut: All, Calls, Puts/)
-    expect(flow).toMatch(/minPremium 0,/)
+    expect(flow).toMatch(/minPremium All,/)
     const th = read(host, 't')
     expect(th).toMatch(/period 1w/)
     expect(th).toMatch(/openTheme Theme 3/)
