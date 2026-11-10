@@ -8,12 +8,17 @@ Built on `agent/pl/bar-time-coverage` from `agent/pl/integration-1` `b07a97d526`
 
 ## The number
 
-**233 of 484 actions, 48.1%, are VERIFIED at panel level with a scripted model** (158 in the 2026-11-05 run, plus 75 on 2026-11-10: 29 from the chart-settings outcome test, 3 from the Multi Chart outcome test, 35 from the cited-test re-run, 8 from the held-out-12 outcome test). A further 13 are PARTIAL (SIMULATED): part of the action passes, part is not covered. See "Update 2026-11-10: combined execution packets (PR #1016)" below. That proves the Agent is given what it needs and that a correct plan reaches the right state. It does not prove the real model picks that plan, and it does not prove the real chart redraws.
+**233 of 483 actions, 48.2%, are VERIFIED at panel level with a scripted model** (158 in the 2026-11-05 run, plus 75 on 2026-11-10: 29 from the chart-settings outcome test, 3 from the Multi Chart outcome test, 35 from the cited-test re-run, 8 from the held-out-12 outcome test). A further 13 are PARTIAL (SIMULATED): part of the action passes, part is not covered. See "Update 2026-11-10: combined execution packets (PR #1016)" below. That proves the Agent is given what it needs and that a correct plan reaches the right state. It does not prove the real model picks that plan, and it does not prove the real chart redraws.
 
 - Production evidence with the real planner covers 13 of those 158 rows, from the 2026-11-03 live run on the older build `463a4bcba5`, read by receipt and some server reads.
 - Real component in a browser, Agent executing: 0 rows. The browser runs in teach-status.md prove walkthroughs, where a person clicks. They never ran an Agent plan.
 - A further 25 rows have a passing runtime test (capability and writer, no panel). They are IMPLEMENTED / UNVERIFIED and are not in the 233. (It was 43 on 2026-11-05; 18 of them were raised on 2026-11-10.)
 - P0 actions: 58 of 74 VERIFIED (as of 2026-11-05; this doc carries no per-row P0 tag, so the 2026-11-10 update did not recount it).
+
+## Update 2026-11-10 (3): C3-080 leaves scope (agent/pl/remove-starred-dead-code)
+
+- C3-080 "Remove all starred symbols from a list" is NOT IN PRODUCT: the feature was intentionally removed in 72482c8400 (star-as-flag), and the unreachable starred code left behind (starred state, toggleStar, getStarredSyms, handleRemoveStarred, the "Remove starred (N)" menu row) was deleted on this branch. It is NOT ON /CHARTS (was IMPLEMENTED / UNVERIFIED) and listed in "Denominator", consistent with inventory v2. In scope 483, excluded 20; VERIFIED 233 of 483, 48.2%.
+- Recounted from the "All actions" table by `docs/agent/program/recount-c3080.mjs` (it first reproduces the previous "Counts by area" exactly from the previous rows).
 
 ## Update 2026-11-10 (2): the 12 held-out-only rows (agent/pl/exec-heldout12)
 
@@ -63,6 +68,7 @@ The 10 non-held-out test files named by 40 NOT VERIFIED rows (ledger `docs/agent
 | 2026-11-05 | 158 | 0 | 112 | 154 | 47 | 13 | 484 | 19 |
 | after chart settings + multichart + cited re-run | 225 | 9 | 69 | 126 | 43 | 12 | 484 | 19 |
 | after the held-out 12 (agent/pl/exec-heldout12) | 233 | 13 | 64 | 119 | 43 | 12 | 484 | 19 |
+| after C3-080 left scope (NOT IN PRODUCT) | 233 | 13 | 63 | 119 | 43 | 12 | 483 | 20 |
 
 - VERIFIED 225 of 484, 46.5%. PARTIAL is in scope but never VERIFIED (the PARTIAL column PR #1016 introduced).
 - Re-run on the combined branch (after both merges): all 12 test files of the three packets were run once each, single-file, under the suite lock, and all passed (chartSettings.outcome 40 passed + 5 known-gap (pinned) + 7 todo; multiChart.outcome 8 passed + 17 todo; the 10 cited files as in EXEC-CITED-RERUN.md). Totals lines: `docs/agent/program/PR-exec-chart-settings.md`.
@@ -91,7 +97,7 @@ The 10 non-held-out test files named by 40 NOT VERIFIED rows (ledger `docs/agent
 
 ## Denominator
 
-499 inventory rows, minus 19 with no real control on desktop /charts, plus 4 real right-click rows the inventory never had, gives 484. Excluded rows stay in the table as NOT ON /CHARTS. Their outcome still counts on the row that owns it, so nothing is double counted.
+499 inventory rows, minus 19 with no real control on desktop /charts, plus 4 real right-click rows the inventory never had, gives 484. 2026-11-10: C3-080 (remove all starred) is NOT IN PRODUCT, so it is excluded too: 483 in scope, 20 excluded. Excluded rows stay in the table as NOT ON /CHARTS. Their outcome still counts on the row that owns it, so nothing is double counted.
 
 The real /charts right-click menu (`ChartWidget.jsx`) is: Set alert at price, Send to Journal, Send to Journal (choose where), Reset view, one location item that opens a settings section, Chart settings, Chart template, Add widget, Clear all drawings, Ask AI about the symbol.
 
@@ -110,6 +116,7 @@ The real /charts right-click menu (`ChartWidget.jsx`) is: Set alert at price, Se
 | C1-129 | Ray | UNMAPPED | No toolbar button or shortcut for Ray; only a render case. Agent-only (c:drawing.ray). |
 | C2-101 | Edit an average or study on phone | IMPLEMENTED / UNVERIFIED | Phone shell only; not desktop /charts. |
 | C3-073 | Rename a list | VERIFIED | Only on the Watchlists page: a Watchlist widget on /charts has no list header. Agent-only from /charts (c:watchlist.rename). |
+| C3-080 | Remove all starred symbols from a list | IMPLEMENTED / UNVERIFIED | Feature intentionally removed in 72482c8400 (star-as-flag); the unreachable starred code was deleted 2026-11-10 (owner: it stays removed). NOT IN PRODUCT, like inventory v2. |
 | C3-081 | Reorder symbols by hand | VERIFIED | No reachable control: the reorder handler has no caller. Agent-only (c:watchlist.reorder). |
 | C3-084 | Apply a column preset | MISSING | Only on the Watchlists page: a Watchlist widget on /charts has no column gear. |
 | C3-090 | Tag a symbol with a colour | MISSING | The tag menu lives in the app-wide chart menu, which /charts does not use. |
@@ -195,7 +202,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3 | Chart tabs | 4 | 0 | 1 | 0 | 0 | 0 | 5 | 0 |
 | C3 | Layout Dock | 8 | 0 | 2 | 5 | 2 | 0 | 17 | 0 |
 | C3 | Multi Chart | 3 | 1 | 0 | 2 | 15 | 0 | 21 | 0 |
-| C3 | Watchlist | 15 | 0 | 4 | 15 | 5 | 1 | 40 | 4 |
+| C3 | Watchlist | 15 | 0 | 3 | 15 | 5 | 1 | 39 | 5 |
 | C3 | Scanner | 8 | 0 | 0 | 4 | 2 | 0 | 14 | 0 |
 | C3 | Volume Surge | 2 | 0 | 1 | 3 | 0 | 0 | 6 | 0 |
 | C3 | Alerts | 4 | 0 | 0 | 2 | 0 | 0 | 6 | 0 |
@@ -221,8 +228,8 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3 | Workspace | 0 | 0 | 0 | 1 | 1 | 1 | 3 | 0 |
 | C1 | **all** | 105 | 4 | 17 | 26 | 11 | 5 | 168 | 11 |
 | C2 | **all** | 39 | 0 | 32 | 20 | 5 | 4 | 100 | 1 |
-| C3 | **all** | 89 | 9 | 15 | 73 | 27 | 3 | 216 | 7 |
-| | **Total** | 233 | 13 | 64 | 119 | 43 | 12 | 484 | 19 |
+| C3 | **all** | 89 | 9 | 14 | 73 | 27 | 3 | 215 | 8 |
+| | **Total** | 233 | 13 | 63 | 119 | 43 | 12 | 483 | 20 |
 
 ## Raised to VERIFIED (47)
 
@@ -707,7 +714,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-077 | Watchlist | Add to Flagged | VERIFIED | c:watchlist.setFlag; listControl: "flag NVDA" | pass 5/5 | panel, scripted model |
 | C3-078 | Watchlist | Flag or unflag a row (star) | VERIFIED | listControl: unflag keeps the rest | pass 1/1 | panel, scripted model |
 | C3-079 | Watchlist | Remove a symbol | VERIFIED | c:watchlist.remove | pass 5/5 | panel, scripted model |
-| C3-080 | Watchlist | Remove all starred symbols from a list | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
+| C3-080 | Watchlist | Remove all starred symbols from a list | NOT ON /CHARTS | none (was IMPLEMENTED / UNVERIFIED): Feature intentionally removed in 72482c8400 (star-as-flag); the unreachable starred code was deleted 2026-11-10 (owner: it stays removed). NOT IN PRODUCT, like inventory v2. | n/a | n/a |
 | C3-081 | Watchlist | Reorder symbols by hand | NOT ON /CHARTS | agentChartsOperatorP1.test.jsx:358; agentChartsOperatorP1.test.jsx:366; agentChartsOperatorP1.test.jsx:377 | pass 3/3 | n/a |
 | C3-082 | Watchlist | Sort by a column | VERIFIED | c:watchlist.sortColumn; listControl: "sort my watchlist by RVOL" | pass 6/6 | panel, scripted model |
 | C3-083 | Watchlist | Show or hide a column | VERIFIED | c:watchlist.setColumns; listControl: "add the market cap column"; listControl: hide a default column and an added one | pass 6/6 | panel, scripted model |
