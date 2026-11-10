@@ -11,6 +11,7 @@ forget_review(review_id, *, conn=None) -> None
 Production Anthropic calls go through AnthropicClient; tests inject FakeClient.
 """
 from __future__ import annotations
+from api.services import llm_models
 
 import json
 import os
@@ -43,7 +44,7 @@ class CoachClientProto(Protocol):
 class AnthropicClient:
     """Thin wrapper around the Anthropic Python SDK for Compass coach calls."""
 
-    DEFAULT_MODEL = "claude-sonnet-4-6"
+    DEFAULT_MODEL = llm_models.SONNET
 
     def __init__(self, api_key: str | None = None) -> None:
         import anthropic  # deferred so the module is importable without the package installed
@@ -77,7 +78,7 @@ class AnthropicClient:
         msg = self._client.messages.create(
             model=self.DEFAULT_MODEL,
             max_tokens=2000,
-            temperature=0.4,
+            **llm_models.plain(self.DEFAULT_MODEL, temperature=0.4),
             metadata={"user_id": f"compass_weekly_review:{user_id}"},
             system=[
                 {
@@ -88,7 +89,7 @@ class AnthropicClient:
             ],
             messages=[{"role": "user", "content": user_message}],
         )
-        body = msg.content[0].text if msg.content else ""
+        body = llm_models.text_of(msg)
         summary = _extract_first_paragraph(body)
         return {"body": body, "summary": summary, "key_observations": []}
 
@@ -104,7 +105,7 @@ class AnthropicClient:
         msg = self._client.messages.create(
             model=self.DEFAULT_MODEL,
             max_tokens=2000,
-            temperature=0.3,
+            **llm_models.plain(self.DEFAULT_MODEL, temperature=0.3),
             metadata={"user_id": f"compass_profile_update:{user_id}"},
             system=[
                 {
@@ -115,7 +116,7 @@ class AnthropicClient:
             ],
             messages=[{"role": "user", "content": user_message}],
         )
-        text = msg.content[0].text if msg.content else ""
+        text = llm_models.text_of(msg)
         return {"updated_profile": text.strip()}
 
     # ------------------------------------------------------------------
@@ -127,7 +128,7 @@ class AnthropicClient:
         msg = self._client.messages.create(
             model=self.DEFAULT_MODEL,
             max_tokens=1200,
-            temperature=0.5,
+            **llm_models.plain(self.DEFAULT_MODEL, temperature=0.5),
             metadata={"user_id": f"compass_eod_recap:{user_id}"},
             system=[
                 {
@@ -138,7 +139,7 @@ class AnthropicClient:
             ],
             messages=[{"role": "user", "content": user_message}],
         )
-        body = msg.content[0].text if msg.content else ""
+        body = llm_models.text_of(msg)
         summary = _extract_first_paragraph(body)
         return {"body": body, "summary": summary, "key_observations": []}
 
