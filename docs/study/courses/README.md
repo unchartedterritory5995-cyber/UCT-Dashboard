@@ -66,7 +66,8 @@ The unit list, what each unit teaches and its rough question count are in `docs/
 
 **Skill ids.** `<track slug>.<topic>`, lower case, one skill per unit unless the unit plainly teaches two things.
 Track slugs: F1 `basics`, F5 `fund`, F6 `options`, F7 `history`, F8 `psych`, F9 `risk`, F10 `orders`, F10b `short`,
-F11 `styles`, F12 `process`, V `vocab.<category>`.
+F11 `styles`, F12 `process`, V `vocab.<category>`; the Method's Setup track SET `setup` (one unit per criteria card
+under `docs/study/setups/criteria/`; pilot SET.07).
 
 **Formats** (what the app plays today):
 

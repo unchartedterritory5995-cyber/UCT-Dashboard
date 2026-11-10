@@ -28,7 +28,9 @@ from api.services import study_import
 COURSES_DIR = REPO / "docs" / "study" / "courses"
 FORMATS = ("mcq", "tf", "fill", "numeric", "scenario")
 TRACK_SLUGS = {"F1": "basics", "F5": "fund", "F6": "options", "F7": "history", "F8": "psych", "F9": "risk",
-               "F10": "orders", "F10b": "short", "F11": "styles", "F12": "process", "V": "vocab"}
+               "F10": "orders", "F10b": "short", "F11": "styles", "F12": "process", "V": "vocab",
+               # the UCT Method's Setup track (docs/study/UNITS-method.md), one unit per criteria card; pilot SET.07
+               "SET": "setup"}
 MAX_QUOTE_WORDS = 40
 MAX_Q_CHARS = 140
 MAX_CHOICE_CHARS = 40

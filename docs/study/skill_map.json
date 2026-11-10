@@ -1877,17 +1877,17 @@
               "id": "SET.07",
               "title": "Flat Base Breakout",
               "skills": [
-                "setup.family1.flat_base"
+                "setup.flat_base"
               ],
               "lessons": [
                 "uct-method:flagship-flat-base-breakout-contractions-dry-up-pivot-and-the-tick-exact-buy"
               ],
               "modules": [
-                "M7"
+                "SET"
               ],
-              "supply": "medium",
-              "est_questions": 100,
-              "setup": "Flat Base Breakout"
+              "supply": "authored",
+              "est_questions": 65,
+              "course_file": "docs/study/courses/SET/SET.07.json"
             },
             {
               "id": "SET.08",

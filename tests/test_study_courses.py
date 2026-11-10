@@ -140,6 +140,19 @@ def test_validator_catches(mutate, expect):
     assert any(expect in p for p in probs), probs
 
 
+def test_setup_track_is_registered_with_its_own_slug():
+    """SET (the Method's Setup track, one unit per criteria card; pilot SET.07) validates like a Foundations track:
+    its skill ids start with `setup.`, and a Foundations slug on a SET unit is refused."""
+    assert cl.TRACK_SLUGS["SET"] == "setup"
+    d = copy.deepcopy(_unit())
+    d.update(unit="SET.07", track="SET", skills=[{"id": "setup.flat_base", "title": "Flat Base Breakout"}])
+    for q in d["questions"]:
+        q["skill"] = "setup.flat_base"
+    assert cl.unit_problems(d) == []
+    d["skills"][0]["id"] = "basics.flat_base"
+    assert any("must start with setup." in p for p in cl.unit_problems(d))
+
+
 def test_a_chart_question_ships_a_bars_spec_and_never_names_its_ticker():
     d = copy.deepcopy(_unit())
     _first(d, "q01")["chart"] = {"sym": "SPY", "asof": "2020-03-23", "window": 120, "forward": 30}
@@ -247,3 +260,13 @@ def test_arith_refuses_anything_but_arithmetic():
 def test_unknown_calc_fails():
     with pytest.raises(ValueError):
         cl.run_calc({"fn": "nope"})
+
+
+def test_an_authored_unit_keeps_its_planned_lesson_door():
+    """A Method unit's `uct-method:` lesson key in skill_map.json survives being authored (gen_courses carries it)."""
+    import json
+    m = json.loads((cl.REPO / "docs" / "study" / "skill_map.json").read_text(encoding="utf-8"))
+    curricula = m["curricula"] if isinstance(m["curricula"], list) else list(m["curricula"].values())
+    units = [u for c in curricula for t in c.get("tracks") or [] for u in t.get("units") or [] if u.get("id") == "SET.07"]
+    assert units and units[0].get("supply") == "authored"
+    assert any(k.startswith("uct-method:") for k in units[0].get("lessons") or [])

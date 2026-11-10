@@ -1,0 +1,4093 @@
+[
+ {
+  "answer_json": {
+   "answer": "A boxy rest near the highs after a run"
+  },
+  "difficulty": 1,
+  "id": "si_559c7b13ddf1",
+  "lesson_origin": "session",
+  "lesson_text": "A boxy rest near the highs after a run. IBD: it should look like a rectangular box, forming as a stock takes a breather after an earlier advance. A flat base is a leader catching its breath in a box near the highs.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "A boxy rest near the highs after a run",
+    "A V-shaped bottom after a crash",
+    "A pole that doubles in a few weeks",
+    "A slow drift under the 200-day"
+   ],
+   "kind": "mcq",
+   "q": "In one line, what is a flat base?",
+   "subject": "SET.07#q01"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "Investor's Business Daily (syndicated on Yahoo Finance): Flat Base Can Be Springboard To Big Stock Market Winners (2015-03-31)",
+      "quote": "It should look like a rectangular box with a correction from high to low of no more than 15%.",
+      "tier": 2,
+      "url": "https://finance.yahoo.com/news/flat-springboard-big-stock-market-213500613.html"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Investor's Business Daily (syndicated on Yahoo Finance): Early Buy Point In A Flat Base Can Give Investors Jump-Start (2014-08-12)",
+      "quote": "These shallow patterns often start forming as a stock takes a breather after an earlier advance.",
+      "tier": 2,
+      "url": "https://finance.yahoo.com/news/early-buy-point-flat-investors-220500783.html"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "MarketSmith (O'Neil's data firm): Flat Base (MarketSmith Hong Kong)",
+      "quote": "Flat bases often occur after a stock runs up after breaking out of one of the other chart patterns.",
+      "tier": 2,
+      "url": "https://www.marketsmith.hk/flat-base/?lang=en"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Stockbee (Pradeep Bonde): William O'Neil Setups (2011-12-13)",
+      "quote": "This is nothing but Darvas box setup.",
+      "tier": 2,
+      "url": "https://stockbee.blogspot.com/2011/12/william-oneil-setups.html"
+     }
+    ],
+    "summary": "IBD: a flat base looks like a rectangular box. IBD: a flat base forms as a stock rests after an earlier advance. MarketSmith: flat bases often follow a run-up out of another pattern. Bonde: the flat base is a Darvas box."
+   },
+   "facts": {
+    "given": "In one line, what is a flat base? A boxy rest near the highs after a run A V-shaped bottom after a crash A pole that doubles in a few weeks A slow drift under the 200-day"
+   },
+   "lesson_line": "A flat base is a leader catching its breath in a box near the highs.",
+   "unit": "SET.07",
+   "why": "A boxy rest near the highs after a run. IBD: it should look like a rectangular box, forming as a stock takes a breather after an earlier advance.",
+   "wrong": {
+    "A V-shaped bottom after a crash": "That is a bottoming pattern after a drop. A flat base rests near the highs after an advance.",
+    "A pole that doubles in a few weeks": "That is the high tight flag's pole. A flat base is the rest, not the run.",
+    "A slow drift under the 200-day": "Below the 200-day we do not buy. A flat base sits above its rising averages."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q01",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The highest intraday high of the base"
+  },
+  "difficulty": 1,
+  "id": "si_54b33719e292",
+  "lesson_origin": "session",
+  "lesson_text": "The highest intraday high of the base. IBD adds 10 cents to it; with a market order the 10 cents does not matter. The pivot is the top of the box. Mark it before the open.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "The highest intraday high of the base",
+    "The lowest low of the base",
+    "The 50-day average",
+    "The midpoint of the base"
+   ],
+   "kind": "mcq",
+   "q": "On a flat base, where is the pivot, the level a breakout has to trade through?",
+   "subject": "SET.07#q02"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "The pivot is the highest intraday high of the base. IBD adds 10 cents; with market orders the 10 cents does not matter.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "MarketSmith (O'Neil's data firm): MarketSmith Pattern Recognition Users Manual (copy on silo.tips, undated)",
+      "quote": "In the case of a Cup, Flat Base, Consolidation or IPO Base, the Pivot corresponds to the Left Side High that began the base.",
+      "tier": 2,
+      "url": "https://silo.tips/download/marketsmith-pattern-recognition"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Investor's Business Daily (syndicated on Yahoo Finance): Flat Base Can Be Springboard To Big Stock Market Winners (2015-03-31)",
+      "quote": "The buy point in a flat base is 10 cents above the left-side high.",
+      "tier": 2,
+      "url": "https://finance.yahoo.com/news/flat-springboard-big-stock-market-213500613.html"
+     }
+    ],
+    "summary": "The pivot is the base's highest intraday high; IBD's 10 cents does not matter with a market order. MarketSmith: a flat base's pivot is the left-side high that began the base. IBD: the flat base buy point is 10 cents above the left-side high."
+   },
+   "facts": {
+    "given": "On a flat base, where is the pivot, the level a breakout has to trade through? The highest intraday high of the base The lowest low of the base The 50-day average The midpoint of the base"
+   },
+   "lesson_line": "The pivot is the top of the box. Mark it before the open.",
+   "unit": "SET.07",
+   "why": "The highest intraday high of the base. IBD adds 10 cents to it; with a market order the 10 cents does not matter.",
+   "wrong": {
+    "The 50-day average": "The 50-day is support inside the base, not the trigger.",
+    "The lowest low of the base": "That is the base low, the floor. The breakout goes through the ceiling.",
+    "The midpoint of the base": "Halfway up the box is still inside the box. Nothing has broken out."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q02",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "True"
+  },
+  "difficulty": 1,
+  "id": "si_439f6f577289",
+  "lesson_origin": "session",
+  "lesson_text": "True. A few cents under the day's low, not exactly on it. Kullamagi: the stop is always the low of the day. Stop first: a few cents under the breakout day's low.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "On a flat base breakout the stop goes a few cents under the breakout day's low.",
+   "subject": "SET.07#q03"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "A few cents under the breakout day's low.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The stop sits a few cents under the day's low, not exactly on it.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Stop first (by default a few cents under the day's low or the prior day's low, F62); the size comes from the stop; if the honest stop does not fit the risk, skip the trade.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Kristjan Kullamagi (qullamaggie.com): 3 TIMELESS setups that have made me TENS OF MILLIONS! (2021-01-08, updated 2021-04-28)",
+      "quote": "Stop is always lows of the day and stop should not be wider than the ATR or ADR of the stock",
+      "tier": 2,
+      "url": "https://qullamaggie.com/my-3-timeless-setups-that-have-made-me-tens-of-millions/"
+     }
+    ],
+    "summary": "The stop: a few cents under the breakout day's low. F62: the stop sits a few cents under the day's low. A3: stop first, a few cents under the day's low; the size comes from the stop; if the honest stop does not fit, skip. Kullamagi: the stop is the low of the day and no wider than the stock's ATR or ADR."
+   },
+   "facts": {
+    "given": "On a flat base breakout the stop goes a few cents under the breakout day's low."
+   },
+   "lesson_line": "Stop first: a few cents under the breakout day's low.",
+   "unit": "SET.07",
+   "why": "True. A few cents under the day's low, not exactly on it. Kullamagi: the stop is always the low of the day."
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q03",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "200"
+  },
+  "difficulty": 1,
+  "id": "si_53d0af1bcfb5",
+  "lesson_origin": "session",
+  "lesson_text": "200. Price above the 50-day and the 200-day, the 50 above the 200. No longs below the 200-day is a hard rule. Above the 50, above the 200, and the 50 over the 200. Then look at the box.",
+  "module": "SET",
+  "prompt_json": {
+   "bank": [
+    "200",
+    "100",
+    "20",
+    "10",
+    "150"
+   ],
+   "kind": "fill",
+   "q": "Tap the number that fits the blank.",
+   "sentence": "On the breakout day price is above the 50-day and the ___-day, and the 50 sits above it.",
+   "subject": "SET.07#q04"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "On the breakout day price is above the 50-day and the 200-day, and the 50-day is above the 200-day.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The 200-day line: no longs below the 200-day simple moving average, unless it is a parabolic long; shorts only below the 200-day, never above it unless it is a parabolic short.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "On the breakout day price is above the 50-day and the 200-day, with the 50 above the 200. B26: no longs below the 200-day simple moving average, except a parabolic long."
+   },
+   "facts": {
+    "given": "Tap the number that fits the blank. On the breakout day price is above the 50-day and the ___-day, and the 50 sits above it."
+   },
+   "lesson_line": "Above the 50, above the 200, and the 50 over the 200. Then look at the box.",
+   "unit": "SET.07",
+   "why": "200. Price above the 50-day and the 200-day, the 50 above the 200. No longs below the 200-day is a hard rule."
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q04",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "As it trades through 60.00, in hours"
+  },
+  "difficulty": 1,
+  "id": "si_3e65220e8874",
+  "lesson_origin": "session",
+  "lesson_text": "As it trades through 60.00, regular hours, bought at market. Set the alert at the pivot and let the trade come to you. The trigger is the trade through the pivot. Alert at the pivot, market order, regular hours.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "As it trades through 60.00, in hours",
+    "At a close above 60.00",
+    "In premarket, if it gaps over 60.00",
+    "Inside the base, before the move"
+   ],
+   "kind": "mcq",
+   "q": "A flat base pivot is 60.00. When do you buy?",
+   "subject": "SET.07#q05"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "Price trades above the pivot during regular hours. Buy with a market order. Set the alert at the pivot.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Entries are market orders.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "No new buys outside regular trading hours.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Kristjan Kullamagi (qullamaggie.com): 3 TIMELESS setups that have made me TENS OF MILLIONS! (2021-01-08, updated 2021-04-28)",
+      "quote": "This method can also be traded by anticipating the breakout but I don't find it as effective",
+      "tier": 2,
+      "url": "https://qullamaggie.com/my-3-timeless-setups-that-have-made-me-tens-of-millions/"
+     }
+    ],
+    "summary": "The trigger: price trades above the pivot in regular hours; buy at market; alert at the pivot. E57: entries are market orders. E58: no new buys outside regular hours. Kullamagi finds anticipating the breakout less effective."
+   },
+   "facts": {
+    "given": "A flat base pivot is 60.00. When do you buy? As it trades through 60.00, in hours At a close above 60.00 In premarket, if it gaps over 60.00 Inside the base, before the move"
+   },
+   "lesson_line": "The trigger is the trade through the pivot. Alert at the pivot, market order, regular hours.",
+   "unit": "SET.07",
+   "why": "As it trades through 60.00, regular hours, bought at market. Set the alert at the pivot and let the trade come to you.",
+   "wrong": {
+    "At a close above 60.00": "Waiting for the close can cost a day's move. The trigger is the trade through, in regular hours.",
+    "In premarket, if it gaps over 60.00": "No new buys outside regular trading hours.",
+    "Inside the base, before the move": "That is anticipating with no trigger. Kullamagi finds it less effective; we wait."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q05",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "True"
+  },
+  "difficulty": 1,
+  "id": "si_8b54db7a242c",
+  "lesson_origin": "session",
+  "lesson_text": "True. Drying volume on the right side grades the base up; it is not a gate. Bulkowski's rectangles see volume trend down 70% of the time. Quiet volume into the right side is a plus, not a must.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "Volume drying up in the second half of the base is a grade cue, not a gate.",
+   "subject": "SET.07#q06"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "Volume in the base: the second half of the base averages less volume than the first half. A grade cue, not a gate.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Thomas Bulkowski, thepatternsite.com: Rectangle Tops",
+      "quote": "Trends downward 70% of the time.",
+      "tier": 2,
+      "url": "https://thepatternsite.com/recttops.html"
+     }
+    ],
+    "summary": "Volume drying up in the second half of the base is a grade cue, not a gate. Bulkowski: volume inside a rectangle top trends down 70% of the time."
+   },
+   "facts": {
+    "given": "Volume drying up in the second half of the base is a grade cue, not a gate."
+   },
+   "lesson_line": "Quiet volume into the right side is a plus, not a must.",
+   "unit": "SET.07",
+   "why": "True. Drying volume on the right side grades the base up; it is not a gate. Bulkowski's rectangles see volume trend down 70% of the time."
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q06",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "True"
+  },
+  "difficulty": 1,
+  "id": "si_75dbfbe219fb",
+  "lesson_origin": "session",
+  "lesson_text": "True. First or second base. IBD: it is usually best to buy a first-stage or second-stage breakout; later bases are late in their moves. Count the bases. The first two are the ones we want.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "Our card wants a flat base to be the first or second base since the last stage reset.",
+   "subject": "SET.07#q07"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "First or second base since the last stage reset. A breakout that gained less than 20% before this base does not count as a new stage; the count resets to 1 when price undercuts the prior base's low.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Investor's Business Daily (syndicated on Yahoo Finance): Why Late-Stage Base Patterns Often Lead To A Timely Exit (2015-06-16)",
+      "quote": "It's usually best to buy when a stock breaks out from a first-stage or second-stage base.",
+      "tier": 2,
+      "url": "https://finance.yahoo.com/news/why-stage-patterns-often-lead-215800864.html"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "MarketSmith (O'Neil's data firm): MarketSmith Pattern Recognition Users Manual (copy on silo.tips, undated)",
+      "quote": "Stocks emerging from third, fourth or later stage bases are late in their moves and may be more likely to fail.",
+      "tier": 2,
+      "url": "https://silo.tips/download/marketsmith-pattern-recognition"
+     }
+    ],
+    "summary": "First or second base since the last stage reset. IBD: it is usually best to buy a first-stage or second-stage base. MarketSmith: third, fourth or later stage bases are late and more likely to fail."
+   },
+   "facts": {
+    "given": "Our card wants a flat base to be the first or second base since the last stage reset."
+   },
+   "lesson_line": "Count the bases. The first two are the ones we want.",
+   "unit": "SET.07",
+   "why": "True. First or second base. IBD: it is usually best to buy a first-stage or second-stage breakout; later bases are late in their moves."
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q07",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "True"
+  },
+  "difficulty": 1,
+  "id": "si_437b921403a3",
+  "lesson_origin": "session",
+  "lesson_text": "True. Prefer stocks with growing sales and earnings; the chart comes first. Numbers help. The chart decides.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "Growing sales and earnings are preferred, but the chart comes first.",
+   "subject": "SET.07#q08"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Prefer stocks with growing sales and earnings; the chart comes first.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "D40: growing sales and earnings preferred; the chart comes first."
+   },
+   "facts": {
+    "given": "Growing sales and earnings are preferred, but the chart comes first."
+   },
+   "lesson_line": "Numbers help. The chart decides.",
+   "unit": "SET.07",
+   "why": "True. Prefer stocks with growing sales and earnings; the chart comes first."
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q08",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "At the left-side high"
+  },
+  "difficulty": 1,
+  "id": "si_113ba395d079",
+  "lesson_origin": "session",
+  "lesson_text": "At the left-side high, the highest intraday high of the last 100 sessions. Length, depth and the pivot all measure from there. Find the left-side high first. Everything else is measured from it.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "At the left-side high",
+    "At the lowest low of the base",
+    "At the first close over the 50-day",
+    "On the breakout day"
+   ],
+   "kind": "mcq",
+   "q": "Where does a flat base start?",
+   "subject": "SET.07#q09"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "The base starts at the left-side high: the highest intraday high of the last 100 sessions.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "MarketSmith (O'Neil's data firm): MarketSmith Pattern Recognition Users Manual (copy on silo.tips, undated)",
+      "quote": "In most cases, it is the highest intra-day price over the last 100 days (or 20 weeks)",
+      "tier": 2,
+      "url": "https://silo.tips/download/marketsmith-pattern-recognition"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Investor's Business Daily (syndicated on Yahoo Finance): Early Buy Point In A Flat Base Can Give Investors Jump-Start (2014-08-12)",
+      "quote": "To get the proper buy point, add 10 cents to the highest price in the pattern, which is usually the start of the base.",
+      "tier": 2,
+      "url": "https://finance.yahoo.com/news/early-buy-point-flat-investors-220500783.html"
+     }
+    ],
+    "summary": "The base starts at the left-side high, the highest intraday high of the last 100 sessions. MarketSmith: the left-side high is usually the highest intraday price of the last 100 days. IBD's buy point is 10 cents above the highest price in the pattern, usually the start of the base."
+   },
+   "facts": {
+    "given": "Where does a flat base start? At the left-side high At the lowest low of the base At the first close over the 50-day On the breakout day"
+   },
+   "lesson_line": "Find the left-side high first. Everything else is measured from it.",
+   "unit": "SET.07",
+   "why": "At the left-side high, the highest intraday high of the last 100 sessions. Length, depth and the pivot all measure from there.",
+   "wrong": {
+    "At the first close over the 50-day": "The 50-day is a line inside the base, not its start.",
+    "At the lowest low of the base": "The low is the bottom of the box, found later. The base starts at its first high.",
+    "On the breakout day": "That is where the base ends, not where it starts."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q09",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Tight at the end"
+  },
+  "difficulty": 1,
+  "id": "si_15a111ee388c",
+  "lesson_origin": "session",
+  "lesson_text": "Tight at the end. IBD: flat bases should show tight trading. Our test: the last 10 sessions inside half the depth, or an inside day in the last 3. Tight at the end is the tell. Inside days into the pivot are the picture.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "Tight at the end",
+    "Wide and loose",
+    "A late-stage base",
+    "A climax run"
+   ],
+   "kind": "mcq",
+   "q": "Over the last ten sessions a base spans under half its depth, and the last three include an inside day. Our card's name for that?",
+   "subject": "SET.07#q10"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "Tight at the end: the last 10 sessions' high-to-low range is at most half the base's depth, or the last 3 sessions include an inside day.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Investor's Business Daily (syndicated on Yahoo Finance): Correctly Shaped Bases Create Winning Breakouts (2013-02-04)",
+      "quote": "Flat bases should show tight trading.",
+      "tier": 2,
+      "url": "https://finance.yahoo.com/news/correctly-shaped-bases-create-winning-215900488.html"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "TraderLion (Nick Schmidt): Master the Flat Base Pattern for Maximum Profits (2023-03-12, modified 2024-10-27)",
+      "quote": "A well-formed flat base should have tight and orderly price action",
+      "tier": 2,
+      "url": "https://traderlion.com/technical-analysis/the-flat-base-pattern/"
+     }
+    ],
+    "summary": "Tight at the end: the last 10 sessions span at most half the depth, or an inside day in the last 3. IBD: flat bases should show tight trading. TraderLion: a well-formed flat base is tight and orderly."
+   },
+   "facts": {
+    "given": "Over the last ten sessions a base spans under half its depth, and the last three include an inside day. Our card's name for that? Tight at the end Wide and loose A late-stage base A climax run"
+   },
+   "lesson_line": "Tight at the end is the tell. Inside days into the pivot are the picture.",
+   "unit": "SET.07",
+   "why": "Tight at the end. IBD: flat bases should show tight trading. Our test: the last 10 sessions inside half the depth, or an inside day in the last 3.",
+   "wrong": {
+    "A climax run": "A climax is a vertical burst with gaps and volume, nothing like a quiet inside day.",
+    "A late-stage base": "Stage is about how many bases came before, not how tight this one is.",
+    "Wide and loose": "The opposite. Wide and loose is bars growing, not shrinking."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q10",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Yes, three separate taps"
+  },
+  "difficulty": 1,
+  "id": "si_2f7bc0f259d1",
+  "lesson_origin": "session",
+  "lesson_text": "Yes. Two or more separate touches of the top make the ceiling, the first at least 10 sessions back. Three clean taps is the A+ cue on our card. A ceiling is touched, not guessed. Two taps make it; three make it clean.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "Yes, three separate taps",
+    "No, it needs five taps",
+    "No, the taps are too far apart"
+   ],
+   "kind": "mcq",
+   "q": "Does the top count as a flat ceiling?",
+   "story": "A stock rests nine weeks under 48. It tapped 48 three times, each tap a separate swing, the first one six weeks ago. The floor holds near 43.",
+   "subject": "SET.07#q11"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "The ceiling: two or more separate touches of the top within 0.5 ATR, the first at least 10 sessions back.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Thomas Bulkowski, thepatternsite.com: Rectangle Tops",
+      "quote": "Price should touch one trendline at least three times and twice on the other trendline, using distinct peaks and valleys",
+      "tier": 2,
+      "url": "https://thepatternsite.com/recttops.html"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Investor's Business Daily (syndicated on Yahoo Finance): Early Buy Point In A Flat Base Can Give Investors Jump-Start (2014-08-12)",
+      "quote": "Sometimes you can draw a trend line connecting at least three points along the top of the base and find the lowest potential entry.",
+      "tier": 2,
+      "url": "https://finance.yahoo.com/news/early-buy-point-flat-investors-220500783.html"
+     }
+    ],
+    "summary": "The ceiling needs two or more separate touches, the first at least 10 sessions back. Bulkowski's rectangle touches one line at least three times and the other twice. IBD draws a line across at least three points along the top of the base."
+   },
+   "facts": {
+    "given": "Does the top count as a flat ceiling? A stock rests nine weeks under 48. It tapped 48 three times, each tap a separate swing, the first one six weeks ago. The floor holds near 43. Yes, three separate taps No, it needs five taps No, the taps are too far apart"
+   },
+   "lesson_line": "A ceiling is touched, not guessed. Two taps make it; three make it clean.",
+   "unit": "SET.07",
+   "why": "Yes. Two or more separate touches of the top make the ceiling, the first at least 10 sessions back. Three clean taps is the A+ cue on our card.",
+   "wrong": {
+    "No, it needs five taps": "Two or more separate touches is the rule. Five is a wish.",
+    "No, the taps are too far apart": "Spacing is the point: separate swings, the first well back. Far apart is good."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q11",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "True"
+  },
+  "difficulty": 1,
+  "id": "si_5defeef619bd",
+  "lesson_origin": "session",
+  "lesson_text": "True. A close under the 200-day before the trigger invalidates it. No longs below the 200-day simple moving average. Under the 200-day, there is no flat base to buy.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "Before the trigger, a close under the 200-day ends the flat base setup.",
+   "subject": "SET.07#q12"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "Before the trigger: a close under the 200-day.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The 200-day line: no longs below the 200-day simple moving average, unless it is a parabolic long; shorts only below the 200-day, never above it unless it is a parabolic short.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "A close under the 200-day before the trigger invalidates the base. B26: no longs below the 200-day simple moving average, except a parabolic long."
+   },
+   "facts": {
+    "given": "Before the trigger, a close under the 200-day ends the flat base setup."
+   },
+   "lesson_line": "Under the 200-day, there is no flat base to buy.",
+   "unit": "SET.07",
+   "why": "True. A close under the 200-day before the trigger invalidates it. No longs below the 200-day simple moving average."
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q12",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Skip it, too stretched"
+  },
+  "difficulty": 1,
+  "id": "si_3b44907f80ec",
+  "lesson_origin": "session",
+  "lesson_text": "Skip it. A long more than 10% above its 10-day average is too stretched to buy. A breakout that is already stretched is a chase with a different name.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "Skip it, too stretched",
+    "Buy, the pivot is what matters",
+    "Buy half size",
+    "Wait for the close"
+   ],
+   "kind": "mcq",
+   "q": "At the breakout the stock is 12% above its 10-day average. Our rule?",
+   "subject": "SET.07#q13"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "C29: skip a long more than 10% above its 10-day average."
+   },
+   "facts": {
+    "given": "At the breakout the stock is 12% above its 10-day average. Our rule? Skip it, too stretched Buy, the pivot is what matters Buy half size Wait for the close"
+   },
+   "lesson_line": "A breakout that is already stretched is a chase with a different name.",
+   "unit": "SET.07",
+   "why": "Skip it. A long more than 10% above its 10-day average is too stretched to buy.",
+   "wrong": {
+    "Buy half size": "Size does not fix a stretched entry. The rule is skip.",
+    "Buy, the pivot is what matters": "The pivot is the trigger, not the whole rule. The stretch rule still applies at the fill.",
+    "Wait for the close": "The close does not matter here. Distance from the 10-day does."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q13",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "4"
+  },
+  "difficulty": 1,
+  "id": "si_7747630d97da",
+  "lesson_origin": "session",
+  "lesson_text": "4%. MarketSmith's buy range runs 0% to 5% above the pivot; our line is 4%. Past it, the stop is too far away. Four percent over the pivot and I am done. I would rather miss it than chase it.",
+  "module": "SET",
+  "prompt_json": {
+   "bank": [
+    "4",
+    "2",
+    "5",
+    "8",
+    "10"
+   ],
+   "kind": "fill",
+   "q": "Tap the number that fits the blank.",
+   "sentence": "Never buy a flat base breakout more than ___% above the pivot.",
+   "subject": "SET.07#q14"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "No chasing: never buy more than 4% above the buy point.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "MarketSmith (O'Neil's data firm): MarketSmith Pattern Recognition Users Manual (copy on silo.tips, undated)",
+      "quote": "The Pivot Range is 0% to 5% above the pivot point",
+      "tier": 2,
+      "url": "https://silo.tips/download/marketsmith-pattern-recognition"
+     }
+    ],
+    "summary": "C28: never buy more than 4% above the buy point. MarketSmith's buy range is 0% to 5% above the pivot."
+   },
+   "facts": {
+    "given": "Tap the number that fits the blank. Never buy a flat base breakout more than ___% above the pivot."
+   },
+   "lesson_line": "Four percent over the pivot and I am done. I would rather miss it than chase it.",
+   "unit": "SET.07",
+   "why": "4%. MarketSmith's buy range runs 0% to 5% above the pivot; our line is 4%. Past it, the stop is too far away."
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q14",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "False"
+  },
+  "difficulty": 1,
+  "id": "si_1790179400c5",
+  "lesson_origin": "session",
+  "lesson_text": "False. Every position has a real stop order with the broker, not a stop kept in your head. A stop in your head is a debate. A stop with the broker is an appointment.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "The flat base stop can be a level you watch in your head, as long as you act on it.",
+   "subject": "SET.07#q15"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Every position has a real stop order with the broker, not a stop kept in your head.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "D41: a real stop order with the broker."
+   },
+   "facts": {
+    "given": "The flat base stop can be a level you watch in your head, as long as you act on it."
+   },
+   "lesson_line": "A stop in your head is a debate. A stop with the broker is an appointment.",
+   "unit": "SET.07",
+   "why": "False. Every position has a real stop order with the broker, not a stop kept in your head."
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q15",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "A flat base"
+  },
+  "difficulty": 1,
+  "id": "si_eeb88eaa962f",
+  "lesson_origin": "session",
+  "lesson_text": "A flat base. It holds one range with a flat top; a VCP's pullbacks shrink one after another. IBD: a rectangular box. One range, one ceiling, the same floor: that is the box. Shrinking swings are the other setup.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "A flat base",
+    "A VCP",
+    "A cup with handle"
+   ],
+   "kind": "mcq",
+   "q": "A nine-week base: a flat top tapped three times, the same floor each time, one range held throughout. Flat base or VCP?",
+   "subject": "SET.07#q16"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "A flat base holds one range about 15% deep or less with a flat top; a VCP's pullbacks shrink one after another, from as deep as 40% down to under 10%.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Investor's Business Daily (syndicated on Yahoo Finance): Flat Base Can Be Springboard To Big Stock Market Winners (2015-03-31)",
+      "quote": "It should look like a rectangular box with a correction from high to low of no more than 15%.",
+      "tier": 2,
+      "url": "https://finance.yahoo.com/news/flat-springboard-big-stock-market-213500613.html"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Thomas Bulkowski, thepatternsite.com: Rectangle Tops",
+      "quote": "Price should touch one trendline at least three times and twice on the other trendline, using distinct peaks and valleys",
+      "tier": 2,
+      "url": "https://thepatternsite.com/recttops.html"
+     }
+    ],
+    "summary": "A flat base holds one range; a VCP's pullbacks shrink one after another. IBD: a flat base looks like a rectangular box. Bulkowski's rectangle touches one line at least three times and the other twice."
+   },
+   "facts": {
+    "given": "A nine-week base: a flat top tapped three times, the same floor each time, one range held throughout. Flat base or VCP? A flat base A VCP A cup with handle"
+   },
+   "lesson_line": "One range, one ceiling, the same floor: that is the box. Shrinking swings are the other setup.",
+   "unit": "SET.07",
+   "why": "A flat base. It holds one range with a flat top; a VCP's pullbacks shrink one after another. IBD: a rectangular box.",
+   "wrong": {
+    "A VCP": "A VCP tightens pullback by pullback. These swings hold one range.",
+    "A cup with handle": "A cup is a rounded fall and recovery, then a handle. This is a box."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q16",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "True"
+  },
+  "difficulty": 1,
+  "id": "si_80ce8fbbd525",
+  "lesson_origin": "session",
+  "lesson_text": "True. IBD adds 10 cents to the left-side high. We buy at market as price trades through the high, so the 10 cents does not matter. Same level, no 10 cents. The pivot is the high; the trigger is the trade through it.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "IBD's buy point is the base's high plus 10 cents; our market order at the trade-through makes the 10 cents moot.",
+   "subject": "SET.07#q17"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "Investor's Business Daily (syndicated on Yahoo Finance): Flat Base Can Be Springboard To Big Stock Market Winners (2015-03-31)",
+      "quote": "The buy point in a flat base is 10 cents above the left-side high.",
+      "tier": 2,
+      "url": "https://finance.yahoo.com/news/flat-springboard-big-stock-market-213500613.html"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Investor's Business Daily (syndicated on Yahoo Finance): Learn To Spot A Bullish Flat Base On Stock Charts (2012-10-12)",
+      "quote": "The typical buy point is the price high made before the decline, plus 10 cents.",
+      "tier": 2,
+      "url": "https://finance.yahoo.com/news/learn-spot-bullish-flat-stock-215000316.html"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "The pivot is the highest intraday high of the base. IBD adds 10 cents; with market orders the 10 cents does not matter.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     }
+    ],
+    "summary": "IBD: the flat base buy point is 10 cents above the left-side high. IBD's buy point is the high before the decline plus 10 cents. The pivot is the base's highest intraday high; IBD's 10 cents does not matter with a market order."
+   },
+   "facts": {
+    "given": "IBD's buy point is the base's high plus 10 cents; our market order at the trade-through makes the 10 cents moot."
+   },
+   "lesson_line": "Same level, no 10 cents. The pivot is the high; the trigger is the trade through it.",
+   "unit": "SET.07",
+   "why": "True. IBD adds 10 cents to the left-side high. We buy at market as price trades through the high, so the 10 cents does not matter."
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q17",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "No, a report inside 3 sessions"
+  },
+  "difficulty": 1,
+  "id": "si_78cbb9e7bcba",
+  "lesson_origin": "session",
+  "lesson_text": "No. No new buys in the 3 days before an earnings report. If it is still a setup after the report, it can trigger again. A breakout two days before earnings is a coin flip with a story. Wait.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "No, a report inside 3 sessions",
+    "Yes, the setup triggered",
+    "Yes, half size",
+    "Yes, if volume is heavy"
+   ],
+   "kind": "mcq",
+   "q": "Buy the breakout today?",
+   "story": "The base is clean and tight. The pivot is 112.00 and it trades through this morning. Earnings come after the close in two sessions.",
+   "subject": "SET.07#q18"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "B22: no new buys in the 3 days before a report; hold through one only if up 5R."
+   },
+   "facts": {
+    "given": "Buy the breakout today? The base is clean and tight. The pivot is 112.00 and it trades through this morning. Earnings come after the close in two sessions. No, a report inside 3 sessions Yes, the setup triggered Yes, half size Yes, if volume is heavy"
+   },
+   "lesson_line": "A breakout two days before earnings is a coin flip with a story. Wait.",
+   "unit": "SET.07",
+   "why": "No. No new buys in the 3 days before an earnings report. If it is still a setup after the report, it can trigger again.",
+   "wrong": {
+    "Yes, half size": "Size does not fix a report risk. Smaller is still in.",
+    "Yes, if volume is heavy": "Volume grades the day. It does not override the earnings rule.",
+    "Yes, the setup triggered": "The trigger fired, and the calendar still says no. The earnings rule is a hard line."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q18",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "A third at 3R"
+  },
+  "difficulty": 1,
+  "id": "si_a3ae1893b812",
+  "lesson_origin": "session",
+  "lesson_text": "A third at 3R. That is the hard rule; in practice we mostly wait for 5R. The next third comes at 5R. A third at 3R, a third at 5R, trail the rest.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "A third at 3R",
+    "Half at 2R",
+    "All of it at 5R",
+    "A third at 1R"
+   ],
+   "kind": "mcq",
+   "q": "Where does the first trim come on a flat base winner, by our hard rule?",
+   "subject": "SET.07#q19"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R. E51: another third at 5R, then trail the last third."
+   },
+   "facts": {
+    "given": "Where does the first trim come on a flat base winner, by our hard rule? A third at 3R Half at 2R All of it at 5R A third at 1R"
+   },
+   "lesson_line": "A third at 3R, a third at 5R, trail the rest.",
+   "unit": "SET.07",
+   "why": "A third at 3R. That is the hard rule; in practice we mostly wait for 5R. The next third comes at 5R.",
+   "wrong": {
+    "A third at 1R": "1R is where the time stop looks, not where we sell winners.",
+    "All of it at 5R": "5R is the second third, not the exit. The last third rides the trail.",
+    "Half at 2R": "Too early and too much. Breakeven can move at 2R; the trim waits for 3R."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q19",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "95.38",
+    "95.380"
+   ],
+   "answer": 95.38
+  },
+  "difficulty": 1,
+  "id": "si_c02d77da9752",
+  "lesson_origin": "session",
+  "lesson_text": "95.38. One R is the fill minus the stop. Add three of those to the fill. NUS reached it the next session. Know your 3R before the open. The first third comes off there.",
+  "module": "SET",
+  "prompt_json": {
+   "kind": "fill_numeric",
+   "prefix": "$",
+   "q": "Bought at 90.01 with the stop at 88.22. Where is 3R?",
+   "subject": "SET.07#q20"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "NUS | 2013-09-09 | 6.0 wk / 10.3% / 3 / +82% | 1.85x | 90.01 | 88.22 (2.0%) | 23.5R (1)",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "A six-week shelf riding the rising 10- and 21-day after the stock nearly doubled; three clean taps of 90; broke out on 1.9x volume and reached 3R the next session.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
+     }
+    ],
+    "summary": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R. NUS, trigger 2013-09-09: a 6-week, 10.3% base with 3 taps after an 82% run; buy 90.01, stop 88.22 (2.0%); 23.5R, 3R on day 1. NUS: a six-week shelf on the rising 10- and 21-day after nearly doubling; three taps of 90; 1.9x volume; 3R the next session."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "a": 90.01,
+      "b": 88.22,
+      "expr": "a + 3 * (a - b)"
+     },
+     "fn": "arith",
+     "result": 95.38
+    },
+    "given": "Bought at 90.01 with the stop at 88.22. Where is 3R?"
+   },
+   "lesson_line": "Know your 3R before the open. The first third comes off there.",
+   "unit": "SET.07",
+   "why": "95.38. One R is the fill minus the stop. Add three of those to the fill. NUS reached it the next session."
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q20",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "True"
+  },
+  "difficulty": 1,
+  "id": "si_e65eb8578350",
+  "lesson_origin": "session",
+  "lesson_text": "True. Buy leaders: an RS rating of 80 or more, in one of the strongest groups. A flat base in a laggard is a box going nowhere. Buy the leaders.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "We buy flat base breakouts in leaders: an RS rating of 80 or more, in a strong group.",
+   "subject": "SET.07#q21"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Buy leaders: an RS rating of 80 or more, in one of the strongest groups, except parabolic and mean-reversion trades.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "C31: buy leaders, an RS rating of 80 or more in a strong group."
+   },
+   "facts": {
+    "given": "We buy flat base breakouts in leaders: an RS rating of 80 or more, in a strong group."
+   },
+   "lesson_line": "A flat base in a laggard is a box going nowhere. Buy the leaders.",
+   "unit": "SET.07",
+   "why": "True. Buy leaders: an RS rating of 80 or more, in one of the strongest groups."
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q21",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Only A+ setups"
+  },
+  "difficulty": 1,
+  "id": "si_368efc471250",
+  "lesson_origin": "session",
+  "lesson_text": "Only A+ setups. Green is full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts. TraderLion: the setup does better in a strong market. Read the market before the box. Orange buys A+ and nothing else.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "Only A+ setups",
+    "Any setup at full size",
+    "None, Orange means cash",
+    "Any setup at half size"
+   ],
+   "kind": "mcq",
+   "q": "The market reading is Orange. Which flat bases may you buy?",
+   "subject": "SET.07#q22"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The market reading as a guide (A10): Green, full risk per grade and up to 10 positions; Yellow, smaller and fewer; Orange, only A+ setups; Red, mostly cash and shorts.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "TraderLion (Nick Schmidt): Master the Flat Base Pattern for Maximum Profits (2023-03-12, modified 2024-10-27)",
+      "quote": "Flat base breakouts are more likely to succeed in a strong, bullish market.",
+      "tier": 2,
+      "url": "https://traderlion.com/technical-analysis/the-flat-base-pattern/"
+     }
+    ],
+    "summary": "F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts. TraderLion: flat base breakouts do better in a strong, bullish market."
+   },
+   "facts": {
+    "given": "The market reading is Orange. Which flat bases may you buy? Only A+ setups Any setup at full size None, Orange means cash Any setup at half size"
+   },
+   "lesson_line": "Read the market before the box. Orange buys A+ and nothing else.",
+   "unit": "SET.07",
+   "why": "Only A+ setups. Green is full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts. TraderLion: the setup does better in a strong market.",
+   "wrong": {
+    "Any setup at full size": "That is Green. Orange narrows you to A+.",
+    "Any setup at half size": "Orange is about grade, not size. A B setup stays on the bench.",
+    "None, Orange means cash": "Red is mostly cash. Orange still allows the best setups."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q22",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "A U&R on the reclaim"
+  },
+  "difficulty": 1,
+  "id": "si_4d0f2fb23faf",
+  "lesson_origin": "session",
+  "lesson_text": "A U&R. Once the base low is undercut, the flat base is off. A reclaim within 3 sessions is an undercut-and-reclaim setup, traded as the reclaim. Lose the floor and the box is gone. The reclaim is its own trade.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "A U&R on the reclaim",
+    "A flat base breakout at the old pivot",
+    "Nothing, the stock is broken",
+    "A short under 71"
+   ],
+   "kind": "mcq",
+   "q": "What is the trade now?",
+   "story": "A nine-week flat base holds a floor at 71. Tuesday the low prints 70.40, under the floor. By Thursday the stock closes back above 71.",
+   "subject": "SET.07#q23"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "Before the trigger: the base low is undercut. The flat base is off. If price reclaims the low within 3 sessions, it is a U&R setup instead.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "If price broke under it and came back within 3 sessions, the flat base is off and the trade is the reclaim, not the breakout.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     }
+    ],
+    "summary": "An undercut of the base low ends the flat base; a reclaim within 3 sessions is a U&R. After an undercut and a reclaim within 3 sessions the trade is the reclaim, not the breakout."
+   },
+   "facts": {
+    "given": "What is the trade now? A nine-week flat base holds a floor at 71. Tuesday the low prints 70.40, under the floor. By Thursday the stock closes back above 71. A U&R on the reclaim A flat base breakout at the old pivot Nothing, the stock is broken A short under 71"
+   },
+   "lesson_line": "Lose the floor and the box is gone. The reclaim is its own trade.",
+   "unit": "SET.07",
+   "why": "A U&R. Once the base low is undercut, the flat base is off. A reclaim within 3 sessions is an undercut-and-reclaim setup, traded as the reclaim.",
+   "wrong": {
+    "A flat base breakout at the old pivot": "The undercut ended the flat base. The old pivot is no longer this setup's trigger.",
+    "A short under 71": "It reclaimed within two sessions. Shorting a quick reclaim is fighting strength.",
+    "Nothing, the stock is broken": "A quick reclaim is a shakeout, not a break. It is a different setup, not no setup."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q23",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "base low"
+  },
+  "difficulty": 1,
+  "id": "si_d717eda2f3b7",
+  "lesson_origin": "session",
+  "lesson_text": "The base low. It can be up to 15% away, the base's depth, and the stop usually sits within about 3% of the buy. The stop is the breakout day's low, not the bottom of the box.",
+  "module": "SET",
+  "prompt_json": {
+   "bank": [
+    "base low",
+    "day's low",
+    "pivot",
+    "50-day",
+    "prior close"
+   ],
+   "kind": "fill",
+   "q": "Tap the words that fit the blank.",
+   "sentence": "The ___ is not the stop; it can sit a whole base's depth away.",
+   "subject": "SET.07#q24"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "The base low is not the stop. It can be up to 15% away (the base's depth) and then breaks A13.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "\"I almost never take a loss greater than 3%\": the stop usually sits within about 3% of the buy (a loss on the position, not the account).",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "The base low is not the stop; it can be the whole depth away. A13: the stop usually sits within about 3% of the buy."
+   },
+   "facts": {
+    "given": "Tap the words that fit the blank. The ___ is not the stop; it can sit a whole base's depth away."
+   },
+   "lesson_line": "The stop is the breakout day's low, not the bottom of the box.",
+   "unit": "SET.07",
+   "why": "The base low. It can be up to 15% away, the base's depth, and the stop usually sits within about 3% of the buy."
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q24",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "25",
+    "25.0",
+    "25.00",
+    "25.000"
+   ],
+   "answer": 25.0
+  },
+  "difficulty": 2,
+  "id": "si_2ee962de74db",
+  "lesson_origin": "session",
+  "lesson_text": "25%. The left-side high over the lowest low before it, minus one. IBD looks for a prior uptrend of at least 30% before any base; TraderLion and Kullamagi say the same. Measure the run before the rest. A box with no run in front of it is just a box.",
+  "module": "SET",
+  "prompt_json": {
+   "kind": "fill_numeric",
+   "q": "The lowest low before the base was 40.00 and the left-side high is 50.00. The prior advance, in percent?",
+   "subject": "SET.07#q25",
+   "suffix": "%"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "Investor's Business Daily (syndicated on Yahoo Finance): Looking At A Great Chart Base? Make Sure To Count The Weeks (2015-03-11)",
+      "quote": "In a weekly chart, look for periods of sideways movement or mild declines following a prior uptrend of at least 30% in price.",
+      "tier": 2,
+      "url": "https://finance.yahoo.com/news/looking-great-chart-sure-count-203400677.html"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "TraderLion (Nick Schmidt): Master the Flat Base Pattern for Maximum Profits (2023-03-12, modified 2024-10-27)",
+      "quote": "A prior uptrend of 30% or more: This is the initial strong move that leads into the consolidation phase.",
+      "tier": 2,
+      "url": "https://traderlion.com/technical-analysis/the-flat-base-pattern/"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Kristjan Kullamagi (qullamaggie.com): 3 TIMELESS setups that have made me TENS OF MILLIONS! (2021-01-08, updated 2021-04-28)",
+      "quote": "A big move higher sometime in the past 1-3 months. This move can be anywhere from 30-100%+ and usually lasts a few days to a few weeks.",
+      "tier": 2,
+      "url": "https://qullamaggie.com/my-3-timeless-setups-that-have-made-me-tens-of-millions/"
+     }
+    ],
+    "summary": "IBD: look for sideways movement after a prior uptrend of at least 30% (stated for any base). TraderLion: a prior uptrend of 30% or more leads into the base. Kullamagi: a big move of 30% to 100% or more in the past 1 to 3 months comes first."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "end": 50.0,
+      "start": 40.0
+     },
+     "fn": "pct_change",
+     "result": 25.0
+    },
+    "given": "The lowest low before the base was 40.00 and the left-side high is 50.00. The prior advance, in percent?"
+   },
+   "lesson_line": "Measure the run before the rest. A box with no run in front of it is just a box.",
+   "unit": "SET.07",
+   "why": "25%. The left-side high over the lowest low before it, minus one. IBD looks for a prior uptrend of at least 30% before any base; TraderLion and Kullamagi say the same."
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q25",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "13.5",
+    "13.50",
+    "13.500"
+   ],
+   "answer": 13.5
+  },
+  "difficulty": 2,
+  "id": "si_72937277c92a",
+  "lesson_origin": "session",
+  "lesson_text": "13.5%. The left-side high minus the lowest intraday low, divided by the high. IBD's flat base declines no more than 15% measured that way. Depth is high to low, divided by the high. Measure it; do not eyeball it.",
+  "module": "SET",
+  "prompt_json": {
+   "kind": "fill_numeric",
+   "q": "Left-side high 100.00, the base's lowest intraday low 86.50. How deep is the base, in percent?",
+   "subject": "SET.07#q26",
+   "suffix": "%"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "MarketSmith (O'Neil's data firm): MarketSmith Pattern Recognition Users Manual (copy on silo.tips, undated)",
+      "quote": "The percent decline from the start of the base (left side high) to the bottom (intraday low) of the base.",
+      "tier": 2,
+      "url": "https://silo.tips/download/marketsmith-pattern-recognition"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Investor's Business Daily (syndicated on Yahoo Finance): Flat Base Is A Simple Pattern, But It Does Have Fine Details (2013-06-25)",
+      "quote": "The stock's price declines no more than 15% from its intraday peak to intraday trough.",
+      "tier": 2,
+      "url": "https://finance.yahoo.com/news/flat-simple-pattern-does-fine-205400421.html"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "TraderLion (Nick Schmidt): Master the Flat Base Pattern for Maximum Profits (2023-03-12, modified 2024-10-27)",
+      "quote": "the stock's price should not fall more than 15% from its highest point within the base.",
+      "tier": 2,
+      "url": "https://traderlion.com/technical-analysis/the-flat-base-pattern/"
+     }
+    ],
+    "summary": "MarketSmith measures depth from the left-side high to the base's intraday low. IBD: a flat base declines no more than 15% from its intraday peak to its intraday trough. TraderLion: no more than 15% off the base's high."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "peak": 100.0,
+      "trough": 86.5
+     },
+     "fn": "drawdown_pct",
+     "result": 13.5
+    },
+    "given": "Left-side high 100.00, the base's lowest intraday low 86.50. How deep is the base, in percent?"
+   },
+   "lesson_line": "Depth is high to low, divided by the high. Measure it; do not eyeball it.",
+   "unit": "SET.07",
+   "why": "13.5%. The left-side high minus the lowest intraday low, divided by the high. IBD's flat base declines no more than 15% measured that way."
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q26",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "2.08",
+    "2.080"
+   ],
+   "answer": 2.08
+  },
+  "difficulty": 2,
+  "id": "si_3d724eecd2ec",
+  "lesson_origin": "session",
+  "lesson_text": "2.08%. A few cents under the day's low, and inside the 3% the stop usually sits within. That was APH's stop, 70.70. Stop first, distance second, size last.",
+  "module": "SET",
+  "prompt_json": {
+   "kind": "fill_numeric",
+   "q": "Fill 72.20. The breakout day's low is 70.75 and the stop sits five cents under it. How far below the fill is the stop, in percent?",
+   "subject": "SET.07#q27",
+   "suffix": "%"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The stop sits a few cents under the day's low, not exactly on it.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "\"I almost never take a loss greater than 3%\": the stop usually sits within about 3% of the buy (a loss on the position, not the account).",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "APH | 2026-01-12 | 10.8 wk / 13.2% / 4 / +49% | 1.30x | 72.20 | 70.70 (2.1%) | 7.6R (3)",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
+     }
+    ],
+    "summary": "F62: the stop sits a few cents under the day's low. A13: the stop usually sits within about 3% of the buy. APH, trigger 2026-01-12: a 10.8-week, 13.2% base; buy 72.20, stop 70.70 (2.1%); 7.6R, 3R on day 3."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "a": 72.2,
+      "b": 70.75,
+      "expr": "(a - (b - 0.05)) / a * 100"
+     },
+     "fn": "arith",
+     "result": 2.08
+    },
+    "given": "Fill 72.20. The breakout day's low is 70.75 and the stop sits five cents under it. How far below the fill is the stop, in percent?"
+   },
+   "lesson_line": "Stop first, distance second, size last.",
+   "unit": "SET.07",
+   "why": "2.08%. A few cents under the day's low, and inside the 3% the stop usually sits within. That was APH's stop, 70.70."
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q27",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "5",
+    "5.0",
+    "5.00",
+    "5.000"
+   ],
+   "answer": 5.0
+  },
+  "difficulty": 2,
+  "id": "si_cb657b7f7112",
+  "lesson_origin": "session",
+  "lesson_text": "5R. Each R is the fill minus the stop. That is where the second third comes off; ALLY got there slowly. Count in R, not dollars. 5R is the second trim.",
+  "module": "SET",
+  "prompt_json": {
+   "kind": "fill_numeric",
+   "q": "Bought at 30.28, stop 29.79. The stock trades to 32.73. How many R is that?",
+   "subject": "SET.07#q28",
+   "suffix": "R"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "ALLY | 2019-06-27 | 11.2 wk / 5.5% / 4 / +31% | 1.80x | 30.28 | 29.79 (1.6%) | 8.1R (10)",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
+     }
+    ],
+    "summary": "E51: another third at 5R, then trail the last third. ALLY, trigger 2019-06-27: an 11.2-week, 5.5% base with 4 taps; buy 30.28, stop 29.79 (1.6%); 8.1R, 3R on day 10."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "entry": 30.28,
+      "exit": 32.73,
+      "stop": 29.79
+     },
+     "fn": "r_multiple",
+     "result": 5.0
+    },
+    "given": "Bought at 30.28, stop 29.79. The stock trades to 32.73. How many R is that?"
+   },
+   "lesson_line": "Count in R, not dollars. 5R is the second trim.",
+   "unit": "SET.07",
+   "why": "5R. Each R is the fill minus the stop. That is where the second third comes off; ALLY got there slowly."
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q28",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Hold; the stop is still the exit"
+  },
+  "difficulty": 2,
+  "id": "si_d084918ec663",
+  "lesson_origin": "session",
+  "lesson_text": "Hold it. A close back inside the base is a warning, not an exit by itself; the stop is the exit. Here the next session's low took the 178.10 stop. A planned loss. A weak close is a warning. The stop is the decision, and it was made before the open.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "Hold; the stop is still the exit",
+    "Sell at the close, it failed",
+    "Widen the stop under the base low",
+    "Add, it is cheaper now"
+   ],
+   "kind": "mcq",
+   "q": "What now?",
+   "story": "You bought the breakout at 180.15 with the stop at 178.10. The day closes at 178.15, its low, back inside the base, above your stop.",
+   "subject": "SET.07#q29"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "After the entry, a close back inside the base under the pivot is a warning, not an exit by itself.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20).",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "The breakout day closed at 178.15, the low of its range, back inside the base, on 0.72x volume. The next session's low (176.75) took the 178.10 stop.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
+     }
+    ],
+    "summary": "A close back inside the base is a warning, not an exit. A4: the stop is the exit; it only moves up, never wider; the gap rule is the one exception. AMZN: the breakout day closed at its low, back inside the base, on 0.72x volume; the next session took the stop."
+   },
+   "facts": {
+    "given": "What now? You bought the breakout at 180.15 with the stop at 178.10. The day closes at 178.15, its low, back inside the base, above your stop. Hold; the stop is still the exit Sell at the close, it failed Widen the stop under the base low Add, it is cheaper now"
+   },
+   "lesson_line": "A weak close is a warning. The stop is the decision, and it was made before the open.",
+   "unit": "SET.07",
+   "why": "Hold it. A close back inside the base is a warning, not an exit by itself; the stop is the exit. Here the next session's low took the 178.10 stop. A planned loss.",
+   "wrong": {
+    "Add, it is cheaper now": "Full size at one price with one stop; no adding.",
+    "Sell at the close, it failed": "We dropped that rule. The stop is the exit; a weak close is a warning.",
+    "Widen the stop under the base low": "The stop only moves up, never wider."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q29",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Pass, more than 4% past the pivot"
+  },
+  "difficulty": 2,
+  "id": "si_e436bbba7381",
+  "lesson_origin": "session",
+  "lesson_text": "Pass. 94.50 is more than 4% over 90.00. Chasing costs size, not risk: the stop stays under the buy point, so the shares shrink. I would rather miss it than chase it. Four percent and done.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "Pass, more than 4% past the pivot",
+    "Buy, the breakout is confirmed",
+    "Buy half size",
+    "Buy with a wider stop"
+   ],
+   "kind": "mcq",
+   "q": "Buy or pass?",
+   "story": "The pivot is 90.00. You missed the open. At 10:15 the stock trades 94.50.",
+   "subject": "SET.07#q30"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "No chasing: never buy more than 4% above the buy point.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink (A5).",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "C28: never buy more than 4% above the buy point. C28: chasing costs size, because the stop stays put and the distance grows."
+   },
+   "facts": {
+    "given": "Buy or pass? The pivot is 90.00. You missed the open. At 10:15 the stock trades 94.50. Pass, more than 4% past the pivot Buy, the breakout is confirmed Buy half size Buy with a wider stop"
+   },
+   "lesson_line": "I would rather miss it than chase it. Four percent and done.",
+   "unit": "SET.07",
+   "why": "Pass. 94.50 is more than 4% over 90.00. Chasing costs size, not risk: the stop stays under the buy point, so the shares shrink.",
+   "wrong": {
+    "Buy half size": "Half of a bad entry is still a bad entry.",
+    "Buy with a wider stop": "A wider stop to fit a late entry is the mistake, not the fix.",
+    "Buy, the breakout is confirmed": "Confirmed and too far away are both true. The chase line is 4%."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q30",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "50.30, the first 30-minute low"
+  },
+  "difficulty": 2,
+  "id": "si_9f609cc8e1b7",
+  "lesson_origin": "session",
+  "lesson_text": "50.30. A gap through the stop hands it to the first 30-minute low. That low is inside the 2R ceiling, so it is the new stop. A gap through the stop is the one exception. The first 30 minutes decide.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "50.30, the first 30-minute low",
+    "Sell at the open, 50.60",
+    "No stop until it reclaims 51.00",
+    "Get out, the gap is past 2R"
+   ],
+   "kind": "mcq",
+   "q": "Where is the stop now?",
+   "story": "You bought at 52.00 with the stop at 51.00. It gaps open at 50.60, under your stop. The first 30-minute bar's low is 50.30.",
+   "subject": "SET.07#q31"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "A gap against the stop: the first 30 minutes of the gap-down day decide. The low of the first 30-minute bar is the new stop.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "With a ceiling: if the first 30 minutes take the loss past 2R, get out.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "B20: on a gap through the stop, the first 30-minute low is the new stop. B20's ceiling: if the first 30 minutes take the loss past 2R, get out."
+   },
+   "facts": {
+    "given": "Where is the stop now? You bought at 52.00 with the stop at 51.00. It gaps open at 50.60, under your stop. The first 30-minute bar's low is 50.30. 50.30, the first 30-minute low Sell at the open, 50.60 No stop until it reclaims 51.00 Get out, the gap is past 2R"
+   },
+   "lesson_line": "A gap through the stop is the one exception. The first 30 minutes decide.",
+   "unit": "SET.07",
+   "why": "50.30. A gap through the stop hands it to the first 30-minute low. That low is inside the 2R ceiling, so it is the new stop.",
+   "wrong": {
+    "Get out, the gap is past 2R": "The 30-minute low is inside 2R here. The ceiling has not been hit.",
+    "No stop until it reclaims 51.00": "There is always a stop. The new one is the 30-minute low.",
+    "Sell at the open, 50.60": "The gap rule gives it the first 30 minutes. The open is not the decision; the 30-minute low is."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q31",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "No; wait for the trade through 44.00"
+  },
+  "difficulty": 2,
+  "id": "si_25e858925009",
+  "lesson_origin": "session",
+  "lesson_text": "No. The trigger is the trade through the pivot in regular hours. Anticipating inside the base with no trigger is a named mistake; Kullamagi finds it less effective. Feeling it coming is not a trigger. The pivot is.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "No; wait for the trade through 44.00",
+    "Yes; buy the inside day",
+    "Yes; a buy stop at 43.50"
+   ],
+   "kind": "mcq",
+   "q": "Buy now?",
+   "story": "The base is tight and the pivot is 44.00. Thursday the stock sits at 43.20, an inside day. You feel it coming.",
+   "subject": "SET.07#q33"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "Price trades above the pivot during regular hours. Buy with a market order. Set the alert at the pivot.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "Anticipating inside the base with no trigger.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Kristjan Kullamagi (qullamaggie.com): 3 TIMELESS setups that have made me TENS OF MILLIONS! (2021-01-08, updated 2021-04-28)",
+      "quote": "This method can also be traded by anticipating the breakout but I don't find it as effective",
+      "tier": 2,
+      "url": "https://qullamaggie.com/my-3-timeless-setups-that-have-made-me-tens-of-millions/"
+     }
+    ],
+    "summary": "The trigger: price trades above the pivot in regular hours; buy at market; alert at the pivot. A named mistake: anticipating inside the base with no trigger. Kullamagi finds anticipating the breakout less effective."
+   },
+   "facts": {
+    "given": "Buy now? The base is tight and the pivot is 44.00. Thursday the stock sits at 43.20, an inside day. You feel it coming. No; wait for the trade through 44.00 Yes; buy the inside day Yes; a buy stop at 43.50"
+   },
+   "lesson_line": "Feeling it coming is not a trigger. The pivot is.",
+   "unit": "SET.07",
+   "why": "No. The trigger is the trade through the pivot in regular hours. Anticipating inside the base with no trigger is a named mistake; Kullamagi finds it less effective.",
+   "wrong": {
+    "Yes; a buy stop at 43.50": "A stop under the pivot fires inside the base. No trigger has happened at 43.50.",
+    "Yes; buy the inside day": "An inside day is the tell that it is tight, not the buy. The buy is the trade through 44.00."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q33",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "True"
+  },
+  "difficulty": 2,
+  "id": "si_b025a45a9612",
+  "lesson_origin": "session",
+  "lesson_text": "True. The stop is the exit. It only moves up, never down or wider. My stop is my stop. That is the whole rule.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "After the entry, a flat base trade that trades down to the stop is sold at the stop, no second thoughts.",
+   "subject": "SET.07#q34"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20).",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "A4: the stop is the exit; it only moves up, never wider; the gap rule is the one exception."
+   },
+   "facts": {
+    "given": "After the entry, a flat base trade that trades down to the stop is sold at the stop, no second thoughts."
+   },
+   "lesson_line": "My stop is my stop. That is the whole rule.",
+   "unit": "SET.07",
+   "why": "True. The stop is the exit. It only moves up, never down or wider."
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q34",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Hold; the stop stays where it is"
+  },
+  "difficulty": 2,
+  "id": "si_5fb148ae3ce3",
+  "lesson_origin": "session",
+  "lesson_text": "Hold it. The stop only moves up, never wider. Tests of the pivot are normal: two in three rectangle breakouts come back to the breakout price within 30 days. The retest is normal. The stop pays for it; you do not widen it.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "Hold; the stop stays where it is",
+    "Widen the stop to give it room",
+    "Sell; the breakout failed",
+    "Move the stop to breakeven"
+   ],
+   "kind": "mcq",
+   "q": "What do you do?",
+   "story": "Three days after the breakout at 73.16, price slides back to the pivot, 73.00. Your stop is 72.24.",
+   "subject": "SET.07#q35"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20).",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "Two in three uptrend-rectangle breakouts come back to the breakout price within 30 days. The day's-low stop will be tested often. That is normal, not a reason to widen it.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "5R by day 10, then a throwback to 71.56 in late October, through the pivot and the original stop, after both trims were due: Bulkowski's two-in-three throwback in person, before the run to 99.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "A4: the stop is the exit; it only moves up, never wider; the gap rule is the one exception. Two in three rectangle breakouts come back to the breakout price within 30 days; the stop is not widened for that. WSM: 5x volume; 5R by day 10; then a throwback to 71.56 through the pivot and the original stop after both trims were due; then a run to 99. B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+   },
+   "facts": {
+    "given": "What do you do? Three days after the breakout at 73.16, price slides back to the pivot, 73.00. Your stop is 72.24. Hold; the stop stays where it is Widen the stop to give it room Sell; the breakout failed Move the stop to breakeven"
+   },
+   "lesson_line": "The retest is normal. The stop pays for it; you do not widen it.",
+   "unit": "SET.07",
+   "why": "Hold it. The stop only moves up, never wider. Tests of the pivot are normal: two in three rectangle breakouts come back to the breakout price within 30 days.",
+   "wrong": {
+    "Move the stop to breakeven": "Breakeven comes between 2R and 5R, not on day three at the pivot.",
+    "Sell; the breakout failed": "A pullback to the pivot is not a failure. The stop decides, not the retest.",
+    "Widen the stop to give it room": "Never wider. The rule has one exception and this is not it."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q35",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Between 2R and 5R, often at the trim"
+  },
+  "difficulty": 2,
+  "id": "si_4da894834f41",
+  "lesson_origin": "session",
+  "lesson_text": "Between 2R and 5R, ideally. The first trim at 3R is the natural moment. Breakeven between 2R and 5R. Earlier is noise; later is giving it back.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "Between 2R and 5R, often at the trim",
+    "The day after entry",
+    "Never; the stop is the stop",
+    "At 1R"
+   ],
+   "kind": "mcq",
+   "q": "When does the stop move to breakeven on a flat base winner?",
+   "subject": "SET.07#q36"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+   },
+   "facts": {
+    "given": "When does the stop move to breakeven on a flat base winner? Between 2R and 5R, often at the trim The day after entry Never; the stop is the stop At 1R"
+   },
+   "lesson_line": "Breakeven between 2R and 5R. Earlier is noise; later is giving it back.",
+   "unit": "SET.07",
+   "why": "Between 2R and 5R, ideally. The first trim at 3R is the natural moment.",
+   "wrong": {
+    "At 1R": "Too soon. 1R is a normal day's swing on many names.",
+    "Never; the stop is the stop": "The stop only moves up. Moving it up to breakeven is allowed.",
+    "The day after entry": "That is inside the noise. The stop would be hit by a normal day."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q36",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "True"
+  },
+  "difficulty": 2,
+  "id": "si_4744707c32ae",
+  "lesson_origin": "session",
+  "lesson_text": "True. Time stop: a trade still under 1R after 10 trading days is sold, freeing the money. Every example in our set was past 1R by day ten. Ten days and nothing. The money has somewhere better to be.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "A flat base breakout still under 1R after 10 trading days is sold.",
+   "subject": "SET.07#q37"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Time stop: a trade still under 1R after 10 trading days is sold, freeing the money.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "C33: a trade still under 1R after 10 trading days is sold."
+   },
+   "facts": {
+    "given": "A flat base breakout still under 1R after 10 trading days is sold."
+   },
+   "lesson_line": "Ten days and nothing. The money has somewhere better to be.",
+   "unit": "SET.07",
+   "why": "True. Time stop: a trade still under 1R after 10 trading days is sold, freeing the money. Every example in our set was past 1R by day ten."
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q37",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Sell a third at the open"
+  },
+  "difficulty": 2,
+  "id": "si_06b450a95126",
+  "lesson_origin": "session",
+  "lesson_text": "Sell a third at the open. If a stock opens above a trim level, take that trim at the open. The 3R third comes off right there. A gap through a trim level is the trim. Take it at the open.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "Sell a third at the open",
+    "Wait for the close",
+    "Sell everything",
+    "Move the stop up and hold"
+   ],
+   "kind": "mcq",
+   "q": "What do you do at the open?",
+   "story": "Your flat base long sits at 2.6R at Thursday's close. Friday it gaps open to 3.4R.",
+   "subject": "SET.07#q38"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "If a stock opens above a trim level (3R, 5R), take that trim at the open.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "F63: a trim level the day opens past is taken at the open. B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+   },
+   "facts": {
+    "given": "What do you do at the open? Your flat base long sits at 2.6R at Thursday's close. Friday it gaps open to 3.4R. Sell a third at the open Wait for the close Sell everything Move the stop up and hold"
+   },
+   "lesson_line": "A gap through a trim level is the trim. Take it at the open.",
+   "unit": "SET.07",
+   "why": "Sell a third at the open. If a stock opens above a trim level, take that trim at the open. The 3R third comes off right there.",
+   "wrong": {
+    "Move the stop up and hold": "The stop moves up too, but the trim is the rule at the open.",
+    "Sell everything": "A third at 3R. The rest waits for 5R and the trail.",
+    "Wait for the close": "The level is already passed. Waiting gives the gap a chance to fill."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q38",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Pull the stop up to 3% to fit the size"
+  },
+  "difficulty": 2,
+  "id": "si_a4805256b7cb",
+  "lesson_origin": "session",
+  "lesson_text": "Never pull the stop in to fit. Stop first; the size comes from the stop; if the honest stop does not fit the risk, skip the trade. You never pick a size and back-fit a stop inside the noise.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "Pull the stop up to 3% to fit the size",
+    "Skip the trade",
+    "Wait for a tighter entry"
+   ],
+   "kind": "mcq",
+   "q": "Which is the one thing you never do?",
+   "story": "The breakout fills at 48.60. The day's low sits at 46.40, about 4.5% under your fill.",
+   "subject": "SET.07#q39"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Stop first (by default a few cents under the day's low or the prior day's low, F62); the size comes from the stop; if the honest stop does not fit the risk, skip the trade.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "\"I almost never take a loss greater than 3%\": the stop usually sits within about 3% of the buy (a loss on the position, not the account).",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "Putting the stop at the base low (too wide), or pulling it tighter to fit the size.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     }
+    ],
+    "summary": "A3: stop first, a few cents under the day's low; the size comes from the stop; if the honest stop does not fit, skip. A13: the stop usually sits within about 3% of the buy. A named mistake: the stop at the base low, or pulled tighter to fit the size."
+   },
+   "facts": {
+    "given": "Which is the one thing you never do? The breakout fills at 48.60. The day's low sits at 46.40, about 4.5% under your fill. Pull the stop up to 3% to fit the size Skip the trade Wait for a tighter entry"
+   },
+   "lesson_line": "You never pick a size and back-fit a stop inside the noise.",
+   "unit": "SET.07",
+   "why": "Never pull the stop in to fit. Stop first; the size comes from the stop; if the honest stop does not fit the risk, skip the trade.",
+   "wrong": {
+    "Skip the trade": "Skipping is allowed. A3 says so when the honest stop does not fit.",
+    "Wait for a tighter entry": "Waiting is fine. The mistake is moving the stop, not the entry."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q39",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Pass; a late-stage base"
+  },
+  "difficulty": 2,
+  "id": "si_fc49c891258c",
+  "lesson_origin": "session",
+  "lesson_text": "Pass. IBD: breakouts from late-stage bases will often blow up. Our card wants the first or second base; MarketSmith says later bases are more likely to fail. A clean box on the fourth floor is still the fourth floor.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "Pass; a late-stage base",
+    "A+, the shape is clean",
+    "B, normal size"
+   ],
+   "kind": "mcq",
+   "q": "This is the stock's fourth base since the stage reset. The shape is clean. Your call?",
+   "subject": "SET.07#q40"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "Investor's Business Daily (syndicated on Yahoo Finance): Why Late-Stage Base Patterns Often Lead To A Timely Exit (2015-06-16)",
+      "quote": "Breakouts from late-stage bases will often blow up.",
+      "tier": 2,
+      "url": "https://finance.yahoo.com/news/why-stage-patterns-often-lead-215800864.html"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "MarketSmith (O'Neil's data firm): MarketSmith Pattern Recognition Users Manual (copy on silo.tips, undated)",
+      "quote": "Stocks emerging from third, fourth or later stage bases are late in their moves and may be more likely to fail.",
+      "tier": 2,
+      "url": "https://silo.tips/download/marketsmith-pattern-recognition"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "First or second base since the last stage reset. A breakout that gained less than 20% before this base does not count as a new stage; the count resets to 1 when price undercuts the prior base's low.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     }
+    ],
+    "summary": "IBD: breakouts from late-stage bases often blow up. MarketSmith: third, fourth or later stage bases are late and more likely to fail. First or second base since the last stage reset."
+   },
+   "facts": {
+    "given": "This is the stock's fourth base since the stage reset. The shape is clean. Your call? Pass; a late-stage base A+, the shape is clean B, normal size"
+   },
+   "lesson_line": "A clean box on the fourth floor is still the fourth floor.",
+   "unit": "SET.07",
+   "why": "Pass. IBD: breakouts from late-stage bases will often blow up. Our card wants the first or second base; MarketSmith says later bases are more likely to fail.",
+   "wrong": {
+    "A+, the shape is clean": "Shape is one row of the grade. Stage is another, and the fourth base fails it.",
+    "B, normal size": "A late-stage base is not a size question. It is a pass."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q40",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Its job: a small planned loss"
+  },
+  "difficulty": 2,
+  "id": "si_f5ddfaece9ee",
+  "lesson_origin": "session",
+  "lesson_text": "Its job. The stop is the exit. Giving it room would have been a 14% hole in three sessions. Stopped out, and that is the cost of being there for the ones that work. A loss taken at plan is the system working.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "Its job: a small planned loss",
+    "Cost you the trade; it needed room",
+    "Nothing; the close was the exit"
+   ],
+   "kind": "mcq",
+   "q": "What did the stop do?",
+   "story": "You bought the gap open at 241.28, above the pivot. It closes mid-range on average volume. Next day the low hits your stop at 236.86. Two sessions later it closes 10% under your fill.",
+   "subject": "SET.07#q41"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20).",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "META | 2020-06-23 | 241.28 | 236.86 (1.83%) | day 1 (2020-06-24, low 232.68), best 0.0R",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "two sessions later it closed at 216.08, 10% under the fill. The stop did its job: the alternative, \"give it room\", was a 14% hole in three sessions.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
+     }
+    ],
+    "summary": "A4: the stop is the exit; it only moves up, never wider; the gap rule is the one exception. META, trigger 2020-06-23: buy 241.28, stop 236.86; stopped on day 1. META: two sessions after the stop it closed 10% under the fill; giving it room would have been a 14% hole."
+   },
+   "facts": {
+    "given": "What did the stop do? You bought the gap open at 241.28, above the pivot. It closes mid-range on average volume. Next day the low hits your stop at 236.86. Two sessions later it closes 10% under your fill. Its job: a small planned loss Cost you the trade; it needed room Nothing; the close was the exit"
+   },
+   "lesson_line": "A loss taken at plan is the system working.",
+   "unit": "SET.07",
+   "why": "Its job. The stop is the exit. Giving it room would have been a 14% hole in three sessions. Stopped out, and that is the cost of being there for the ones that work.",
+   "wrong": {
+    "Cost you the trade; it needed room": "Room was a 14% hole in three sessions. The stop saved most of it.",
+    "Nothing; the close was the exit": "A mid-range close is not an exit. The stop is."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q41",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "The 1.9x day closing at the high"
+  },
+  "difficulty": 2,
+  "id": "si_1945f4fd3dd1",
+  "lesson_origin": "session",
+  "lesson_text": "The 1.9x day closing at the high. IBD wants breakout volume at least 40% to 50% above average, and a close near the high is the A+ row. Both grade the day. Heavy volume and a strong close grade the day up. Light volume and a mid-range close grade it down.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "The 1.9x day closing at the high",
+    "The 0.8x day; quiet is better",
+    "Equal; only the pivot matters"
+   ],
+   "kind": "mcq",
+   "q": "Which gets the higher grade?",
+   "story": "Same base, two breakout days. One trades through on 0.8x its average volume and closes mid-range. The other on 1.9x and closes at the day's high.",
+   "subject": "SET.07#q42"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "Investor's Business Daily (syndicated on Yahoo Finance): Flat Base Can Be Springboard To Big Stock Market Winners (2015-03-31)",
+      "quote": "you want to see volume bulge at least 40%-50% above average when a stock breaks out of the flat base.",
+      "tier": 2,
+      "url": "https://finance.yahoo.com/news/flat-springboard-big-stock-market-213500613.html"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "TraderLion (Nick Schmidt): Master the Flat Base Pattern for Maximum Profits (2023-03-12, modified 2024-10-27)",
+      "quote": "the trading volume should be at least 40% higher than its average volume (1.4 times the relative volume).",
+      "tier": 2,
+      "url": "https://traderlion.com/technical-analysis/the-flat-base-pattern/"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "fb.breakout_volume: 1.4x the 50-day volume or more, closes near the high",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "fb.breakout_volume: light volume, closes mid-range",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     }
+    ],
+    "summary": "IBD wants breakout volume at least 40% to 50% above average. TraderLion: breakout volume at least 40% above average. The A+ breakout day: heavy volume and a close near the high. The B- breakout day: light volume and a close mid-range."
+   },
+   "facts": {
+    "given": "Which gets the higher grade? Same base, two breakout days. One trades through on 0.8x its average volume and closes mid-range. The other on 1.9x and closes at the day's high. The 1.9x day closing at the high The 0.8x day; quiet is better Equal; only the pivot matters"
+   },
+   "lesson_line": "Heavy volume and a strong close grade the day up. Light volume and a mid-range close grade it down.",
+   "unit": "SET.07",
+   "why": "The 1.9x day closing at the high. IBD wants breakout volume at least 40% to 50% above average, and a close near the high is the A+ row. Both grade the day.",
+   "wrong": {
+    "Equal; only the pivot matters": "The pivot is the trigger. The day's volume and close are the grade.",
+    "The 0.8x day; quiet is better": "Quiet is for inside the base. The breakout wants a crowd."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q42",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Wide and loose; the base is off"
+  },
+  "difficulty": 2,
+  "id": "si_4737d1494132",
+  "lesson_origin": "session",
+  "lesson_text": "Wide and loose, so the base is off. The last 10 sessions range wider than the first 10. TraderLion: wide and loose bases are a big sign of real danger. A box that gets louder as it goes is not resting. It is unwinding.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "Wide and loose; the base is off",
+    "Still a flat base; the top holds",
+    "Tighter is coming; wait"
+   ],
+   "kind": "mcq",
+   "q": "What is the read?",
+   "story": "Six weeks into a base, the daily bars have grown. The last ten sessions swing wider every day than the first ten did. The top is still flat.",
+   "subject": "SET.07#q43"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "Before the trigger: the base turns wide and loose. The average daily range of the last 10 sessions is larger than that of the base's first 10 sessions.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "TraderLion (Nick Schmidt): Master the Flat Base Pattern for Maximum Profits (2023-03-12, modified 2024-10-27)",
+      "quote": "Wide and loose bases are a big sign of real danger.",
+      "tier": 2,
+      "url": "https://traderlion.com/technical-analysis/the-flat-base-pattern/"
+     }
+    ],
+    "summary": "Wide and loose: the last 10 sessions range wider than the first 10; the base is off. TraderLion: wide and loose bases are a sign of danger."
+   },
+   "facts": {
+    "given": "What is the read? Six weeks into a base, the daily bars have grown. The last ten sessions swing wider every day than the first ten did. The top is still flat. Wide and loose; the base is off Still a flat base; the top holds Tighter is coming; wait"
+   },
+   "lesson_line": "A box that gets louder as it goes is not resting. It is unwinding.",
+   "unit": "SET.07",
+   "why": "Wide and loose, so the base is off. The last 10 sessions range wider than the first 10. TraderLion: wide and loose bases are a big sign of real danger.",
+   "wrong": {
+    "Still a flat base; the top holds": "A flat top over widening bars is a ragged box. The ranges are the tell.",
+    "Tighter is coming; wait": "Hope is not a setup. If it tightens again, that is a new base to judge."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q43",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Yes; a brief shakeout is allowed"
+  },
+  "difficulty": 2,
+  "id": "si_cabcf51b1520",
+  "lesson_origin": "session",
+  "lesson_text": "Yes. At least 80% of the base's closes at or above the 50-day, and a brief shakeout under it is allowed. Kullamagi: sometimes it toes the 50-day. Holds the 50-day means most closes, not every close.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "Yes; a brief shakeout is allowed",
+    "No; one close under kills it",
+    "No; it must never touch the 50-day"
+   ],
+   "kind": "mcq",
+   "q": "Does the base still hold the 50-day by our card?",
+   "story": "In an eight-week base the stock closed under its 50-day on two days, a quick shakeout. Then it sat back above it for the rest.",
+   "subject": "SET.07#q44"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "In the base, at least 80% of the closes are at or above the 50-day. A brief shakeout under the 50-day is allowed.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Kristjan Kullamagi (qullamaggie.com): 3 TIMELESS setups that have made me TENS OF MILLIONS! (2021-01-08, updated 2021-04-28)",
+      "quote": "During the consolidation the stock price \"surfs\" the rising 10- and 20-day. and sometimes toe 50-day moving average.",
+      "tier": 2,
+      "url": "https://qullamaggie.com/my-3-timeless-setups-that-have-made-me-tens-of-millions/"
+     }
+    ],
+    "summary": "At least 80% of the base's closes hold the 50-day; a brief shakeout is allowed. Kullamagi: in the consolidation price surfs the rising 10- and 20-day and sometimes toes the 50-day."
+   },
+   "facts": {
+    "given": "Does the base still hold the 50-day by our card? In an eight-week base the stock closed under its 50-day on two days, a quick shakeout. Then it sat back above it for the rest. Yes; a brief shakeout is allowed No; one close under kills it No; it must never touch the 50-day"
+   },
+   "lesson_line": "Holds the 50-day means most closes, not every close.",
+   "unit": "SET.07",
+   "why": "Yes. At least 80% of the base's closes at or above the 50-day, and a brief shakeout under it is allowed. Kullamagi: sometimes it toes the 50-day.",
+   "wrong": {
+    "No; it must never touch the 50-day": "Touching the 50-day is normal in a rest. Living under it is the problem.",
+    "No; one close under kills it": "Two days under out of forty is well inside the 80% line."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q44",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "accept": [
+    "347",
+    "347.0",
+    "347.00",
+    "347.000"
+   ],
+   "answer": 347.0
+  },
+  "difficulty": 2,
+  "id": "si_0ac2be3a03af",
+  "lesson_origin": "session",
+  "lesson_text": "347. Account times risk percent, divided by the fill minus the stop, rounded down. The stop sets the size, never the other way round. Stop first, distance second, size last.",
+  "module": "SET",
+  "prompt_json": {
+   "kind": "fill_numeric",
+   "q": "Account 50,000. Risk 1%. Fill 59.40, stop 57.96. How many shares?",
+   "subject": "SET.07#q45",
+   "suffix": " shares"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Shares = account × risk % ÷ (entry − stop), rounded down, then capped: the size is the SMALLER of the risk-based size and the position cap",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Stop first (by default a few cents under the day's low or the prior day's low, F62); the size comes from the stop; if the honest stop does not fit the risk, skip the trade.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "LNG | 2014-05-29 | 8.6 wk / 14.3% / 4 / +47% | 3.34x | 59.40 | 57.96 (2.4%) | 11.8R (1)",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
+     }
+    ],
+    "summary": "A5: shares are account times risk percent, divided by entry minus stop, rounded down, then capped. A3: stop first, a few cents under the day's low; the size comes from the stop; if the honest stop does not fit, skip. LNG, trigger 2014-05-29: an 8.6-week, 14.3% base; buy 59.40, stop 57.96 (2.4%); 11.8R."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "account": 50000,
+      "entry": 59.4,
+      "risk_pct": 1,
+      "stop": 57.96
+     },
+     "fn": "shares_from_risk",
+     "result": 347.0
+    },
+    "given": "Account 50,000. Risk 1%. Fill 59.40, stop 57.96. How many shares?"
+   },
+   "lesson_line": "Stop first, distance second, size last.",
+   "unit": "SET.07",
+   "why": "347. Account times risk percent, divided by the fill minus the stop, rounded down. The stop sets the size, never the other way round."
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q45",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "True"
+  },
+  "difficulty": 2,
+  "id": "si_168a48bd6cc0",
+  "lesson_origin": "session",
+  "lesson_text": "True. Default trail: the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it. Kullamagi waits for the first close below the 10-day. Trail the rising average. Sell the close below it, not the touch.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "The last third of a flat base winner trails the 10-day or the 21-day. It is sold on a close below the line.",
+   "subject": "SET.07#q46"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Kristjan Kullamagi (qullamaggie.com): 3 TIMELESS setups that have made me TENS OF MILLIONS! (2021-01-08, updated 2021-04-28)",
+      "quote": "If a beginner stick to the 10-day. You wait for the first CLOSE below the 10- day.",
+      "tier": 2,
+      "url": "https://qullamaggie.com/my-3-timeless-setups-that-have-made-me-tens-of-millions/"
+     }
+    ],
+    "summary": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it. Kullamagi trails on the 10-day and sells on the first close below it."
+   },
+   "facts": {
+    "given": "The last third of a flat base winner trails the 10-day or the 21-day. It is sold on a close below the line."
+   },
+   "lesson_line": "Trail the rising average. Sell the close below it, not the touch.",
+   "unit": "SET.07",
+   "why": "True. Default trail: the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it. Kullamagi waits for the first close below the 10-day."
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q46",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "No; under $10 and $20 million a day"
+  },
+  "difficulty": 2,
+  "id": "si_b3b4b1ce3b5a",
+  "lesson_origin": "session",
+  "lesson_text": "No. We trade only stocks at $10 or more that trade at least $20 million a day. A clean box in a thin stock is still a thin stock.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "No; under $10 and $20 million a day",
+    "Yes; the base is the base",
+    "Yes, half size"
+   ],
+   "kind": "mcq",
+   "q": "Take the breakout?",
+   "story": "A clean flat base on a $7 stock that trades about $4 million a day.",
+   "subject": "SET.07#q47"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Trade only stocks at $10 or more that trade at least $20 million a day.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "B23: only stocks at $10 or more trading at least $20 million a day."
+   },
+   "facts": {
+    "given": "Take the breakout? A clean flat base on a $7 stock that trades about $4 million a day. No; under $10 and $20 million a day Yes; the base is the base Yes, half size"
+   },
+   "lesson_line": "A clean box in a thin stock is still a thin stock.",
+   "unit": "SET.07",
+   "why": "No. We trade only stocks at $10 or more that trade at least $20 million a day.",
+   "wrong": {
+    "Yes, half size": "Size does not make a thin stock liquid.",
+    "Yes; the base is the base": "The base is fine and the stock is not ours. The liquidity rule comes before the chart."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q47",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "20,000 shares, 1% of the daily volume"
+  },
+  "difficulty": 2,
+  "id": "si_1f50227c2910",
+  "lesson_origin": "session",
+  "lesson_text": "20,000 shares. Never own more than 1% of a stock's average daily volume. One percent of the daily volume, and not a share more.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "20,000 shares, 1% of the daily volume",
+    "200,000 shares",
+    "No ceiling if the stop is tight",
+    "2,000 shares"
+   ],
+   "kind": "mcq",
+   "q": "The stock trades 2,000,000 shares a day on average. Our ceiling on the position?",
+   "subject": "SET.07#q48"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Never own more than 1% of a stock's average daily volume; illiquid stocks are not even watched.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "D42: never own more than 1% of a stock's average daily volume."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "adv": 2000000,
+      "expr": "adv * 0.01"
+     },
+     "fn": "arith",
+     "result": 20000.0
+    },
+    "given": "The stock trades 2,000,000 shares a day on average. Our ceiling on the position? 20,000 shares, 1% of the daily volume 200,000 shares No ceiling if the stop is tight 2,000 shares"
+   },
+   "lesson_line": "One percent of the daily volume, and not a share more.",
+   "unit": "SET.07",
+   "why": "20,000 shares. Never own more than 1% of a stock's average daily volume.",
+   "wrong": {
+    "2,000 shares": "That is a tenth of the line. The ceiling is 1%.",
+    "200,000 shares": "That is a tenth of the day's volume. You could not get out without moving it.",
+    "No ceiling if the stop is tight": "A tight stop cannot catch an overnight gap. The ceiling stands."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q48",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "A cup with handle"
+  },
+  "difficulty": 3,
+  "id": "si_8064e7e556bc",
+  "lesson_origin": "session",
+  "lesson_text": "A cup with handle. A flat base stays boxy within 15% of its high. A rounded fall of 24% with a dip before the buy is a cup. IBD and MarketSmith both cap the flat base at 15%. Measure the depth. Past the box, it is a cup, with its own rules.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "A cup with handle",
+    "A flat base",
+    "A high tight flag",
+    "A late-stage base"
+   ],
+   "kind": "mcq",
+   "q": "What is it?",
+   "story": "The stock ran 60% into a high, then fell 24% over ten weeks in a rounded U. It climbed back near the high. Now it dips a few percent just under the high.",
+   "subject": "SET.07#q49"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "A flat base falls 15% or less and stays boxy; a cup falls 12% to 33% in a rounded U and then dips again for a handle before the buy.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Investor's Business Daily (syndicated on Yahoo Finance): Early Buy Point In A Flat Base Can Give Investors Jump-Start (2014-08-12)",
+      "quote": "The correction within a flat base should be no more than 15% from its intraday high to the bottom of the pattern.",
+      "tier": 2,
+      "url": "https://finance.yahoo.com/news/early-buy-point-flat-investors-220500783.html"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "MarketSmith (O'Neil's data firm): Flat Base (MarketSmith Hong Kong)",
+      "quote": "Flat bases form over a 5 to 65 week range. The minimum depth is 0% with a maximum of 15%.",
+      "tier": 2,
+      "url": "https://www.marketsmith.hk/flat-base/?lang=en"
+     }
+    ],
+    "summary": "A cup falls 12% to 33% in a rounded U and dips for a handle; a flat base stays boxy. IBD: the correction inside a flat base is no more than 15%. MarketSmith: a flat base is 5 to 65 weeks long and 0% to 15% deep."
+   },
+   "facts": {
+    "given": "What is it? The stock ran 60% into a high, then fell 24% over ten weeks in a rounded U. It climbed back near the high. Now it dips a few percent just under the high. A cup with handle A flat base A high tight flag A late-stage base"
+   },
+   "lesson_line": "Measure the depth. Past the box, it is a cup, with its own rules.",
+   "unit": "SET.07",
+   "why": "A cup with handle. A flat base stays boxy within 15% of its high. A rounded fall of 24% with a dip before the buy is a cup. IBD and MarketSmith both cap the flat base at 15%.",
+   "wrong": {
+    "A flat base": "24% is past every flat base line. The U shape says cup as well.",
+    "A high tight flag": "A flag needs a pole that nearly doubles and a short pause. This is a long rounded fall.",
+    "A late-stage base": "Stage is about the count of bases, not the shape. The shape here is a cup."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q49",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "A high tight flag"
+  },
+  "difficulty": 3,
+  "id": "si_7c982e8d1d3b",
+  "lesson_origin": "session",
+  "lesson_text": "A high tight flag: a pole that nearly doubles, then a pause of a few weeks. A flat base is a longer rest after a smaller run. IBD: one, two or three weeks do not get the job done. Doubled and paused is a flag. Ran and rested for weeks is a box.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "A high tight flag",
+    "A flat base",
+    "A cup with handle"
+   ],
+   "kind": "mcq",
+   "q": "What is it?",
+   "story": "The stock doubled in six weeks on news, then paused twelve sessions in a tight range near the top. The pause is 8% deep.",
+   "subject": "SET.07#q50"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "A high tight flag nearly doubles (90% or more in 8 weeks or less) and pauses 5 to 30 sessions; a flat base follows a 30% run and rests at least 25 sessions.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Investor's Business Daily (syndicated on Yahoo Finance): Looking At A Great Chart Base? Make Sure To Count The Weeks (2015-03-11)",
+      "quote": "One, two or three weeks do not get the job done.",
+      "tier": 2,
+      "url": "https://finance.yahoo.com/news/looking-great-chart-sure-count-203400677.html"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "TraderLion (Nick Schmidt): Master the Flat Base Pattern for Maximum Profits (2023-03-12, modified 2024-10-27)",
+      "quote": "In almost all cases, one-, two-, and three-week bases are risky. They should be avoided.",
+      "tier": 2,
+      "url": "https://traderlion.com/technical-analysis/the-flat-base-pattern/"
+     }
+    ],
+    "summary": "A high tight flag nearly doubles and pauses a few weeks; a flat base is a longer rest after a smaller run. IBD: one, two or three weeks do not make a base. TraderLion, quoting O'Neil: one-, two- and three-week bases are risky."
+   },
+   "facts": {
+    "given": "What is it? The stock doubled in six weeks on news, then paused twelve sessions in a tight range near the top. The pause is 8% deep. A high tight flag A flat base A cup with handle"
+   },
+   "lesson_line": "Doubled and paused is a flag. Ran and rested for weeks is a box.",
+   "unit": "SET.07",
+   "why": "A high tight flag: a pole that nearly doubles, then a pause of a few weeks. A flat base is a longer rest after a smaller run. IBD: one, two or three weeks do not get the job done.",
+   "wrong": {
+    "A cup with handle": "No rounded fall here. A tight shelf on top of a pole is the flag.",
+    "A flat base": "The doubling pole names the setup. A flat base follows a smaller run and rests longer."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q50",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "No; too deep, a cup-shaped base"
+  },
+  "difficulty": 3,
+  "id": "si_be0d51b583cc",
+  "lesson_origin": "session",
+  "lesson_text": "No. Past 15% deep it is no longer a flat base; IBD and MarketSmith both stop at 15%. This one was cup-shaped: best 1.1R, stopped. Three taps do not fix a deep base. Depth is a gate.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "No; too deep, a cup-shaped base",
+    "Yes; three taps make it",
+    "Yes; the run before it qualifies"
+   ],
+   "kind": "mcq",
+   "q": "Is it a flat base?",
+   "story": "A 27-session rest after a 51% run, three taps of the top, but the low sits 18.5% under the left-side high.",
+   "subject": "SET.07#q51"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "Before the trigger: the depth grows past 15%. No longer a flat base; it may become a cup or a double bottom.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Investor's Business Daily (syndicated on Yahoo Finance): Flat Base Is A Simple Pattern, But It Does Have Fine Details (2013-06-25)",
+      "quote": "The stock's price declines no more than 15% from its intraday peak to intraday trough.",
+      "tier": 2,
+      "url": "https://finance.yahoo.com/news/flat-simple-pattern-does-fine-205400421.html"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "MarketSmith (O'Neil's data firm): Flat Base (MarketSmith Hong Kong)",
+      "quote": "Flat bases form over a 5 to 65 week range. The minimum depth is 0% with a maximum of 15%.",
+      "tier": 2,
+      "url": "https://www.marketsmith.hk/flat-base/?lang=en"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "A 27-session rest after a 51% run with three taps, but 18.5% deep. Past 15% it is not a flat base; it is a cup-shaped base (04-cup-handle territory). Best 1.1R, stopped.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
+     }
+    ],
+    "summary": "Past 15% deep it is no longer a flat base. IBD: a flat base declines no more than 15% from its intraday peak to its intraday trough. MarketSmith: a flat base is 5 to 65 weeks long and 0% to 15% deep. AMZN 2020-05-19 near-miss: 18.5% deep, a cup-shaped base, not a flat base; best 1.1R, stopped."
+   },
+   "facts": {
+    "given": "Is it a flat base? A 27-session rest after a 51% run, three taps of the top, but the low sits 18.5% under the left-side high. No; too deep, a cup-shaped base Yes; three taps make it Yes; the run before it qualifies"
+   },
+   "lesson_line": "Three taps do not fix a deep base. Depth is a gate.",
+   "unit": "SET.07",
+   "why": "No. Past 15% deep it is no longer a flat base; IBD and MarketSmith both stop at 15%. This one was cup-shaped: best 1.1R, stopped.",
+   "wrong": {
+    "Yes; the run before it qualifies": "The run is the context. The pattern still has to be shallow.",
+    "Yes; three taps make it": "The ceiling is one gate; depth is another. This fails depth."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q51",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "True"
+  },
+  "difficulty": 3,
+  "id": "si_149488813068",
+  "lesson_origin": "session",
+  "lesson_text": "True. Flat means the line through the closes drifts no more than 10% of the base's average close. A slight U inside that is allowed, as IBD allows. Flat is a ceiling and a small drift, not a ruler.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "Closes drifting up 4% of their average from start to end, under a flat top, still count as flat on our card.",
+   "subject": "SET.07#q53"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "Flat: the least-squares line through the base's closes moves no more than 10% of the base's average close from start to end. A U shape inside that drift is allowed.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Investor's Business Daily (syndicated on Yahoo Finance): Flat Base Is A Simple Pattern, But It Does Have Fine Details (2013-06-25)",
+      "quote": "the \"flat\" base has kind of a \"U\" shape and doesn't look so flat.",
+      "tier": 2,
+      "url": "https://finance.yahoo.com/news/flat-simple-pattern-does-fine-205400421.html"
+     }
+    ],
+    "summary": "Flat: the trend line through the closes drifts no more than 10% of the average close. IBD allows a flat base with a slight U shape."
+   },
+   "facts": {
+    "given": "Closes drifting up 4% of their average from start to end, under a flat top, still count as flat on our card."
+   },
+   "lesson_line": "Flat is a ceiling and a small drift, not a ruler.",
+   "unit": "SET.07",
+   "why": "True. Flat means the line through the closes drifts no more than 10% of the base's average close. A slight U inside that is allowed, as IBD allows."
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q53",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Sold on that close under the 21-day"
+  },
+  "difficulty": 3,
+  "id": "si_550cf3f33b82",
+  "lesson_origin": "session",
+  "lesson_text": "Sold. The last third trails the 10-day for a fast mover or the 21-day for a steadier one, out on a close below. APH failed back through the base after that; the trims and the trail kept it a win. Two thirds banked, the last third on the trail. The close below the line is the exit.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "Sold on that close under the 21-day",
+    "Held; the stop is at breakeven",
+    "Sold only if it closes under the base",
+    "Added to, on the dip"
+   ],
+   "kind": "mcq",
+   "q": "What happens to the last third?",
+   "story": "You bought at 72.20, stop 70.70. It hits 3R on day three and 5R by day ten; you trimmed a third at each. Then it rolls over and closes under the 21-day.",
+   "subject": "SET.07#q56"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "APH | 2026-01-12 | 10.8 wk / 13.2% / 4 / +49% | 1.30x | 72.20 | 70.70 (2.1%) | 7.6R (3)",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "3R on day 3 and 5R by day 10, then a failure back through the base (low 63.10 within 30 sessions): the trims and the trail are what keep this a win.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
+     }
+    ],
+    "summary": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it. APH, trigger 2026-01-12: a 10.8-week, 13.2% base; buy 72.20, stop 70.70 (2.1%); 7.6R, 3R on day 3. APH: 3R on day 3 and 5R by day 10, then a failure back through the base; the trims and the trail kept it a win."
+   },
+   "facts": {
+    "given": "What happens to the last third? You bought at 72.20, stop 70.70. It hits 3R on day three and 5R by day ten; you trimmed a third at each. Then it rolls over and closes under the 21-day. Sold on that close under the 21-day Held; the stop is at breakeven Sold only if it closes under the base Added to, on the dip"
+   },
+   "lesson_line": "Two thirds banked, the last third on the trail. The close below the line is the exit.",
+   "unit": "SET.07",
+   "why": "Sold. The last third trails the 10-day for a fast mover or the 21-day for a steadier one, out on a close below. APH failed back through the base after that; the trims and the trail kept it a win.",
+   "wrong": {
+    "Added to, on the dip": "Full size at one price; no adding. A dip under the trail is an exit, not an add.",
+    "Held; the stop is at breakeven": "Breakeven is the floor, not the plan. The trail is the exit for the last third.",
+    "Sold only if it closes under the base": "That gives back most of the move. The trail line is closer."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q56",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "A third at 3R and a third at 5R"
+  },
+  "difficulty": 3,
+  "id": "si_0c08a9cf2fb7",
+  "lesson_origin": "session",
+  "lesson_text": "Two thirds banked. A third at 3R, a third at 5R, stop at breakeven, the last third on the trail. BAC fell back into the base; the trims are what made it a win. Sell partials into strength. The trims are what you keep when the box pulls it back.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "A third at 3R and a third at 5R",
+    "Nothing; it had not reached 10R",
+    "All of it at 5R"
+   ],
+   "kind": "mcq",
+   "q": "By our rules, what came off on the way up?",
+   "story": "Five taps of a 23.5 ceiling after a vertical run. You bought at 23.56, stop 23.12. It reaches 5R in about three weeks, then sinks back into the base.",
+   "subject": "SET.07#q58"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "BAC | 2017-02-14 | 9.8 wk / 10.7% / 5 / +57% | 1.33x | 23.56 | 23.12 (1.9%) | 5.1R (5)",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "5R in about three weeks, then it fell back into the base (low 22.16 within 30 sessions). The case for taking the 3R and 5R trims (B19) and trailing the rest.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
+     }
+    ],
+    "summary": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R. E51: another third at 5R, then trail the last third. BAC, trigger 2017-02-14: a 9.8-week, 10.7% base with 5 taps; buy 23.56, stop 23.12; 5.1R. BAC: 5R in about three weeks, then back into the base; the case for the 3R and 5R trims and the trail."
+   },
+   "facts": {
+    "given": "By our rules, what came off on the way up? Five taps of a 23.5 ceiling after a vertical run. You bought at 23.56, stop 23.12. It reaches 5R in about three weeks, then sinks back into the base. A third at 3R and a third at 5R Nothing; it had not reached 10R All of it at 5R"
+   },
+   "lesson_line": "Sell partials into strength. The trims are what you keep when the box pulls it back.",
+   "unit": "SET.07",
+   "why": "Two thirds banked. A third at 3R, a third at 5R, stop at breakeven, the last third on the trail. BAC fell back into the base; the trims are what made it a win.",
+   "wrong": {
+    "All of it at 5R": "The last third rides the trail. 5R is the second trim, not the exit.",
+    "Nothing; it had not reached 10R": "Waiting for 10R with nothing banked is how a 5R trade becomes a scratch."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q58",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Yes, as a new trade with its own stop"
+  },
+  "difficulty": 3,
+  "id": "si_0386433d367e",
+  "lesson_origin": "session",
+  "lesson_text": "Yes. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule. At most 3 tries in a week. A stop-out is not a verdict on the setup. The next trigger is a new trade.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "Yes, as a new trade with its own stop",
+    "No; one try per base",
+    "Yes, with a wider stop this time",
+    "No; wait for a new base"
+   ],
+   "kind": "mcq",
+   "q": "Buy again?",
+   "story": "Stopped out of a flat base breakout on Tuesday. Thursday it trades back through the pivot.",
+   "subject": "SET.07#q59"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The same stock: at most 3 tries in a week and 6 in a month.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "B21: after a stop-out, buy again only on a new trigger, as a new trade. E56: at most 3 tries in a week and 6 in a month on one stock."
+   },
+   "facts": {
+    "given": "Buy again? Stopped out of a flat base breakout on Tuesday. Thursday it trades back through the pivot. Yes, as a new trade with its own stop No; one try per base Yes, with a wider stop this time No; wait for a new base"
+   },
+   "lesson_line": "A stop-out is not a verdict on the setup. The next trigger is a new trade.",
+   "unit": "SET.07",
+   "why": "Yes. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule. At most 3 tries in a week.",
+   "wrong": {
+    "No; one try per base": "The limit is 3 tries in a week and 6 in a month, not one.",
+    "No; wait for a new base": "The base is still there and it triggered again. That is the re-entry.",
+    "Yes, with a wider stop this time": "The stop is the day's low again. A wider stop to avoid a repeat is the mistake."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q59",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "True"
+  },
+  "difficulty": 3,
+  "id": "si_c38d91258452",
+  "lesson_origin": "session",
+  "lesson_text": "True. IBD's general guideline is the 7%-8% sell rule. Ours is a few cents under the breakout day's low, usually within about 3% of the buy. Our loss is the day's range, not a percent of the price.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "Our flat base stop is the breakout day's low, not IBD's 7% to 8% loss limit.",
+   "subject": "SET.07#q61"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "Investor's Business Daily (syndicated on Yahoo Finance): Sit Tight: Tips For Dealing With A Pullback After The Breakout (2013-02-28)",
+      "quote": "One guideline is the 7%-8% sell rule.",
+      "tier": 2,
+      "url": "https://sg.finance.yahoo.com/news/sit-tight-tips-dealing-pullback-222700526.html"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The stop sits a few cents under the day's low, not exactly on it.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "\"I almost never take a loss greater than 3%\": the stop usually sits within about 3% of the buy (a loss on the position, not the account).",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "IBD's general loss limit is the 7% to 8% sell rule. F62: the stop sits a few cents under the day's low. A13: the stop usually sits within about 3% of the buy."
+   },
+   "facts": {
+    "given": "Our flat base stop is the breakout day's low, not IBD's 7% to 8% loss limit."
+   },
+   "lesson_line": "Our loss is the day's range, not a percent of the price.",
+   "unit": "SET.07",
+   "why": "True. IBD's general guideline is the 7%-8% sell rule. Ours is a few cents under the breakout day's low, usually within about 3% of the buy."
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q61",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Nothing long; Red is cash and shorts"
+  },
+  "difficulty": 3,
+  "id": "si_458c0d2d4acf",
+  "lesson_origin": "session",
+  "lesson_text": "Nothing long. Red is mostly cash and shorts. TraderLion: flat base breakouts are more likely to succeed in a strong, bullish market. The best box in a Red market is a box. Sit on your hands.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "Nothing long; Red is cash and shorts",
+    "Buy it; A+ setups trade in any market",
+    "Buy half size"
+   ],
+   "kind": "mcq",
+   "q": "What do you do?",
+   "story": "The reading is Red. A leader shows a textbook flat base and trades through the pivot on heavy volume.",
+   "subject": "SET.07#q62"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The market reading as a guide (A10): Green, full risk per grade and up to 10 positions; Yellow, smaller and fewer; Orange, only A+ setups; Red, mostly cash and shorts.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "TraderLion (Nick Schmidt): Master the Flat Base Pattern for Maximum Profits (2023-03-12, modified 2024-10-27)",
+      "quote": "Flat base breakouts are more likely to succeed in a strong, bullish market.",
+      "tier": 2,
+      "url": "https://traderlion.com/technical-analysis/the-flat-base-pattern/"
+     }
+    ],
+    "summary": "F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts. TraderLion: flat base breakouts do better in a strong, bullish market."
+   },
+   "facts": {
+    "given": "What do you do? The reading is Red. A leader shows a textbook flat base and trades through the pivot on heavy volume. Nothing long; Red is cash and shorts Buy it; A+ setups trade in any market Buy half size"
+   },
+   "lesson_line": "The best box in a Red market is a box. Sit on your hands.",
+   "unit": "SET.07",
+   "why": "Nothing long. Red is mostly cash and shorts. TraderLion: flat base breakouts are more likely to succeed in a strong, bullish market.",
+   "wrong": {
+    "Buy half size": "Half size in a Red market is half a mistake.",
+    "Buy it; A+ setups trade in any market": "Orange allows A+. Red allows mostly cash and shorts."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q62",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "A few; add more as the first ones work"
+  },
+  "difficulty": 3,
+  "id": "si_1a69670c2914",
+  "lesson_origin": "session",
+  "lesson_text": "A few. After a correction, when the reading turns Green again, start with a few positions. Add more only as the first ones work. Many leaders basing sideways is the best setting for the setup. Green after a correction: a few positions first. Let the winners earn the next ones.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "A few; add more as the first ones work",
+    "All eight; Green is full risk",
+    "None; wait a week"
+   ],
+   "kind": "mcq",
+   "q": "How many do you take on day one?",
+   "story": "After a correction the reading just turned Green. Your list shows eight flat bases sitting at their pivots.",
+   "subject": "SET.07#q63"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After a market correction, when the reading turns Green again, start with a few positions and add more only as the first ones work",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "A cue, not a rule: the setup is best when many leaders are basing sideways after a pullback. Bracco steps back when there is a lack of clean, tight bases.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     }
+    ],
+    "summary": "F68: after a correction, start with a few positions and add as they work. The setup is best when many leaders are basing sideways after a pullback."
+   },
+   "facts": {
+    "given": "How many do you take on day one? After a correction the reading just turned Green. Your list shows eight flat bases sitting at their pivots. A few; add more as the first ones work All eight; Green is full risk None; wait a week"
+   },
+   "lesson_line": "Green after a correction: a few positions first. Let the winners earn the next ones.",
+   "unit": "SET.07",
+   "why": "A few. After a correction, when the reading turns Green again, start with a few positions. Add more only as the first ones work. Many leaders basing sideways is the best setting for the setup.",
+   "wrong": {
+    "All eight; Green is full risk": "Full risk per grade is the ceiling, not the first day's order. Earn it.",
+    "None; wait a week": "Waiting a week after the turn is how you miss the first leg. A few is the rule."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q63",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Market 90.01; stop 88.22; third at 3R"
+  },
+  "difficulty": 3,
+  "id": "si_a1745b8d8073",
+  "lesson_origin": "session",
+  "lesson_text": "Market at 90.01, stop 88.22, a third at 3R. Market order as it trades through, a few cents under the day's low, the first third at 3R. NUS reached 3R the next session. Entry, stop, trim, trail. Write it before the open; execute it without a debate.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "Market 90.01; stop 88.22; third at 3R",
+    "Limit 89.50; stop 85.00; out at 2R",
+    "Market at close; stop base low; hold"
+   ],
+   "kind": "mcq",
+   "q": "Write the plan: entry, stop, first trim.",
+   "story": "NUS, September 2013: six weeks flat, three taps of 90, above a rising 50 and 200-day. It trades through 90 on 1.9x volume.",
+   "subject": "SET.07#q64"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Entries are market orders.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The stop sits a few cents under the day's low, not exactly on it.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "NUS | 2013-09-09 | 6.0 wk / 10.3% / 3 / +82% | 1.85x | 90.01 | 88.22 (2.0%) | 23.5R (1)",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "A six-week shelf riding the rising 10- and 21-day after the stock nearly doubled; three clean taps of 90; broke out on 1.9x volume and reached 3R the next session.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
+     }
+    ],
+    "summary": "E57: entries are market orders. F62: the stop sits a few cents under the day's low. B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R. NUS, trigger 2013-09-09: a 6-week, 10.3% base with 3 taps after an 82% run; buy 90.01, stop 88.22 (2.0%); 23.5R, 3R on day 1. NUS: a six-week shelf on the rising 10- and 21-day after nearly doubling; three taps of 90; 1.9x volume; 3R the next session."
+   },
+   "facts": {
+    "given": "Write the plan: entry, stop, first trim. NUS, September 2013: six weeks flat, three taps of 90, above a rising 50 and 200-day. It trades through 90 on 1.9x volume. Market 90.01; stop 88.22; third at 3R Limit 89.50; stop 85.00; out at 2R Market at close; stop base low; hold"
+   },
+   "lesson_line": "Entry, stop, trim, trail. Write it before the open; execute it without a debate.",
+   "unit": "SET.07",
+   "why": "Market at 90.01, stop 88.22, a third at 3R. Market order as it trades through, a few cents under the day's low, the first third at 3R. NUS reached 3R the next session.",
+   "wrong": {
+    "Limit 89.50; stop 85.00; out at 2R": "A limit under the pivot never fills on the breakout, and a stop down at 85.00 is nowhere near the day's low.",
+    "Market at close; stop base low; hold": "The trigger is the trade through, not the close. The base low is not the stop."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q64",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "No; hold through only if up 5R"
+  },
+  "difficulty": 3,
+  "id": "si_e5eff970998b",
+  "lesson_origin": "session",
+  "lesson_text": "No. We hold through a report only if the trade is up 5R. At 2R the gap risk is bigger than the cushion. Earnings is a gap you cannot stop. Five R buys the ticket; 2R does not.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "No; hold through only if up 5R",
+    "Yes; the trend is up",
+    "Yes; sell half first"
+   ],
+   "kind": "mcq",
+   "q": "Hold through the report?",
+   "story": "Your flat base long is up 2R and earnings are tomorrow after the close.",
+   "subject": "SET.07#q65"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ],
+    "summary": "B22: no new buys in the 3 days before a report; hold through one only if up 5R."
+   },
+   "facts": {
+    "given": "Hold through the report? Your flat base long is up 2R and earnings are tomorrow after the close. No; hold through only if up 5R Yes; the trend is up Yes; sell half first"
+   },
+   "lesson_line": "Earnings is a gap you cannot stop. Five R buys the ticket; 2R does not.",
+   "unit": "SET.07",
+   "why": "No. We hold through a report only if the trade is up 5R. At 2R the gap risk is bigger than the cushion.",
+   "wrong": {
+    "Yes; sell half first": "Half of a 2R cushion is still under the 5R line.",
+    "Yes; the trend is up": "The trend does not report earnings. The gap does."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q65",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "Take it; the lines are stacked"
+  },
+  "asof": "2013-09-06",
+  "bars": {
+   "asof": "2013-09-06",
+   "forward": 20,
+   "sym": "NUS",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_09d91c2fb143",
+  "lesson_origin": "session",
+  "lesson_text": "Take it. Price above the 50-day and the 200-day with the 50 over the 200. A six-week shelf riding the rising 10- and 21-day after the stock nearly doubled. It broke out the next day on 1.9x volume. Check the lines before the box. Stacked, rising, price on top: that is context.",
+  "module": "SET",
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Take it; the lines are stacked",
+    "Pass; the 50-day is under the 200",
+    "Pass; price is under the 200-day"
+   ],
+   "kind": "mcq",
+   "q": "Hidden ticker, the day before a breakout. Is this base above the 200-day with the 50-day over it? Take it or pass.",
+   "subject": "SET.07#q66"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "On the breakout day price is above the 50-day and the 200-day, and the 50-day is above the 200-day.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The 200-day line: no longs below the 200-day simple moving average, unless it is a parabolic long; shorts only below the 200-day, never above it unless it is a parabolic short.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "A six-week shelf riding the rising 10- and 21-day after the stock nearly doubled; three clean taps of 90; broke out on 1.9x volume and reached 3R the next session.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
+     }
+    ],
+    "summary": "On the breakout day price is above the 50-day and the 200-day, with the 50 above the 200. B26: no longs below the 200-day simple moving average, except a parabolic long. NUS: a six-week shelf on the rising 10- and 21-day after nearly doubling; three taps of 90; 1.9x volume; 3R the next session."
+   },
+   "facts": {
+    "given": "Hidden ticker, the day before a breakout. Is this base above the 200-day with the 50-day over it? Take it or pass. Take it; the lines are stacked Pass; the 50-day is under the 200 Pass; price is under the 200-day"
+   },
+   "lesson_line": "Check the lines before the box. Stacked, rising, price on top: that is context.",
+   "unit": "SET.07",
+   "why": "Take it. Price above the 50-day and the 200-day with the 50 over the 200. A six-week shelf riding the rising 10- and 21-day after the stock nearly doubled. It broke out the next day on 1.9x volume.",
+   "wrong": {
+    "Pass; price is under the 200-day": "Price sits well above the 200-day, resting on its shorter averages.",
+    "Pass; the 50-day is under the 200": "Look again: the 50-day runs above the 200-day here."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q66",
+  "sym": "NUS",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "adjustment_basis": "split-adjusted",
+  "answer_json": {
+   "answer": "Pass; the 50-day is under the 200"
+  },
+  "asof": "2026-07-08",
+  "bars": {
+   "asof": "2026-07-08",
+   "forward": 20,
+   "sym": "BBY",
+   "tf": "D",
+   "window": 120
+  },
+  "difficulty": 3,
+  "id": "si_f38c346864c9",
+  "lesson_origin": "session",
+  "lesson_text": "Pass. The close was 14.3% above the 200-day but the 50-day sat 1.6% under it. A base built in a recovery out of a downtrend, not a leader resting. It worked, and it is still not ours. A base that works is not always our base. The lines decide before the box does.",
+  "module": "SET",
+  "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
+   "choices": [
+    "Pass; the 50-day is under the 200",
+    "Take it; price is above the 200-day",
+    "Take it; the top is flat"
+   ],
+   "kind": "mcq",
+   "q": "Hidden ticker, the day before it trades through a flat top. Is the 50-day above the 200-day? Take it or pass.",
+   "subject": "SET.07#q67"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "On the breakout day price is above the 50-day and the 200-day, and the 50-day is above the 200-day.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "A base built in a recovery out of a downtrend, not a leader resting above a settled 50 over 200 order. It worked (best 6.3R) but it is not ours.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "close +14.3% against the 200-day, 50-day -1.6% against it; the rule is close > 50-day > 200-day",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
+     }
+    ],
+    "summary": "On the breakout day price is above the 50-day and the 200-day, with the 50 above the 200. BBY 2026-07-09 near-miss: the 50-day under the 200-day; it worked (6.3R) but it is not ours. BBY: the close was 14.3% above the 200-day but the 50-day sat 1.6% under it."
+   },
+   "facts": {
+    "given": "Hidden ticker, the day before it trades through a flat top. Is the 50-day above the 200-day? Take it or pass. Pass; the 50-day is under the 200 Take it; price is above the 200-day Take it; the top is flat"
+   },
+   "lesson_line": "A base that works is not always our base. The lines decide before the box does.",
+   "unit": "SET.07",
+   "why": "Pass. The close was 14.3% above the 200-day but the 50-day sat 1.6% under it. A base built in a recovery out of a downtrend, not a leader resting. It worked, and it is still not ours.",
+   "wrong": {
+    "Take it; price is above the 200-day": "Price above the 200 is one line of the check. The 50 under the 200 fails the other.",
+    "Take it; the top is flat": "The top is flat and the averages are out of order. Context first, pattern second."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q67",
+  "sym": "BBY",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "True"
+  },
+  "difficulty": 3,
+  "id": "si_0662a5a28fc5",
+  "lesson_origin": "session",
+  "lesson_text": "True. A breakout needs to produce a gain of at least 20% to be counted as one stage. MarketSmith resets the count to 1 when price undercuts the prior base's low. Count stages by the gains between bases, and start over after an undercut.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "True",
+    "False"
+   ],
+   "kind": "tf",
+   "q": "IBD counts a breakout as a new stage only when it gained at least 20% before the next base.",
+   "subject": "SET.07#q68"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "Investor's Business Daily (syndicated on Yahoo Finance): Why Late-Stage Base Patterns Often Lead To A Timely Exit (2015-06-16)",
+      "quote": "A breakout needs to produce a gain of at least 20% in order to be counted as one stage.",
+      "tier": 2,
+      "url": "https://finance.yahoo.com/news/why-stage-patterns-often-lead-215800864.html"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "MarketSmith (O'Neil's data firm): MarketSmith Pattern Recognition Users Manual (copy on silo.tips, undated)",
+      "quote": "The Base Stage and Count are always reset to 1 once an intraday low price undercuts the low of the previous base.",
+      "tier": 2,
+      "url": "https://silo.tips/download/marketsmith-pattern-recognition"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "First or second base since the last stage reset. A breakout that gained less than 20% before this base does not count as a new stage; the count resets to 1 when price undercuts the prior base's low.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     }
+    ],
+    "summary": "IBD: a breakout counts as a stage only if it gained at least 20%. MarketSmith: the base count resets to 1 when price undercuts the prior base's low. First or second base since the last stage reset."
+   },
+   "facts": {
+    "given": "IBD counts a breakout as a new stage only when it gained at least 20% before the next base."
+   },
+   "lesson_line": "Count stages by the gains between bases, and start over after an undercut.",
+   "unit": "SET.07",
+   "why": "True. A breakout needs to produce a gain of at least 20% to be counted as one stage. MarketSmith resets the count to 1 when price undercuts the prior base's low."
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#q68",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_3de663af9a8d",
+  "lesson_origin": "session",
+  "lesson_text": "Failure mode: a close back inside the base, stop taken next day. Instead it reaches 3R the next session. Trim a third.",
+  "module": "SET",
+  "prompt_json": {
+   "order": 1,
+   "part": 1,
+   "parts": 3,
+   "q": "NUS, September 2013: the textbook shelf",
+   "steps": [
+    "NUS, September 2013. The stock nearly doubled, then shelves six weeks, riding the rising 10 and 21-day. Three taps of 90.",
+    "Context and pattern check out: above its 50-day and 200-day, shallow at 10.3%, tight, a flat ceiling. The pivot is 90.",
+    "2013-09-09: it trades through 90 on 1.9x volume. Buy at market, 90.01. Stop a few cents under the day's low, 88.22.",
+    "Failure mode: a close back inside the base, stop taken next day. Instead it reaches 3R the next session. Trim a third."
+   ],
+   "subject": "SET.07#w1"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "NUS | 2013-09-09 | 6.0 wk / 10.3% / 3 / +82% | 1.85x | 90.01 | 88.22 (2.0%) | 23.5R (1)",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "A six-week shelf riding the rising 10- and 21-day after the stock nearly doubled; three clean taps of 90; broke out on 1.9x volume and reached 3R the next session.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "On the breakout day price is above the 50-day and the 200-day, and the 50-day is above the 200-day.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "The pivot is the highest intraday high of the base. IBD adds 10 cents; with market orders the 10 cents does not matter.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "Price trades above the pivot during regular hours. Buy with a market order. Set the alert at the pivot.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Entries are market orders.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The stop sits a few cents under the day's low, not exactly on it.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "The breakout day closes back inside the base, often at its low, and the next session takes the stop.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ]
+   },
+   "unit": "SET.07"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#w1",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_e7345bf267f6",
+  "lesson_origin": "session",
+  "lesson_text": "Failure mode: a close at the low, back in the base. Instead it grinds to 3R on day 10. Slow still pays.",
+  "module": "SET",
+  "prompt_json": {
+   "order": 2,
+   "part": 2,
+   "parts": 3,
+   "q": "ALLY, June 2019: tight at the end",
+   "steps": [
+    "ALLY, 2019. A leader rests 11.2 weeks after a 31% run, only 5.5% deep: the shallowest base of the ten.",
+    "Four taps of 30, and inside days into the breakout. That is tight at the end, the rule in one picture.",
+    "2019-06-27: it clears 30 on 1.80x volume. Buy at market, 30.28. Stop a few cents under the day's low, 29.79.",
+    "Failure mode: a close at the low, back in the base. Instead it grinds to 3R on day 10. Slow still pays."
+   ],
+   "subject": "SET.07#w2"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "ALLY | 2019-06-27 | 11.2 wk / 5.5% / 4 / +31% | 1.80x | 30.28 | 29.79 (1.6%) | 8.1R (10)",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "The shallowest base of the ten (5.5%), four taps of 30 and inside days into the breakout: the \"tight at the end\" rule in one picture. Slower, 3R on day 10.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "Tight at the end: the last 10 sessions' high-to-low range is at most half the base's depth, or the last 3 sessions include an inside day.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "Price trades above the pivot during regular hours. Buy with a market order. Set the alert at the pivot.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Entries are market orders.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The stop sits a few cents under the day's low, not exactly on it.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "The breakout day closes back inside the base, often at its low, and the next session takes the stop.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     }
+    ]
+   },
+   "unit": "SET.07"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#w2",
+  "type": "walkthrough",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "unscored": true
+  },
+  "difficulty": 1,
+  "id": "si_7914bc749b49",
+  "lesson_origin": "session",
+  "lesson_text": "Failure mode: a close back inside the base. It came after both trims were due; the trail rode the run to 99.",
+  "module": "SET",
+  "prompt_json": {
+   "order": 3,
+   "part": 3,
+   "parts": 3,
+   "q": "WSM, September 2023: the throwback and the trims",
+   "steps": [
+    "WSM, 2023. An 8-week shelf, 14.6% deep, four taps, after a 30% run. On 2023-09-25 it breaks out on 4.99x volume.",
+    "Buy at market, 73.16. Stop under the day's low, 72.24. 3R the next day: a third off, stop to breakeven.",
+    "5R by day 10: another third off. Then a throwback to 71.56, through the pivot and the original stop.",
+    "Failure mode: a close back inside the base. It came after both trims were due; the trail rode the run to 99."
+   ],
+   "subject": "SET.07#w3"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "WSM | 2023-09-25 | 8.0 wk / 14.6% / 4 / +30% | 4.99x | 73.16 | 72.24 (1.2%) | 10.0R (1)",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "5R by day 10, then a throwback to 71.56 in late October, through the pivot and the original stop, after both trims were due: Bulkowski's two-in-three throwback in person, before the run to 99.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Entries are market orders.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "The stop sits a few cents under the day's low, not exactly on it.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
+      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+      "tier": 3,
+      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "The breakout day closes back inside the base, often at its low, and the next session takes the stop.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Flat Base Breakout criteria card (docs/study/setups/criteria/01-flat-base.json, as of 2026-11-09)",
+      "quote": "Two in three uptrend-rectangle breakouts come back to the breakout price within 30 days. The day's-low stop will be tested often. That is normal, not a reason to widen it.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     }
+    ]
+   },
+   "unit": "SET.07"
+  },
+  "review_status": "draft",
+  "skill_id": "setup.flat_base",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.07.json#w3",
+  "type": "walkthrough",
+  "version": 1
+ }
+]

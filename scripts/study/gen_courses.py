@@ -65,11 +65,15 @@ def build(paths: list[pathlib.Path]) -> None:
         print(f"wrote {out.relative_to(REPO)}: {len(items)} items")
     m = json.loads(SKILL_MAP.read_text(encoding="utf-8"))
     curricula = m["curricula"] if isinstance(m["curricula"], list) else list(m["curricula"].values())
-    found = next(c for c in curricula if c.get("id") == "foundations")
-    for tr in found["tracks"]:
+    # a unit lands on the track with its id in whichever curriculum holds it (Foundations F*/V, the Method's SET)
+    for tr in (t for c in curricula for t in c.get("tracks") or []):
         new = {u["id"]: u for u in units.get(tr["id"], [])}
         if not new:
             continue
+        # a planned entry's lesson door (the Method's `uct-method:` lesson keys) survives the unit being authored
+        for old_u in tr.get("units") or []:
+            if old_u.get("id") in new and old_u.get("lessons") and not new[old_u["id"]].get("lessons"):
+                new[old_u["id"]]["lessons"] = list(old_u["lessons"])
         kept = [u for u in tr.get("units") or [] if u.get("id") not in new]
         tr["units"] = sorted(kept + list(new.values()), key=lambda u: [int(x) if x.isdigit() else x
                                                                      for x in u["id"].replace("b.", ".").split(".")])
