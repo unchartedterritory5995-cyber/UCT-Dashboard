@@ -1,0 +1,1 @@
+VOID (AUDIT 2026-11-10): produced on the stale 11-06 node_modules of C:/w/pl-auto (html2canvas family missing). Kept, never deleted. See evidence/stale-node-modules-1106/AFFECTED-RUNS.md

@@ -1,0 +1,5 @@
+base64-arraybuffer - => 1.0.2
+css-line-break - => 2.1.0
+html2canvas - => 1.4.1
+text-segmentation - => 1.0.3
+utrie - => 1.0.2
