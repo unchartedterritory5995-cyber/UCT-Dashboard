@@ -162,12 +162,15 @@ import {
   AVWAP_ANCHORS,
 } from '../indicators'
 import { serverColumnsFor, notifyColumnsLanded } from './serverCompute'
-import { runtimeKillOf } from './runtimeKill'
-import { runtimePaneEnabled, runtimePanePermitted } from './runtimePaneGate'
+import { runtimeKillOf, runtimeNotGradedOf } from './runtimeKill'
+import { runtimePaneEnabled, runtimePaneBuilt, runtimePanePermitted } from './runtimePaneGate'
 // ⭐ W5-T2 — the lower-timeframe gate is registered at this door (`lowerTfServing.js`),
 // never imported by the compute closure.
 import './lowerTfGate.js'
 import { runtimeWarmupOf } from './runtime/runtimeObjects'
+import { LIMIT_NAMES } from './runtime/limits'
+import { registeredObjectRuntimeValues, inputsAtDefaults } from './objectRuntimeSeam.js'
+import { manifestAtDefaults } from './paramLiteral.js'
 // ⭐ UCT RS's tour cards (unit 4-04). ⛔ FROM `teachingData.js`, NEVER `teaching.js`:
 // `teaching.js` reads the readout cards off this registry, so importing it here
 // is an import cycle. `teachingData.js` imports nothing.
@@ -3114,6 +3117,169 @@ function runtimeColumnsOrReasons(def, bars, inputs, ctx) {
   }
 }
 
+/** ⭐ DIV-4 — the run computes the script AS WRITTEN, so its colour is the member's
+ *  only while every declared input is at its default (`inputsAtDefaults`, the C18
+ *  rule) AND every folded parameter still reads its author's default at each of its
+ *  locators (`paramLiteral.manifestAtDefaults`). (C18's own rule treats any manifest
+ *  as moved; a member pane document carries one whenever a parameter was folded,
+ *  edited or not, so that rule would never serve one.) */
+function runtimeColoursAtDefaults(def, inputs) {
+  const compute = (def && def.compute) || {}
+  return inputsAtDefaults({ ...def, compute: { ...compute, paramManifest: null } }, inputs)
+    && manifestAtDefaults(def)
+}
+
+/** ⭐⭐ DIV-4 r2 — WHAT A MEMBER READS when a run-read bar colour is not drawn on
+ *  THIS chart: a plain sentence saying what is true here, never a guard token. The
+ *  token rides beside it (`columnErrors[key].code`) for diagnostics. Most members'
+ *  charts do not start at the listing, so that first sentence is the one usually
+ *  read: it says so calmly and that the candles simply keep their own colours. */
+const RUNTIME_COLOUR_WHY = Object.freeze({
+  'runtime:not-from-listing': "this chart's bars don't start at the symbol's first trading day, and the colours "
+    + 'are only worked out bar by bar from there, so the candles keep their own colours',
+  'runtime:member-inputs': "a setting has been changed from the script's default, and the colours are only "
+    + "worked out at the script's own settings, so the candles keep their own colours",
+  'pane:not-built': "running scripts bar by bar isn't part of this version of the app, so the candles keep their own colours",
+  'pane:not-permitted': 'running scripts bar by bar is switched off for your account right now, so the candles keep their own colours',
+  'pane:killed': 'this script is switched off for running bar by bar, so the candles keep their own colours',
+  'pane:not-graded': "this script hasn't been checked against TradingView for running bar by bar yet, so the candles keep their own colours",
+  'runtime:runtime.error': "the script stops itself with its own error message on this chart, so it draws no colours, as on TradingView",
+  'runtime:not-loaded': 'the part of the app that runs scripts bar by bar is still loading, so the colours appear once it has',
+  'runtime:unknown-bar': "on some bars the colour can't be worked out exactly, so none are drawn and the candles keep their own colours",
+  'runtime:request': 'the script reads another symbol or timeframe, which this chart cannot hand it, so the candles keep their own colours',
+  'runtime:clock-zone': "this symbol's exchange time zone isn't known here, and the script reads the clock, so the candles keep their own colours",
+})
+const RUNTIME_COLOUR_WHY_LIMIT = 'running the script bar by bar needed more work than a chart is allowed, so the candles keep their own colours'
+const RUNTIME_COLOUR_WHY_OTHER = "part of the script can't be run bar by bar here, so the candles keep their own colours"
+/** The member's sentence for one refusal code (a gate, or the run's own reason). */
+export function runtimeColourWhy(code) {
+  const c = String(code || '')
+  if (Object.hasOwn(RUNTIME_COLOUR_WHY, c)) return RUNTIME_COLOUR_WHY[c]
+  if (RUNTIME_LIMIT_CODES.has(c)) return RUNTIME_COLOUR_WHY_LIMIT
+  return RUNTIME_COLOUR_WHY_OTHER
+}
+/** `runtimeColumns.js::RUNTIME_LIMIT_GUARD` (the run's own limit token), restated
+ *  here only as a value to compare against: this module must not import the lane. */
+const RUNTIME_LIMIT_GUARD_CODE = 'runtime:limit'
+/** ⭐ r3 — every limit stop the run can report: `runtime:${err.limit}`, one per name the
+ *  VM declares (`runtime/limits.js::LIMIT_NAMES`, a leaf), derived from that list, plus
+ *  the source-size refusal. */
+const RUNTIME_LIMIT_CODES = new Set([RUNTIME_LIMIT_GUARD_CODE, ...LIMIT_NAMES.map((n) => `runtime:${n}`)])
+
+/** ⭐ r1 (review N5) — ONE run spec per `compute.runtimeColours` object, so the run's
+ *  own memo (`runtimeObjectValues`, keyed by the spec's identity per bars array) hits
+ *  on the next paint instead of growing by one entry a call. */
+const _runSpecs = new WeakMap()
+function runSpecOf(rc) {
+  let rt = _runSpecs.get(rc)
+  if (!rt) { rt = Object.freeze({ source: rc.source, at: rc.at, lane: 'pane' }); _runSpecs.set(rc, rt) }
+  return rt
+}
+
+/** ⭐⭐ r1 (review N4) — WHY A PAINT'S RUN-READ COLOUR IS NOT DRAWN ON THIS CHART, as
+ *  the sentence the runtime strip shows (`binder.noteRuntimeErrorStop`, the route a
+ *  runtime document's own stop takes), or null. Read off the columns' errors
+ *  (`withRuntimeColours`), one clause per paint, so the member who expects the colour
+ *  reads why it is missing: off the listing, settings moved, the run switched off or
+ *  killed, a `runtime.error`, a bar the run cannot settle, the lane not loaded. */
+export function runtimeColourStopOf(def, cols) {
+  const rc = def && def.compute && def.compute.runtimeColours
+  if (!rc || !Array.isArray(rc.keys) || !cols) return null
+  const errs = columnErrors(cols)
+  const lineOf = new Map((Array.isArray(def.paints) ? def.paints : [])
+    .filter((p) => p && typeof p.colorMode === 'string')
+    .map((p) => [p.colorMode.slice('column:'.length), p]))
+  const parts = []
+  for (const key of rc.keys) {
+    const e = errs[key]
+    if (!e || e.guard !== RUNTIME_COLOUR_GUARD) continue
+    const p = lineOf.get(key)
+    const name = p ? `\`${p.kind}\`${Number.isInteger(p.line) ? ` (line ${p.line})` : ''}` : 'a bar colour'
+    parts.push(`The colours from ${name} aren't shown on this chart: ${String(e.message || '').trim()}.`)
+  }
+  return parts.length ? { guard: RUNTIME_COLOUR_GUARD, sentence: parts.join(' ') } : null
+}
+
+/** ⭐⭐ DIV-4 — THE GUARD a runtime-read colour column carries when it is not served. */
+export const RUNTIME_COLOUR_GUARD = 'runtime:colour-not-served'
+
+/** ⭐⭐ DIV-4 — A HOST DOCUMENT'S COLOURS READ FROM THE PER-BAR RUN.
+ *
+ *  `compute.runtimeColours = { source, at, keys }` (written by the member door,
+ *  `memberPaneDefinition::runtimeReadPaints`): each `at[k]` is a colour asked for at
+ *  its own statement (`objectTreesAt`, kind `colour`), and its column lands under
+ *  `keys[k]` — a packed colour per bar (`pool.packedPointColour`), which a paint's
+ *  `colorMode: column:<key>` reads. ONE evaluator: the C18 object runtime
+ *  (`runtimeColumns.js::runtimeObjectValues`, registered through the leaf seam),
+ *  with ITS exactness rules — the bars start at the listing (ruling R-W, as this
+ *  document declares it, `historyFromListingFor`), the member left every input at
+ *  its default, the run completes, the two probe runs agree.
+ *  ⛔ ALL OR NOTHING PER COLUMN: a column with ANY bar the probes disagree on is
+ *  not served at all (a bar left unpainted would read as Pine's `na` colour).
+ *  Every column not served is absent and says why (`columnErrors`). */
+function withRuntimeColours(def, out, bars, inputs, ctx) {
+  const rc = def.compute.runtimeColours
+  const keys = (rc && Array.isArray(rc.keys)) ? rc.keys.filter((k) => typeof k === 'string' && k) : []
+  if (!keys.length) return out
+  const fn = registeredObjectRuntimeValues()
+  const errors = { ...columnErrors(out) }
+  // a fresh map: the host one may already carry its own (non-configurable) error record
+  const res = withRuntimeErrorStop({ ...out }, runtimeErrorStopOf(out))
+  const refuse = (code) => {
+    for (const k of keys) errors[k] = { guard: RUNTIME_COLOUR_GUARD, message: runtimeColourWhy(code), code }
+  }
+  const stop = runtimeErrorStopOf(out)
+  // ⭐ the pane lane answers to the runtime pane's per-member permission and the kill
+  // list on every run, exactly as a runtime document does (`runtimeColumnsOrReasons`)
+  const killed = runtimeKillOf({ defId: def.id, source: rc && rc.source })
+  // ⛔ r1 (review N3) — and the BUILD flag and the starter allowlist, on every run: a
+  // stored or hand-posted document carrying `runtimeColours` on a build whose runtime
+  // pane is off, or a script later taken off the allowlist, never draws the run colour.
+  // (A runtime DOCUMENT is reached only after the door asked both; this one is an
+  // ordinary `ast` document and is not.)
+  const notGraded = runtimeNotGradedOf({ source: rc && rc.source })
+  if (!runtimePaneBuilt()) {
+    refuse('pane:not-built')
+  } else if (!runtimePanePermitted()) {
+    refuse('pane:not-permitted')
+  } else if (killed) {
+    refuse('pane:killed')
+  } else if (notGraded) {
+    refuse('pane:not-graded')
+  } else if (stop && stop.reached) {
+    // ⛔ the script's own `runtime.error` was reached: TradingView holds nothing, and no colour is drawn either
+    for (const k of keys) {
+      errors[k] = { guard: RUNTIME_COLOUR_GUARD, message: runtimeColourWhy('runtime:runtime.error'), code: RUNTIME_ERROR_GUARD }
+    }
+  } else if (!fn) {
+    refuse('runtime:not-loaded')
+  } else {
+    const v = fn(runSpecOf(rc), bars, {
+      tf: ctx && ctx.tf,
+      symbol: ctx && ctx.symbol,
+      newestBarIsForming: ctx && ctx.newestBarIsForming,
+      fromListing: historyFromListingFor(def, ctx),
+      atDefaults: runtimeColoursAtDefaults(def, inputs),
+    })
+    if (!v || !v.served) {
+      refuse((v && v.reason) || 'runtime:error')
+    } else {
+      keys.forEach((key, k) => {
+        const col = v.cols[k]
+        const unk = v.unknown[k]
+        if (!(col instanceof Float64Array) || col.length !== bars.length) {
+          errors[key] = { guard: RUNTIME_COLOUR_GUARD, message: runtimeColourWhy('runtime:no-column'), code: 'runtime:no-column' }
+        } else if (unk && unk.some((x) => x)) {
+          errors[key] = { guard: RUNTIME_COLOUR_GUARD, message: runtimeColourWhy('runtime:unknown-bar'), code: 'runtime:unknown-bar' }
+        } else {
+          res[key] = col
+        }
+      })
+    }
+  }
+  return withColumnErrors(res, errors)
+}
+
 export function computeFor(def, bars, inputs, ctx) {
   if (def?.compute?.kind === 'runtime') {
     return runtimeColumnsOrReasons(def, Array.isArray(bars) ? bars : [], inputs, ctx)
@@ -3131,7 +3297,9 @@ export function computeFor(def, bars, inputs, ctx) {
   // for a native that lost its function and wrong for a definition that never
   // had one.
   if (def?.compute?.kind === 'ast') {
-    return astColumnsFor(def, Array.isArray(bars) ? bars : [], treeScalars(def, resolveInputs(def, inputs)), ctx)
+    const rows = Array.isArray(bars) ? bars : []
+    const out = astColumnsFor(def, rows, treeScalars(def, resolveInputs(def, inputs)), ctx)
+    return def.compute.runtimeColours ? withRuntimeColours(def, out, rows, inputs, ctx) : out
   }
   const fn = NATIVE_COMPUTE[def?.compute?.fn]
   if (!fn) {
