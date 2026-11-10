@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { screen, waitFor, cleanup, act, fireEvent } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { RING, STILL_FRAMES, ringRect, visibleBox, isHandle, trackRing } from './guide/ringGeometry'
+import { RING, STILL_FRAMES, TAIL_MS, ringRect, visibleBox, isHandle, trackRing } from './guide/ringGeometry'
 import { rectOf } from './guide/targets'
 import { applyRing } from './guide/GuideOverlay'
 import { registerBuiltins } from './builtins'
@@ -160,6 +160,42 @@ describe('2 · a moving control: the ring follows within one frame', () => {
     tr.stop()
     for (let i = 0; i < 3; i++) frame()
     expect(tr.running).toBe(false)
+  })
+
+  it('a scroll moves the ring in the scroll\'s own event, before any frame runs', () => {
+    const d = fixture('<div style="overflow:auto"><button data-guide="chart.settings">g</button></div>')
+    const b = d.querySelector('button')
+    setBox(b, { top: 300, left: 40, width: 30, height: 30 })
+    const seen = []
+    const tr = trackRing(b, (r) => seen.push(r))
+    for (let i = 0; i < STILL_FRAMES + 2; i++) frame()
+    setBox(b, { top: 264, left: 40, width: 30, height: 30 })   // scrolled 36 px
+    d.firstElementChild.dispatchEvent(new Event('scroll'))       // capture phase on the window hears a scroll anywhere
+    expect(seen.at(-1).top).toBe(264 - RING.pad)
+    tr.stop()
+  })
+
+  it('after a board change (a style write) the loop keeps measuring for TAIL_MS, catching the grid\'s debounced re-layout, then stops', async () => {
+    const d = fixture('<div class="board"><div data-widget-id="c"><div data-guide="widget.resize.se"></div></div></div>')
+    const cell = d.querySelector('[data-widget-id]')
+    const h = d.querySelector('[data-guide]')
+    setBox(h, { top: 100, left: 100, width: 12, height: 12 })
+    let t = 1000
+    const clock = vi.spyOn(performance, 'now').mockImplementation(() => t)
+    const seen = []
+    const tr = trackRing(h, (r) => seen.push(r), { holder: cell })
+    for (let i = 0; i < STILL_FRAMES + 2; i++) frame()
+    cell.style.transform = 'translate(-4px, 0px)'
+    await Promise.resolve()
+    for (let i = 0; i < STILL_FRAMES + 4; i++) { t += 16; frame() }
+    expect(tr.running).toBe(true)                               // still inside the tail
+    setBox(h, { top: 100, left: 92, width: 12, height: 12 })    // the debounced re-layout lands, with no mutation of its own
+    t += 16; frame()
+    expect(seen.at(-1).left + seen.at(-1).width / 2).toBe(98)
+    t += TAIL_MS; for (let i = 0; i < STILL_FRAMES + 2; i++) { t += 16; frame() }
+    expect(tr.running).toBe(false)
+    tr.stop()
+    clock.mockRestore()
   })
 
   it('a scroll or a window resize starts the loop again for a moment; a still control asks for no frames', () => {
