@@ -29,9 +29,9 @@ _INJECTION = re.compile(
     r"|\b(call|use|run|invoke|execute|trigger)\b[^.\n]{0,30}?\b[a-z][a-zA-Z]{2,}"
     r"\.(?!(?:com|net|org|io|co|ai|gov|edu|us|uk|ca|app|dev|me|tv|ly)\b)[a-z][a-zA-Z]{2,}\b(?![/.])"
     r"|\b(watchlist|layout|alert|chart|chartSetup|chartGrid|screener|indicator|indicatorAlert|indicatorStyle|indicatorCopy"
-    r"|drawing|widget|board|settings|definition|pane|volume|app|guide|stock|news|breadth|playbook|research)"
+    r"|drawing|widget|board|settings|definition|pane|volume|app|guide|stock|news|breadth|playbook|research|multiChart)"
     r"\.(add|remove|delete|create|clear|rename|open|set|run|save|apply|show|hide|update|move|resize|toggle|swap|duplicate"
-    r"|reorder|list|explain|setup|record|web|quote)[A-Za-z]*\b"
+    r"|reorder|list|explain|setup|record|web|quote|cell)[A-Za-z]*\b"
     r"|\bnew\s+instructions?\b|\bsystem\s*prompt\b|\bjailbreak\b"
     r"|<\s*/?\s*(system|assistant|user|tool|instructions?)\b|\[\s*(system|inst)\s*\]|<\|[a-z_]+\|>"
     r"|\b(call|use|invoke)\s+the\s+\w+\s+tool\b|\btool_use\b|\bfunction_call\b",

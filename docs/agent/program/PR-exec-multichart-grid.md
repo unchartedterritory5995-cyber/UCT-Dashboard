@@ -96,11 +96,18 @@ All runs went through `python ../tools/agent_suite_lock.py run --who pl-grid -- 
 1. **Deixis, "not the one I clicked"** (pinned with an `it.fails` plus a test asserting today's wrong outcome, on all 3 shapes).
    - `NEG_POINTER` doesn't treat that phrase as a negation, so a plan on the clicked cell runs.
    - This is the shared machinery, independent of the target kind. It is routed to #988. Both pins flip when its fix lands.
+   - **Flip plan:** the post-#988 re-merge. Once #988 is on master, this branch (or master, if #1030 merged first) takes one commit, `test(agent): the 'not the one I clicked' deixis pins become plain tests after #988 (pl-grid)`, which replaces the `it.fails` + `PINNED current WRONG outcome` pair in `multiChartGrid.family.test.jsx` (~line 331-348) with one plain `it` asserting the ask and the kept fork, on all 3 shapes. The Lead names that commit's SHA in the re-merge report.
    - "not the clicked one" is handled (it's asked).
-2. **Server mirrors not updated** (pytest not run here):
-   - `api/services/uct_agent/turn_v2.py` `_DOMAIN_OF` has no `multiChart` entry, so planner v2 files it under "history"; probably wants "board".
-   - `knowledge/guard.py`'s action-name regex doesn't list `multiChart`.
-   - `tests/test_uct_agent_nl1_selection.py` and `tests/test_agent_eval_run.py` read the regenerated parity fixture.
+2. **Server mirrors: FIXED in this head** (commit `fix(agent): server mirrors know the Multi Chart family`).
+   - `api/services/uct_agent/turn_v2.py`: `_DOMAIN_OF["multiChart"] = "board"` (the workspace as a whole, like `board.*` / `widget.*` / `layout`-adjacent controls); the board domain title now names the Multi Chart grid.
+   - `api/services/uct_agent/knowledge/guard.py`: `multiChart` added to the action-name prefixes and `cell` to its verbs, so a retrieved passage naming `multiChart.set` / `multiChart.cell` is withheld.
+   - **Behaviour before the fix, now asserted by tests** (`tests/test_uct_agent_server_capability_mirrors.py`):
+     - planner v2 does NOT refuse an unknown prefix; it silently misfiles it under `history` (`domain_for("someFutureFamily.doThing") == "history"`).
+     - the knowledge guard FAILS OPEN on an unknown family: `"multiChart.cell maximize"` passed as clean data with no flag; only the generic "run/call/use <a.b>" clause caught it, and only with a verb in front.
+   - Ratchets in the same file: every manifest prefix must have a `_DOMAIN_OF` entry (frozen known-unlisted: `calendar`; `breadth` is history by design), and every manifest action name must be withheld bare by the guard (45 pre-existing names frozen; the list may only shrink). A NEW capability family now fails CI until both mirrors know it.
+   - `tests/test_uct_agent_contract.py` `_GROUP_OF` gains `"multiChart": "multiChart"` (it indexes every golden prefix, so the new family would have been a KeyError).
+   - Rail (standalone harness over the same assertions, no pytest/backend): pre-fix 6 failed | 6 passed (12); post-fix 12 passed. Mutations 4/4 killed: drop the domain (2 failed), map it to `chart` (1), drop the guard prefix (4), drop the `cell` verb (2). pytest was NOT run here; CI runs `tests/test_uct_agent*.py`.
+   - Found, not changed (pre-existing, outside this PR): `calendar` is unlisted in `_DOMAIN_OF` (files under history); 45 action names (list in the test) pass the guard bare.
 3. **Group seed is not persisted.** `sanitizeState` drops `group.seed` on hydrate, so an industry-cohort refresh after a reload says "Nothing to refresh". This is pre-existing and not changed here.
 4. **`multiChart.cell` and `chart.*` in one plan.** They share refs (the cell id). A plan mixing them on the same cell is refused as "doesn't apply", never applied to a wrong cell.
 5. **Opening Shared Chart Settings** is a dialog opener with an Undo that closes it (C3-061). Like C1-127, no other capability opens a dialog.
