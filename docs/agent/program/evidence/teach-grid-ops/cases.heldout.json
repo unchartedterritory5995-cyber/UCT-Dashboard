@@ -1,0 +1,74 @@
+[
+ {
+  "id": "GO-01",
+  "say": "how do I fill my grid with a stock’s group automatically",
+  "feature": "gridAction",
+  "title": "Groups mode"
+ },
+ {
+  "id": "GO-02",
+  "say": "how do I stop using groups in multi chart",
+  "feature": "gridAction",
+  "title": "Leaving Groups mode"
+ },
+ {
+  "id": "GO-03",
+  "say": "show me how to load the semiconductor group into the grid",
+  "feature": "gridAction",
+  "title": "Picking a group"
+ },
+ {
+  "id": "GO-04",
+  "say": "how do I go to the previous group in my grid",
+  "feature": "gridAction",
+  "title": "Stepping back a group"
+ },
+ {
+  "id": "GO-05",
+  "say": "how do I move on to the next group in multi chart",
+  "feature": "gridAction",
+  "title": "Stepping through groups"
+ },
+ {
+  "id": "GO-06",
+  "say": "how do I switch the grid to another group this stock is also in",
+  "feature": "gridAction",
+  "title": "Switching to another group it’s in"
+ },
+ {
+  "id": "GO-07",
+  "say": "how do I re-rank the group in my grid right now",
+  "feature": "gridAction",
+  "title": "Refreshing a group"
+ },
+ {
+  "id": "GO-08",
+  "say": "how do I save this grid so I can use it later",
+  "feature": "gridAction",
+  "title": "Saving a grid"
+ },
+ {
+  "id": "GO-09",
+  "say": "show me how to open one of my saved grids",
+  "feature": "gridAction",
+  "title": "Opening a saved grid"
+ },
+ {
+  "id": "GO-10",
+  "say": "how do I get rid of a grid I saved",
+  "feature": "gridAction",
+  "title": "Deleting a saved grid"
+ },
+ {
+  "id": "GO-11",
+  "say": "where are the settings every chart in my grid shares",
+  "feature": "gridAction",
+  "title": "The grid’s shared settings"
+ },
+ {
+  "id": "GO-12",
+  "say": "how do I get all the grid charts back on screen after maximizing one",
+  "feature": "gridAction",
+  "title": "Maximizing a chart in the grid"
+ }
+]

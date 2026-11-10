@@ -94,7 +94,7 @@ export function givenFor(c) {
   if (c.feature === 'gridAction' && /^Resetting a chart in the grid$/.test(c.title || '')) g.prefs = { multichart_state: JSON.stringify({ ...MULTI, cells: MULTI.cells.map(x => ({ ...x, settings: { chartType: 'line' } })) }) }
   // a grid filled from a group: Multi Chart's flyout shows Prev/Next, Refresh group and Exit Groups only while one is set
   // (pages/charts/grid/MultiChartMenu.jsx `mc.state.group`; gridLayouts.js sanitizeGroup keeps id, by, n, name)
-  if (c.feature === 'gridAction' && /^(Stepping through groups|Refreshing a group|Leaving Groups mode)$/.test(c.title || '')) g.prefs = { multichart_state: JSON.stringify({ ...MULTI, groupsMode: true, group: { id: 'semiconductors', by: 'today', n: 4, name: 'Semiconductors' } }) }
+  if (c.feature === 'gridAction' && /^(Stepping through groups|Stepping back a group|Refreshing a group|Leaving Groups mode|Switching to another group it’s in)$/.test(c.title || '')) g.prefs = { multichart_state: JSON.stringify({ ...MULTI, groupsMode: true, group: { id: 'semiconductors', by: 'today', n: 4, name: 'Semiconductors', ...(/^Switching to another group/.test(c.title) ? { alsoIn: [{ id: 'ai-chips', name: 'AI Chips' }] } : {}) } }) }
   if (c.feature === 'tabAction' || /tab’s link colour|Renaming a (chart|widget) tab/.test(c.title || '')) g.board = 'tabs'
   // a per-browser switch the case states itself (a release flag the app reads from localStorage, e.g. widgets/captureRelease.js)
   if (c.ls) g.ls = c.ls
