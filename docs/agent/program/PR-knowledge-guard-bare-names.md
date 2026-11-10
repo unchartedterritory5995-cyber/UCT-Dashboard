@@ -46,6 +46,7 @@ Ratchet: `GUARD_KNOWN_UNWITHHELD` is now empty. The rule is kept as a comment: t
 | `3a3496d6fd` | #1030's board-domain test called `turn.validate_manifest(CAPS)` with all 159 caps. The per-request limit is 60, so it raised `TurnError` instead of asserting. Now `limit=len(CAPS)`. **#1030 needs the same one-line fix, or its CI is red.** |
 | `1fdad827b9` | AUDIT precondition in `docs/feature_flags.json`. |
 | `c141581c77` | AUDIT round 2 (items b, d, e): boot log line + `source_line()`, registry and fallback rails, one planted post per family, precondition reworded. |
+| (round 3) | `print(line, flush=True)` in `log_action_source_once()`, and the capfd stdout rail. |
 
 New rails in `tests/test_uct_agent_server_capability_mirrors.py`:
 * families are derived (manifest prefixes and registry-literal prefixes are in `action_families()`; source == registry)
@@ -65,6 +66,7 @@ plus every `*guard*` test in `tests/test_uct_agent_knowledge.py` (fixture tests 
 * At `76f63d712a`: 43 passed, 6 failed (5 G1 rails plus #1030's limit bug) (standalone stub runner, not pytest).
 * After the fix: **49 passed, 0 failed** (standalone stub runner, not pytest).
 * After the AUDIT items (b, d below): **53 passed, 0 failed** (standalone stub runner, not pytest).
+* After AUDIT round 3 (the stdout print and its capfd test): **54 passed, 0 failed** (standalone stub runner, not pytest).
 * **False-positive check:** 0 of 34 controls flagged. The existing knowledge-guard precision lists still pass.
   Old guard vs new guard over all 816 string constants in `tests/test_uct_agent_knowledge*.py`: 0 newly passed.
   1 newly flagged: the bare literal `stock.profile`, an action name in a `step_result_text` test, never guarded.
@@ -79,6 +81,7 @@ plus every `*guard*` test in `tests/test_uct_agent_knowledge.py` (fixture tests 
   * **M6**: `source_line()` always says `registry`. 1 fails: fallback rail.
   * **M7**: the no-registry clause fails OPEN (matches nothing). 1 fails: fallback rail (`chart.goToDate` passes).
   * **M8**: one family (`volume`) dropped from the clause. 3 fail: per-family planted (`volume`), registry rail, manifest ratchet.
+  * **M9**: the `print(line, flush=True)` removed. 1 fails: the capfd stdout rail. (M5 now also fails it.)
 
 CI/AUDIT runs pytest.
 
@@ -98,6 +101,15 @@ existing module logger (`logging.getLogger("api.services.uct_agent.knowledge.gua
 imports that router at module load (`from api.routers import uct_agent as uct_agent_router`). From the repo it reads
 `[uct-agent] knowledge guard action source: registry (178 names, 32 families)` at INFO; a fallback source logs at
 WARNING. A failure in the call is caught and logged, so it can never stop boot.
+**It also prints the line to stdout, unconditionally, with `flush=True`** (AUDIT round 3), the way main.py prints its
+`[startup]` fingerprint lines. At import time logging may not be configured, so an INFO record alone might never reach
+Railway's log stream, and then a missing line could not tell "registry" from "never ran". The logger call stays for
+both sources (INFO for registry, WARNING for fallback).
+`test_the_boot_line_is_PRINTED_to_stdout_once(capfd)` resets `_BOOT_LOGGED`, calls the function on the real repo
+module, and reads fd 1. **It proves** the registry line reaches file descriptor 1 exactly once on the first call, with
+logging config playing no part, and that a second call writes nothing. **It does not prove** that a real uvicorn boot
+runs it (the router-import rail is a source check, and fastapi isn't imported here), or what Railway keeps. The stub
+runner gained an fd-level `capfd` shim (dup2 of fds 1 and 2 onto temp files) to run it.
 **Log line only, no status field.** The only existing admin endpoint that reports server Agent state is
 `GET /api/agent/config`, and it is the browser's contract (stream, nl1, data, planner, coach, routing_v2), not a
 status or health endpoint. The knowledge health report (`knowledge/health.py`) is a reindex-time file, not an

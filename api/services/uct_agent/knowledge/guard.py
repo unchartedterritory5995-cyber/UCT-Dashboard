@@ -98,6 +98,10 @@ def log_action_source_once() -> str | None:
         return None
     _BOOT_LOGGED["done"] = True
     line = source_line()
+    # stdout too, unconditionally (like main.py's [startup] fingerprint lines): at import time logging may not be
+    # configured yet, so an INFO record alone could never reach the log stream and "no line" would not tell
+    # "registry" from "never ran".
+    print(line, flush=True)
     (log.info if _ACTION_SOURCE == "registry" else log.warning)("%s", line)
     return line
 

@@ -267,3 +267,23 @@ def test_the_server_boot_logs_the_action_source_once():
     assert src.count("log_action_source_once()") == 1
     boot = (ROOT / "api" / "main.py").read_text(encoding="utf-8")
     assert "from api.routers import uct_agent as uct_agent_router" in boot
+
+
+def test_the_boot_line_is_PRINTED_to_stdout_once(capfd):
+    # PROVES: on its first run in this process, log_action_source_once() writes the registry line to file
+    # descriptor 1 (fd-level capture, so print + flush, independent of logging config) exactly once, and a second
+    # call writes nothing. DOES NOT PROVE: that a real uvicorn boot runs it (the router-import rail above is a
+    # source check only, fastapi is not imported here), or what Railway's log stream keeps.
+    saved = dict(guard._BOOT_LOGGED)
+    try:
+        guard._BOOT_LOGGED["done"] = False
+        capfd.readouterr()
+        assert guard.log_action_source_once() == guard.source_line()
+        first = capfd.readouterr().out
+        assert first.splitlines().count(guard.source_line()) == 1, first
+        assert "action source: registry" in first
+        assert guard.log_action_source_once() is None
+        assert guard.source_line() not in capfd.readouterr().out
+    finally:
+        guard._BOOT_LOGGED.clear()
+        guard._BOOT_LOGGED.update(saved)
