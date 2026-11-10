@@ -15,12 +15,12 @@ A new canonical inventory of what a member can do on desktop /charts. It does **
 | --- | --- |
 | Historical benchmark rows (unchanged) | 499 |
 | … walkthrough VERIFIED / ROUTED-BROWSER FAILED / no case (teach-cov-5) | 295 / 23 / 181 |
-| Rows UNIQUE / VALID / DUPLICATE / ALTERNATE ROUTE / NOT ON DESKTOP /CHARTS | 431 / 27 / 14 / 8 / 19 |
-| **Canonical unique operations from the 499** (UNIQUE rows; their DUPLICATE and ALTERNATE ROUTE rows folded in) | **431** (C1 147, C2 92, C3 192) |
-| … of which walkthrough-VERIFIED (at least one of its rows VERIFIED; phrasings never add) | **268** (62.2%) |
+| Rows UNIQUE / VALID / DUPLICATE / ALTERNATE ROUTE / NOT ON DESKTOP /CHARTS / NOT IN PRODUCT | 430 / 27 / 14 / 8 / 19 / 1 |
+| **Canonical unique operations from the 499** (UNIQUE rows; their DUPLICATE and ALTERNATE ROUTE rows folded in) | **430** (C1 147, C2 92, C3 191) |
+| … of which walkthrough-VERIFIED (at least one of its rows VERIFIED; phrasings never add) | **268** (62.3%) |
 | Confirmed additions (new canonical operations, no walkthrough record yet) | 29 (C1 13, C2 2, C3 14) |
-| **Canonical unique operations, v2** (UNIQUE + confirmed additions) | **460**, of which VERIFIED **268** (58.3%) |
-| VALID rows (not member operations; never added to the 460) | 27, of which VERIFIED 13 |
+| **Canonical unique operations, v2** (UNIQUE + confirmed additions) | **459**, of which VERIFIED **268** (58.4%) |
+| VALID rows (not member operations; never added to the 459) | 27, of which VERIFIED 13 |
 | … **READ-ONLY TEACHING** (locate / inspect / understand: member-facing readouts, labels and panels), its own category | **17** (C1 0, C2 5, C3 12), of which VERIFIED **12** |
 | … excluded (admin-only, Agent-panel-only, nonexistent, irrelevant), each with its reason below | 10, of which VERIFIED 1 |
 
@@ -32,6 +32,17 @@ A new canonical inventory of what a member can do on desktop /charts. It does **
 - ALTERNATE ROUTE: the same operation by another door (key, menu, right-click, another dialog); cites its primary.
 - NOT ON DESKTOP /CHARTS: one of the execution status's 19 rows with no real control on desktop /charts.
 - VALID: a real row that is not a member operation on its own; split into READ-ONLY TEACHING (a member-facing readout, label or panel to locate, inspect or understand) and excluded (admin-only, Agent-panel-only, nonexistent, irrelevant). Neither is counted as an operation.
+
+## Corrections (2026-11-10)
+
+From pl-teach INVENTORY-FINDINGS-teach-keys.md (9d0ffdb368), code at master dfc645ccb3; each correction keeps the historical row. The historical row is kept: its original class and wording are shown, nothing is deleted, and the 499 benchmark is unchanged.
+
+| row | kind | class (was → now) | action (was → now) | note |
+| --- | --- | --- | --- | --- |
+| C3-223 | documentation mismatch | UNIQUE (unchanged) | Toggle the journal shortcut (Ctrl+Alt+J) → Capture the hovered chart to the Journal inbox (Ctrl+Alt+J) | the key captures the hovered chart to the Journal inbox (ChartWidget.jsx:591, ChartsWorkspace.jsx:2843); it toggles nothing; the old citation CW:2678 is stale. Not declared in SHORTCUTS, so absent from the ? overlay. Possible overlap with the right-click Send to Journal addition C1-176 (another route to a journal capture) is noted, not applied |
+| C1-123 | alternative access path | NOT ON DESKTOP (unchanged) | Add indicator from menu (unchanged) | the desktop /charts widget menu never had Add indicator (StockChart's ind-add row renders only on the app-root menu); on desktop use the toolbar indicator button, Alt+Shift+A (C1-172) or Chart Settings, Indicators. Owner decision pending on spec section 6 (right-click as a third entry point) |
+| C1-175 | documentation mismatch | UNIQUE (unchanged) | Escape to cursor / cancel → Press Esc to return to the cursor or cancel the armed drawing tool | Esc is declared (keyboardShortcuts.js:112, matcher :257) and teachable (held-out HK-9 passes in a real browser); BLOCKED applies to executing Esc (pointer-session state), not to teaching it |
+| C3-080 | intentional removal, dead residue | UNIQUE → NOT IN PRODUCT | Remove all starred symbols from a list (unchanged) | the only trigger (toggleStar callers) was removed on purpose in 72482c8400 (2026-07-19, star became the Flagged toggle); the state, helpers and menu row remain as dead code (Watchlists.jsx:930-1003, :3658-3662) and CLAUDE.md:5191 still documents it. Not a defect; restoring would need an owner decision |
 
 ## VALID rows: READ-ONLY TEACHING and excluded
 
@@ -173,16 +184,16 @@ Each checked in master 8500e084ac UI source. C1-176..179 reuse the ids the execu
 | C1-009 | Timeframe | Delete custom interval | UNIQUE |  | VERIFIED | IMPLEMENTED / UNVERIFIED |
 | C1-010 | Timeframe | Star a favourite timeframe | UNIQUE |  | VERIFIED | IMPLEMENTED / UNVERIFIED |
 | C1-011 | Timeframe | Timeframe keys with repeat-press cycle | UNIQUE |  | VERIFIED | IMPLEMENTED / UNVERIFIED |
-| C1-012 | Timeframe | Change timeframe from right-click | NOT ON_DESKTOP |  | NO ASSIGNED WALKTHROUGH | NOT ON /CHARTS |
+| C1-012 | Timeframe | Change timeframe from right-click | NOT ON DESKTOP |  | NO ASSIGNED WALKTHROUGH | NOT ON /CHARTS |
 | C1-013 | Chart type | Choose chart type in settings | UNIQUE |  | VERIFIED | VERIFIED |
-| C1-014 | Chart type | Choose chart type from right-click | NOT ON_DESKTOP |  | NO ASSIGNED WALKTHROUGH | NOT ON /CHARTS |
+| C1-014 | Chart type | Choose chart type from right-click | NOT ON DESKTOP |  | NO ASSIGNED WALKTHROUGH | NOT ON /CHARTS |
 | C1-015 | Chart type | Breadth Line/Candles quick toggle | UNIQUE |  | NO ASSIGNED WALKTHROUGH | IMPLEMENTED / UNVERIFIED |
 | C1-016 | Chart type | Heikin Ashi candles | UNIQUE |  | NO ASSIGNED WALKTHROUGH | UNMAPPED |
 | C1-017 | Chart type | Candle colour mode | UNIQUE |  | VERIFIED | IMPLEMENTED / UNVERIFIED |
 | C1-018 | Chart type | Thin bars | UNIQUE |  | VERIFIED | IMPLEMENTED / UNVERIFIED |
 | C1-019 | Session | Regular/extended on intraday | UNIQUE |  | VERIFIED | IMPLEMENTED / UNVERIFIED |
 | C1-020 | Session | Regular/extended on D/W/M | UNIQUE |  | VERIFIED | VERIFIED |
-| C1-021 | Session | Extended hours from price-axis menu | NOT ON_DESKTOP |  | NO ASSIGNED WALKTHROUGH | NOT ON /CHARTS |
+| C1-021 | Session | Extended hours from price-axis menu | NOT ON DESKTOP |  | NO ASSIGNED WALKTHROUGH | NOT ON /CHARTS |
 | C1-022 | Scale | Arithmetic/log/percent from menu | UNIQUE |  | VERIFIED | IMPLEMENTED / UNVERIFIED |
 | C1-023 | Scale | Toggle log (Shift+L) | ALTERNATE ROUTE | C1-022 | ASSIGNED / NOT REACHED | VERIFIED |
 | C1-024 | Scale | Invert scale (Alt+I) | UNIQUE |  | VERIFIED | IMPLEMENTED / UNVERIFIED |
@@ -246,18 +257,18 @@ Each checked in master 8500e084ac UI source. C1-176..179 reuse the ids the execu
 | C1-082 | Templates | Apply a template | UNIQUE |  | VERIFIED | VERIFIED |
 | C1-083 | Templates | Save a template | UNIQUE |  | VERIFIED | VERIFIED |
 | C1-084 | Templates | Delete a template | UNIQUE |  | VERIFIED | VERIFIED |
-| C1-085 | Templates | Copy another chart's look | NOT ON_DESKTOP |  | NO ASSIGNED WALKTHROUGH | NOT ON /CHARTS |
+| C1-085 | Templates | Copy another chart's look | NOT ON DESKTOP |  | NO ASSIGNED WALKTHROUGH | NOT ON /CHARTS |
 | C1-086 | Volume | Show/hide volume (Ctrl+V, menu) | ALTERNATE ROUTE | C2-020 | VERIFIED | VERIFIED |
 | C1-087 | Volume | Remove volume | UNIQUE |  | VERIFIED | IMPLEMENTED / UNVERIFIED |
-| C1-088 | Volume | Separate pane toggle | NOT ON_DESKTOP |  | VERIFIED | NOT ON /CHARTS |
+| C1-088 | Volume | Separate pane toggle | NOT ON DESKTOP |  | VERIFIED | NOT ON /CHARTS |
 | C1-089 | Volume | Resize volume pane by drag | UNIQUE |  | VERIFIED | VERIFIED |
 | C1-090 | Volume | HVC highlight | UNIQUE |  | VERIFIED | IMPLEMENTED / UNVERIFIED |
 | C1-091 | Volume | Volume colours, MA, label, bar style | UNIQUE |  | VERIFIED | IMPLEMENTED / UNVERIFIED |
 | C1-092 | Volume | Overlay indicator on volume | UNIQUE |  | NO ASSIGNED WALKTHROUGH | IMPLEMENTED / UNVERIFIED |
 | C1-093 | Panes | Move a pane | DUPLICATE | C2-038 | ASSIGNED / NOT REACHED | VERIFIED |
 | C1-094 | Panes | Resize a pane | UNIQUE |  | VERIFIED | IMPLEMENTED / UNVERIFIED |
-| C1-095 | Panes | Collapse a pane | NOT ON_DESKTOP |  | NO WALKTHROUGH | NOT ON /CHARTS |
-| C1-096 | Crosshair | Copy price at the cursor | NOT ON_DESKTOP |  | NO WALKTHROUGH | NOT ON /CHARTS |
+| C1-095 | Panes | Collapse a pane | NOT ON DESKTOP |  | NO WALKTHROUGH | NOT ON /CHARTS |
+| C1-096 | Crosshair | Copy price at the cursor | NOT ON DESKTOP |  | NO WALKTHROUGH | NOT ON /CHARTS |
 | C1-097 | Legend | Hide/show an indicator from chip | DUPLICATE | C2-018 | VERIFIED | VERIFIED |
 | C1-098 | Legend | Display in another pane from chip | DUPLICATE | C2-036 | VERIFIED | VERIFIED |
 | C1-099 | Legend | Duplicate on chart | DUPLICATE | C2-042 | VERIFIED | IMPLEMENTED / UNVERIFIED |
@@ -283,14 +294,14 @@ Each checked in master 8500e084ac UI source. C1-176..179 reuse the ids the execu
 | C1-119 | Alerts | Pause/resume indicator alert | DUPLICATE | C2-098 | VERIFIED | VERIFIED |
 | C1-120 | Alerts | Delete indicator alert | DUPLICATE | C2-099 | VERIFIED | VERIFIED |
 | C1-121 | Alerts | Move a level line | UNIQUE |  | VERIFIED | VERIFIED |
-| C1-122 | Right-click | Draw line at clicked price | NOT ON_DESKTOP |  | NO ASSIGNED WALKTHROUGH | NOT ON /CHARTS |
-| C1-123 | Right-click | Add indicator from menu | NOT ON_DESKTOP |  | ASSIGNED / NOT REACHED | NOT ON /CHARTS |
-| C1-124 | Right-click | Open indicator settings | NOT ON_DESKTOP |  | VERIFIED | NOT ON /CHARTS |
+| C1-122 | Right-click | Draw line at clicked price | NOT ON DESKTOP |  | NO ASSIGNED WALKTHROUGH | NOT ON /CHARTS |
+| C1-123 | Right-click | Add indicator from menu | NOT ON DESKTOP |  | ASSIGNED / NOT REACHED | NOT ON /CHARTS |
+| C1-124 | Right-click | Open indicator settings | NOT ON DESKTOP |  | VERIFIED | NOT ON /CHARTS |
 | C1-125 | Right-click | Clear all drawings | UNIQUE |  | VERIFIED | VERIFIED |
 | C1-126 | Right-click | Hide all drawings | UNIQUE |  | VERIFIED | IMPLEMENTED / UNVERIFIED |
 | C1-127 | Settings door | Open chart settings (Alt+,, gear) | UNIQUE |  | VERIFIED | MISSING |
 | C1-128 | Drawing | Trendline | UNIQUE |  | VERIFIED | VERIFIED |
-| C1-129 | Drawing | Ray | NOT ON_DESKTOP |  | NO WALKTHROUGH | NOT ON /CHARTS |
+| C1-129 | Drawing | Ray | NOT ON DESKTOP |  | NO WALKTHROUGH | NOT ON /CHARTS |
 | C1-130 | Drawing | Extended line | UNIQUE |  | VERIFIED | VERIFIED |
 | C1-131 | Drawing | Horizontal line | UNIQUE |  | VERIFIED | VERIFIED |
 | C1-132 | Drawing | Horizontal ray | UNIQUE |  | VERIFIED | VERIFIED |
@@ -336,7 +347,7 @@ Each checked in master 8500e084ac UI source. C1-176..179 reuse the ids the execu
 | C1-172 | Keyboard | Add indicator dialog (Alt+Shift+A) | ALTERNATE ROUTE | C2-001 | ASSIGNED / NOT REACHED | VERIFIED |
 | C1-173 | Keyboard | Cycle grid layout (Alt+\\) | UNIQUE |  | VERIFIED | UNMAPPED |
 | C1-174 | Keyboard | Keyboard help (?) | UNIQUE |  | NO WALKTHROUGH | UNMAPPED |
-| C1-175 | Keyboard | Escape to cursor / cancel | UNIQUE |  | NO WALKTHROUGH | BLOCKED |
+| C1-175 | Keyboard | Press Esc to return to the cursor or cancel the armed drawing tool *(corrected 2026-11-10; was: Escape to cursor / cancel)* | UNIQUE |  | NO WALKTHROUGH | BLOCKED |
 | C2-001 | Picker | Open indicator library | UNIQUE |  | VERIFIED | MISSING |
 | C2-002 | Picker | Search indicators by name or purpose | UNIQUE |  | VERIFIED | IMPLEMENTED / UNVERIFIED |
 | C2-003 | Picker | Browse by category | UNIQUE |  | VERIFIED | IMPLEMENTED / UNVERIFIED |
@@ -437,7 +448,7 @@ Each checked in master 8500e084ac UI source. C1-176..179 reuse the ids the execu
 | C2-098 | Alerts | Pause or resume alert | UNIQUE |  | VERIFIED | VERIFIED |
 | C2-099 | Alerts | Delete alert | UNIQUE |  | VERIFIED | VERIFIED |
 | C2-100 | Alerts | See why an alert cannot fire | VALID |  | ROUTED / BROWSER FAILED | IMPLEMENTED / UNVERIFIED |
-| C2-101 | Mobile | Edit an average or study on phone | NOT ON_DESKTOP |  | NO ASSIGNED WALKTHROUGH | NOT ON /CHARTS |
+| C2-101 | Mobile | Edit an average or study on phone | NOT ON DESKTOP |  | NO ASSIGNED WALKTHROUGH | NOT ON /CHARTS |
 | C3-001 | Board | Add a widget from Widgets ▾ | UNIQUE |  | VERIFIED | VERIFIED |
 | C3-002 | Board | Drag a widget to move it, or nudge it | UNIQUE |  | VERIFIED | IMPLEMENTED / UNVERIFIED |
 | C3-003 | Board | Drag a widget edge or merged seam to resize | UNIQUE |  | VERIFIED | IMPLEMENTED / UNVERIFIED |
@@ -510,24 +521,24 @@ Each checked in master 8500e084ac UI source. C1-176..179 reuse the ids the execu
 | C3-070 | Watchlist | Create a list | UNIQUE |  | VERIFIED | VERIFIED |
 | C3-071 | Watchlist | Create a list from a template | UNIQUE |  | NO ASSIGNED WALKTHROUGH | MISSING |
 | C3-072 | Watchlist | Save a community list to My Lists | UNIQUE |  | NO ASSIGNED WALKTHROUGH | MISSING |
-| C3-073 | Watchlist | Rename a list | NOT ON_DESKTOP |  | NO ASSIGNED WALKTHROUGH | NOT ON /CHARTS |
+| C3-073 | Watchlist | Rename a list | NOT ON DESKTOP |  | NO ASSIGNED WALKTHROUGH | NOT ON /CHARTS |
 | C3-074 | Watchlist | Rename the Flagged list | UNIQUE |  | NO WALKTHROUGH | MISSING |
 | C3-075 | Watchlist | Delete a list | UNIQUE |  | VERIFIED | VERIFIED |
 | C3-076 | Watchlist | Add a symbol | UNIQUE |  | ASSIGNED / NOT REACHED | VERIFIED |
 | C3-077 | Watchlist | Add to Flagged | UNIQUE |  | VERIFIED | VERIFIED |
 | C3-078 | Watchlist | Flag or unflag a row (star) | UNIQUE |  | VERIFIED | VERIFIED |
 | C3-079 | Watchlist | Remove a symbol | UNIQUE |  | ASSIGNED / NOT REACHED | VERIFIED |
-| C3-080 | Watchlist | Remove all starred symbols from a list | UNIQUE |  | NO ASSIGNED WALKTHROUGH | IMPLEMENTED / UNVERIFIED |
-| C3-081 | Watchlist | Reorder symbols by hand | NOT ON_DESKTOP |  | NO WALKTHROUGH | NOT ON /CHARTS |
+| C3-080 | Watchlist | Remove all starred symbols from a list | NOT IN PRODUCT *(was UNIQUE)* |  | NO ASSIGNED WALKTHROUGH | IMPLEMENTED / UNVERIFIED |
+| C3-081 | Watchlist | Reorder symbols by hand | NOT ON DESKTOP |  | NO WALKTHROUGH | NOT ON /CHARTS |
 | C3-082 | Watchlist | Sort by a column | UNIQUE |  | VERIFIED | VERIFIED |
 | C3-083 | Watchlist | Show or hide a column | UNIQUE |  | ASSIGNED / NOT REACHED | VERIFIED |
-| C3-084 | Watchlist | Apply a column preset | NOT ON_DESKTOP |  | NO WALKTHROUGH | NOT ON /CHARTS |
+| C3-084 | Watchlist | Apply a column preset | NOT ON DESKTOP |  | NO WALKTHROUGH | NOT ON /CHARTS |
 | C3-085 | Watchlist | Reorder columns by drag | UNIQUE |  | NO WALKTHROUGH | MISSING |
 | C3-086 | Watchlist | Resize a column | UNIQUE |  | ASSIGNED / NOT REACHED | MISSING |
 | C3-087 | Watchlist | Reset columns | UNIQUE |  | ASSIGNED / NOT REACHED | VERIFIED |
 | C3-088 | Watchlist | Write or edit a ticker note | UNIQUE |  | ASSIGNED / NOT REACHED | VERIFIED |
 | C3-089 | Watchlist | Expand or collapse a list | UNIQUE |  | NO WALKTHROUGH | MISSING |
-| C3-090 | Watchlist | Tag a symbol with a colour | NOT ON_DESKTOP |  | NO ASSIGNED WALKTHROUGH | NOT ON /CHARTS |
+| C3-090 | Watchlist | Tag a symbol with a colour | NOT ON DESKTOP |  | NO ASSIGNED WALKTHROUGH | NOT ON /CHARTS |
 | C3-091 | Watchlist | Share a tag colour or Flagged | UNIQUE |  | NO ASSIGNED WALKTHROUGH | BLOCKED |
 | C3-092 | Watchlist | Make a list public | UNIQUE |  | NO ASSIGNED WALKTHROUGH | BLOCKED |
 | C3-093 | Watchlist | Mark a list prebuilt (admin) | VALID |  | NO ASSIGNED WALKTHROUGH | BLOCKED |
@@ -650,9 +661,9 @@ Each checked in master 8500e084ac UI source. C1-176..179 reuse the ids the execu
 | C3-210 | Replay | Exit replay | DUPLICATE | C1-045 | ROUTED / BROWSER FAILED | VERIFIED |
 | C3-211 | Replay | Pick the cutoff by clicking the chart | DUPLICATE | C1-044 | NO ASSIGNED WALKTHROUGH | MISSING |
 | C3-212 | Replay | Set replay timeframe | DUPLICATE | C1-043 | VERIFIED | IMPLEMENTED / UNVERIFIED |
-| C3-213 | Review | Start Review Charts from a results list | NOT ON_DESKTOP |  | NO WALKTHROUGH | NOT ON /CHARTS |
-| C3-214 | Review | Step next or previous in a review (mobile only at this commit) | NOT ON_DESKTOP |  | NO ASSIGNED WALKTHROUGH | NOT ON /CHARTS |
-| C3-215 | Review | Open the review feed card (mobile only) | NOT ON_DESKTOP |  | NO WALKTHROUGH | NOT ON /CHARTS |
+| C3-213 | Review | Start Review Charts from a results list | NOT ON DESKTOP |  | NO WALKTHROUGH | NOT ON /CHARTS |
+| C3-214 | Review | Step next or previous in a review (mobile only at this commit) | NOT ON DESKTOP |  | NO ASSIGNED WALKTHROUGH | NOT ON /CHARTS |
+| C3-215 | Review | Open the review feed card (mobile only) | NOT ON DESKTOP |  | NO WALKTHROUGH | NOT ON /CHARTS |
 | C3-216 | Company dock | Switch dock tab | UNIQUE |  | ASSIGNED / NOT REACHED | MISSING |
 | C3-217 | Company dock | Open or collapse the dock | UNIQUE |  | VERIFIED | MISSING |
 | C3-218 | Company dock | Search company info | UNIQUE |  | NO WALKTHROUGH | IMPLEMENTED / UNVERIFIED |
@@ -660,7 +671,7 @@ Each checked in master 8500e084ac UI source. C1-176..179 reuse the ids the execu
 | C3-220 | Company dock | Pick a leveraged or inverse ETF | UNIQUE |  | NO WALKTHROUGH | IMPLEMENTED / UNVERIFIED |
 | C3-221 | Workspace | Open the Agent | UNIQUE |  | NO WALKTHROUGH | BLOCKED |
 | C3-222 | Workspace | Change a widget's UCT theme section | UNIQUE |  | NO ASSIGNED WALKTHROUGH | MISSING |
-| C3-223 | Workspace | Toggle the journal shortcut (Ctrl+Alt+J) | UNIQUE |  | NO WALKTHROUGH | UNMAPPED |
+| C3-223 | Workspace | Capture the hovered chart to the Journal inbox (Ctrl+Alt+J) *(corrected 2026-11-10; was: Toggle the journal shortcut (Ctrl+Alt+J))* | UNIQUE |  | NO WALKTHROUGH | UNMAPPED |
 
 ## Notes
 
