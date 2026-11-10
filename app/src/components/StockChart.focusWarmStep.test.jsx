@@ -18,10 +18,16 @@ import { pinWallClock } from '../testing/pinnedWallClock'
 //
 // /api/bars never answers in this file, so a draw can only come from the cache.
 
+// Every CANDLE set the chart hands LWC: when, and the first bar's open. The walk below
+// gives each ticker its own open, so a draw names the ticker it is of.
+const draws = vi.hoisted(() => [])
 vi.mock('lightweight-charts', async (importOriginal) => {
   const real = await importOriginal()
   const series = {
-    setData: () => {}, update: () => {}, applyOptions: () => {}, priceScale: () => ({ applyOptions: () => {} }),
+    setData: (d) => {
+      if (Array.isArray(d) && d.length && d[0] && d[0].open !== undefined) draws.push({ at: Date.now(), open: d[0].open })
+    },
+    update: () => {}, applyOptions: () => {}, priceScale: () => ({ applyOptions: () => {} }),
     createPriceLine: () => ({}), removePriceLine: () => {}, setMarkers: () => {}, attachPrimitive: () => {},
     detachPrimitive: () => {}, priceToCoordinate: () => 0, coordinateToPrice: () => 0, options: () => ({}),
     getPane: () => ({ paneIndex: () => 0 }), priceFormatter: () => ({ format: (p) => String(p) }),
@@ -79,7 +85,7 @@ const { default: StockChart } = await import('./StockChart')
 const { memPut, memClear } = await import('../utils/barsMemCache')
 
 // N weekday-dated daily bars ending at `endISO` (no holidays in the window used).
-function dailyEndingAt(endISO, n = 60) {
+function dailyEndingAt(endISO, n = 60, base = 100) {
   const out = []
   const d = new Date(`${endISO}T12:00:00Z`)
   while (out.length < n) {
@@ -87,7 +93,7 @@ function dailyEndingAt(endISO, n = 60) {
     if (dow !== 0 && dow !== 6) out.unshift(d.toISOString().slice(0, 10))
     d.setUTCDate(d.getUTCDate() - 1)
   }
-  return out.map((t, i) => ({ t, o: 100 + i, h: 102 + i, l: 99 + i, c: 101 + i, v: 1000 + i }))
+  return out.map((t, i) => ({ t, o: base + i, h: base + 2 + i, l: base - 1 + i, c: base + 1 + i, v: 1000 + i }))
 }
 
 let netCalls
@@ -145,20 +151,30 @@ describe('a warmed daily neighbour draws from the cache on the first frame', () 
 // cache draw only if the pane is ready, naming the new ticker, well inside NET_MS.
 // Production (2026-10-16, after the close) measured odd steps fast and even steps
 // slow; this rail asserts EVERY step of an 8-step walk is fast.
+//
+// ⚠️ NET_MS 400 -> 1000, CACHE_MS 150 -> 500 (2026-11-08), THE RATIO KEPT. Since
+// 7f80af2a4 the pane hosts the whole /charts Chart widget, and jsdom takes 140-200 ms
+// to hand it a CACHED candle set (measured on this rail, every step under NET_MS, so
+// none came off the network). The bar separates a cache draw from a network one; it
+// was never a jsdom render budget. Mutation-proved: with the mem cache emptied every
+// step lands only after NET_MS and this rail goes red.
 describe('a Focus walk draws every step from the cache', () => {
   it('8 consecutive ArrowDowns after the bell: each pane is ready before any network answer could land', async () => {
-    const NET_MS = 400, PAUSE_MS = 700, CACHE_MS = 150
+    const NET_MS = 1000, PAUSE_MS = 1300, CACHE_MS = 500
     idbh.on = true; idbh.store.clear()
     try { localStorage.setItem('barspack.version', 'v1') } catch { /* ignore */ }
     const { default: useFocusSelection } = await import('../pages/screener/focus/useFocusSelection')
     const { default: ChartPane } = await import('../pages/screener/focus/ChartPane')
     const { act } = await import('@testing-library/react')
+    const { MemoryRouter } = await import('react-router-dom')
     const syms = Array.from({ length: 14 }, (_, i) => `Q${i}`)
     const rows = syms.map(t => ({ ticker: t }))
+    // Each ticker's bars open at its own price, so a candle set names its ticker.
+    const baseOf = (s) => 100 + 1000 * Number(String(s).slice(1))
     vi.stubGlobal('fetch', vi.fn((url) => {
       netCalls.push(String(url))
       const m = String(url).match(/\/api\/bars\/(Q\d+)\?/)
-      if (m) return new Promise(r => setTimeout(() => r({ ok: true, status: 200, json: () => Promise.resolve({ ticker: m[1], bars: dailyEndingAt('2026-09-22') }) }), NET_MS))
+      if (m) return new Promise(r => setTimeout(() => r({ ok: true, status: 200, json: () => Promise.resolve({ ticker: m[1], bars: dailyEndingAt('2026-09-22', 60, baseOf(m[1])) }) }), NET_MS))
       return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
     }))
     let api
@@ -168,10 +184,20 @@ describe('a Focus walk draws every step from the cache', () => {
       return <ChartPane row={sel.selected} why={{ items: [], more: 0 }} onFlag={() => {}} onWatch={() => {}} />
     }
     try {
-      render(<Focus />)
+      // The pane hosts the /charts Chart widget (7f80af2a4), which navigates; it needs a router.
+      render(<MemoryRouter><Focus /></MemoryRouter>)
       await new Promise(r => setTimeout(r, 1500))           // first row loads; the warm runs
-      const ready = (s) => document.querySelector('[data-testid="focus-chart-pane"]')?.getAttribute('aria-label') === `${s} chart`
-        && document.querySelector('[data-chart-state]')?.getAttribute('data-chart-state') === 'ready'
+      // ⛔ READY = THE PANE NAMES THE TICKER **AND** THE CHART HAS BEEN HANDED THAT TICKER'S
+      // CANDLES since the keypress. Not a DOM state flag: the pane's own chart and its
+      // `data-chart-state` were removed when the pane began hosting the /charts Chart widget
+      // (7f80af2a4, 2026-10-18), and a selector that matches nothing made every step "never
+      // ready". The candle set is what the member sees, whichever chart draws it.
+      // `ready` answers WHEN: the time of that candle set, not of the poll that saw it.
+      const ready = (s, t0) => {
+        if (document.querySelector('[data-testid="focus-chart-pane"]')?.getAttribute('aria-label') !== `${s} chart`) return null
+        const d = draws.find(x => x.at >= t0 && x.open === baseOf(s))
+        return d ? d.at - t0 : null
+      }
       const steps = []
       for (let k = 0; k < 8; k++) {
         const t0 = Date.now()
@@ -179,7 +205,7 @@ describe('a Focus walk draws every step from the cache', () => {
         const s = api.selected.ticker
         let at = null
         while (Date.now() - t0 < PAUSE_MS) {
-          if (at == null && ready(s)) at = Date.now() - t0
+          if (at == null) at = ready(s, t0)
           await new Promise(r => setTimeout(r, 5))
         }
         steps.push({ s, at })

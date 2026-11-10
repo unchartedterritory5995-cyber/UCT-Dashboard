@@ -464,9 +464,15 @@ _SYMBOL_LOCK = threading.Lock()
 
 def _symbol_bars(ticker: str, tf: str, want: int) -> list:
     """Another symbol's latest ``want`` bars at ``tf`` -- THE SCAN'S OWN LOCAL LOADER
-    (``scan_evaluator._read_bars``: ``bars_sqlite``, no network), so ``t`` is the
-    same store key the alert's own bars carry and ``sym``'s exact-``t`` alignment
-    holds. A bar the benchmark lacks is NaN there (UNKNOWN), never forward-filled."""
+    (``bars_sqlite.get_bar_dicts``, which ``scan_evaluator._read_bars`` delegates to;
+    no network), so ``t`` is the same store key the alert's own bars carry and
+    ``sym``'s exact-``t`` alignment holds. A bar the benchmark lacks is NaN there
+    (UNKNOWN), never forward-filled.
+
+    ⛔ NOT ``scan_evaluator._read_bars``: this runs on the request path
+    (``POST /api/indicator-alerts``, ``GET /api/indicator-alerts/current-value``),
+    and a request may not bind the universe sweep's module, even for a private
+    one-symbol helper (tests/test_scan_evaluator_off_request_path.py)."""
     import time as _time
     key = (ticker, str(tf), int(want))
     now = _time.monotonic()
@@ -474,9 +480,9 @@ def _symbol_bars(ticker: str, tf: str, want: int) -> list:
         hit = _SYMBOL_CACHE.get(key)
         if hit is not None and now - hit[0] < _SYMBOL_TTL_S:
             return hit[1]
-    from api.services.screener.scan_evaluator import _read_bars
+    from api.services.bars_sqlite import get_bar_dicts
     try:
-        series = _read_bars(store_ticker(ticker), str(tf), int(want))
+        series = get_bar_dicts(store_ticker(ticker), str(tf), int(want))
     except Exception:                                    # noqa: BLE001 -- unknown, not wrong
         series = []
     with _SYMBOL_LOCK:

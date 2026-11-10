@@ -712,6 +712,24 @@ def get_bars(ticker: str, tf: str, max_bars: int) -> list[tuple]:
     ).fetchall()
 
 
+def get_bar_dicts(ticker: str, tf: str, max_bars: int) -> list[dict]:
+    """``get_bars`` as ``{"t","o","h","l","c","v"}`` dicts, oldest-first -- the ONE
+    local loader the scan evaluator (``scan_evaluator._read_bars``) and the alert
+    lane's other-symbol supply (``alert_user_series._symbol_bars``) both read, so
+    both carry the same store ``t`` key. A local SQLite read of ONE symbol, never
+    network. It lives HERE, not in the evaluator, so a request-path caller reads
+    bars without binding the universe sweep's module
+    (tests/test_scan_evaluator_off_request_path.py)."""
+    out = []
+    for r in get_bars(ticker, tf, max_bars) or []:
+        try:
+            out.append({"t": r[0], "o": r[1], "h": r[2], "l": r[3],
+                        "c": r[4], "v": r[5]})
+        except Exception:                                    # pragma: no cover
+            continue
+    return out
+
+
 def get_bars_before(ticker: str, tf: str, max_bars: int, to_key: int) -> list[tuple]:
     """Up to max_bars rows with ts <= to_key, oldest-first — the pre-cutoff window used
     by replay mode. Uses the (ticker, tf, ts DESC) index, so it's a fast index seek even
