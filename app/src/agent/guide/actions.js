@@ -13,6 +13,8 @@
 // ⭐ A control that appears only after a right-click: the step asks for the right-click, on the real region, and moves on
 // when the menu row it needs appears (`waitFor`). A menu for another region does not satisfy it.
 
+import { CHART_KEY_ACTIONS, KEY_WORDS } from './keys'
+
 // ── shared openings (registry.js uses the same ones) ──
 export const GEAR = { target: 'chart.settings', name: 'the chart’s settings gear', text: 'Open this chart’s settings with the gear.', waitFor: 'chartSettings' }
 export const TOOLS_MENU = { target: 'workspace.tools', name: 'the Tools menu', text: 'Open Tools ▾.', waitFor: 'workspace.toolsMenu' }
@@ -403,6 +405,8 @@ const INDICATOR_WORDS = /\b(indicators?|legend|chips?|study|studies|rsi|macd|mov
 /** One feature per family: `read` picks the row, `when` (optional) is what else the words must say; registry.js adds what
  *  needs the live catalog: `also` (words that count too) and `guard` (words that rule it out). */
 export const ACTION_FAMILIES = [
+  // teach-keys: a chart key, asked about AS a key (guide/keys.js, one row per keyboardShortcuts.js SHORTCUTS entry)
+  { id: 'chartKey', slot: 'keyAct', rows: CHART_KEY_ACTIONS, when: needsAny(KEY_WORDS), control: 'the chart', title: '{keyAct.label}', topic: 'charts', caps: [], explain: 'Click the chart first: its keys work on the chart in focus. Press ? there to list them all.' },
   { id: 'builderAction', slot: 'builderAct', rows: BUILDER_ACTIONS, when: needsAny(/\b(formulas?|builder|pine|thinkscript|script|drafts?)\b|\bwhen\b.*\b(is |are |it's |its )?true\b/), control: 'the chart', title: '{builderAct.label}', topic: 'indicators', caps: [], explain: 'The Formula Builder opens from the indicator library: Alt+Shift+A on the chart, then New formula.' },
   { id: 'gridAction', slot: 'gridAct', rows: GRID_ACTIONS, when: needsAny(/\b(grids?|multi[- ]?charts?|cells?)\b|\bsync\w*\b.*\b(crosshairs?|time ?ranges?|charts)\b|\b(crosshairs?|time ?ranges?)\b.*\b(across|all|every)\b.*\bcharts\b|\b(all|every)\b.*\bcharts\b.*\bsame time ?range\b|\b(next|previous|prev|exit|leave|refresh)\b.*\bgroups?\b|\bgroups? mode\b|\bout of groups\b/), except: /\bgrid ?lines?\b/, control: 'the Layouts menu', title: '{gridAct.label}', topic: 'layouts', caps: [], explain: 'Multi Chart’s options are under Layouts ▾ → Multi Chart, and each chart in the grid has its own style, timeframe and maximize button.' },
   { id: 'drawingEdit', slot: 'drawAct', rows: DRAWING_ACTIONS, when: needsAny(/\bdrawings?\b|\blines?\b|\bfib\w*\b|\beraser\b|\btrend ?lines?\b|\b(rectangles?|boxes|pitch ?forks?|channels?|arrows?|circles?|anchors?)\b/), except: /\b(crosshair|grid|watermark|prev|indicators?|moving average)\b/, control: 'the drawing toolbar', title: '{drawAct.label}', topic: 'drawings', caps: [], explain: 'Click a drawing to select it. A small bar appears on it, with style, duplicate, lock and delete.' },

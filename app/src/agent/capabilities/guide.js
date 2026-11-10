@@ -23,6 +23,7 @@ import { namedChart } from '../guide/namedChart'
 import { releasedOnly } from '../guide/releases'
 import { splitParts, carried } from '../guide/sequence'
 import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
+import { KEY_ASK } from '../guide/keys'
 
 /** The first few studies of the chart's own quick set (its right-click "Indicators" toggles: `meta.quickMenu` not
  *  false), pane studies first — the catalog's order, its names. Never a hand-written list. */
@@ -227,8 +228,13 @@ export function registerGuideCapabilities() {
     absentAsNull: ['detail'],
     fast: ({ raw, host }) => {
       const q = String(raw || '').trim()
-      if (!SHOW.test(q)) return null
       const here = host?.surface || 'charts'
+      // teach-keys: a question about a chart KEY (guide/keys.js KEY_ASK) reaches the key family and nothing else
+      if (!SHOW.test(q)) {
+        if (here !== 'charts' || !KEY_ASK.test(q)) return null
+        const k = guideFeature('chartKey')
+        return k?.match?.(q.toLowerCase()) ? { feature: k.id, detail: q } : null
+      }
       // a two-part ask ("X, then Y") starts at its first part's walkthrough, when both parts reach one
       const two = twoParts(q, here)
       if (two) return { feature: two.first.id, detail: q }
