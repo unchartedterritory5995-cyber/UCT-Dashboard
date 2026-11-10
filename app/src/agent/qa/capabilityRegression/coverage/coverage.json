@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 177,
-  "withProductionKinds": 168,
+  "all": 179,
+  "withProductionKinds": 170,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 177,
-  "withAnyRegressionCase": 125,
+  "capabilities": 179,
+  "withAnyRegressionCase": 127,
   "perProtection": {
    "nl": {
     "covered": 125,
-    "applicable": 177
+    "applicable": 179
    },
    "routing": {
     "covered": 122,
-    "applicable": 177
+    "applicable": 179
    },
    "args": {
-    "covered": 125,
-    "applicable": 177
+    "covered": 127,
+    "applicable": 179
    },
    "execution": {
     "covered": 125,
-    "applicable": 177
+    "applicable": 179
    },
    "receipt": {
     "covered": 97,
-    "applicable": 177
+    "applicable": 179
    },
    "refusal": {
-    "covered": 31,
-    "applicable": 177
+    "covered": 33,
+    "applicable": 179
    },
    "permission": {
-    "covered": 170,
-    "applicable": 177
+    "covered": 172,
+    "applicable": 179
    },
    "undo": {
     "covered": 56,
-    "applicable": 112
+    "applicable": 113
    },
    "multiStep": {
     "covered": 36,
-    "applicable": 177
+    "applicable": 179
    },
    "phrasings": {
     "covered": 121,
-    "applicable": 177
+    "applicable": 179
    }
   }
  },
@@ -7759,6 +7759,48 @@
     "phrasings": []
    }
   },
+  "watchlist.arrangeColumns": {
+   "domain": "watchlist",
+   "group": "lists",
+   "target": "listView",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": true,
+    "execution": false,
+    "receipt": false,
+    "refusal": true,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [
+     "refuse.arrangeColumns-standin"
+    ],
+    "execution": [],
+    "receipt": [],
+    "refusal": [
+     "refuse.arrangeColumns-standin"
+    ],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "watchlist.clear": {
    "domain": "watchlist",
    "group": "lists",
@@ -7937,6 +7979,48 @@
     "permission": [
      "watchlist.delete: waits for Apply"
     ],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "watchlist.exportList": {
+   "domain": "watchlist",
+   "group": "watchlistShow",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": false,
+    "routing": false,
+    "args": true,
+    "execution": false,
+    "receipt": false,
+    "refusal": true,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 0,
+   "evidence": {
+    "nl": [],
+    "routing": [],
+    "args": [
+     "refuse.exportList-no-menu"
+    ],
+    "execution": [],
+    "receipt": [],
+    "refusal": [
+     "refuse.exportList-no-menu"
+    ],
+    "permission": [],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -8520,7 +8604,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false,
+   "fast": true,
    "protections": {
     "nl": true,
     "routing": true,
