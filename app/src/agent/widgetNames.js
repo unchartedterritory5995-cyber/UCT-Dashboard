@@ -23,6 +23,10 @@ const SEARCH_WORDS = ['search', 'find', 'look', 'lookup', 'query', 'clear']
 export const AGENT_CONTROLS = {
   // C3-138 (round 7): the News (Trade Exchange) widget's own "Search headlines" box, through its door (its own setQueryRaw)
   tradeExchangeNews: [{ key: 'search', type: 'text', door: true, default: '', max: 80, words: SEARCH_WORDS }],
+  // C3-108 (pl-widget): leave a scan, back to the Scanner widget's picker, as its own "change scan" does (ScannerWidget onBack:
+  // scanKey and scanName cleared). Picking a scan stays widget.showScan.
+  scanner: [{ key: 'scan', type: 'enum', options: ['picker'], default: 'picker', path: 'scanKey', labels: { picker: 'the scan picker' },
+    words: ['leave', 'picker', 'back', 'exit'], write: (opts) => ({ ...(opts || {}), scanKey: null, scanName: null }) }],
   // C3-201: open one of the member's notes in a Notebook widget, as its own rows do (opts.noteId); the choices are the widget's own
   notebook: [{ key: 'note', type: 'enum', from: 'door', path: 'noteId' }],
   // C3-065 (round 6): a Watchlist widget on the member's Flagged list, as its picker's Flagged row sets it (watchKey 'flagged')

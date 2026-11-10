@@ -4,10 +4,12 @@
 // capture its Journal door freezes). Nothing is stored here but the widget's getter; a widget that unmounts is gone, so a
 // stale door can never answer. Rendered outside a /charts widget slot (a journal embed, a page) a widget publishes nothing.
 //
-// A door is { read?, options?, write?, capture?, about? }:
+// A door is { read?, options?, write?, act?, capture?, about? }:
 //   read()            → { key: value } of the controls its registry `controls` mark `door`
 //   options()         → { key: [{ value, label }] } the choices a control marked `from: 'door'` offers right now
 //   write(key, value) → the widget's own writer for that control
+//   act(key)          → runs one of the widget's own buttons (a registry `action` row: Refresh), a Promise that resolves once
+//                       it is done, or null when the widget offers no such button right now
 //   capture()         → { kind, capture, label } exactly what its Send to Journal door freezes, or null when it offers none
 //   about()           → a line a person reads off the widget and no control holds (a scan's criteria)
 import { createContext, useContext, useEffect, useRef } from 'react'

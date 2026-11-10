@@ -189,6 +189,7 @@ const controlWord = (f) => {
   const list = (f.options || []).join('|')
   if (f.type === 'set') return `${f.key}(+/-${list ? ` ${list}` : ' member'})`
   if (f.from === 'door') return `${f.key}(ask widget.readOptions)`
+  if (f.type === 'action') return `${f.key}(run: its own button)`
   return `${f.key}(${f.type === 'enum' ? list : f.type === 'boolean' ? 'on/off' : f.type === 'day' ? 'YYYY-MM-DD, today, tomorrow' : f.type === 'text' ? 'words, or empty to clear' : `${f.min}–${f.max}`})`
 }
 // ── The `widgetControls` context section: sent only on a turn that may need it ──
@@ -235,7 +236,7 @@ export const boardKind = {
   name: 'board',
   list: (host) => { const s = snapOf(host); return s ? [s] : [] },
   read: (host, ref) => (ref === 'board' ? snapOf(host) : null),
-  stateOf: (s) => ({ board: clone(s.raw), layoutTheme: s.layoutTheme ?? null, did: [], adds: [], grid: null, doors: clone(s.doors || {}), sends: [], outs: [], itemOps: [] }),
+  stateOf: (s) => ({ board: clone(s.raw), layoutTheme: s.layoutTheme ?? null, did: [], adds: [], grid: null, doors: clone(s.doors || {}), sends: [], outs: [], acts: [], itemOps: [] }),
   patch(before, after) {
     // chartGrid.set: its own write (charts added, cells, links and tickers together), alone
     if (after.grid) return after.grid.noop ? null : { grid: clone(after.grid) }
@@ -243,6 +244,8 @@ export const boardKind = {
     if ((after.sends || []).length) return { sends: clone(after.sends) }
     // watchlist.exportList: nothing on the board changes either (the list menu's own Copy / Export)
     if ((after.outs || []).length) return { outs: clone(after.outs) }
+    // a widget's own button (an `action` row: Refresh): nothing on the board changes either
+    if ((after.acts || []).length) return { acts: clone(after.acts) }
     const removed = before.board.filter(w => !after.board.some(x => x.id === w.id)).map(w => w.id)
     const set = {}
     for (const w of after.board) {
@@ -295,6 +298,7 @@ export const boardKind = {
     }
     if (patch.sends) return sendToJournal(host, patch.sends)
     if (patch.outs) return listOut(host, patch.outs)
+    if (patch.acts) return runActs(host, patch.acts)
     const { doors, itemOps, ...rest } = patch
     if (itemOps) await writeItemOps(host, itemOps)
     if (doors) await writeDoors(host, doors)
@@ -305,6 +309,7 @@ export const boardKind = {
     if (!snap) return false
     if (patch.sends) return true                   // nothing on the board to read: commit threw if the Journal refused
     if (patch.outs) return true                    // the same: commit threw unless the clipboard / download resolved
+    if (patch.acts) return true                    // the same: commit threw unless the widget's own button resolved
     if (patch.grid) return gridLanded(snap, patch.grid)
     if (patch.gridUndo) return gridUndone(snap, patch.gridUndo)
     if (patch.add) return patch.add.every(a => snap.raw.some(w => w.type === a.type && same(w.opts?.watchKey, a.opts?.watchKey)))
@@ -329,6 +334,7 @@ export const boardKind = {
     if (p.grid) return item.undoData?.grid ? { gridUndo: clone(item.undoData.grid) } : null
     if (p.sends) return null                       // a capture stays until the member deletes it, as at the door
     if (p.outs) return null                        // a copy or a download changes nothing in the workspace: nothing to undo
+    if (p.acts) return null                        // a Refresh keeps nothing: nothing to undo
     // A widget this change ADDED: Undo removes exactly it (the board writer's remove).
     if (p.add) return item.undoData?.added?.length ? { remove: [...item.undoData.added] } : null
     // ⛔ AUDIT S1-C: an item delete (or create) offers NO Undo; a rename goes back by the inverse rename of that one item
@@ -454,6 +460,18 @@ async function listOut(host, outs) {
           : 'The CSV export did not run, so nothing was downloaded — use the list menu’s “Export CSV”')
     }
     lines.push(`${OUT_WORD[format]} “${lo.name || 'the list'}”${format === 'clipboard' ? ' to your clipboard' : ''}`)
+  }
+  return { lines }
+}
+// An `action` row (widgets/widgetControls.js): the widget's own button, through its door's act(key). Done only once that resolves;
+// a widget that is gone, or offers no such button right now, fails the change in words.
+async function runActs(host, acts) {
+  const lines = []
+  for (const { id, key, label: what } of acts) {
+    const r = host.widgets.door?.(id)?.act?.(key)
+    if (r == null) throw new Error(`${lines.length ? `${lines.join('; ')}, but the` : 'The'} ${what} can't ${key} right now`)
+    try { await r } catch { throw new Error(`${lines.length ? `${lines.join('; ')}, but the` : 'The'} ${what} did not ${key}: try its own ${key} button`) }
+    lines.push(`${key[0].toUpperCase()}${key.slice(1)}ed the ${what}`)
   }
   return { lines }
 }
@@ -1164,6 +1182,11 @@ export function registerBoardCapabilities() {
       const t = String(raw ?? '').replace(/\s+/g, ' ').trim()
       return t.length > (f.max || 80) ? { why: `“${f.key}” takes at most ${f.max || 80} characters.` } : { value: t }
     }
+    // an `action` row is the widget's own button: "run" (or true) presses it once; there is no off
+    if (f.type === 'action') {
+      const s = norm(raw)
+      return raw === true || ['run', 'true', 'yes', 'on', norm(f.key)].includes(s) ? { value: 'run' } : { why: `“${f.key}” is a button: the value is "run".` }
+    }
     if (f.type === 'boolean') {
       if (typeof raw === 'boolean') return { value: raw }
       const s = norm(raw)
@@ -1262,7 +1285,8 @@ export function registerBoardCapabilities() {
       if (!opts.length) return `The ${label(t.type)} has no options I can change here.`
       if (!f) return `The ${label(t.type)} has no option “${key}” — its options are ${opts.map(o => o.key).join(', ')}.`
       const door = doorFor(env, t)
-      if ((f.door || f.from === 'door') && !door) return `The ${label(t.type)} isn't showing right now, so I can't reach its ${f.key}.`
+      if ((f.door || f.from === 'door' || f.type === 'action') && !door) return `The ${label(t.type)} isn't showing right now, so I can't reach its ${f.key}.`
+      if (f.type === 'action' && typeof door.act !== 'function') return `The ${label(t.type)} has no ${f.key} button right now.`
       if (f.from === 'door' && !choicesOf(f, door).length) return `The ${label(t.type)} has nothing to choose for ${f.key} yet.`
       return coerced(st, t, f, value, env).why || null
     },
@@ -1271,6 +1295,7 @@ export function registerBoardCapabilities() {
       if (listFor(t, key)) return itemApply(st, t, key, value, env)
       const f = controlFor(t, key)
       const next = coerced(st, t, f, value, env).value
+      if (f.type === 'action') return { ...st, acts: [...(st.acts || []), { id: t.id, key: f.key, label: label(t.type) }] }
       if (f.door) return same(next, valueOf(f, t, st.doors)) ? st : { ...st, doors: { ...st.doors, [t.id]: { ...st.doors[t.id], [f.key]: next } } }
       const opts = f.write ? f.write(t.opts, next) : withPath(t.opts, f, next)
       if (same(next, atPath(t.opts, f)) || same(opts, t.opts)) return st
@@ -1292,6 +1317,7 @@ export function registerBoardCapabilities() {
         return io.op === 'delete' ? `The ${nameOf(o, b.board)}: deleted the ${l.noun} “${what}” (there is no Undo)` : `The ${nameOf(o, b.board)}: renamed the ${l.noun} “${what}” to “${String(io.name).trim()}”`
       }
       const f = controlFor(o, key)
+      if (f?.type === 'action') return (a.acts || []).length > (b.acts || []).length ? `${f.key[0].toUpperCase()}${f.key.slice(1)} the ${nameOf(o, b.board)}, as its own ${f.key} button does` : null
       const was = valueOf(f, o, b.doors), now = valueOf(f, n, a.doors)
       if (same(was, now)) return null
       const choices = choicesOf(f, doorFor(env, o))
@@ -1313,7 +1339,7 @@ export function registerBoardCapabilities() {
       const w = s?.raw?.find(x => String(x.id) === String(widget))
       if (!w) return notOnBoard(widget)
       const door = s.doorOf?.(w.id) || null
-      const rows = widgetControls(w.type).filter(f => door || !(f.door || f.from === 'door')).map(f => ({ f, choices: choicesOf(f, door) }))
+      const rows = widgetControls(w.type).filter(f => f.type !== 'action' && (door || !(f.door || f.from === 'door'))).map(f => ({ f, choices: choicesOf(f, door) }))
       const now = rows.map(({ f, choices }) => `${f.key} ${says(f, valueOf(f, w, s.doors), choices)}`)
       let about = null
       try { about = door?.about?.() || null } catch { about = null }
