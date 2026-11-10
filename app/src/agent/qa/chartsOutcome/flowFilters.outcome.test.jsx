@@ -140,3 +140,31 @@ describe('two Options Flow widgets: the one meant, or ASK', () => {
     void screen
   }, 60000)
 })
+
+// Lead (from #988's lesson): on the APPROVED path the member's words are "Apply" / "yes", which name nothing. The widget was
+// resolved from the ORIGINAL request when the proposal was made, so approving it acts on that widget only, and an unnamed
+// request was asked BEFORE any proposal existed. (Once #988 merges, the guard takes its stored original words on approve.)
+describe('approving a proposal on a two-widget board', () => {
+  it('a proposal from "puts only on the right options flow": Apply changes the right widget only', async () => {
+    const m = board([flow('of', {}, 12), flow('of2', {}, 18)])
+    await waitFor(() => expect(drawn('of2').length).toBe(PRINTS.length))
+    const a = optsOf(m, 'of'), b = optsOf(m, 'of2')
+    await m.say('puts only on the right options flow, show me first', plan([{ key: 'callPut', value: 'Puts' }], { pos: 'right' }), { disposition: 'propose' })
+    expect(proposalsNow()).toHaveLength(1)
+    expect(optsOf(m, 'of2')).toBe(b)
+    await m.apply()
+    await waitFor(() => expect(filtersOf(m, 'of2').cp).toBe('P'))
+    expect(optsOf(m, 'of')).toBe(a)
+  }, 60000)
+  it('an unnamed request is asked before any proposal exists; a typed "yes" afterwards approves nothing', async () => {
+    const m = board([flow('of', {}, 12), flow('of2', {}, 18)])
+    await waitFor(() => expect(drawn('of2').length).toBe(PRINTS.length))
+    const a = optsOf(m, 'of'), b = optsOf(m, 'of2')
+    const out = await m.say('puts only in the options flow, show me first', plan([{ key: 'callPut', value: 'Puts' }]), { disposition: 'propose' })
+    expect(out).toMatch(/Which Options Flow/i)
+    expect(proposalsNow()).toHaveLength(0)
+    await m.say('yes')
+    expect(optsOf(m, 'of')).toBe(a)
+    expect(optsOf(m, 'of2')).toBe(b)
+  }, 60000)
+})
