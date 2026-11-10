@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Notebook: Import a tweet (preview)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--ut-green-bright:#34d17c;--ut-red-bright:#f24b42;--ut-gold:#dcbb5e;--ut-gold-bright:#e9cd77;--ut-gold-dim:#dcbb5e15;--ut-gold-glow:#dcbb5e35;
+--bg:#101012;--bg-surface:#17181b;--bg-elevated:#1d1f23;--bg-hover:#24262b;--border:#2a2c31;--border-accent:#383b41;--text:#f0efea;--text-muted:#cfcac0;--text-faint:#8f8c84;--text-bright:#f8f7f3;--text-heading:#fff;--r:6px}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font:13px/1.45 'Instrument Sans',-apple-system,BlinkMacSystemFont,sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+svg{display:block}
+.app{display:grid;grid-template-columns:45px 1fr;grid-template-rows:57px 1fr;height:100vh}
+.logo{grid-area:1/1;display:grid;place-items:center;border-bottom:1px solid var(--border)}
+.top{grid-area:1/2;display:flex;align-items:center;gap:4px;padding:0 10px 0 20px;border-bottom:1px solid var(--border);white-space:nowrap}
+.brand{display:flex;align-items:center;gap:8px;font-size:17px;font-weight:700;color:var(--text-heading);margin-right:14px}
+.brand svg{color:var(--ut-gold)}
+.tab{display:flex;align-items:center;gap:6px;height:57px;padding:0 13px;font-weight:600;color:var(--text-muted);border-bottom:1px solid transparent}
+.tab svg{width:13px;height:13px}
+.tab.on{color:var(--ut-gold);border-bottom-color:var(--ut-gold)}
+.right{margin-left:auto;display:flex;gap:9px;align-items:center}
+.pill{height:32px;display:flex;align-items:center;gap:7px;padding:0 12px;border:1px solid var(--border);border-radius:16px;font-weight:600;font-size:12px;color:var(--text-bright)}
+.pill.box{border-radius:5px;letter-spacing:.04em;font-size:11px}
+.pill.gold{color:var(--ut-gold);border-color:#6b5c32}
+.dot{width:8px;height:8px;border-radius:50%;background:#a06ce0}
+.rail{grid-area:2/1;border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;gap:15px;padding-top:22px;overflow:hidden}
+.rail svg{width:15px;height:15px;color:var(--text-muted)}
+.rail .on{width:34px;height:32px;margin:-8px 0;display:grid;place-items:center;border:1px solid #5c5230;border-radius:8px;background:var(--ut-gold-dim)}
+.rail .on svg{color:var(--ut-gold)}
+.main{grid-area:2/2;overflow:auto;padding:22px 24px 90px}
+.wrap{max-width:800px}
+.crumb{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--text-muted);margin-bottom:21px}
+.crumb:hover{color:var(--text-bright)}
+h1{font-size:21px;margin:0;color:var(--text-heading);font-weight:700}
+.co{margin:6px 0 8px;color:var(--text-muted)}
+.eyebrow{font-size:11px;letter-spacing:.03em;color:var(--ut-gold);text-transform:uppercase;font-weight:500}
+.actions{display:flex;flex-wrap:wrap;align-items:center;gap:3px;margin-top:11px;padding-bottom:12px;border-bottom:1px solid var(--border);white-space:nowrap}
+.act{display:inline-flex;align-items:center;gap:6px;height:27px;padding:0 10px;font-size:11.5px;font-weight:600;color:var(--text-bright);border-radius:var(--r);border:1px solid transparent}
+.act svg{width:12px;height:12px}
+.act:hover{background:var(--bg-hover)}
+.act.ask{border-color:var(--border-accent);margin-right:8px;color:var(--text-muted)}
+.act.new{color:var(--ut-gold);border-color:#6b5c32;background:var(--ut-gold-dim)}
+.act.new:hover{background:#dcbb5e2b}
+.empty-state{padding:50px 4px;line-height:1.7}
+.empty-state p{margin:0;color:var(--text-muted);font-size:12px}
+.empty-state p:first-child{color:var(--text);font-size:13px}
+.notes{margin-top:18px}
+.nrow{display:block;width:100%;text-align:left;padding:13px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-surface);margin-bottom:8px}
+.nrow:hover{border-color:var(--border-accent);background:var(--bg-elevated)}
+.nrow b{display:block;color:var(--text-bright);font-size:14px;font-weight:600}
+.nrow span{display:block;color:var(--text-muted);font-size:12px;margin-top:3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.nrow em{display:block;margin-top:6px;font-style:normal;color:var(--text-faint);font-size:11px}
+
+/* note editor */
+.note{max-width:740px}
+.title{width:100%;background:none;border:0;outline:0;color:var(--text-heading);font:700 25px/1.25 'Instrument Sans',-apple-system,sans-serif;padding:0}
+.meta{display:flex;gap:10px;align-items:center;margin:9px 0 12px;font-size:12px;color:var(--text-muted)}
+.meta .tk{color:var(--ut-gold);font-weight:600;border:1px solid #6b5c32;background:var(--ut-gold-dim);padding:1px 7px;border-radius:4px;font-size:11px}
+.toolbar{display:flex;align-items:center;gap:2px;padding:5px;border:1px solid var(--border);border-radius:8px;background:var(--bg-surface);margin-bottom:18px;position:sticky;top:-22px;z-index:3}
+.toolbar button{min-width:29px;height:27px;border-radius:5px;color:var(--text-muted);font-weight:600;font-size:12px;padding:0 7px;display:inline-flex;align-items:center;gap:6px;justify-content:center}
+.toolbar button:hover{background:var(--bg-hover);color:var(--text-bright)}
+.toolbar .sep{width:1px;height:17px;background:var(--border);margin:0 5px}
+.toolbar .x-btn{color:var(--ut-gold)}
+.toolbar svg{width:12px;height:12px}
+.body{outline:0;font-size:15px;line-height:1.65;min-height:220px;color:var(--text)}
+.body p{margin:0 0 12px}
+.body p.ph:only-child::before,.body p.ph:last-child:empty::before{content:attr(data-ph);color:var(--text-faint);pointer-events:none}
+
+/* imported post card */
+.card{position:relative;border:1px solid var(--border-accent);background:var(--bg-surface);border-radius:10px;margin:0 0 14px;overflow:hidden;font-size:14px;line-height:1.5;user-select:text;animation:in .28s ease both}
+@keyframes in{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+.cmain{padding:13px 14px 12px}
+.chead{display:flex;align-items:center;gap:9px;margin-bottom:8px}
+.name{font-weight:600;color:var(--text-bright);font-size:13.5px;line-height:1.25}
+.handle{color:var(--text-faint);font-size:12px;line-height:1.25}
+.xmark{margin-left:auto;color:var(--text-faint);display:flex;gap:9px;align-items:center}
+.xmark svg{width:13px;height:13px}
+.rm{position:absolute;top:10px;right:32px;opacity:0;width:22px;height:22px;display:grid;place-items:center;color:var(--text-muted);border-radius:4px;font-size:15px;line-height:1}
+.card:hover .rm{opacity:1}.rm:hover{background:var(--bg-hover);color:var(--ut-red-bright)}
+.ctext{color:var(--text-bright);white-space:pre-wrap}
+.cash{color:var(--ut-gold);font-weight:500}
+.cimg{margin-top:10px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:#0d0e10}
+.cimg svg{width:100%;height:auto}
+.cfoot{display:flex;gap:7px;align-items:center;margin-top:9px;color:var(--text-faint);font-size:12px}
+.cfoot a{color:var(--text-muted);text-decoration:none}.cfoot a:hover{color:var(--ut-gold)}
+.stamp{display:flex;align-items:center;flex-wrap:wrap;gap:6px 20px;padding:9px 14px;border-top:1px solid var(--border);background:var(--bg-elevated);font-size:12px;color:var(--text-muted)}
+.stamp b{color:var(--text-bright);font-weight:600}
+.stamp .up{color:var(--ut-green-bright);font-weight:600}.stamp .down{color:var(--ut-red-bright);font-weight:600}
+.take{border-top:1px solid var(--border);padding:9px 14px 11px;display:flex;gap:10px;align-items:baseline}
+.take label{flex:none;color:var(--ut-gold);font-size:11px;font-weight:700;letter-spacing:.03em}
+.ttext{flex:1;outline:0;min-height:20px;color:var(--text);font-size:14px}
+.ttext:empty::before{content:'What do you make of this?';color:var(--text-faint)}
+
+/* import sheet */
+.scrim{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;padding:26px;z-index:20}
+.scrim.open{display:flex}
+.sheet{width:100%;max-width:760px;height:min(780px,calc(100vh - 52px));background:var(--bg-elevated);border:1px solid var(--border-accent);border-radius:12px;box-shadow:0 24px 70px #000b;display:flex;flex-direction:column;animation:pop .17s ease both}
+@keyframes pop{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}
+.shead{display:flex;justify-content:space-between;align-items:center;padding:14px 16px 0}
+.shead h2{margin:0;display:flex;gap:7px;align-items:center;font-size:14px;font-weight:600;color:var(--text-bright)}
+.shead h2 svg{width:13px;height:13px}
+.close{width:32px;height:32px;border:1px solid var(--border);border-radius:var(--r);color:var(--text-muted);font-size:16px}
+.close:hover{background:var(--bg-hover)}
+.link{padding:12px 16px 12px;border-bottom:1px solid var(--border)}
+.linkbox{display:flex;align-items:center;gap:9px;background:var(--bg-surface);border:1px solid var(--border-accent);border-radius:8px;padding:0 11px;height:42px}
+.linkbox:focus-within{border-color:var(--ut-gold);box-shadow:0 0 0 3px var(--ut-gold-dim)}
+.linkbox svg{width:14px;height:14px;color:var(--text-muted);flex:none}
+.linkbox input{flex:1;min-width:0;background:none;border:0;outline:0;color:var(--text-bright);font:inherit;font-size:14px}
+.linkbox input::placeholder,.search input::placeholder{color:var(--text-faint)}
+.try{flex:none;font-size:11.5px;font-weight:600;color:var(--ut-gold)}
+.try:hover{color:var(--ut-gold-bright)}
+.err{margin:7px 1px 0;color:var(--ut-red-bright);font-size:12px;display:none}
+.filters{display:flex;align-items:center;gap:6px;padding:11px 16px 9px;flex-wrap:wrap}
+.chip{height:27px;padding:0 11px;border-radius:14px;border:1px solid var(--border-accent);font-size:12px;font-weight:600;color:var(--text-muted)}
+.chip:hover{background:var(--bg-hover)}
+.chip.on{background:var(--ut-gold);border-color:var(--ut-gold);color:#17140a}
+.search{margin-left:auto;display:flex;align-items:center;gap:6px;height:27px;width:176px;border:1px solid var(--border);border-radius:var(--r);padding:0 8px;background:var(--bg-surface)}
+.search svg{width:12px;height:12px;color:var(--text-faint);flex:none}
+.search input{width:100%;background:none;border:0;outline:0;color:var(--text-bright);font:inherit;font-size:12px}
+.list{flex:1;overflow:auto;padding:0 8px 8px}
+.day{position:sticky;top:0;background:var(--bg-elevated);z-index:1;font-size:11px;font-weight:600;color:var(--text-faint);padding:9px 9px 6px;letter-spacing:.02em}
+.post{display:flex;gap:10px;width:100%;text-align:left;padding:10px 9px;border-radius:8px;border:1px solid transparent}
+.post:hover{background:var(--bg-hover)}
+.post.sel{background:var(--ut-gold-dim);border-color:#7a6936}
+.post.dis{opacity:.5;cursor:default}
+.av{flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:12px;color:#fff}
+.pmain{min-width:0;flex:1}
+.pline{display:flex;gap:6px;align-items:baseline;font-size:12.5px}
+.pline b{color:var(--text-bright);font-weight:600}
+.pline span{color:var(--text-faint);font-size:12px}
+.ptext{margin-top:2px;color:var(--text);font-size:13.5px;line-height:1.42}
+.ptag{display:inline-block;margin-top:6px;font-size:11px;color:var(--text-faint)}
+.pimg{margin-top:8px;width:270px;max-width:100%;border:1px solid var(--border);border-radius:7px;overflow:hidden}
+.pimg svg{width:100%;height:auto}
+.check{flex:none;width:18px;height:18px;margin-top:1px;border:1.5px solid var(--border-accent);border-radius:5px;display:grid;place-items:center;color:#17140a}
+.check svg{width:11px;height:11px;opacity:0}
+.sel .check{background:var(--ut-gold);border-color:var(--ut-gold)}
+.sel .check svg{opacity:1}
+.none{padding:40px;text-align:center;color:var(--text-muted)}
+.shim{height:76px;margin:6px 1px;border-radius:8px;background:linear-gradient(90deg,var(--bg-surface),var(--bg-hover),var(--bg-surface));background-size:200% 100%;animation:sh 1s linear infinite}
+@keyframes sh{to{background-position:-200% 0}}
+.sfoot{display:flex;align-items:center;gap:10px;padding:11px 16px;border-top:1px solid var(--border)}
+.sfoot label{font-size:12px;color:var(--text-muted);white-space:nowrap}
+.sfoot select{height:32px;max-width:240px;font:inherit;font-size:13px;color:var(--text-bright);background:var(--bg-surface);border:1px solid var(--border-accent);border-radius:var(--r);padding:0 7px}
+.adding{font-size:12.5px;color:var(--text-muted)}.adding b{color:var(--text-bright);font-weight:600}
+.count{margin-left:auto;font-size:12px;color:var(--text-muted)}
+.go{height:34px;padding:0 15px;border-radius:var(--r);background:var(--ut-gold);color:#17140a;font-weight:700;font-size:13px}
+.go:hover{background:var(--ut-gold-bright)}
+.go:disabled{background:var(--bg-hover);color:var(--text-faint);cursor:default}
+.toast{position:fixed;left:50%;bottom:64px;transform:translate(-50%,16px);background:var(--bg-hover);border:1px solid var(--border-accent);padding:9px 15px;border-radius:8px;font-weight:600;color:var(--text-bright);opacity:0;transition:.2s;pointer-events:none;z-index:30}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.banner{position:fixed;right:14px;bottom:14px;max-width:330px;padding:8px 12px;border:1px dashed var(--border-accent);background:#101012ee;border-radius:7px;font-size:11.5px;color:var(--text-muted);z-index:10}
+@media(max-width:760px){.app{grid-template-columns:1fr}.rail,.logo{display:none}.top,.main{grid-column:1}.tab:not(.on),.right{display:none}.scrim{padding:0}.sheet{height:100vh;border-radius:0;max-width:none}.search{margin-left:0;width:100%}.banner{display:none}.main{padding:16px 14px 80px}.sfoot{flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="logo"><svg width="30" height="30" viewBox="0 0 30 30" fill="none"><circle cx="15" cy="15" r="10" stroke="#34d17c" stroke-width="3"/><path d="M15 1v28M1 15h28" stroke="#dcbb5e" stroke-width="2"/><path d="M15 5l3 10-3 10-3-10z" fill="#f24b42"/></svg></div>
+  <header class="top">
+    <div class="brand"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h13v18H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM9 8h6"/></svg>Trade Journal</div>
+    <span class="tab" data-i="sun">Today</span><span class="tab" data-i="line">Trades</span><span class="tab" data-i="cal">Calendar</span><span class="tab on" data-i="book">Notebook</span><span class="tab" data-i="eye">Insights</span><span class="tab" data-i="comp">Compass</span>
+    <div class="right"><span class="pill box">UCT AGENT</span><span class="pill gold">+&nbsp; Log Trade</span><span class="pill"><i class="dot"></i>Broker account</span></div>
+  </header>
+  <nav class="rail" id="rail" aria-hidden="true"></nav>
+  <main class="main" id="main"></main>
+</div>
+
+<div class="scrim" id="scrim">
+  <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <div class="shead"><h2 id="sheetTitle"></h2><button class="close" id="close" aria-label="Close">×</button></div>
+    <div class="link">
+      <div class="linkbox"><span id="linkIcon"></span><input id="link" aria-label="Link to a post on X" placeholder="Paste a link to any post on X" autocomplete="off"><button class="try" id="try">Try a sample link</button></div>
+      <p class="err" id="err">That doesn't look like a link to a post on X.</p>
+    </div>
+    <div class="filters" id="filters"></div>
+    <div class="list" id="list"></div>
+    <div class="sfoot" id="foot"></div>
+  </section>
+</div>
+<div class="toast" id="toast" role="status"></div>
+<div class="banner">Preview only. Posts, handles and prices are made up, nothing is saved, and any valid link loads the same sample post.</div>
+
+<script>
+(function(){
+const SYM='NVDA';
+const ic={
+ x:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.7 3h3.1l-6.8 7.8L22 21h-6.3l-4.9-6.4L5.2 21H2.1l7.3-8.3L1.8 3h6.4l4.4 5.9zm-1.1 16.2h1.7L7.4 4.7H5.6z"/></svg>',
+ link:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>',
+ search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>',
+ check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+ plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+ circ:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg>',
+ cal:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>',
+ doc:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h8l5 5v13H6zM14 3v5h5M9 13h7M9 17h7"/></svg>',
+ star:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l1.8 6.2L20 11l-6.2 1.8L12 19l-1.8-6.2L4 11l6.2-1.8z"/></svg>',
+ grid:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg>',
+ line:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18l6-6 4 4 8-9M3 21h18"/></svg>',
+ book:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h13v18H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM9 8h6M9 12h6"/></svg>',
+ sun:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>',
+ eye:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="8" width="7" height="8" rx="3"/><rect x="14" y="8" width="7" height="8" rx="3"/></svg>',
+ comp:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg>'
+};
+document.querySelectorAll('.tab[data-i]').forEach(t=>t.insertAdjacentHTML('afterbegin',ic[t.dataset.i]));
+document.getElementById('rail').innerHTML=['search','cal','line','doc','grid','star','line','circ','grid','star','eye','grid'].map(n=>ic[n]).join('')+'<span class="on">'+ic.book+'</span>'+ic.circ+ic.eye;
+document.getElementById('linkIcon').innerHTML=ic.link;
+
+function chart(seed,up){
+  let r=seed*9301%233280,p=120,out='',min=1e9,max=-1e9,c=[];
+  const rnd=()=>(r=(r*9301+49297)%233280)/233280;
+  for(let i=0;i<46;i++){const drift=up?1.05:-.35;const o=p,cl=o+(rnd()-.5)*8+drift,h=Math.max(o,cl)+rnd()*3,l=Math.min(o,cl)-rnd()*3;c.push({o,cl,h,l});p=cl;min=Math.min(min,l);max=Math.max(max,h)}
+  const Y=v=>12+(max-v)/(max-min)*128;
+  c.forEach((k,i)=>{const x=10+i*11.4,g=k.cl>=k.o,col=g?'#34d17c':'#f24b42';out+=`<line x1="${x+3}" x2="${x+3}" y1="${Y(k.h)}" y2="${Y(k.l)}" stroke="${col}"/><rect x="${x}" width="6" y="${Math.min(Y(k.o),Y(k.cl))}" height="${Math.max(1,Math.abs(Y(k.o)-Y(k.cl)))}" fill="${col}"/>`});
+  let ma='';c.forEach((k,i)=>{if(i<8)return;const a=c.slice(i-8,i+1).reduce((s,q)=>s+q.cl,0)/9;ma+=(ma?' ':'')+(13+i*11.4)+','+Y(a)});
+  return `<svg viewBox="0 0 540 152"><rect width="540" height="152" fill="#0d0e10"/><polyline points="${ma}" fill="none" stroke="#dcbb5e" stroke-width="1.4"/>${out}</svg>`;
+}
+const P=[
+ {id:'p1',day:'Today',t:'2h',full:'Today, 10:12 AM',name:'Northgate Newswire',h:'northgate_wire',c:'#7a4cc2',sym:'NVDA',kind:'headline',text:'HEADLINE: $NVDA said to widen its cloud partnership, new capacity commitments through next year',then:188.2,now:191.1},
+ {id:'p2',day:'Today',t:'4h',full:'Today, 8:03 AM',name:'Alder Street Desk',h:'alderstreetdesk',c:'#2f7f6f',sym:'NVDA',kind:'thesis',text:'My $NVDA thesis in one line: every supplier check keeps moving up and the street is still modeling last quarter. Holding the 21 EMA is all it needs to do.',then:187.4,now:191.1,img:11,up:1},
+ {id:'p3',day:'Friday, Nov 6',t:'Fri',full:'Fri Nov 6, 3:47 PM',name:'Coastline Charts',h:'coastlinecharts',c:'#b5683a',sym:'NVDA',kind:'thesis',text:'$NVDA tightening right under the highs on falling volume while $SMH sets up the same way. Prettiest base in semis right now.',then:183.9,now:191.1,img:29,up:1},
+ {id:'p4',day:'Friday, Nov 6',t:'Fri',full:'Fri Nov 6, 11:20 AM',name:'Northgate Newswire',h:'northgate_wire',c:'#7a4cc2',sym:'NVDA',kind:'headline',text:'HEADLINE: Analyst lifts $NVDA target, cites data center demand into the next product cycle',then:185.6,now:191.1},
+ {id:'p5',day:'Thursday, Nov 5',t:'Thu',full:'Thu Nov 5, 2:31 PM',name:'Harbor Macro',h:'harbormacro',c:'#3468a8',sym:'NVDA',kind:'thesis',text:"Not chasing $NVDA up here. Extended from every moving average that matters and the risk is on the wrong side until it bases.",then:194.2,now:191.1},
+ {id:'p6',day:'Today',t:'3h',full:'Today, 9:15 AM',name:'Alder Street Desk',h:'alderstreetdesk',c:'#2f7f6f',sym:'AMD',kind:'thesis',text:'$AMD finally doing what $NVDA did three weeks ago. Relative strength line at a new high before price.',then:152.5,now:155.9,img:53,up:1},
+ {id:'p7',day:'Today',t:'5h',full:'Today, 7:02 AM',name:'Northgate Newswire',h:'northgate_wire',c:'#7a4cc2',sym:'',kind:'headline',text:'HEADLINE: Treasury yields slip ahead of this week\'s inflation report, index futures firmer'},
+ {id:'p8',day:'Friday, Nov 6',t:'Fri',full:'Fri Nov 6, 4:18 PM',name:'Harbor Macro',h:'harbormacro',c:'#3468a8',sym:'SMH',kind:'thesis',text:'$SMH closing near the highs of the week on the best breadth since August. Hard to be bearish semis with this tape.',then:244.1,now:247.8}
+];
+const LINKED={id:'link1',day:'From your link',t:'1d',full:'Sat Nov 7, 12:40 PM',name:'Fieldnote Research',h:'fieldnote_res',c:'#a13f62',sym:'NVDA',kind:'thesis',text:"Long post on why $NVDA gross margin is the number to watch next print. If it holds above where guidance sits, the whole bear case on pricing goes away.",then:189.8,now:191.1,linked:true};
+
+const el=id=>document.getElementById(id);
+const esc=s=>s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const cash=s=>esc(s).replace(/\$[A-Z]{1,5}\b/g,m=>`<span class="cash">${m}</span>`);
+const initials=n=>n.split(' ').map(w=>w[0]).slice(0,2).join('');
+const avatar=p=>`<div class="av" style="background:${p.c}">${initials(p.name)}</div>`;
+let notes=[],view={k:'ticker'},seq=1;
+let S={open:false,sel:new Map(),scope:'ticker',kind:'',q:'',linked:null,loading:false,noteId:null,range:null};
+
+function toast(m){const t=el('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2200)}
+
+function render(){
+  const m=el('main');
+  if(view.k==='ticker'){
+    const rows=notes.map(n=>`<button class="nrow" data-note="${n.id}"><b>${esc(n.title)}</b><span>${esc(n.snip)}</span><em>${n.count} imported post${n.count===1?'':'s'} · just now</em></button>`).join('');
+    m.innerHTML=`<div class="wrap"><button class="crumb" id="toNotebook">‹ &nbsp;Notebook</button>
+      <h1>${SYM}</h1><p class="co">NVIDIA Corporation</p><div class="eyebrow">My research</div>
+      <div class="actions"><button class="act ask">${ic.star}Ask</button><button class="act">${ic.plus}New note</button><button class="act">${ic.circ}New thesis</button><button class="act">${ic.cal}Plan this trade</button><button class="act">${ic.cal}Earnings prep</button><button class="act">${ic.doc}Save from a transcript</button><button class="act new" id="openImport">${ic.x}Import a tweet</button></div>
+      ${notes.length?`<div class="notes">${rows}</div>`:`<div class="empty-state"><p>No research on ${SYM} yet.</p><p>Start a note or a thesis, or bring in a tweet. It'll show up here automatically.</p></div>`}</div>`;
+    el('openImport').onclick=()=>openSheet(null);
+    m.querySelectorAll('[data-note]').forEach(b=>b.onclick=()=>{view={k:'note',id:b.dataset.note};render()});
+  } else {
+    const n=notes.find(x=>x.id===view.id);
+    m.innerHTML=`<div class="note"><button class="crumb" id="back">‹ &nbsp;${SYM}</button>
+      <input class="title" id="title" value="${esc(n.title)}" aria-label="Note title">
+      <div class="meta"><span class="tk">$${SYM}</span><span>Saved just now</span></div>
+      <div class="toolbar"><button><b>B</b></button><button><i>I</i></button><button>H1</button><button>H2</button><span class="sep"></span><button>• List</button><button>“ Quote</button><span class="sep"></span><button class="x-btn" id="tbImport">${ic.x}Import a tweet</button></div>
+      <div id="bodyHost"></div></div>`;
+    el('bodyHost').appendChild(n.el);
+    el('back').onclick=()=>{view={k:'ticker'};refreshSnip(n);render()};
+    el('title').oninput=e=>n.title=e.target.value||'Untitled';
+    el('tbImport').onmousedown=e=>e.preventDefault();
+    el('tbImport').onclick=()=>openSheet(n.id,saveRange(n));
+  }
+  m.scrollTop=0;
+}
+function refreshSnip(n){const first=n.el.querySelector('.ctext');n.count=n.el.querySelectorAll('.card').length;n.snip=first?first.textContent:(n.el.textContent||'')}
+function saveRange(n){const s=getSelection();if(s.rangeCount&&n.el.contains(s.anchorNode)&&!(s.anchorNode.parentElement&&s.anchorNode.parentElement.closest('.card')))return s.getRangeAt(0).cloneRange();return null}
+
+function newNoteEl(n){
+  const b=document.createElement('div');b.className='body';b.contentEditable='true';b.spellcheck=false;
+  b.addEventListener('input',()=>{
+    b.querySelectorAll('p').forEach(fixPh);
+    const s=getSelection();if(!s.anchorNode||s.anchorNode.nodeType!==3)return;
+    const node=s.anchorNode;if(node.parentElement.closest('.card'))return;
+    const before=node.textContent.slice(0,s.anchorOffset);
+    if(/(^|\s)\/tweet$/i.test(before)){
+      const start=before.lastIndexOf('/');node.textContent=node.textContent.slice(0,start)+node.textContent.slice(s.anchorOffset);
+      const r=document.createRange();r.setStart(node,start);r.collapse(true);openSheet(n.id,r);
+    }
+  });
+  return b;
+}
+function fixPh(p){if(!p.textContent&&!p.querySelector('br'))p.innerHTML='';}
+function emptyP(){const p=document.createElement('p');p.className='ph';p.dataset.ph='Keep writing, or type /tweet to bring in another post';return p}
+
+function cardHtml(p){
+  let st='';
+  if(p.then){const pct=(p.now-p.then)/p.then*100,dir=pct>=0;st=`<div class="stamp"><span>$${p.sym} when posted <b>$${p.then.toFixed(2)}</b></span><span>Now <b>$${p.now.toFixed(2)}</b></span><span class="${dir?'up':'down'}">${dir?'+':''}${pct.toFixed(1)}% since</span></div>`}
+  return `<div class="cmain"><div class="chead">${avatar(p)}<div><div class="name">${esc(p.name)}</div><div class="handle">@${p.h}</div></div><div class="xmark">${ic.x}<button class="rm" title="Remove from note" aria-label="Remove from note">×</button></div></div>
+    <div class="ctext">${cash(p.text)}</div>${p.img?`<div class="cimg">${chart(p.img,p.up)}</div>`:''}
+    <div class="cfoot"><span>${p.full}</span><span>·</span><a href="#" onclick="return false">View on X</a></div></div>${st}
+    <div class="take"><label>My take</label><div class="ttext" contenteditable="true"></div></div>`;
+}
+function insertPosts(n,posts,range){
+  const frag=document.createDocumentFragment();let firstTake;
+  posts.forEach((p,i)=>{const c=document.createElement('div');c.className='card';c.contentEditable='false';c.dataset.post=p.id;c.style.animationDelay=(i*70)+'ms';c.innerHTML=cardHtml(p);
+    c.querySelector('.rm').onclick=()=>{c.remove();refreshSnip(n);ensureTail(n);toast('Removed from note')};frag.appendChild(c);firstTake=firstTake||c.querySelector('.ttext')});
+  let anchor=null;
+  if(range&&n.el.contains(range.startContainer)){anchor=range.startContainer;while(anchor&&anchor.parentNode!==n.el)anchor=anchor.parentNode}
+  if(anchor&&anchor.nodeType===1&&anchor.tagName==='P'&&!anchor.textContent.trim()){n.el.insertBefore(frag,anchor)}
+  else if(anchor){n.el.insertBefore(frag,anchor.nextSibling)}
+  else{const tail=n.el.lastElementChild;if(tail&&tail.tagName==='P'&&!tail.textContent.trim())n.el.insertBefore(frag,tail);else n.el.appendChild(frag)}
+  ensureTail(n);refreshSnip(n);return firstTake;
+}
+function ensureTail(n){const t=n.el.lastElementChild;if(!t||t.tagName!=='P')n.el.appendChild(emptyP())}
+
+/* sheet */
+function inNote(id){return S.noteId?!!notes.find(n=>n.id===S.noteId).el.querySelector(`[data-post="${id}"]`):false}
+function inAny(id){return notes.some(n=>n.el.querySelector(`[data-post="${id}"]`))}
+function openSheet(noteId,range){
+  S={open:true,sel:new Map(),scope:'ticker',kind:'',q:'',linked:null,loading:false,noteId,range:range||null};
+  el('link').value='';el('err').style.display='none';el('scrim').classList.add('open');
+  el('sheetTitle').innerHTML=ic.x+'Import a tweet';drawSheet();setTimeout(()=>el('link').focus(),30);
+}
+function closeSheet(){S.open=false;el('scrim').classList.remove('open')}
+function drawFilters(){
+  const f=[['ticker','$'+SYM],['all','All recent']].map(([k,l])=>`<button class="chip ${S.scope===k?'on':''}" data-scope="${k}">${l}</button>`).join('')+
+    [['headline','Headlines'],['thesis','Theses and takes']].map(([k,l])=>`<button class="chip ${S.kind===k?'on':''}" data-kind="${k}">${l}</button>`).join('');
+  el('filters').innerHTML=f+`<label class="search">${ic.search}<input id="q" placeholder="Search name or words" value="${esc(S.q)}" aria-label="Search posts"></label>`;
+  el('filters').querySelectorAll('[data-scope]').forEach(b=>b.onclick=()=>{S.scope=b.dataset.scope;drawSheet()});
+  el('filters').querySelectorAll('[data-kind]').forEach(b=>b.onclick=()=>{S.kind=S.kind===b.dataset.kind?'':b.dataset.kind;drawSheet()});
+  el('q').oninput=e=>{S.q=e.target.value;drawList();drawFoot()};
+}
+function visible(){
+  const q=S.q.trim().toLowerCase();
+  return P.filter(p=>(S.scope==='all'||p.sym===SYM)&&(!S.kind||p.kind===S.kind)&&(!q||(p.text+' '+p.name+' '+p.h).toLowerCase().includes(q)));
+}
+function postHtml(p){
+  const already=inNote(p.id),sel=S.sel.has(p.id);
+  return `<button class="post ${sel?'sel':''} ${already?'dis':''}" data-p="${p.id}" role="checkbox" aria-checked="${sel}" ${already?'disabled':''}>${avatar(p)}<div class="pmain"><div class="pline"><b>${esc(p.name)}</b><span>@${p.h} · ${p.t}</span></div><div class="ptext">${cash(p.text)}</div>${p.img?`<div class="pimg">${chart(p.img,p.up)}</div>`:''}${already?'<span class="ptag">Already in this note</span>':inAny(p.id)?'<span class="ptag">Saved in one of your notes</span>':''}</div><span class="check">${ic.check}</span></button>`;
+}
+function drawList(){
+  let h='';
+  if(S.loading)h+='<div class="day">From your link</div><div class="shim"></div>';
+  if(S.linked)h+='<div class="day">From your link</div>'+postHtml(S.linked);
+  const v=visible();let day='';
+  const order=['Today','Friday, Nov 6','Thursday, Nov 5'];
+  v.slice().sort((a,b)=>order.indexOf(a.day)-order.indexOf(b.day)).forEach(p=>{if(p.day!==day){day=p.day;h+=`<div class="day">${day}</div>`}h+=postHtml(p)});
+  if(!v.length&&!S.linked&&!S.loading)h+='<div class="none">No recent posts match. Paste a link above to bring in any post.</div>';
+  el('list').innerHTML=h;
+  el('list').querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{const id=b.dataset.p,p=[...P,LINKED].find(x=>x.id===id);if(S.sel.has(id))S.sel.delete(id);else S.sel.set(id,p);b.classList.toggle('sel');b.setAttribute('aria-checked',S.sel.has(id));drawFoot()});
+}
+function drawFoot(){
+  const n=S.sel.size,note=S.noteId&&notes.find(x=>x.id===S.noteId);
+  const prev=el('dest')?el('dest').value:'__new';
+  const dest=note?`<span class="adding">Adding to <b>${esc(note.title)}</b></span>`:`<label for="dest">Save to</label><select id="dest"><option value="__new">New ${SYM} note</option>${notes.map(x=>`<option value="${x.id}">${esc(x.title)}</option>`).join('')}</select>`;
+  el('foot').innerHTML=dest+`<span class="count">${n?n+' selected':'Nothing saved until you import'}</span><button class="go" id="go" ${n?'':'disabled'}>Import${n>1?' '+n+' posts':''}</button>`;
+  if(!note&&el('dest'))el('dest').value=[...el('dest').options].some(o=>o.value===prev)?prev:'__new';
+  el('go').onclick=doImport;
+}
+function drawSheet(){drawFilters();drawList();drawFoot()}
+function handleLink(v){
+  v=v.trim();el('err').style.display='none';if(!v)return;
+  if(!/^(https?:\/\/)?(www\.|mobile\.)?(x|twitter)\.com\/\w+\/status\/\d+/i.test(v)){el('err').style.display='block';return}
+  S.loading=true;drawList();
+  setTimeout(()=>{S.loading=false;S.linked=LINKED;S.sel.set(LINKED.id,LINKED);el('link').value='';drawList();drawFoot();el('list').scrollTop=0},650);
+}
+function doImport(){
+  const posts=[...S.sel.values()];if(!posts.length)return;
+  let n,dest=S.noteId||(el('dest')&&el('dest').value)||'__new';
+  if(dest==='__new'){n={id:'n'+(seq++),title:SYM+': what people are saying',snip:'',count:0};n.el=newNoteEl(n);notes.unshift(n)}else n=notes.find(x=>x.id===dest);
+  const range=S.range;closeSheet();
+  view={k:'note',id:n.id};render();
+  const take=insertPosts(n,posts,range);
+  toast(posts.length+(posts.length>1?' posts':' post')+' imported');
+  setTimeout(()=>{if(take){take.focus();take.scrollIntoView({block:'center',behavior:'smooth'})}},60);
+}
+el('close').onclick=closeSheet;
+el('scrim').onclick=e=>{if(e.target===el('scrim'))closeSheet()};
+addEventListener('keydown',e=>{if(e.key==='Escape'&&S.open)closeSheet()});
+el('link').addEventListener('input',e=>{clearTimeout(el('link')._t);const v=e.target.value;el('link')._t=setTimeout(()=>handleLink(v),180)});
+el('try').onclick=()=>{el('link').value='https://x.com/fieldnote_res/status/1987654321098765432';handleLink(el('link').value)};
+render();
+})();
+</script>
+</body>
+</html>

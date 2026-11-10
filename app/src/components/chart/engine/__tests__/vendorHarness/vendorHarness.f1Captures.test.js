@@ -74,7 +74,15 @@ describe('F1 item 4 — `not` / `or` read an na operand as false, from the listi
 })
 
 describe('F1 item 2 — a `var` list of drawings off the listing is withheld by name', () => {
-  it.each(['spy', 'aapl', 'brk-a'])('sonarlab %s 1D: withheld by name, `objects:off-listing`', (s) => {
+  // ⭐ DIV-1 RE-PIN (2026-11-09): SPY left this list — the harness now replays SPY's proved
+  // history from the listing (as the member's daily chart computes it) and it MATCHES (below).
+  // AAPL and BRK.A have no proved prehistory, so they stay cold and stay withheld.
+  it('sonarlab spy 1D: MATCH once replayed from the listing (DIV-1)', () => {
+    const v = grade(load('sonarlab-order-blocks-spy-1d-2026-10-02'))
+    expect(v.objects.verdict, v.objects.reason).toBe('MATCH')
+  })
+
+  it.each(['aapl', 'brk-a'])('sonarlab %s 1D: withheld by name, `objects:off-listing`', (s) => {
     const v = grade(load(`sonarlab-order-blocks-${s}-1d-2026-10-02`))
     expect(v.objects.verdict).toBe('DIVERGE') // a withheld drawing is a gap (F3's rule)
     expect(v.objects.reason).toMatch(/withheld by name \(objects:off-listing\)/)

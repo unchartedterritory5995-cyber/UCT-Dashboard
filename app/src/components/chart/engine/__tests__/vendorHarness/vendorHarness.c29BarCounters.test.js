@@ -7,12 +7,14 @@
 // on bar 0. Through the member door, from the listing, every row is the vendor's on
 // every bar — the two spellings that become one tree are told apart by the reading
 // the translator writes into the switched mark (`interpret.js::readingSeed`).
-// Behind the listing (the curtain default, ruling R-W) every counter is WITHHELD.
+// Behind the listing (the curtain default, ruling R-W) every counter is WITHHELD —
+// `ta.cum(1)` included since 2026-11-09, by name (`running-total:window`).
 
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
-import { runOurSide } from './ourSide'
+import { runOurSide, withheldPlotsOf } from './ourSide'
+import { compareCapture } from '../../../../../../../tools/vendor_harness/compare.mjs'
 
 const H = path.resolve(process.cwd(), '..', 'tests/fixtures/vendor/harness')
 const cap = JSON.parse(fs.readFileSync(path.join(H, 'vw-bar-counters-rddt-1d-2026-09-30.json'), 'utf8'))
@@ -56,10 +58,73 @@ describe('C29 — bar counters, from the listing, are TradingView\'s on every ba
     const ours = runOurSide({ ...cap, history: { startsAtBar0: false, why: 'test: not asserted' } })
     expect(ours.ok, ours.refusal).toBe(true)
     for (const p of ours.plots) {
-      // ⚠️ `ta.cum(1)` stays the host's `cum` (pine.js names why: moving it behind the
-      // curtain would blank `atr-trailing-stoploss` off the listing) — not asserted here.
+      // ⚠️ `ta.cum(1)` is not asserted on THIS capture: its control row reads
+      // `bar_index` 0 on bar 0, so the harness knows the window starts at the
+      // listing (`barIndexStartsAtZero`) and the count is TradingView's. SPY 1m below.
       if (!ROWS.includes(p.title) || !p.column || p.title === 'C05_ta_cum_1') continue
       expect(Array.from(p.column).every(Number.isNaN), `${p.title} was drawn behind the listing`).toBe(true)
     }
+  })
+
+  // ⭐⭐ 2026-11-09 — `ta.cum(1)` behind the listing. It was served as the LOADED
+  // count (1, 2, 3 …) while TradingView reads 11,761 on SPY 1m
+  // (`vw-bar-counters-spy-1-2026-10-02` C05): a silently wrong number beside four
+  // counters that were correctly withheld. It is now withheld too, BY NAME.
+  it('behind the listing on SPY 1m (the capture that found it): C05 is not 1 where TradingView reads 11,761', () => {
+    const spy = JSON.parse(fs.readFileSync(path.join(H, 'vw-bar-counters-spy-1-2026-10-02.json'), 'utf8'))
+    expect(spy.history.startsAtBar0).not.toBe(true)
+    const ours = runOurSide(spy)
+    expect(ours.ok, ours.refusal).toBe(true)
+    const c05 = ours.plots.find((p) => p.title === 'C05_ta_cum_1')
+    expect(Array.from(c05.column).every(Number.isNaN), 'C05 drew a number behind the listing').toBe(true)
+    expect(c05.withheldBy).toBe('running-total:window')
+    expect(c05.missingReason).toMatch(/by name \(running-total:window\)/)
+    expect(ours.notes.some((n) => n.includes('running-total:window'))).toBe(true)
+  })
+
+  // ⭐ review N2 — the PER-BAR branch: a plot named by a per-bar code
+  // (`bar-index:early-bars`) whose column holds no value on any bar is withheld by
+  // name and graded INCONCLUSIVE; a plot of the same code that DOES draw is graded on
+  // its values. `bar_index > 100000` is never true in this window, so every bar is
+  // unknown off the listing; `bar_index > 100` is known from bar 101 on.
+  it('a per-bar withholding that reached every bar grades INCONCLUSIVE with the code; one that left values is graded', () => {
+    const spy = JSON.parse(fs.readFileSync(path.join(H, 'vw-bar-counters-spy-1-2026-10-02.json'), 'utf8'))
+    const src = spy.source.text.split('\n')
+      .map((l) => l.replace(/^plot\(ta\.cum\(1\),\s*"C05_ta_cum_1"\)/, 'plot(bar_index > 100000 ? close : na, "C05_ta_cum_1")'))
+      .map((l) => l.replace(/^plot\(n1,\s*"C01_var_n_plus_1"\)/, 'plot(bar_index > 100 ? close : open, "C01_var_n_plus_1")'))
+      .join('\n')
+    expect(src).toContain('bar_index > 100000')
+    expect(src).toContain('bar_index > 100 ?')
+    const ours = runOurSide({ ...spy, source: { ...spy.source, text: src } })
+    expect(ours.ok, ours.refusal).toBe(true)
+    const c05 = ours.plots.find((p) => p.title === 'C05_ta_cum_1')
+    expect(Array.from(c05.column).every(Number.isNaN)).toBe(true)
+    expect(c05.withheldBy).toBe('bar-index:early-bars')
+    const c01 = ours.plots.find((p) => p.title === 'C01_var_n_plus_1')
+    expect(c01.withheldBy).toBeNull()
+    expect(Array.from(c01.column).some((v) => !Number.isNaN(v))).toBe(true)
+    const verdict = compareCapture(spy, ours)
+    const row = verdict.plots.find((p) => p.title === 'C05_ta_cum_1')
+    expect(row).toMatchObject({ verdict: 'INCONCLUSIVE', withheld: 'bar-index:early-bars' })
+    expect(row.reason).toMatch(/by name \(bar-index:early-bars\)/)
+    expect(verdict.plots.find((p) => p.title === 'C01_var_n_plus_1').withheld).toBeUndefined()
+  })
+})
+
+// ⛔ review N2 — the column decides for EVERY code. A whole-series code named on a
+// plot that still draws a value (a mislabel) is graded on the values, and said.
+describe('withheldPlotsOf — the column decides, for whole-series codes too', () => {
+  const report = (code, plots) => ({ withheld: [{ code, reason: 'r', plots }] })
+  it('a whole code on an all-na column withholds it; on a column with values it does not, and says so', () => {
+    const notes = []
+    const cols = { a: new Float64Array([NaN, NaN]), b: new Float64Array([NaN, 3]) }
+    const held = withheldPlotsOf(report('running-total:window', ['a', 'b']), cols, notes)
+    expect([...held]).toEqual([['a', 'running-total:window']])
+    expect(notes.some((n) => n.startsWith('b: named running-total:window') && n.includes('graded on them'))).toBe(true)
+  })
+  it('a per-bar code withholds only a column with no value on any bar', () => {
+    const cols = { a: new Float64Array([NaN, NaN]), b: new Float64Array([1, NaN]) }
+    const held = withheldPlotsOf(report('bar-index:early-bars', ['a', 'b']), cols, [])
+    expect([...held]).toEqual([['a', 'bar-index:early-bars']])
   })
 })

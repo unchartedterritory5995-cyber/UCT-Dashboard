@@ -275,8 +275,24 @@ describe('/charts — the criteria builder has a door', () => {
     visit(ast)
 
     expect(element, 'App.jsx declares no <Route path="/charts">').toBeTruthy()
-    // The name this file imports and renders, taken from the route itself.
-    expect(element).toMatch(/ChartsWorkspace/)
+    // The route element is the slot; ChartsDeskHost renders the workspace in its place so a popped
+    // board survives leaving /charts. Both halves come from the parsed source, not from this sentence.
+    expect(element).toMatch(/ChartsRouteSlot/)
+    const parse = (file) => Parser.extend(jsx()).parse(
+      fs.readFileSync(path.join(HERE, file), 'utf8'), { ecmaVersion: 'latest', sourceType: 'module' })
+    const found = (tree, test) => {
+      let hit = false
+      const walk = (node) => {
+        if (hit || !node || typeof node !== 'object') return
+        if (Array.isArray(node)) { node.forEach(walk); return }
+        if (test(node)) { hit = true; return }
+        Object.keys(node).forEach((k) => walk(node[k]))
+      }
+      walk(tree)
+      return hit
+    }
+    expect(found(parse('ChartsDeskHost.jsx'), (n) => n.type === 'JSXElement' && n.openingElement?.name?.name === 'ChartsWorkspace')).toBe(true)
+    expect(found(parse('chartsWorkspaceImporter.js'), (n) => n.type === 'ImportExpression' && n.source?.value === './ChartsWorkspace')).toBe(true)
   })
 
   it('DESKTOP: Indicators → New formula opens the builder', async () => {

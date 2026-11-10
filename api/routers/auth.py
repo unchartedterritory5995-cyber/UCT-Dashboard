@@ -10,11 +10,12 @@ import io
 import json
 import re
 import sqlite3
-from typing import Optional
+from typing import Literal, Optional
+import uuid
 from fastapi import APIRouter, HTTPException, Request, Response, Depends, UploadFile
 from api.services import request_body_cap as body_cap
 from fastapi.responses import StreamingResponse, FileResponse
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, StrictBool
 
 from api import chart_edge_token
 from api.limiter import limiter
@@ -163,6 +164,10 @@ NOTEBOOK_FLAGS = {
     # Wave 11 lane 11A: voice and meeting notes. The route gate
     # (journal_two/voice_notes.enabled) reads the same variable through flag_on.
     "NOTEBOOK_VOICE_NOTES_ENABLED": False,   # enablement  — unset means OFF (voice notes, lane 11A)
+    # Import a tweet: X posts into a note. Payload key DERIVED as
+    # `notebook_tweet_import_enabled`; every tweet route (journal_two/tweet_capture.enabled)
+    # reads the same variable per request through `flag_on` and answers 404 while off.
+    "NOTEBOOK_TWEET_IMPORT_ENABLED": False,  # enablement  — unset means OFF (import a tweet)
     # Wave 11 lane 11C: "Ask Notebook to do something" (journal_two/ai_actions.py).
     # Payload key `notebook_ai_actions_enabled`; the router's gate reads the same
     # variable per request through `flag_on`.
@@ -1865,6 +1870,62 @@ def track_page_view(req: dict, user: dict = Depends(get_current_user)):
     if not page:
         return {"ok": True}
     log_page_view(user["id"], page)
+    return {"ok": True}
+
+
+class DeskUsageReport(BaseModel):
+    """Desktop-plan Stage 1 (Task 9): the ONLY fields a desk-usage report may carry.
+
+    Every field is an enum or a bool and unknown fields are refused, so no URL, ticker,
+    widget text or user-agent string can reach the store through this route.
+    """
+    model_config = {"extra": "forbid"}
+    multi_monitor: Literal["yes", "no", "unknown"]
+    popout_opened: StrictBool
+    standalone: StrictBool
+    os: Literal["windows", "mac", "linux", "chromeos", "android", "ios", "other"]
+
+
+DESK_USAGE_ACTION = "desk_usage"
+
+
+@router.post("/desk-usage")
+def record_desk_usage(req: DeskUsageReport, user: dict = Depends(get_current_user)):
+    """One row per member per ET calendar day in ``activity_log`` (action ``desk_usage``).
+
+    A later report the same day may only upgrade ``popout_opened`` false -> true; every
+    other field keeps the first report's value. Fire-and-forget: a storage failure is
+    logged and answers ok, so this can never disturb the caller.
+    """
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    from api.services.auth_db import get_connection
+    try:
+        day = datetime.now(ZoneInfo("America/New_York")).date().isoformat()
+        details = {"date": day, **req.model_dump()}
+        conn = get_connection()
+        try:
+            rows = conn.execute(
+                "SELECT id, details FROM activity_log WHERE user_id = ? AND action = ? "
+                "AND details LIKE ?",
+                (user["id"], DESK_USAGE_ACTION, '{"date": "%s"%%' % day),
+            ).fetchall()
+            if not rows:
+                conn.execute(
+                    "INSERT INTO activity_log (id, user_id, action, details) VALUES (?, ?, ?, ?)",
+                    (str(uuid.uuid4()), user["id"], DESK_USAGE_ACTION, json.dumps(details)),
+                )
+            elif details["popout_opened"]:
+                kept = json.loads(rows[0]["details"])
+                if kept.get("popout_opened") is False:
+                    kept["popout_opened"] = True
+                    conn.execute("UPDATE activity_log SET details = ? WHERE id = ?",
+                                 (json.dumps(kept), rows[0]["id"]))
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception as e:  # noqa: BLE001 - telemetry must never raise
+        print(f"[desk-usage] not stored: {e}")
     return {"ok": True}
 
 

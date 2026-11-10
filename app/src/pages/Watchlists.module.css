@@ -698,6 +698,8 @@
    group's own accordion header (the redundant second row); drop the group indent
    so the star hugs the left edge; and don't box the items separately. */
 .pickMode .wlHeader { display: none; }
+/* Rename from the title's list menu: the list's own name field, shown only while it is being edited */
+.pickMode .wlHeader.wlHeaderRenaming { display: flex; }
 .pickMode .wlRow { padding-left: 8px; }   /* keep aligned with the header gridlines */
 .pickMode .wlItems { background: transparent; border-top: none; }
 
