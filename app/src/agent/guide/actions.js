@@ -208,6 +208,15 @@ const TITLE_MENU_ACTIONS = [
   { id: 'shareList', label: 'Sharing a list with the community', re: /^(?!.*\b(open|load|show|see|view|browse|find|pick)\b).*\b(share|sharing|public|private|everyone|community|publish)\b/, steps: titleMenu([listRow('Share with community'), listRow('Make Private')], 'Share with community', 'Click Share with community to make the list public; the same row says Make Private once it is, and takes it back.') },
 ]
 export const WATCHLIST_ACTIONS = [
+  // ⭐ pl-widget's Flagged rename (#1027 flaggedName): the Flagged list is opened first, so the Rename that is rung is ITS menu's,
+  // never the menu of whichever list the widget had open (‹ Lists is skipped when the picker already shows)
+  { id: 'flaggedRename', label: 'Renaming the Flagged list', re: /\bflagged\b.*\b(renam\w*|(new|different|other) name|call it)\b|\b(renam\w*|name)\b.*\bflagged\b/, steps: [
+    ...onBoard(WL, 'Watchlist', [PICKER, LIST_TITLE]),
+    { target: { widgetType: WL, guide: 'watchlist.lists' }, name: '‹ Lists', text: 'Click ‹ Lists to choose a list.', waitFor: 'watchlist.pickFlagged', optional: true, late: true },
+    { target: 'watchlist.pickFlagged', name: 'Flagged', text: 'Click Flagged to open it.', waitFor: LIST_TITLE },
+    { target: [LIST_TITLE, LIST_MENU_BTN], name: 'the list’s name', text: 'Right-click the list’s name, or click ⋯ (List actions) beside it.', waitFor: listRow('Rename') },
+    { target: listRow('Rename'), name: 'Rename', text: 'Click Rename, type the new name and press Enter.' },
+  ] },
   ...TITLE_MENU_ACTIONS,
   // ⭐ cov-5 widget teaching: a new list that starts from a saved watchlist look (WatchlistPicker's create form → Template)
   { id: 'fromTemplate', label: 'Creating a list from a template', re: /\b(new|create|creating|make|making|start|starting|build)\b.*\btemplates?\b|\btemplates?\b.*\b(new|create|make|start)\b.*\b(watch ?)?lists?\b/, steps: [
@@ -293,7 +302,21 @@ const W = {
   nhnl: 'New Highs / Lows', scatter: 'Market Map', aisearch: 'AI Search', notebook: 'Notebook', volumescan: 'Volume Surge', scanner: 'Scanner',
 }
 const widget = (id, type, label, re, target, name, say, alt) => ({ id, label, re, steps: point(type, W[type], typeof target === 'string' ? inCell(type, target) : target, name, say, alt) })
+// ⭐ pl-widget (#1027): Period Sort's footer Refresh. Period Sort is not in Widgets ▾ (Tools → Custom-Period Sort only), so with
+// none open the Tools menu is rung and the step says how to open one
+const PS_REFRESH = { target: [{ widgetType: 'periodsort', aria: 'Refresh' }, 'workspace.tools'], name: 'Refresh', text: 'Click Refresh to re-run this period sort now.', altText: 'Open one first: Tools ▾ → Custom-Period Sort, then highlight a period on a chart. Its Refresh sits at the bottom.' }
+// ⭐ the Options Flow filters one by one (owner-approved): the funnel opens the strip, then the ONE button that does it. A row
+// that names both sides ("calls or puts") is left to the group's own walkthrough
+const FLOW_FUNNEL = { target: { widgetType: 'optionsflow', guide: 'flow.filters' }, name: 'the funnel', text: 'Click the funnel to open the filters.', waitFor: { widgetType: 'optionsflow', guide: 'flow.filterStrip' } }
+const flowOnly = (id, group, l, what, word, other, say) => ({ id, label: `Showing only ${what} in the flow`, re: new RegExp(String.raw`^(?!.*\b${other}\b)(?=.*\b(flow|options)\b).*\b${word}\b`), steps: [...onBoard('optionsflow', W.optionsflow, cellOf('optionsflow')), FLOW_FUNNEL, { target: { within: group, label: l }, name: l, text: say }] })
 export const WIDGET_ACTIONS = [
+  { id: 'psRefresh', label: 'Refreshing a period sort', re: /\b(refresh|re-?run|reload|update|fresh)\b.*\bperiod sort\b|\bperiod sort\b.*\b(refresh|re-?run|reload|update|fresh)\b/, steps: [PS_REFRESH] },
+  flowOnly('flowCalls', 'flow.filter.cp', 'Calls', 'calls', 'calls?', 'puts?', 'Click Calls: only calls show. All shows both again.'),
+  flowOnly('flowPuts', 'flow.filter.cp', 'Puts', 'puts', 'puts?', 'calls?', 'Click Puts: only puts show. All shows both again.'),
+  flowOnly('flowSweep', 'flow.filter.type', 'Sweep', 'sweeps', 'sweeps?', 'blocks?', 'Click Sweep: only sweeps show. Any shows every kind again.'),
+  flowOnly('flowBlock', 'flow.filter.type', 'Block', 'block trades', 'blocks?', 'sweeps?', 'Click Block: only block trades show. Any shows every kind again.'),
+  flowOnly('flowBull', 'flow.filter.dir', 'Bull', 'bullish prints', 'bull(ish)?', 'bear(ish)?', 'Click Bull: only bullish prints show. All shows both again.'),
+  flowOnly('flowBear', 'flow.filter.dir', 'Bear', 'bearish prints', 'bear(ish)?', 'bull(ish)?', 'Click Bear: only bearish prints show. All shows both again.'),
   widget('alertsList', 'alerts', 'Seeing your alerts', /\b(see|view|show|list|where are|find)\b.*\bmy alerts\b|\bmy alerts\b/, 'alerts.row', 'your alerts', 'These are your alerts. Click one to show its ticker on the linked chart.', 'You have no alerts yet. The form at the top of this widget sets one.'),
   widget('scanPick', 'scanner', 'Picking a preset scan', /\b(pick|choose|open|run|use)\b.*\b(preset |prebuilt )?scans?\b|\bpreset scans?\b/, 'scanner.list', 'the scans', 'Click a scan to run it. Its results open in this widget.', 'This widget has a scan open. ‹ takes you back to the list of scans.'),
   // ⭐ cov-1: a scan's columns, sort and conditions sit ahead of "its results", whose words they share ("sort the scan results")
@@ -335,6 +358,10 @@ export const WIDGET_ACTIONS = [
   widget('noteSearch', 'notebook', 'Finding a note', /\b(search|find|open)\b.*\bnotes?\b/, { widgetType: 'notebook', aria: 'Search notes' }, 'the search box', 'Search here, or click a note in the list.'),
   widget('volumeScope', 'volumescan', 'What the scanner watches', /\bvolume (surge|scan\w*)\b.*\b(watch\w*|scope|list|choose)\b/, 'volumeScan.scope', 'the scope', 'Click this to choose what the scanner watches.'),
 ]
+
+// ⭐ an ask for ONE side of a flow filter ("only puts"): the button's own walkthrough, not the two-way group's control
+// (controls.js CONTROL_FEATURE yields these words; a two-sided ask, "calls or puts", keeps the group's control)
+export const FLOW_ONLY_ASK = new RegExp(WIDGET_ACTIONS.filter(r => /^flow(Calls|Puts|Sweep|Block|Bull|Bear)$/.test(r.id)).map(r => r.re.source).join('|'))
 
 // ── a drawing's own menu (components/chart/ChartDrawingOverlay.jsx DrawingContextMenu, from drawingSettingsSchema.js) ──
 const drawRow = (label) => ({ within: 'chart.drawingMenu', label })

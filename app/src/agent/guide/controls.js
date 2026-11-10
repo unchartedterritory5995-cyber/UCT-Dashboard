@@ -20,7 +20,7 @@
 // ⛔ NEVER INVENT A CONTROL. agentGuideControls.test.js rails every name and anchor against the product's source.
 
 import { conceptsOf, describe, OBJECTS } from './words'
-import { GEAR, onBoard } from './actions'
+import { GEAR, onBoard, FLOW_ONLY_ASK } from './actions'
 import { SLOTS, DRAWING_TOOLS } from './slots'
 import { labelMap, menuGroups } from '../../widgets/registry'
 import { CONTROLS as DRAW_CONTROLS, SCHEMA as DRAW_SCHEMA } from '../../components/chart/drawingSettingsSchema'
@@ -315,6 +315,8 @@ export const CONTROL_FEATURE = {
   id: 'control', slots: ['ctrl'], terms: [], words: [], control: 'that control', title: '{ctrl.label}', titleAny: 'Finding a control', topic: 'charts', caps: [],
   explain: 'That control is on its widget, its panel or the chart. Add the widget from Widgets ▾ if it isn’t on your board.',
   // a drawing without the control ("say") is only said when no other walkthrough took the words (capabilities/guide.js)
+  // an ask for ONE side of a flow filter is the button's own walkthrough (actions.js flowOnly, teach-widget-ops)
+  except: FLOW_ONLY_ASK,
   match: (q) => { const r = readControl(q); return !!(r?.row || r?.ask) },
   steps: [{ each: 'ctrl' }],
 }

@@ -282,6 +282,8 @@ export const GUIDE_FEATURES = [
   {
     id: 'periodSort', terms: ['custom period sort'], control: 'the Tools menu', title: 'Custom-period sort', topic: 'charts',
     words: [/\b(custom[- ]period|period) sort\b/, /\bsort\b.*\bmarket\b.*\bperiod\b/, /\brank\b.*\b(market|stocks)\b.*\bperiod\b/],
+    // an open sort's Refresh is its own walkthrough (actions.js psRefresh, pl-widget #1027)
+    except: /\b(refresh|re-?run|reload|update|fresh)\b/,
     caps: [],
     explain: 'Tools ▾ → Custom-Period Sort ranks the whole US market by its % change over a period you highlight on a chart.',
     steps: [

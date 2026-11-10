@@ -18,7 +18,8 @@ const seen = (q) => {
 
 export const WL_TITLE_MENU_HELD_OUT = [
   ['how do I change the name of my watchlist', 'Renaming a list'],
-  ['how do I rename my flagged list', 'Renaming a list'],
+  // teach-widget-ops (2026-11-10): the Flagged list now has its own walkthrough, which opens Flagged before its menu's Rename
+  ['how do I rename my flagged list', 'Renaming the Flagged list'],
   ['how do I clear out all the starred tickers in my watchlist', 'Removing the starred tickers'],
   ['how do I copy my watchlist tickers to the clipboard', 'Copying a list'],
   ['how do I download my watchlist as a spreadsheet', 'Exporting a list'],

@@ -44,3 +44,13 @@ describe('a widget op ask walks to its control', () => {
     expect(seen(q)).toContain(needle)
   })
 })
+
+// CONTROLS (added with the fix): a two-sided ask keeps the group's own control, and the premium filter keeps its own
+describe('nothing else moves', () => {
+  it.each([
+    ['how do I choose calls or puts in options flow', 'flow.filter.cp'],
+    ['how do I pick sweeps or blocks in the flow', 'flow.filter.type'],
+    ['how do I set the minimum premium in options flow', 'flow.filter.min'],
+    ['how do I open the custom period sort', 'Custom-period sort'],
+  ])('"%s" → %s', (q, needle) => { expect(seen(q)).toContain(needle) })
+})

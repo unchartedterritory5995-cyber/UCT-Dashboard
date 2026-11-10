@@ -47,6 +47,8 @@ const BOARDS = {
   // GET /api/watchlists/public, answered by the community given's route)
   community: [chart('w-chart-a', 'A', 0, 0, 16, 20), watch({ opts: { watchKey: 'community:' + COMMUNITY.id, watchName: COMMUNITY.name, watchTab: 'community' } })],
   scan: [chart('w-chart-a', 'A', 0, 0, 12, 20), watch({ x: 12, w: 6 }), { id: 'w-scan', type: 'scanner', color: 'A', x: 18, y: 0, w: 6, h: 20, opts: { scanKey: SCAN.key, scanName: SCAN.name } }],
+  // a Custom-Period Sort open on the board (Tools → Custom-Period Sort adds it; it is never in Widgets ▾): its footer's Refresh
+  periodsort: [chart('w-chart-a', 'A', 0, 0, 12, 20), watch({ x: 12, w: 6 }), { id: 'w-ps', type: 'periodsort', color: 'A', x: 18, y: 0, w: 6, h: 20, opts: { start: '2026-08-05', end: '2026-09-30' } }],
 }
 // pages/charts/grid/gridLayouts.js makeDefaultState: the grid as the app saves it
 const MULTI = { mode: 'grid', layout: '2x2', cells: [['g1', 'SPY'], ['g2', 'QQQ'], ['g3', 'NVDA'], ['g4', 'TSLA']].map(([id, sym]) => ({ id, sym, tf: 'D' })), syncCrosshair: false, syncTimeRange: false, groupsMode: false, group: null }
@@ -101,6 +103,7 @@ export function givenFor(c) {
   if (c.feature === 'compareAction' && !/^Comparing a whole group$/.test(c.title || '')) g.chartSettings = { comparisonSymbols: COMPARED }
   // a control that shows on a scan's results, not on the list of scans (picking and searching a scan are on that list)
   if (/^(Reading a scan’s conditions|Sorting a scan|Choosing a scan’s columns|Sending a scan to the Journal|Refreshing a scan|Back to the list of scans)$/.test(c.title || '')) { g.board = 'scan'; g.scan = true }
+  if (/^Refreshing a period sort$/.test(c.title || '')) g.board = 'periodsort'
   if (c.feature === 'gridAction') g.prefs = { multichart_state: JSON.stringify(MULTI) }
   // a grid chart that carries settings of its own (GridChartCell.jsx: `cell.settings` forks it; Reset shows then)
   if (c.feature === 'gridAction' && /^Resetting a chart in the grid$/.test(c.title || '')) g.prefs = { multichart_state: JSON.stringify({ ...MULTI, cells: MULTI.cells.map(x => ({ ...x, settings: { chartType: 'line' } })) }) }

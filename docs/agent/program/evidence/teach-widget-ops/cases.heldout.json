@@ -1,0 +1,86 @@
+[
+ {
+  "id": "WO-01",
+  "say": "how do I rerun the scan in my scanner widget",
+  "feature": "widgetAction",
+  "title": "Refreshing a scan"
+ },
+ {
+  "id": "WO-02",
+  "say": "show me how to refresh the scanner results",
+  "feature": "widgetAction",
+  "title": "Refreshing a scan"
+ },
+ {
+  "id": "WO-03",
+  "say": "how do I refresh the period sort widget",
+  "feature": "widgetAction",
+  "title": "Refreshing a period sort"
+ },
+ {
+  "id": "WO-04",
+  "say": "how do I get fresh results in period sort",
+  "feature": "widgetAction",
+  "title": "Refreshing a period sort"
+ },
+ {
+  "id": "WO-05",
+  "say": "how do I make a watchlist column wider",
+  "feature": "watchlistAction",
+  "title": null
+ },
+ {
+  "id": "WO-06",
+  "say": "show me how to resize the columns in my watchlist",
+  "feature": "watchlistAction",
+  "title": null
+ },
+ {
+  "id": "WO-07",
+  "say": "how do I rename my flagged list",
+  "feature": "watchlistAction",
+  "title": "Renaming the Flagged list"
+ },
+ {
+  "id": "WO-08",
+  "say": "show me how to give the flagged list a different name",
+  "feature": "watchlistAction",
+  "title": "Renaming the Flagged list"
+ },
+ {
+  "id": "WO-09",
+  "say": "how do I show only calls in options flow",
+  "feature": "widgetAction",
+  "title": "Showing only calls in the flow"
+ },
+ {
+  "id": "WO-10",
+  "say": "how do I filter the options flow to puts",
+  "feature": "widgetAction",
+  "title": "Showing only puts in the flow"
+ },
+ {
+  "id": "WO-11",
+  "say": "show me how to see just sweeps in the flow widget",
+  "feature": "widgetAction",
+  "title": "Showing only sweeps in the flow"
+ },
+ {
+  "id": "WO-12",
+  "say": "how do I show only block trades in options flow",
+  "feature": "widgetAction",
+  "title": "Showing only block trades in the flow"
+ },
+ {
+  "id": "WO-13",
+  "say": "how do I see only bullish flow",
+  "feature": "widgetAction",
+  "title": "Showing only bullish prints in the flow"
+ },
+ {
+  "id": "WO-14",
+  "say": "how do I filter options flow to bearish prints",
+  "feature": "widgetAction",
+  "title": "Showing only bearish prints in the flow"
+ }
+]
