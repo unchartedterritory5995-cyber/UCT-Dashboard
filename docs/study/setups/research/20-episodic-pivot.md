@@ -1411,3 +1411,46 @@ earnings gaps and 11 were names already up more than 10% over the prior six mont
 Replaced in the visual review: none. The first list of candidates was filtered to stops of 1% or more (see the
 base-rate note) and to gaps of 30% or less before the ten were drawn; the drawn charts were each checked for clean
 data and an obvious structure and all ten were kept.
+
+## 13. Failures and near-misses (from our data)
+
+Added 2026-11-10 from the same scan as section 12 (`ep_scan.py`, `final/hits.json`) and a near-miss scan
+(`near_scan.py`, `final/near_hits.json`): the section-12 rule run again over the 2,630 liquid names with one gate relaxed
+at a time, keeping only the gaps that fail exactly one of ep.gap_floor, ep.volume, ep.close, ep.neglect, ep.first_ep or
+ep.above_200 and pass every other gate. Charts (scratch folder, not in the repo): `final/fail_1-4.png` (the four
+failures), `final/near_1-4.png` (the four near-misses) and `final/pair_21-power-earnings-gap.png` (an EP above a Power
+Earnings Gap, the card's first look-alike, each with its tell). Script `fail_near.py`; every number below is in
+`final/fail_near.json`. The outcome is the section-12 one: a fixed stop, no trims, 60 sessions. [my computation]
+
+**Four valid Episodic Pivots that lost.** Every gate of the card passed; the house stop was hit; one per name, four
+different years; prices split-adjusted as the database holds them.
+
+| # | Ticker | Gap day (catalyst) | Gap / volume / close in range / 6-mo change | Buy (trigger) | Stop | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|---|---|
+| 1 | SBUX | 2024-08-13 (news, not a report day: the new-CEO announcement) | 18.2% / 13.1x / 98% / -19% | 94.97 on 2024-08-16 (day 4, inside-day high 94.96) | 92.93 (2.1%) | 2024-08-19, day 1, best 0.0R | A strong gap with no follow-through once the buyers who wanted in had bought. The inside-day trigger is the weaker one (28% to 3R against 41% for the post-gap high break, section 12). | ep.entry_delayed |
+| 2 | TSLA | 2019-10-24 (earnings) | 17.2% / 4.4x / 67% / +8% | 22.01 on 2019-10-28 (day 3, post-gap high 22.00) | 21.46 (2.5%) | 2019-10-29, day 1, best 0.0R | The day-3 break failed at once. The stock went on to a far larger move months later: right about the stock, wrong first trigger. | ep.stop_delayed |
+| 3 | GOOGL | 2015-07-17 (earnings) | 13.0% / 7.4x / 86% / +19% | 35.16 on 2015-07-21 (day 3, post-gap high 35.15) | 34.16 (2.9%) | 2015-07-23, day 2, best 0.51R | Up 19% in the six months into the news, inside the neglect line but the least neglected of the four; reached 0.5R and gave it back. | ep.inv_late |
+| 4 | ANF | 2012-11-14 (earnings) | 28.5% / 15.0x / 97% / -31% | 42.01 on 2012-11-15 (day 2, post-gap high 42.00) | 40.97 (2.5%) | 2012-11-16, day 1, best 0.0R | A 28.5% gap, over the 25% grade-down line, bought on the day-2 break; it reversed the next session. The neglect was textbook (down 31% over six months). | ep.gap_too_big |
+
+**Four near-misses.** Each looks like an EP and fails exactly one gate; the would-be buy follows the section-12 entry so
+the levels on the chart can be compared with the winners. No trade is implied.
+
+| # | Ticker | Gap day (catalyst) | The one criterion that fails | The number | What it really is |
+|---|---|---|---|---|---|
+| 1 | GOOG | 2013-10-18 (earnings) | ep.gap_floor | the open was 9.9% over the prior close; the rule is 10% or more (6.9x volume, close at 90% of range, up 11% over six months) | A report-day gap on an established leader: a Power Earnings Gap (setup 21). The would-be day-2 buy at 25.30 was stopped (0.0R) before the stock ran. |
+| 2 | MU | 2024-09-26 (earnings) | ep.close | closed at 32% of the day's range; the rule is the upper half. The gap itself held (the low 107.53 stayed above the prior close 95.77) | A faded gap day: not an EP (8.1.7). The would-be day-one buy at the close, 109.88, was stopped, 0.0R. At most a delayed-reaction watch. |
+| 3 | CRM | 2020-08-26 (earnings) | ep.neglect | up 25.5% over 126 sessions and 19.3% over 63; the rule is at most 25% and 15% (16.6% gap on 11.2x, close at 80%) | Not neglected: an established leader at highs gapping on a report, a Power Earnings Gap (setup 21). The day-5 break at 278.29 was stopped, 0.0R. |
+| 4 | AMZN | 2022-02-04 (earnings) | ep.above_200 | the day-2 buy at 161.21 was under the 200-day (168.35); the rule is price above the 200-day (12.1% gap on 3.6x, close at 66%, down 17% over six months) | A bear-market earnings gap under a falling 200-day: no long setup (B26). The break at 161.21 was stopped, 0.0R. |
+
+**What the failures have in common.** All four were stopped within two sessions of the trigger and none reached 1R
+(the best was 0.51R); each loss was about 1R because the stop sat a few cents under the trigger day's low
+(ep.stop_delayed), which is the point of the rule. The gap days themselves were strong (volume 4x to 15x, closes at 67%
+to 98% of the range), so the quality of the gap day did not predict the follow-through. Three of the four were delayed
+entries on day 2 to 4 that broke a post-gap high or an inside-day high and reversed the next session; two came on stocks
+already up into the news (GOOGL +19%, TSLA +8% over six months) and one on a gap over the 25% line. The near-miss scan
+also says something about the gates: the 2,057 near-misses reached 3R 35.4% of the time against 37.9% for the strict
+rule, and by gate, gaps of 6% to 10% 33.9% (850 hits), a lower-half close 31.1% (524), a name that was not neglected
+40.7% (349), a buy under the 200-day 40.4% (151), a second EP inside 126 sessions 36.5% (96), volume of 1.5x to 3x
+44.8% (87). The close and the gap floor are the gates that cost the most when ignored; neglect and the 200-day did not
+move the rate in this sample (section 12 found the opposite for neglect inside the strict set, 40.3% against 34.4%, so
+the neglect line is a weak edge either way), which belongs in section 10. [my computation]

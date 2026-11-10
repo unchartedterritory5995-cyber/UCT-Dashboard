@@ -1075,3 +1075,48 @@ PANW 2020-11-23 (the report-time doubt above). Sheets: `final/sheet_1-4.png`, `f
   is wrong.
 - Also stopped: AAPL 2018-08-06 and 2022-02-02, MSFT 2015-04-29, NFLX 2023-01-25, ZM 2025-12-02. Mega-caps gapping 4-5% on
   2-3x volume gave the thinnest follow-through in the sample.
+
+## 13. Failures and near-misses (from our data)
+
+Added 2026-11-10 from the same scan as section 12 (`peg_scan.py`, `final/hits.json`) and a near-miss scan
+(`near_scan.py`, `final/near_hits.json`): the section-12 rule run again over the 2,630 liquid names with one gate relaxed
+at a time, keeping only the gaps that fail exactly one of peg.catalyst (the same shape on a day that is not a report
+reaction day, no report within 3 sessions), peg.gap_floor (an open 2% to 4% over the prior close), peg.volume (1.0x to
+1.5x), peg.close (a close in the lower half with the gap still open), peg.above_200 or peg.entry_pause (the first trigger
+on session 12 to 20) and pass every other gate. Charts (scratch folder, not in the repo): `final/fail_1-4.png`,
+`final/near_1-4.png` and `final/pair_20-episodic-pivot.png` (a PEG above an Episodic Pivot, the card's first look-alike,
+each with its tell). Script `fail_near.py`; every number below is in `final/fail_near.json`. Outcome as in section 12: a
+fixed stop, no trims, 60 sessions. [my computation]
+
+**Four valid PEGs that lost.** Every gate of the card passed; the house stop was hit; one per name, four years.
+
+| # | Ticker | Report (time), PEG day | Gap (ATR40) / volume / close in range / run65 | Buy (trigger) | Stop | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|---|---|
+| 1 | NVDA | 2024-02-21 (after close), 2024-02-22 | +11.2% (3.8x) / 1.9x / 0.99 / +36% | 84.13 on 2024-03-04, a gap open 2.1% over the pause high 82.39 (6-session pause) | 83.67 (0.5%) | 2024-03-05, day 1, best 0.0R | A 0.5% stop under the trigger day's low on a stock that moves 3% a day is not a stop; and the 36% run into the report is past the 30% cue (peg.not_extended). | peg.stop_pause |
+| 2 | CELH | 2023-05-09 (after close), 2023-05-10 | +10.6% (3.3x) / 7.5x / 0.61 / +8% | 45.07 on 2023-05-18 over 45.06 (5-session pause, triggered on day 7) | 43.78 (2.9%) | 2023-05-19, day 1, best 0.0R | A big-volume gap that closed only just inside the top half, then a pause that was already a drift when it broke out; straight down to the stop. | peg.inv_drift |
+| 3 | AAPL | 2018-07-31 (after close), 2018-08-01 | +4.6% (3.3x) / 3.1x / 0.94 / +15% | 52.20 on 2018-08-06 over 52.19 (2-session pause) | 51.32 (1.7%) | 2018-08-08, day 2, best 0.2R | A gap near the 4% floor on a mega-cap everyone covers: the thin follow-through case of section 12 (AAPL twice, MSFT, NFLX, ZM). | peg.gap_floor |
+| 4 | MSFT | 2015-04-23 (after close), 2015-04-24 | +5.4% (3.2x) / 3.8x / 0.89 / -6% | 49.22 on 2015-04-29 over 49.21 (2-session pause) | 48.45 (1.6%) | 2015-05-01, day 2, best 0.42R | The shortest pause the rule allows, bought at the first break; it fell back into the PEG bar in two sessions. No gate fails here: this is the base rate (seven in ten stop). | peg.entry_pause |
+
+**Four near-misses.** Each looks like a PEG and fails exactly one gate; the would-be buy follows the section-12 entry so
+the levels can be compared with the winners. No trade is implied.
+
+| # | Ticker | Gap day (report) | The one criterion that fails | The number | What it really is |
+|---|---|---|---|---|---|
+| 1 | BA | 2025-12-02 (no report that day; the last report reaction day was 2025-10-29) | peg.catalyst | +6.3% (2.4x ATR40) on 2.7x, close at 0.96, down 20% over 65 sessions: every other gate passes | A News Gapper (setup 22), taught there. The would-be pause buy at 205.86 on 2025-12-08 was stopped, 0.0R. |
+| 2 | AAPL | 2023-05-05 (report 2023-05-04, after close) | peg.gap_floor | the open was 3.1% over the prior close; the rule is 4% or more (1.9x volume, close at 0.79, up 14% over 65 sessions) | An ordinary earnings up-day, not a gap setup. The would-be day-one close buy at 173.57 reached 0.36R and was stopped. |
+| 3 | AMD | 2022-02-02 (report 2022-02-01, after close) | peg.close | closed at 0.23 of the day's range; the rule is the top half. The gap held (low 120.64 above the prior close 116.78) and the day was +11.2% at the open | A faded PEG day (peg.faded_day): a delayed-reaction watch, not a buy. The would-be close buy at 122.76 was stopped, 0.0R. |
+| 4 | META | 2022-04-28 (report 2022-04-27, after close) | peg.above_200 | the PEG-day close 205.73 was under the 200-day (302.98); the rule is a close over the 200-day (+16.0% gap on 3.1x, close at 0.82, down 42% over 65 sessions) | A bear-market relief gap under a falling 200-day: no long setup (B26). The would-be pause buy at 212.49 was stopped, 0.0R. |
+
+**What the failures have in common.** All four were stopped within two sessions of the buy and none reached 1R (the
+best was 0.42R), so each loss was about 1R. Two of the four (AAPL, MSFT) were the shortest pause the rule allows (two
+sessions, triggered on day 4); the other two paused longer (NVDA six sessions, CELH five) and drifted. In every case the
+pause held inside the PEG day's range and the stop sat a few cents under the trigger day's low, above the PEG-day high
+in three of the four (NVDA, AAPL, MSFT), so a one-session reversal of the breakout was enough to hit it, long before any
+test of the PEG-day low.
+Two of the four (NVDA, AAPL) were widely covered mega-caps and two (NVDA +36%, AAPL +15%) were already up into the
+report. The near-miss scan adds this about the gates: the 5,621 near-misses reached 3R 29.6% of the time against 31.0%
+for the strict rule, and by gate, a lower-half close 28.3% (2,565 hits), a gap of 2% to 4% 31.3% (1,676), the same shape
+on a non-report day 27.2% (905), a close under the 200-day 38.7% (323), a trigger on session 12 to 20 24.8% (109) and
+1.0x to 1.5x volume 34.9% (43). The close and the pause window are the gates that matter in this sample; the 4% floor,
+the 200-day and the volume floor did not separate, which belongs in section 10 next to the owner's question on the
+200-day. [my computation]

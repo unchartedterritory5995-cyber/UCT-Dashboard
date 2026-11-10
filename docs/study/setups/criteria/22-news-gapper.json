@@ -1211,9 +1211,46 @@
     "trigger": "2026-01-21",
     "criterion": "ng.not_late",
     "note": "gap 2026-01-15, +11.1% on 18.2x, a 1-year volume high; the stock was already up 23.8% over 65 sessions and the day-4 reclaim at 357.70 reached 0.45R before the stop. Late in a run, even the loudest gap is a poor Buy 2."
+   },
+   {
+    "ticker": "GE",
+    "date": "2015-04-15",
+    "criterion": "ng.stop_pullback",
+    "why": "gap 2015-04-10, +5.4% on 10.0x volume (a 1-year high), a news gap (not a report day), closing at 90% of its range; the day-4 reclaim at 133.43 with the stop 1.7% away under the shallow pullback low, inside the wide gap bar, was stopped the next session, 0.0R."
    }
   ],
-  "limits": "The day-one proxy is the close before 2023-12; the news class means not a report day, not a verified headline; the 65-session not-late test and the 3-times volume line are the dossier's proposals. Two examples (INTC, CCJ) need their headline confirmed before they are used as news models. Nothing here is a published statistic."
+  "limits": "The day-one proxy is the close before 2023-12; the news class means not a report day, not a verified headline; the 65-session not-late test and the 3-times volume line are the dossier's proposals. Two examples (INTC, CCJ) need their headline confirmed before they are used as news models. Nothing here is a published statistic.",
+  "near_misses": [
+   {
+    "ticker": "BA",
+    "date": "2023-07-26",
+    "criterion": "ng.gap_floor",
+    "why": "report 2023-07-26; the open was 3.8% over the prior close on 4.8x volume, close at 97%; the rule is 4% or more. A strong earnings day without the gap: not a gapper. The would-be day-5 pullback buy at 239.08 was stopped, 0.0R."
+   },
+   {
+    "ticker": "AAPL",
+    "date": "2022-01-28",
+    "criterion": "ng.volume",
+    "why": "report 2022-01-27; a +4.1% gap on 1.7x the 50-day volume, closing at its high; the rule is 3x or more. 1.7x clears the PEG floor (1.5x): a Power Earnings Gap (21), not a gapper. The would-be day-4 buy at 174.85 was stopped, 0.0R."
+   },
+   {
+    "ticker": "NFLX",
+    "date": "2018-10-17",
+    "criterion": "ng.gap_holds",
+    "why": "report 2018-10-16; a +9.2% gap on 3.3x that closed at 35% of its range; the rule is the upper half. The gap held (low 35.65 above the prior close 34.64) but the day faded: not a gapper, and not a News Failure either (it closed green). The would-be close buy at 36.47 was stopped, 0.0R."
+   },
+   {
+    "ticker": "URI",
+    "date": "2024-01-25",
+    "criterion": "ng.not_late",
+    "why": "report 2024-01-24; a +5.5% gap on 4.0x, close at 89%, on a stock up 42% over the prior 65 sessions; the rule is not more than about 30%. Late in a run: the climax risk. The would-be day-4 pullback buy at 648.26 was stopped, 0.0R."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_20-episodic-pivot.png"
+  }
  },
  "question_seeds": [
   {

@@ -1378,3 +1378,46 @@ reclaim at 51.76 failed the next session, best 0.0R; the whole gap was given bac
 reached 0.45R before the stop; late in a run, even the loudest gap is a poor Buy 2. The pattern across the losers: the
 pullback buy fails most often when the reclaim comes early (day 4) after a very wide day-one range, when the stop sits
 under a shallow pullback inside that wide gap bar, and when the stock was already extended before the gap.
+
+## 13. Failures and near-misses (from our data)
+
+Added 2026-11-10 from the same scan as section 12 (`ng_scan.py`, `final/hits.json`) and a near-miss scan
+(`near_scan.py`, `final/near_hits.json`): the section-12 rule run again over the 2,630 liquid names with one gate relaxed
+at a time, keeping only the gaps that fail exactly one of ng.gap_floor (an open 2% to 4% over the prior close), ng.volume
+(1.5x to 3x), ng.gap_holds (a close in the lower half with the gap still open), ng.above_200, ng.not_late (up more than
+30% over the prior 65 sessions) or ng.entry_pullback (the first pullback trigger on session 12 to 20) and pass every
+other gate; day-one close proxies and pullback buys only, no hourly buys. Charts (scratch folder, not in the repo):
+`final/fail_1-4.png`, `final/near_1-4.png` and `final/pair_20-episodic-pivot.png` (a News Gapper above an Episodic
+Pivot, the card's first look-alike, each with its tell). Script `fail_near.py`; every number below is in
+`final/fail_near.json`. Outcome as in section 12: a fixed stop, no trims, 60 sessions. [my computation]
+
+**Four valid News Gappers that lost.** Every gate of the card passed; the house stop was hit; one per name, four years.
+All four are pullback buys (Buy 2), since that is where the losses of section 12 sit.
+
+| # | Ticker | Gap day (class) | Gap / volume / close in range / run65 | Buy (trigger) | Stop | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|---|---|
+| 1 | AVAV | 2024-03-05 (earnings, report 2024-03-04) | +15.3% / 15.8x, a 1-year high / 79% / -3% | 162.59 on 2024-03-14 (pullback day 8, over 162.58) | 158.43 (2.6%) | 2024-03-15, day 1, best 0.0R | An 8-session pullback bought late in the window; straight to the stop without a single higher high. A big-volume gap does not protect a late Buy 2. | ng.entry_pullback |
+| 2 | SEDG | 2019-05-07 (earnings, report 2019-05-06) | +15.0% / 11.4x, a 1-year high / 84% / +2% | 51.76 on 2019-05-10 (pullback day 4, over 51.75) | 50.50 (2.4%) | 2019-05-13, day 1, best 0.0R | The day-4 reclaim failed the next session and the whole gap was given back within weeks. (The card lists this trade under 2019-05-13; that is the stop day, the buy was 2019-05-10.) | ng.inv_close_under_low |
+| 3 | PEN | 2026-01-15 (earnings, report 2026-01-15) | +11.1% / 18.2x, a 1-year high / 76% / +24% | 357.70 on 2026-01-21 (pullback day 4, over 356.65) | 349.07 (2.4%) | 2026-02-04, day 10, best 0.45R | Already up 23.8% over 65 sessions, near the 30% line; the reclaim made 0.45R and drifted for ten sessions before the stop, the time-stop case (ng.time_stop would have sold it at under 1R). | ng.not_late |
+| 4 | GE | 2015-04-10 (news, not a report day) | +5.4% / 10.0x, a 1-year high / 90% / +7% | 133.43 on 2015-04-15 (pullback day 4, over 133.42) | 131.17 (1.7%) | 2015-04-16, day 1, best 0.0R | A day-4 reclaim after a 10x-volume gap; the stop under the shallow pullback low, inside the wide gap bar, went the next session. | ng.stop_pullback |
+
+**Four near-misses.** Each looks like a gapper and fails exactly one gate; the would-be buy follows the section-12 entry
+so the levels can be compared with the winners. No trade is implied.
+
+| # | Ticker | Gap day (class) | The one criterion that fails | The number | What it really is |
+|---|---|---|---|---|---|
+| 1 | BA | 2023-07-26 (earnings, report 2023-07-26) | ng.gap_floor | the open was 3.8% over the prior close; the rule is 4% or more (4.8x volume, close at 97%) | A strong earnings day without the gap: not a gapper, a base breakout at best. The would-be day-5 pullback buy at 239.08 was stopped, 0.0R. |
+| 2 | AAPL | 2022-01-28 (earnings, report 2022-01-27) | ng.volume | 1.7x the 50-day average volume; the rule is 3x or more (+4.1% gap, close at the high of the day) | 1.7x clears the Power Earnings Gap floor (1.5x), so it is a PEG (setup 21), not a gapper; the same trade is a listed PEG failure (section 12 of that dossier). The would-be day-4 buy at 174.85 was stopped, 0.0R. |
+| 3 | NFLX | 2018-10-17 (earnings, report 2018-10-16) | ng.gap_holds | closed at 35% of the day's range; the rule is the upper half. The gap held (low 35.65 above the prior close 34.64) | A faded gap day: the +9.2% open was sold to the lower third. Not a gapper and not a News Failure either (it closed green). The would-be close buy at 36.47 was stopped, 0.0R. |
+| 4 | URI | 2024-01-25 (earnings, report 2024-01-24) | ng.not_late | up 42% over the prior 65 sessions; the rule is not more than about 30% (+5.5% gap on 4.0x, close at 89%) | A late gap in a stock already run up: the climax risk of 8.5. The would-be day-4 pullback buy at 648.26 was stopped, 0.0R. |
+
+**What the failures have in common.** All four came after very loud gap days (10x to 18x volume, each the highest of
+its year) and all four were pullback buys whose stop sat under a shallow pullback inside the gap bar's range; three were
+stopped the next session and the fourth (PEN) drifted for ten sessions under 1R. Three of the four reclaims came on day
+4, the earliest the rule allows after a two-session pullback, which repeats the section-12 reading that the early
+reclaim after a very wide day-one range is where Buy 2 fails. None reached 1R, so each loss was about 1R. The near-miss
+scan adds this about the gates: the 4,531 near-misses reached 3R 28.6% of the time against 29.4% for the strict rule,
+and by gate, a lower-half close 28.0% (1,781 hits), 1.5x to 3x volume 27.8% (1,440), a gap of 2% to 4% 31.0% (988), a
+close under the 200-day 26.4% (231), up more than 30% in 65 sessions 35.4% (79) and a pullback trigger on session 12 to
+20 16.7% (12). Only the late pullback window separates clearly in this sample; the other gates define the setup more
+than they predict it, which belongs in section 10 next to the volume and not-late questions. [my computation]

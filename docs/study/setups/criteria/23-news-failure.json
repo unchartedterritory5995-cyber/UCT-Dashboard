@@ -1013,9 +1013,52 @@
     "trigger": "2025-08-05",
     "criterion": "nf.inv_failure_failed",
     "note": "short, earnings: gap up 5.4%, closed in the bottom 10% of the range, reached 0.9R and then reversed through the day's high. The failure itself failed."
+   },
+   {
+    "ticker": "TTD",
+    "date": "2022-02-16",
+    "criterion": "nf.stop_width",
+    "why": "long, earnings: a 4.6% gap down on 3.5x volume closed 0.5% over the prior close in the top 8% of the range after a 27% fall, the crowded case the rule likes; the stop under the day's low was 11.8% away and went in five sessions at 0.33R. Size or skip by A13 and 8.3."
+   },
+   {
+    "ticker": "UAL",
+    "date": "2020-05-19",
+    "criterion": "nf.market_short",
+    "why": "short, news (no report that day): gapped up 6.2% on 2.2x after a 36% run and closed 1.9% under the prior close in the bottom 15% of the range; the stop over the day's high (6.6%) went in two sessions, 0.0R. A short in a Green market: the bearish read is a poor sell signal when the market is being bought."
    }
   ],
-  "limits": "No news feed, so a gap-and-volume stand-in defines news; the earnings file classes gaps only from about 2005 and only for names with report dates (STNG and NBIS have none). Entries and stops are tested on daily bars, a touch of the extreme ends the trade, B20 is not modelled, and the intraday red-to-green entry could not be back-tested across the ten; the examples' triggers are the daily prior close. About two losses for every 3R winner. Nothing here is a published statistic."
+  "limits": "No news feed, so a gap-and-volume stand-in defines news; the earnings file classes gaps only from about 2005 and only for names with report dates (STNG and NBIS have none). Entries and stops are tested on daily bars, a touch of the extreme ends the trade, B20 is not modelled, and the intraday red-to-green entry could not be back-tested across the ten; the examples' triggers are the daily prior close. About two losses for every 3R winner. Nothing here is a published statistic.",
+  "near_misses": [
+   {
+    "ticker": "STX",
+    "date": "2026-10-28",
+    "criterion": "nf.scan_standin",
+    "why": "long, earnings 2026-10-27: the open was only 3.1% under the prior close (2.5x volume, closed +4.5% in the top 1% of the range after a 34% fall); the stand-in needs a 4% gap on 2x volume. The shape and the crowding without the gap: a Red to Green day (43) on a report, not this setup."
+   },
+   {
+    "ticker": "HAL",
+    "date": "2010-01-25",
+    "criterion": "nf.failure_close",
+    "why": "long, earnings: a 4.7% gap down on 2.3x traded back over the prior close (31.15) but closed at 31.07, 0.3% under it, in the top 22% of the range; the rule is a close above the prior close. The failure did not confirm; an intraday red-to-green buy at 31.16 made 0.2R and was stopped."
+   },
+   {
+    "ticker": "TSLA",
+    "date": "2025-04-02",
+    "criterion": "nf.above_200",
+    "why": "long, earnings per the report file: a 5.2% gap down on 2.1x closed +5.3% in the top 7% of the range after a 39% fall, but at 282.76, under the 200-day (288.05); the long needs a close above the 200-day. A bear-phase reversal on the wrong side of the average (B26). The would-be buy at 268.47 reached 0.45R and was stopped."
+   },
+   {
+    "ticker": "UNH",
+    "date": "2026-10-13",
+    "criterion": "nf.short_below_200",
+    "why": "short, earnings: gapped up 5.0% on 2.7x and closed 0.2% under the prior close in the bottom 18% of the range, but at 377.76, above the 200-day (358.04); the short needs a close below it. Above the 200-day the read only sells longs. The would-be short at 378.51 was stopped, 0.0R."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_22-news-gapper.png"
+  }
  },
  "question_seeds": [
   {

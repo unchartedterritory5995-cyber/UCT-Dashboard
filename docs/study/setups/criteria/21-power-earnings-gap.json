@@ -1196,9 +1196,46 @@
     "trigger": "2018-08-06",
     "criterion": "peg.gap_floor",
     "note": "one of the mega-caps (also AAPL 2022-02-02, MSFT 2015-04-29, NFLX 2023-01-25, ZM 2025-12-02) gapping 4% to 5% on 2x to 3x volume that gave the thinnest follow-through in the sample; the B- cue for a small gap on a widely covered name."
+   },
+   {
+    "ticker": "MSFT",
+    "date": "2015-04-29",
+    "criterion": "peg.entry_pause",
+    "why": "PEG day 2015-04-24 (report 2015-04-23), +5.4% gap (3.2x ATR40), 3.8x volume, close at 0.89; a two-session pause, the shortest the rule allows, bought over 49.21 with a 1.6% stop and back into the PEG bar in two sessions, best 0.42R. No gate fails: the base rate, seven in ten stopped."
    }
   ],
-  "limits": "A survivor-biased universe on daily bars; the day-one buy is a close proxy; the report-date cache's time of day can be wrong; the fundamentals, the RS rating and the market reading are not in the scan. Prices are split-adjusted (AMZN 2017 at $56). Nothing here is a published statistic."
+  "limits": "A survivor-biased universe on daily bars; the day-one buy is a close proxy; the report-date cache's time of day can be wrong; the fundamentals, the RS rating and the market reading are not in the scan. Prices are split-adjusted (AMZN 2017 at $56). Nothing here is a published statistic.",
+  "near_misses": [
+   {
+    "ticker": "BA",
+    "date": "2025-12-02",
+    "criterion": "peg.catalyst",
+    "why": "a +6.3% gap (2.4x ATR40) on 2.7x volume, close at 0.96, on a day that is not a report reaction day (the last was 2025-10-29); every other gate passes. A News Gapper (22), not a PEG. The would-be pause buy at 205.86 on 2025-12-08 was stopped, 0.0R."
+   },
+   {
+    "ticker": "AAPL",
+    "date": "2023-05-05",
+    "criterion": "peg.gap_floor",
+    "why": "report 2023-05-04; the open was 3.1% over the prior close on 1.9x volume, close at 0.79; the rule is 4% or more. An ordinary earnings up-day, not a gap setup. The would-be day-one close buy at 173.57 reached 0.36R and was stopped."
+   },
+   {
+    "ticker": "AMD",
+    "date": "2022-02-02",
+    "criterion": "peg.close",
+    "why": "report 2022-02-01; an 11.2% gap on 2.7x that closed at 0.23 of its range with the gap still open (low 120.64 above the prior close 116.78); the rule is the top half. A faded PEG day: a delayed-reaction watch, not a buy. The would-be close buy at 122.76 was stopped, 0.0R."
+   },
+   {
+    "ticker": "META",
+    "date": "2022-04-28",
+    "criterion": "peg.above_200",
+    "why": "report 2022-04-27; a +16.0% gap on 3.1x, close at 0.82, after a 42% fall over 65 sessions; the PEG-day close 205.73 was under the 200-day (302.98); the rule is a close over the 200-day. A bear-market relief gap: no long. The would-be pause buy at 212.49 was stopped, 0.0R."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_20-episodic-pivot.png"
+  }
  },
  "question_seeds": [
   {

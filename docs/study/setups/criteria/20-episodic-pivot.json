@@ -1290,9 +1290,46 @@
     "trigger": "2015-07-21",
     "criterion": "ep.inv_late",
     "note": "a 13% earnings gap on 2015-07-17 on 7.4x volume after a 19% six-month rise; the day-3 break reached only 0.5R before stopping out. The already-up-into-the-news case."
+   },
+   {
+    "ticker": "ANF",
+    "date": "2012-11-15",
+    "criterion": "ep.gap_too_big",
+    "why": "a 28.5% earnings gap on 2012-11-14 on 15.0x volume, closed at 97% of its range after a 31% six-month decline; the day-2 break of the post-gap high at 42.01 (stop 40.97) hit the stop the next session, 0.0R. The gap over the 25% line, bought on the first break and reversed at once."
    }
   ],
-  "limits": "The named catalyst, the fundamentals, the RS rating, the market reading and the trims are not in the scan. The real day-one buy over the opening-range high cannot be seen on daily bars; the day-one proxy is the close with the stop under the gap-day low within 3%, which is why nine of the ten examples are day 2 to 4 entries. No delisted names, so the base rate leans toward survivors. Nothing here is a published statistic."
+  "limits": "The named catalyst, the fundamentals, the RS rating, the market reading and the trims are not in the scan. The real day-one buy over the opening-range high cannot be seen on daily bars; the day-one proxy is the close with the stop under the gap-day low within 3%, which is why nine of the ten examples are day 2 to 4 entries. No delisted names, so the base rate leans toward survivors. Nothing here is a published statistic.",
+  "near_misses": [
+   {
+    "ticker": "GOOG",
+    "date": "2013-10-18",
+    "criterion": "ep.gap_floor",
+    "why": "the open was 9.9% over the prior close on 6.9x volume, close at 90% of range; the rule is 10% or more. A report-day gap on an established leader: a Power Earnings Gap (21), not an EP. The would-be day-2 buy at 25.30 was stopped, 0.0R."
+   },
+   {
+    "ticker": "MU",
+    "date": "2024-09-26",
+    "criterion": "ep.close",
+    "why": "an 18.1% earnings gap on 4.6x that closed at 32% of its range; the rule is the upper half. The gap held (low 107.53 above the prior close 95.77) but the day faded: not an EP. The would-be close buy at 109.88 was stopped, 0.0R."
+   },
+   {
+    "ticker": "CRM",
+    "date": "2020-08-26",
+    "criterion": "ep.neglect",
+    "why": "a 16.6% earnings gap on 11.2x, close at 80%, on a stock up 25.5% over 126 sessions and 19.3% over 63; the rule is at most 25% and 15%. Not neglected: a Power Earnings Gap (21) on a leader at highs. The day-5 break at 278.29 was stopped, 0.0R."
+   },
+   {
+    "ticker": "AMZN",
+    "date": "2022-02-04",
+    "criterion": "ep.above_200",
+    "why": "a 12.1% earnings gap on 3.6x, close at 66%, down 17% over six months; the day-2 buy at 161.21 was under the 200-day (168.35); the rule is price above the 200-day. A bear-market gap under a falling average: no long. Stopped, 0.0R."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_21-power-earnings-gap.png"
+  }
  },
  "question_seeds": [
   {

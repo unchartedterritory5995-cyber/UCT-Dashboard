@@ -1091,3 +1091,48 @@ earnings file tells an earnings gap from a non-earnings gap only from about 2005
 30-minute gap rule B20 is not modelled). Intraday bars exist only for the last 60 trading days (5-minute) or since
 2023-12 (hourly) for 1,000 names, so the intraday red-to-green entry of 8.2 could not be back-tested across the ten; the
 examples' triggers are the daily prior close. The full 2,630-name universe was scanned, so no coverage caveat applies.
+
+## 13. Failures and near-misses (from our data)
+
+Added 2026-11-10 from the same scan as section 12 (`scan_nf.py`, `final/hits.json`) and a near-miss scan
+(`near_scan.py`, `final/near_hits.json`): the section-12 stand-in run again over the 2,630 liquid names with one gate
+relaxed at a time, keeping only the days that fail exactly one of nf.scan_standin (an open only 2% to 4% under the prior
+close, or volume only 1.2x to 2x), nf.failure_close (the day trades back over the prior close but closes under it, in the
+top 60% of its range), nf.above_200 (the long closes under the 200-day) or nf.short_below_200 (the short closes above
+it) and pass every other gate. Charts (scratch folder, not in the repo): `final/fail_1-4.png`, `final/near_1-4.png` and
+`final/pair_22-news-gapper.png` (a News Failure short above a News Gapper, the card's first look-alike, each with its
+tell). Script `fail_near.py`; every number below is in `final/fail_near.json`. Outcome as in section 12: a fixed stop
+$0.03 beyond the news day's extreme, no trims, 60 sessions. [my computation]
+
+**Four valid News Failures that lost.** Every gate of the stand-in passed; the stop was hit; one per name, four years,
+two longs and two shorts.
+
+| # | Ticker | Date, side (class) | Gap / volume / close vs prior close / range / 60-day trend | Buy (trigger) | Stop | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|---|---|
+| 1 | MRVL | 2026-06-04, long (news, no report that day) | -6.2% / 2.7x / +4.9% / top 12% / fall 7% | 301.66 (the prior close plus a cent) | 277.53 (8.0%) | 2026-06-05, day 1, best 0.0R | A strong-looking failure after only a 7% pullback: no crowding behind it (8.5, 8.8); the 8% stop went the next session. | nf.crowding |
+| 2 | ZTS | 2025-08-05, short (earnings 2025-08-05) | +5.4% / 2.3x / -3.7% / bottom 10% / run 5% | 151.80 (the prior close less a cent) | 160.08 (5.5%) | 2025-08-20, day 11, best 0.91R | Reached 0.9R, then reversed up through the news day's high: the failure itself failed. Only a 5% run before the news, so no crowded longs to unwind. | nf.inv_failure_failed |
+| 3 | TTD | 2022-02-16, long (earnings 2022-02-16) | -4.6% / 3.5x / +0.5% / top 8% / fall 27% | 80.53 | 71.02 (11.8%) | 2022-02-24, day 5, best 0.33R | The crowded case the rule likes (down 27% in 60 sessions) with an 11.8% stop: a skip or a small size by A13 and 8.3; gone in five sessions at 0.33R. | nf.stop_width |
+| 4 | UAL | 2020-05-19, short (news, no report that day) | +6.2% / 2.2x / -1.9% / bottom 15% / run 36% | 24.12 | 25.70 (6.6%) | 2020-05-21, day 2, best 0.0R | A short in a Green market (May 2020): good news sold to the low of the day, then the market carried the stock back up through the high in two sessions. | nf.market_short |
+
+**Four near-misses.** Each looks like a News Failure and fails exactly one gate; the would-be entry is the section-12
+one (the prior close plus or minus a cent) so the levels can be compared with the winners. No trade is implied.
+
+| # | Ticker | Date, side (class) | The one criterion that fails | The number | What it really is |
+|---|---|---|---|---|---|
+| 1 | STX | 2026-10-28, long (earnings 2026-10-27) | nf.scan_standin | the open was only 3.1% under the prior close; the stand-in needs a 4% gap on 2x volume (2.5x volume, closed +4.5% in the top 1% of the range after a 34% fall) | The shape and the crowding of a News Failure without the gap: a Red to Green day (setup 43) on an earnings report, taught as the house trigger, not as this setup. Would-be buy 667.86, best 1.09R so far (the data ends 2026-11-06). |
+| 2 | HAL | 2010-01-25, long (earnings 2010-01-25) | nf.failure_close | traded back over the prior close 31.15 during the day but closed at 31.07, 0.3% under it; the rule is a close above the prior close (-4.7% gap on 2.3x, closed in the top 22% of the range) | The failure did not confirm: Shapiro's end-of-day test fails, so no trade at the close; an intraday red-to-green buy at 31.16 would have made 0.2R and been stopped. |
+| 3 | TSLA | 2025-04-02, long (earnings 2025-04-02 per the report file) | nf.above_200 | closed at 282.76, under the 200-day (288.05); the long needs a close above the 200-day (-5.2% gap on 2.1x, closed +5.3% in the top 7% of the range after a 39% fall) | A bear-phase reversal under the 200-day: the crowded shape, the wrong side of the average (B26); at most the mean-reversion read of 8.1, which is the owner's call. Would-be buy 268.47 reached 0.45R and was stopped. |
+| 4 | UNH | 2026-10-13, short (earnings 2026-10-13) | nf.short_below_200 | closed at 377.76, above the 200-day (358.04); the short needs a close below it (+5.0% gap on 2.7x, closed -0.2% in the bottom 18% of the range) | Above the 200-day the read is used only to sell longs or cut exposure, never as a short (8.1). The would-be short at 378.51 was stopped, 0.0R. |
+
+**What the failures have in common.** The stops were wide, 5.5% to 11.8%, because the stop is the news day's extreme,
+and three of the four were hit within two sessions (ZTS took eleven after reaching 0.9R). In three of the four the
+crowding the rule wants was missing: MRVL after a 7% pullback, ZTS after a 5% run, UAL in a market that was being
+bought, not sold; the one crowded case (TTD) lost on stop size. None reached 1R, so each loss was about 1R, but at an 8%
+to 12% stop that 1R is a large position risk for the account (A13, 8.3), which is why most of these are skips. The
+near-miss scan adds this about the gates: the 4,491 near-misses reached 3R 37.5% of the time against 33.4% for the
+strict rule, and by gate, a long on a 2% to 4% gap 45.1% (1,618 hits), a long that closed under the 200-day 39.6%
+(1,025), a short that closed above the 200-day 30.1% (816, against 34.4% for the strict short), 1.2x to 2x volume 33.7%
+(795) and a day that traded back over the prior close but closed under it 13.9% (237). The close is the gate that
+matters, by far: the failure that does not close on the right side of the prior close is a different animal. The 4% gap
+stand-in looks too strict in this sample (a smaller gap reversed did better, with a tighter stop), which belongs in
+section 10 next to the stand-in question. [my computation]
