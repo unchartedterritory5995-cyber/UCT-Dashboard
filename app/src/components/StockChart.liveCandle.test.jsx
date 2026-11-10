@@ -17,8 +17,14 @@ vi.mock('lightweight-charts', () => {
     const s = {
       __ctor: ctor, __options: { ...(options || {}) }, __data: [],
       setData: (d) => { s.__data = [...(d || [])] },
-      update: (p) => {
+      update: (p, historical) => {
         if (!p) return
+        if (historical) {
+          const i = s.__data.findIndex(d => d.time === p.time)
+          if (i < 0) throw new Error('historical update of a missing time')
+          s.__data = [...s.__data.slice(0, i), p, ...s.__data.slice(i + 1)]
+          return
+        }
         const last = s.__data[s.__data.length - 1]
         if (last && typeof p.time === 'number' && typeof last.time === 'number' && p.time < last.time) {
           throw new Error('Cannot update oldest data')
@@ -193,5 +199,19 @@ describe('fallback (push NOT delivering) — Writer C on 1m', () => {
     const b = tail()
     for (const k of ['open', 'high', 'low', 'close']) expect(Number.isFinite(b[k])).toBe(true)
     expect(b).toMatchObject({ open: 20.0, high: 20.8, low: 19.6, close: 20.35 })
+  })
+})
+
+describe('W-B contract: a FINAL bar with an OLDER t than the developing bar', () => {
+  it('replaces that closed bar in place and leaves the developing candle alone', async () => {
+    await mount({ o: 20.0, h: 20.8, l: 19.6, c: 20.1, v: 5000 })
+    const offset = tail().time - T1400
+    push(T1400 + 300, 20.2, 20.25, 20.15, 20.2, 50)        // developing 14:05
+    push(T1400, 20.0, 20.9, 19.5, 20.15, 5400, { final: true, trade_ts: (T1400 + 299) * 1000 })
+    const d = candle().__data
+    expect(d[d.length - 1]).toMatchObject({ time: T1400 + 300 + offset, open: 20.2, high: 20.25, low: 20.15, close: 20.2 })
+    expect(d[d.length - 2]).toMatchObject({ time: T1400 + offset, open: 20.0, high: 20.9, low: 19.5, close: 20.15 })
+    push(T1400 + 300, 20.2, 20.3, 20.1, 20.28, 90)
+    expect(tail()).toMatchObject({ time: T1400 + 300 + offset, high: 20.3, low: 20.1, close: 20.28 })
   })
 })

@@ -199,3 +199,19 @@ describe('mergeRegistryMinute (Writer C, 1m)', () => {
     expect(isCompleteOhlc(m)).toBe(true)
   })
 })
+
+describe('W-B contract additions', () => {
+  it('a FINAL frame with an older t is a correction of that closed bucket, a non-final one is stale', () => {
+    const prev = bar(at(10, 10), 20.2, 20.3, 20.1, 20.2, 50, { sym: 'SYN' })
+    const fin = mergePushBar(prev, bar(at(10, 5), 20, 20.9, 19.5, 20.1, 5000), { sym: 'SYN', tf: '5', final: true })
+    expect(fin.kind).toBe('correct')
+    expect(fin.bar).toMatchObject({ time: at(10, 5), high: 20.9, low: 19.5, final: true })
+    expect(mergePushBar(prev, bar(at(10, 5), 20, 20.9, 19.5, 20.1, 5000), { sym: 'SYN', tf: '5' }).kind).toBe('stale')
+  })
+  it('ETH 60m buckets are clock hours (no 9:30 cut); RTH keeps the anchors', () => {
+    expect(bucketEndTime(at(9, 0), '60', 'eth')).toBe(at(10, 0))
+    expect(bucketEndTime(at(9, 0), '60', 'rth')).toBe(at(9, 30))
+    expect(foldPrice(bar(at(9, 0), 20, 20, 20, 20), 21, at(9, 45), '60', 'eth').kind).toBe('update')
+    expect(foldPrice(bar(at(9, 0), 20, 20, 20, 20), 21, at(9, 45), '60', 'rth').kind).toBe('later')
+  })
+})

@@ -39,11 +39,13 @@ export const LIVE_PERIOD_SECONDS = Object.freeze({ '1': 60, '5': 300, '15': 900,
  * time of day. 60m is TradingView-aligned (owner ruling: 9:30, 10:30 … 15:30 half
  * bar), so a 60m bucket never spans the 9:30 open or the 16:00 close — those are
  * session anchors that cut it short (pre-market 9:00 → 9:30, 15:30 → 16:00).
+ * session='eth' is the server's extended-hours alignment: plain CLOCK hours
+ * (04:00 … 19:00), no anchors — matches /api/stream/bars?session=eth.
  */
-export function bucketEndTime(barTime, tf) {
+export function bucketEndTime(barTime, tf, session = 'rth') {
   const period = LIVE_PERIOD_SECONDS[String(tf)] || 300
   let end = barTime + period
-  if (String(tf) === '60') {
+  if (String(tf) === '60' && session !== 'eth') {
     const tod = ((barTime % 86400) + 86400) % 86400
     const day = barTime - tod
     for (const anchor of [570 * 60, 960 * 60]) {
@@ -65,14 +67,18 @@ export function bucketEndTime(barTime, tf) {
  * @param {number} [opts.tradeTs] unix ms of the newest trade folded into `inc`
  * @param {string} [opts.tf]   chart timeframe code (for the trade_ts bucket check)
  * @param {number} [opts.timeOffsetSec] chart time = unix seconds + this (to compare trade_ts)
- * @returns {{kind:'new'|'update'|'stale'|'drop', bar?:object}}
+ * @param {string} [opts.session] 'rth' | 'eth' (60m alignment, see bucketEndTime)
+ * @returns {{kind:'new'|'update'|'stale'|'correct'|'drop', bar?:object}}
  *   new    — inc opens a later bucket than prev (or there is no usable prev): paint inc as is
  *   update — same bucket: paint the merged bar
  *   stale  — inc is for an EARLIER bucket than prev: never paint it over the live candle
+ *   correct — a FINAL bar for an EARLIER bucket (the server's late AM correction of the
+ *            just-closed bucket): the caller replaces THAT historical bar in place and
+ *            leaves the developing candle alone
  *   drop   — malformed / inconsistent frame
  */
 export function mergePushBar(prev, inc, opts = {}) {
-  const { sym = null, final = false, tradeTs = null, tf = null, timeOffsetSec = 0 } = opts
+  const { sym = null, final = false, tradeTs = null, tf = null, timeOffsetSec = 0, session = 'rth' } = opts
   if (!inc || !Number.isFinite(inc.time) || !isCompleteOhlc(inc)) return { kind: 'drop' }
   // I4 by trade time: when the server tells us WHEN the newest trade in this bar
   // printed, it must fall inside the bar's own bucket. A frame whose trade lies
@@ -80,13 +86,17 @@ export function mergePushBar(prev, inc, opts = {}) {
   // the boundary. (Absent field ⇒ trust the bucket, the pre-existing contract.)
   if (Number.isFinite(tradeTs) && tf != null) {
     const tradeChart = Math.floor(tradeTs / 1000) + timeOffsetSec
-    if (tradeChart < inc.time || tradeChart >= bucketEndTime(inc.time, tf)) return { kind: 'drop' }
+    if (tradeChart < inc.time || tradeChart >= bucketEndTime(inc.time, tf, session)) return { kind: 'drop' }
   }
   const usable = prev && Number.isFinite(prev.time) && (sym == null || prev.sym == null || prev.sym === sym)
   if (!usable || inc.time > prev.time) {
     return { kind: 'new', bar: { ...inc, volume: _vol(inc.volume), sym, tradeTs: Number.isFinite(tradeTs) ? tradeTs : null } }
   }
-  if (inc.time < prev.time) return { kind: 'stale' }
+  if (inc.time < prev.time) {
+    return final
+      ? { kind: 'correct', bar: { ...inc, volume: _vol(inc.volume), sym, final: true } }
+      : { kind: 'stale' }
+  }
   // Same bucket.
   if (final) {
     // The server's FINAL closed bar is the truth for H/L/C/V (it may legitimately be
@@ -169,14 +179,15 @@ export function reconcileWithServerTail(live, server, { sym = null, periodSec = 
  * @param {number} price
  * @param {number|null} tickTime chart-series time of the trade (null ⇒ unknown, treat as current bucket)
  * @param {string} tf          chart timeframe code
+ * @param {string} [session]   'rth' | 'eth' (60m alignment)
  * @returns {{kind:'update'|'later'|'earlier'|'drop', bar?:object}}
  *   later   — the trade is in a LATER bucket than `bar` (do not fuse; caller opens/awaits it)
  *   earlier — a late print for an earlier bucket (ignore)
  */
-export function foldPrice(bar, price, tickTime, tf) {
+export function foldPrice(bar, price, tickTime, tf, session = 'rth') {
   if (!finitePos(price) || !bar || !Number.isFinite(bar.time)) return { kind: 'drop' }
   if (Number.isFinite(tickTime) && tf != null) {
-    if (tickTime >= bucketEndTime(bar.time, tf)) return { kind: 'later' }
+    if (tickTime >= bucketEndTime(bar.time, tf, session)) return { kind: 'later' }
     if (tickTime < bar.time) return { kind: 'earlier' }
   }
   if (bar.final) return { kind: 'update', bar: { ...bar } }
