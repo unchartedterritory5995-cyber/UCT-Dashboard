@@ -45,7 +45,7 @@ ET = ZoneInfo("America/New_York")
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DIST = os.environ.get("HARNESS_DIST") or os.path.join(ROOT, "app", "dist")
 FAKE_NOW = datetime(2026, 9, 28, 11, 33, 0, tzinfo=ET)
-CACHE_LOGIC_VERSION = 8
+CACHE_LOGIC_VERSION = 7
 EXT_OPEN_MIN, EXT_CLOSE_MIN = 240, 1200
 
 

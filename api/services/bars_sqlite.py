@@ -523,7 +523,7 @@ def is_old_grid_60m_ts(ts: int) -> bool:
     return 10 <= dt.hour < close_h
 
 
-def ticker_has_old_grid_60m(c: sqlite3.Connection, ticker: str, probe: int = 400) -> bool:
+def ticker_has_old_grid_60m(c: sqlite3.Connection, ticker: str, probe: int = 120) -> bool:
     """Index-seek both ends of a ticker's tf=60 rows for an old-layout bucket."""
     for order in ("DESC", "ASC"):
         rows = c.execute(
@@ -535,15 +535,7 @@ def ticker_has_old_grid_60m(c: sqlite3.Connection, ticker: str, probe: int = 400
     return False
 
 
-def purge_old_grid_60m_ticker(ticker: str) -> int:
-    """Drop ALL of ``ticker``'s tf=60 rows plus its 60m disk/memory caches and
-    history-complete marker, so the next request rebuilds them on the new grid.
-    Returns SQLite rows deleted."""
-    tkr = ticker.upper()
-    c = _conn()
-    with _WRITE_LOCK:
-        cur = c.execute("DELETE FROM ohlcv WHERE ticker=? AND tf='60'", (tkr,))
-        c.commit()
+def _invalidate_60m_caches(tkr: str) -> None:
     try:
         from api.services import bars_disk_cache as _disk
         _disk.delete(tkr, "60")
@@ -555,7 +547,57 @@ def purge_old_grid_60m_ticker(ticker: str) -> int:
         _mem.delete_prefix(f"histfull_{tkr}_60")
     except Exception:  # noqa: BLE001
         pass
-    return cur.rowcount
+
+
+def replace_ticker_tf_rows(ticker: str, tf: str, bars: list[dict]) -> tuple[int, int]:
+    """Atomically replace ALL of (ticker, tf)'s rows with ``bars`` (validated like
+    ``put_bars``). One transaction under the write lock: a reader sees the old set
+    or the new one, never a mix. Returns (rows deleted, rows written)."""
+    tkr = ticker.upper()
+    keep, _rej = _writable_bars(tkr, tf, bars)
+    rows = [(tkr, tf, int(b["t"]), b.get("o"), b.get("h"), b.get("l"), b.get("c"),
+             int(b.get("v") or 0)) for b in keep]
+    c = _conn()
+    with _WRITE_LOCK:
+        try:
+            cur = c.execute("DELETE FROM ohlcv WHERE ticker=? AND tf=?", (tkr, tf))
+            deleted = cur.rowcount
+            if rows:
+                c.executemany(
+                    "INSERT OR REPLACE INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)", rows)
+            c.commit()
+        except BaseException:
+            c.rollback()
+            raise
+    return deleted, len(rows)
+
+
+#: One-time marker: set once a full sweep finds no old-grid 60m ticker. After
+#: it, boot/snapshot passes skip the per-ticker probe entirely (snapshot merges
+#: reject old-grid 60m rows at the door — data_sync._merge_pair).
+SIXTY_GRID_CLEAN_MARKER = "sixty_min_grid_tv_2026_11_10_clean"
+#: Tickers rebuilt per sweep pass (local 15m/30m resample, no provider call).
+#: The rest are rebuilt lazily on serve, or by the next pass.
+SIXTY_GRID_REBUILDS_PER_PASS = int(os.environ.get("BARS_SIXTY_GRID_REBUILDS_PER_PASS", "400"))
+
+
+def _sixty_grid_clean(c: sqlite3.Connection) -> bool:
+    try:
+        return c.execute("SELECT 1 FROM _migrations WHERE name=?",
+                         (SIXTY_GRID_CLEAN_MARKER,)).fetchone() is not None
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _mark_sixty_grid_clean(c: sqlite3.Connection) -> None:
+    try:
+        with _WRITE_LOCK:
+            c.execute("CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY, applied_at INTEGER)")
+            c.execute("INSERT OR IGNORE INTO _migrations(name, applied_at) VALUES (?, ?)",
+                      (SIXTY_GRID_CLEAN_MARKER, int(time.time())))
+            c.commit()
+    except Exception as e:  # noqa: BLE001
+        _logger.warning(f"[sqlite] 60m grid clean marker not written (non-fatal): {e}")
 
 
 def purge_mis_keyed_weekly_rows() -> int:
@@ -602,15 +644,23 @@ def purge_mis_keyed_weekly_rows() -> int:
 
     c = _conn()
     deleted = 0
+    # ⭐ Same pass, same PK-prefixed seeks: a ticker still carrying the
+    # pre-2026-11-10 clock-hour 60m layout is REBUILT in place from its own stored
+    # 15m/30m rows (bars_fetch.rebuild_sixty_min_grid — local, no provider call),
+    # bounded per pass. Skipped entirely once a pass has found none (marker).
+    sixty_probe = not _sixty_grid_clean(c)
+    sixty_old = sixty_rebuilt = 0
     for tkr in iter_tickers(c):
-        # ⭐ Same pass, same PK-prefixed seeks: a ticker still carrying the
-        # pre-2026-11-10 clock-hour 60m layout is wiped (see is_old_grid_60m_ts)
-        # — here so a snapshot pull can never resurrect it either.
-        try:
-            if ticker_has_old_grid_60m(c, tkr):
-                deleted += purge_old_grid_60m_ticker(tkr)
-        except Exception as e:  # noqa: BLE001 — never let the 60m check stop the weekly purge
-            _logger.warning(f"[sqlite] 60m grid purge {tkr} failed (non-fatal): {e}")
+        if sixty_probe:
+            try:
+                if ticker_has_old_grid_60m(c, tkr):
+                    sixty_old += 1
+                    if sixty_rebuilt < SIXTY_GRID_REBUILDS_PER_PASS:
+                        from api.services.bars_fetch import rebuild_sixty_min_grid
+                        rebuild_sixty_min_grid(tkr)
+                        sixty_rebuilt += 1
+            except Exception as e:  # noqa: BLE001 — never let the 60m check stop the weekly purge
+                _logger.warning(f"[sqlite] 60m grid rebuild {tkr} failed (non-fatal): {e}")
         bad = [
             ts for (ts,) in c.execute(
                 "SELECT ts FROM ohlcv WHERE ticker=? AND tf='W'", (tkr,)
@@ -629,6 +679,10 @@ def purge_mis_keyed_weekly_rows() -> int:
                 )
                 deleted += cur.rowcount
             c.commit()
+    if sixty_probe:
+        _logger.info(f"[sqlite] 60m grid: {sixty_old} old-layout ticker(s), {sixty_rebuilt} rebuilt this pass")
+        if sixty_old == 0:
+            _mark_sixty_grid_clean(c)
     if deleted:
         _logger.info(f"[sqlite] purge_mis_keyed_weekly_rows: deleted {deleted} stale weekly rows")
     return deleted

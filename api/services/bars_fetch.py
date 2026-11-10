@@ -2079,6 +2079,55 @@ def _session_resample_hourly(bars_src: list[dict], grid: str | None = None) -> l
     return _aggregate_buckets(bars_src, lambda t: bucket_60_et_unix_seconds(t, grid))
 
 
+def rebuild_sixty_min_grid(ticker: str) -> dict:
+    """Re-derive ``ticker``'s stored 60m series on the TradingView grid from its OWN
+    stored 15m / 30m rows — in process, NO provider call (2026-11-10 grid move).
+
+    Per ET day that the old 60m series covered, the finer source with more coverage
+    wins (15m, else 30m: native 30m is :00/:30-aligned, so pairing it onto the
+    09:30/10:30 grid is exact; a half-hour it dropped thins that hour, never deletes
+    it). A day neither source covers is dropped from 60m — it is the wrong grid and
+    cannot be split — and is refilled by the ordinary partial-depth fetch the next
+    time a chart asks for that depth (lazy, per viewed ticker, never a herd).
+    Atomic: readers see the old set or the rebuilt one."""
+    tkr = ticker.upper()
+    et = _ZI("America/New_York")
+    rows60 = _sqlite.get_bars_since(tkr, "60", -(1 << 62))
+    if not rows60:
+        return {"days": 0, "rebuilt": 0, "dropped_days": 0}
+
+    def _day(ts: int) -> int:
+        d = datetime.fromtimestamp(int(ts), et)
+        return d.year * 10000 + d.month * 100 + d.day
+
+    days = {_day(r[0]) for r in rows60}
+    lo = int(rows60[0][0]) - 86400
+
+    def _by_day(tf: str) -> dict:
+        out: dict[int, list[dict]] = {}
+        for ts, o, h, l, c, v in _sqlite.get_bars_since(tkr, tf, lo):
+            if o is None or h is None or l is None or c is None:
+                continue
+            dd = _day(ts)
+            if dd in days:
+                out.setdefault(dd, []).append({"t": int(ts), "o": o, "h": h, "l": l, "c": c, "v": v})
+        return out
+
+    src15, src30 = _by_day("15"), _by_day("30")
+    rebuilt: list[dict] = []
+    dropped = 0
+    for dd in sorted(days):
+        a, b = src15.get(dd, []), src30.get(dd, [])
+        src = a if len(a) * 15 >= len(b) * 30 and a else b
+        if not src:
+            dropped += 1
+            continue
+        rebuilt.extend(_session_resample_hourly(src))
+    _sqlite.replace_ticker_tf_rows(tkr, "60", rebuilt)
+    _sqlite._invalidate_60m_caches(tkr)
+    return {"days": len(days), "rebuilt": len(rebuilt), "dropped_days": dropped}
+
+
 # Trailing re-aggregation window for intraday delta fetches (seconds). The old
 # `>= last_ts` filter only ever corrected the NEWEST bar — an interior bar
 # stored mid-formation (partial volume / wrong close) froze forever once a newer
@@ -3963,15 +4012,17 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     _time_ck("last_ts")
     stored_rows = _sqlite.get_bars(ticker_up, tf, bars) if last_ts is not None else []
     _time_ck("get_bars")
-    # 60m grid migration, serve-time half (the boot purge is the other): rows in
-    # the pre-2026-11-10 clock-hour layout are never served — the ticker's 60m
-    # store is wiped and this request proceeds cold, re-resampling from 15m.
+    # 60m grid migration, serve-time half (the bounded boot sweep is the other):
+    # rows in the pre-2026-11-10 clock-hour layout are never served. The ticker's
+    # 60m is REBUILT locally from its stored 15m/30m (no provider call) and re-read;
+    # depth the finer stores lack is refilled by the normal partial-depth path.
     if tf == "60" and stored_rows and any(_sqlite.is_old_grid_60m_ts(r[0]) for r in stored_rows):
         try:
-            _sqlite.purge_old_grid_60m_ticker(ticker_up)
-        except Exception:  # noqa: BLE001 — fall through cold either way
-            pass
-        last_ts, stored_rows = None, []
+            rebuild_sixty_min_grid(ticker_up)
+            last_ts = _sqlite.get_last_ts(ticker_up, tf)
+            stored_rows = _sqlite.get_bars(ticker_up, tf, bars) if last_ts is not None else []
+        except Exception:  # noqa: BLE001 — never serve the old grid: go cold instead
+            last_ts, stored_rows = None, []
 
     # SQLite has fresh data AND enough rows for this request count.
     # The "len(stored_rows) >= bars * 0.9" check catches the case where SQLite

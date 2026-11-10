@@ -182,7 +182,12 @@ export function anchorsForDrawing(drawing, { bars = [], tf = 'D', etOffset = 0, 
   const anchorUtc = (p) => {
     const fb = Number.isFinite(p?.futureBars) ? p.futureBars : 0
     if (fb > 0 && bars.length) {
-      const lastUtc = toUtcSec(bars[bars.length - 1].t, etOffset)
+      // ⛔ `bars` are the RAW series (StockChart drawBarsRef = bars): an intraday
+      // `t` is already true unix seconds — only the DRAWING's point times are
+      // display epochs. Inverting it too put every past-the-last-candle anchor
+      // 4-5h late (the ET offset applied twice).
+      const lt = bars[bars.length - 1].t
+      const lastUtc = typeof lt === 'number' ? lt : toUtcSec(lt, etOffset)
       return Number.isFinite(lastUtc) ? lastUtc + fb * barSec : NaN
     }
     return toUtcSec(p?.time, etOffset)

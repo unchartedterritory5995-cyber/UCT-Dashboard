@@ -555,25 +555,91 @@ class TestOldGrid60mMigration:
         bars = TestSessionResample()._bars15((2026, 11, 27)) + TestSessionResample()._bars15((2026, 11, 2))
         assert not any(is_old_grid_60m_ts(b["t"]) for b in _session_resample_hourly(bars))
 
-    def test_purge_wipes_only_old_layout_tickers(self, tmp_path, monkeypatch):
+    def _db(self, tmp_path, monkeypatch):
         import sqlite3
         from api.services import bars_sqlite as bs
         db = sqlite3.connect(str(tmp_path / "b.db"), check_same_thread=False)
         db.execute("CREATE TABLE ohlcv (ticker TEXT, tf TEXT, ts INTEGER, o REAL, h REAL, l REAL, c REAL, v INTEGER, PRIMARY KEY(ticker, tf, ts))")
-        d = (2026, 10, 30)
-        old = [_ts(*d, 9, 30), _ts(*d, 10, 0), _ts(*d, 11, 0)]
-        new = [_ts(*d, 9, 30), _ts(*d, 10, 30), _ts(*d, 11, 30)]
-        for tkr, tss in (("OLD", old), ("NEW", new)):
-            for t in tss:
-                db.execute("INSERT INTO ohlcv VALUES (?, '60', ?, 1, 1, 1, 1, 1)", (tkr, t))
-            db.execute("INSERT INTO ohlcv VALUES (?, '15', ?, 1, 1, 1, 1, 1)", (tkr, tss[0]))
         db.commit()
         monkeypatch.setattr(bs, "_conn", lambda: db)
-        assert bs.ticker_has_old_grid_60m(db, "OLD") and not bs.ticker_has_old_grid_60m(db, "NEW")
-        deleted = bs.purge_mis_keyed_weekly_rows()
-        assert deleted == 3
-        rows = db.execute("SELECT ticker, tf, COUNT(*) FROM ohlcv GROUP BY 1, 2 ORDER BY 1, 2").fetchall()
-        assert rows == [("NEW", "15", 1), ("NEW", "60", 3), ("OLD", "15", 1)]
+        monkeypatch.setattr(bs, "_invalidate_60m_caches", lambda tkr: None)
+        return db, bs
+
+    @staticmethod
+    def _put(db, tkr, tf, tss, v=1):
+        for t in tss:
+            db.execute("INSERT OR REPLACE INTO ohlcv VALUES (?, ?, ?, 1, 2, 0.5, 1, ?)", (tkr, tf, t, v))
+        db.commit()
+
+    def test_rebuild_from_local_15m_and_30m_no_provider(self, tmp_path, monkeypatch):
+        """Old-grid 60m is re-derived from the ticker's OWN stored 15m (recent day)
+        and 30m (older day); a day neither covers is dropped; no network."""
+        db, bs = self._db(tmp_path, monkeypatch)
+        monkeypatch.setattr(_bf, "_get_client", lambda: (_ for _ in ()).throw(AssertionError("no provider")))
+        old_days = [(2026, 10, 28), (2026, 10, 29), (2026, 10, 30)]
+        for d in old_days:
+            self._put(db, "AAA", "60", [_ts(*d, 9, 30)] + [_ts(*d, h, 0) for h in range(10, 16)])
+        d15, d30 = (2026, 10, 30), (2026, 10, 29)        # 10-28 has no finer source
+        self._put(db, "AAA", "15", [_ts(*d15, 9, 30) + i * 900 for i in range(26)])
+        self._put(db, "AAA", "30", [_ts(*d30, 9, 30) + i * 1800 for i in range(13)])
+        out = _bf.rebuild_sixty_min_grid("AAA")
+        assert out == {"days": 3, "rebuilt": 14, "dropped_days": 1}
+        ts = [r[0] for r in db.execute("SELECT ts FROM ohlcv WHERE ticker='AAA' AND tf='60' ORDER BY ts")]
+        labels = [datetime.fromtimestamp(t, tz=_ET).strftime("%m-%d %H:%M") for t in ts]
+        assert labels == [f"{d} {hm}" for d in ("10-29", "10-30")
+                          for hm in ("09:30", "10:30", "11:30", "12:30", "13:30", "14:30", "15:30")]
+        assert not bs.ticker_has_old_grid_60m(db, "AAA")
+        vols = [r[0] for r in db.execute("SELECT v FROM ohlcv WHERE ticker='AAA' AND tf='60' ORDER BY ts")]
+        assert vols[:7] == [2, 2, 2, 2, 2, 2, 1] and vols[7:] == [4, 4, 4, 4, 4, 4, 2]
+
+    def test_sweep_rebuilds_then_marks_clean(self, tmp_path, monkeypatch):
+        db, bs = self._db(tmp_path, monkeypatch)
+        d = (2026, 10, 30)
+        self._put(db, "OLD", "60", [_ts(*d, 9, 30), _ts(*d, 10, 0), _ts(*d, 11, 0)])
+        self._put(db, "OLD", "15", [_ts(*d, 9, 30) + i * 900 for i in range(8)])
+        self._put(db, "NEW", "60", [_ts(*d, 9, 30), _ts(*d, 10, 30), _ts(*d, 11, 30)])
+        bs.purge_mis_keyed_weekly_rows()
+        assert not bs.ticker_has_old_grid_60m(db, "OLD")
+        assert [r[0] for r in db.execute("SELECT COUNT(*) FROM ohlcv WHERE ticker='NEW' AND tf='60'")] == [3]
+        assert not bs._sixty_grid_clean(db)          # this pass still found one
+        bs.purge_mis_keyed_weekly_rows()
+        assert bs._sixty_grid_clean(db)              # next pass found none → one-time marker
+        calls = []
+        monkeypatch.setattr(bs, "ticker_has_old_grid_60m", lambda *a, **k: calls.append(a) or False)
+        bs.purge_mis_keyed_weekly_rows()
+        assert calls == []                           # marker: no more per-ticker probes
+
+    def test_snapshot_merge_refuses_old_grid_60m(self, tmp_path):
+        """A worker snapshot still on the old layout must not re-poison a rebuilt
+        store (deploy order must not matter); new-grid pairs merge as before."""
+        import sqlite3
+        from api.services import data_sync
+        ddl = "CREATE TABLE ohlcv (ticker TEXT, tf TEXT, ts INTEGER, o REAL, h REAL, l REAL, c REAL, v INTEGER, PRIMARY KEY(ticker, tf, ts))"
+        local, snap = str(tmp_path / "local.db"), str(tmp_path / "snap.db")
+        for p in (local, snap):
+            c = sqlite3.connect(p)
+            c.execute(ddl)
+            c.commit()
+            c.close()
+        d, e = (2026, 10, 29), (2026, 10, 30)
+        c = sqlite3.connect(local)
+        for t in (_ts(*d, 9, 30), _ts(*d, 10, 30)):
+            c.execute("INSERT INTO ohlcv VALUES ('AAA','60',?,1,2,0.5,1,1)", (t,))
+        c.commit()
+        c.close()
+        c = sqlite3.connect(snap)
+        for t in (_ts(*e, 9, 30), _ts(*e, 10, 0)):                       # OLD layout
+            c.execute("INSERT INTO ohlcv VALUES ('AAA','60',?,1,2,0.5,1,1)", (t,))
+        for t in (_ts(*e, 9, 30), _ts(*e, 10, 30)):                      # new layout
+            c.execute("INSERT INTO ohlcv VALUES ('BBB','60',?,1,2,0.5,1,1)", (t,))
+        c.execute("INSERT INTO ohlcv VALUES ('AAA','15',?,1,2,0.5,1,1)", (_ts(*e, 9, 30),))
+        c.commit()
+        c.close()
+        data_sync._merge_ohlcv_from(snap, local)
+        c = sqlite3.connect(local)
+        got = c.execute("SELECT ticker, tf, COUNT(*) FROM ohlcv GROUP BY 1, 2 ORDER BY 1, 2").fetchall()
+        c.close()
+        assert got == [("AAA", "15", 1), ("AAA", "60", 2), ("BBB", "60", 2)]
 
 
 # ── FMP timestamp regression ─────────────────────────────────────────────────
