@@ -133,6 +133,18 @@ export function trackRing(el, onRing, { holder = null } = {}) {
       try { ro.observe(box) } catch { /* not observable */ }
     }
   }
+  // ⭐ a board REFLOW moves a cell by its style (the grid writes its transform / top / left / width) without resizing the control,
+  // so no ResizeObserver hears it, and a reflow that the board debounces can land after the frame loop has gone still (pl-auto
+  // 2026-11-09: single frames 20 px behind, one settle at 623 ms). A MutationObserver on the style of the control, its cell and
+  // the board hears the write itself: its callback runs as a microtask right after the write, before that frame's layout and
+  // paint, so the ring is measured and written in the SAME frame, and the loop runs on until still.
+  let mo = null
+  if (typeof MutationObserver === 'function') {
+    mo = new MutationObserver(() => { if (stopped) return; measure(); kick() })
+    for (const box of new Set([el, holder, holder?.parentElement].filter(b => b && b !== document.body))) {
+      try { mo.observe(box, { attributes: true, attributeFilter: ['style', 'class'] }) } catch { /* not observable */ }
+    }
+  }
   // a drag in progress keeps the loop alive (the drag's own frames move the control); only noted, never consumed
   const onMove = () => { if (dragging) kick() }
   const opts = { capture: true, passive: true }
@@ -153,6 +165,7 @@ export function trackRing(el, onRing, { holder = null } = {}) {
       stopped = true
       if (frame != null) { caf(frame); frame = null }
       ro?.disconnect()
+      mo?.disconnect()
       if (typeof window !== 'undefined') {
         window.removeEventListener('scroll', kick, opts)
         window.removeEventListener('resize', kick, opts)
