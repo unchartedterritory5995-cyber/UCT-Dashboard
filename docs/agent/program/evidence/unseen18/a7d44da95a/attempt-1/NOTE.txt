@@ -6,5 +6,5 @@ Vite cache: new folder cache-u13-a7d44da95a (no earlier run used it).
 Diffstat (git diff --stat a7d44da95a f5e4d8b9f3), non-harness paths:
 0
  68 files changed, 7848 insertions(+), 18 deletions(-)
-Runner line: [BROWSER-MOCK-MODEL] 1/1 passed; 1 model calls; 0 failure families
+Runner line (final): [BROWSER-MOCK-MODEL] 29/42 passed; 51 model calls; 8 failure families   (corrected in the classification commit: the raw commit quoted the first, 1/1, progress line)
 Raw only; classification is a separate later commit. Screenshots not committed (pl-auto scratch runs/u13/a7d44da95a/unseen18/shots).

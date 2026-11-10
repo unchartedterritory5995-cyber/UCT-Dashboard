@@ -1,0 +1,23 @@
+unseen18 at #1027 pushed head a7d44da95a, attempt-1 (junctioned node_modules, harness autotest-2 6f9abd8515). Hand-classed from
+rows-a7d44da95a.txt (u18rows.mjs over the committed failure.json) and the runner lines in attempt-1/runner.log.
+
+Total: 29/42 (runner: "[BROWSER-MOCK-MODEL] 29/42 passed; 51 model calls; 8 failure families").
+vs 8a3977c833 attempt-1 (STALE install): 29/42, the SAME 13 failing ids. The five AUDIT commits 377d46f754..a7d44da95a changed no u18 row.
+vs master: the earlier master 6/42 (b2300e547d, u1718-master) is VOID (stale install, and its harness autotest tree = 70b3420a53, not
+  this run's fdcbc2ff44 = 6f9abd8515: not a pair). The master re-run with the same pinned harness is queued (chain40, last step).
+
+WRONG TARGET (blockers: the Agent acted on one widget where it had to ask, or on the excluded one):
+  u18-refresh-10 DATA2 "refresh the scanner"                  oracle clarify; ACTED: "Refreshed the Scanner"
+  u18-look-07    DATA2 "make the watchlist background black"  oracle clarify; ACTED: "The Watchlist (top-right): canvasColor is now #000000"
+  u18-cols-07    DATA2 "move the volume column after the symbol" oracle clarify; ACTED: "On "Momentum": moved Volume after Symbol"
+  u18-refresh-06 DATA  "don't touch the period sort, just reload the scanner" ACTED ON THE EXCLUDED WIDGET: "Refreshed the Period Sort";
+                 scanGets.period 1 -> 2, the Scanner's /api/scans/ipo-1y not refetched. 1b94202992 ("never picks a widget the words
+                 exclude") does not cover this sentence (it is in the screenWatchlistWidget path; this is a Scanner / Period Sort refresh).
+TWO-WIDGET rows that must ASK: show-06 PASS (asked), export-03 PASS (asked); refresh-10, look-07, cols-07 FAIL (acted). 2 of 5 ask.
+OVER-ASK (named a list, still asked which widget): u18-show-05 "put Long Term on the Swing watchlist widget";
+  u18-export-04 "export the Swing watchlist as a csv file" (asked, then also said it cannot export files).
+FALSE SUCCESS: u18-flagged-01 "rename flagged to Top Ideas" and u18-flagged-02 "call my flagged list Shortlist instead": receipt says
+  flaggedName is now X; the widget on screen still reads "Flagged"; oracle: a receipt, and nothing changed on the board.
+  (refresh-06 also carries a receipt for the wrong widget.)
+UNDO: u18-cols-01/02/03/04/06 FAIL "one undo restores the board". Only fingerprinted difference, all five: uct.watchlist.cols ABSENT -> {}
+  (undo-cols-analysis/undodiff-a7d44da95a-attempt-1.txt; cause and decision in undo-cols-analysis/NOTE.txt; not a harness artefact).

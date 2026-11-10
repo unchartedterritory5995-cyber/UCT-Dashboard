@@ -1,0 +1,110 @@
+u18-refresh-06 FAIL expected=widget.setOption say="don't touch the period sort, just reload the scanner"
+   receipt=true text="Refreshed the Period Sort" card=false undoable=null
+   last: "Harness 4:50 PM don't touch the period sort, just reload the scanner // UCT Agent 4:50 PM Refreshed the Period Sort"
+   x scanGets.byRoute./api/scans/ipo-1y changed: got 1 was 1
+   x scanGets.period same: got 2 was 1
+   x the receipt is backed by a real change: a receipt, and nothing changed on the board
+u18-refresh-10 FAIL expected=widget.setOption say="refresh the scanner"
+   receipt=true text="Refreshed the Scanner" card=false undoable=null
+   last: "Harness 4:51 PM refresh the scanner // UCT Agent 4:51 PM Refreshed the Scanner"
+   x no success receipt: Refreshed the Scanner
+   x it asked: Harness
+4:51 PM
+refresh the scanner // UCT Agent
+4:51 PM
+Refreshed the Scanner
+u18-look-07 FAIL expected=widget.setOption say="make the watchlist background black"
+   receipt=true text="The Watchlist (top-right): canvasColor is now #000000 (was #0e0f0d)" card=false undoable=true
+   last: "Harness 4:53 PM make the watchlist background black // UCT Agent 4:53 PM The Watchlist (top-right): canvasColor is now #000000 (was #0e0f0d)"
+   x no success receipt: The Watchlist (top-right): canvasColor is now #000000 (was #0e0f0d)
+   x it asked: Harness
+4:53 PM
+make the watchlist background black // UCT Agent
+4:53 PM
+The Watchlist (top-right): canvasColor is now #000000 (was #0e0f0d)
+   x written notRe #000000: got {"charts_layout_dock":"{\"pins\":[\"uct-default\"],\"known\":[\"uct-default\"],\"hidden\":false}","charts_workspace_layout":"{\"version\":1,\"cols\":24,\"wi
+u18-cols-07 FAIL expected=watchlist.arrangeColumns say="move the volume column after the symbol"
+   receipt=true text="On “Momentum”: moved Volume after Symbol" card=false undoable=true
+   last: "Harness 4:57 PM move the volume column after the symbol // UCT Agent 4:57 PM On “Momentum”: moved Volume after Symbol"
+   x nothing changed: {"charts":{"A":"[\"SPY\",\"D\",\"linear\",\"RTH\",true,[\"EMA 9\",\"EMA 20\",\"SMA 50\",\"SMA 200\"],3,\"74dc3e39.78d45515.a2854f78.2f88a865.31adb1b5.eaeb276d.6
+   x no success receipt: On “Momentum”: moved Volume after Symbol
+   x it asked: Harness
+4:57 PM
+move the volume column after the symbol // UCT Agent
+4:57 PM
+On “Momentum”: moved Volume after Symbol
+u18-show-05 FAIL expected=watchlist.showList say="put Long Term on the Swing watchlist widget"
+   receipt=false text=null card=false undoable=null
+   last: "Harness 4:58 PM put Long Term on the Swing watchlist widget // UCT Agent 4:58 PM You have 2 Watchlist widgets — which one: the top one or the bottom one? Nothing changed yet."
+   x written re watchKey\W+user:l1: got {"charts_layout_dock":"{\"pins\":[\"uct-default\"],\"known\":[\"uct-default\"],\"hidden\":false}","charts_workspace_layout":"{\"version\":1,\"cols\":24,\"wi
+   x a receipt reports the change: no receipt; said: Harness
+4:58 PM
+put Long Term on the Swing watchlist widget // UCT Agent
+4:58 PM
+
+You have 2 Watchlist widgets — which one: the top one or the
+u18-export-04 FAIL expected=watchlist.exportList say="export the Swing watchlist as a csv file"
+   receipt=false text=null card=false undoable=null
+   last: "UCT Agent 4:59 PM You have 2 Watchlist widgets — which one: the top one or the bottom one? Nothing changed yet. // Not done: I can’t export to Excel or other files from UCT Agent."
+   x a receipt reports the change: no receipt; said: UCT Agent
+4:59 PM
+
+You have 2 Watchlist widgets — which one: the top one or the bottom one? Nothing changed yet. // Not done: I can’t export t
+   x it says /CSV[^.]*Swing|Swing[^.]*CSV/: UCT Agent
+4:59 PM
+
+You have 2 Watchlist widgets — which one: the top one or the bottom one? Nothing changed yet. // Not done: I can’t export to Excel or other f
+u18-flagged-01 FAIL expected=widget.setOption say="rename flagged to Top Ideas"
+   receipt=true text="The Watchlist (right): flaggedName is now Top Ideas (was Flagged)" card=false undoable=true
+   last: "Harness 4:54 PM rename flagged to Top Ideas // UCT Agent 4:54 PM The Watchlist (right): flaggedName is now Top Ideas (was Flagged)"
+   x faces.watchlist re Top Ideas: got WATCHLIST
++
+▣
+⧉
+‹ Lists
+Flagged
+⋯
+Symbol
+Price
+Vol
+% Chg
+No flagged tickers. Press Shift+F on any chart.
+0 stocks
+   x the receipt is backed by a real change: a receipt, and nothing changed on the board
+u18-flagged-02 FAIL expected=widget.setOption say="call my flagged list Shortlist instead"
+   receipt=true text="The Watchlist (right): flaggedName is now Shortlist (was Flagged)" card=false undoable=true
+   last: "Harness 4:55 PM call my flagged list Shortlist instead // UCT Agent 4:55 PM The Watchlist (right): flaggedName is now Shortlist (was Flagged)"
+   x faces.watchlist re Shortlist: got WATCHLIST
++
+▣
+⧉
+‹ Lists
+Flagged
+⋯
+Symbol
+Price
+Vol
+% Chg
+No flagged tickers. Press Shift+F on any chart.
+0 stocks
+   x the receipt is backed by a real change: a receipt, and nothing changed on the board
+u18-cols-01 FAIL expected=watchlist.arrangeColumns say="put % change right before price on my watchlist"
+   receipt=true text="On “Momentum”: moved % Change before Price" card=false undoable=true
+   last: "Harness 4:55 PM put % change right before price on my watchlist // UCT Agent 4:55 PM On “Momentum”: moved % Change before Price"
+   x one undo restores the board: {"charts":{"A":"[\"SPY\",\"D\",\"linear\",\"RTH\",true,[\"EMA 9\",\"EMA 20\",\"SMA 50\",\"SMA 200\"],3,null]"},"widgets":["w-chart-a@12,72,357,788","w-psort@375
+u18-cols-02 FAIL expected=watchlist.arrangeColumns say="move volume to the end of the watchlist columns"
+   receipt=true text="On “Momentum”: moved Volume after % Change" card=false undoable=true
+   last: "Harness 4:55 PM move volume to the end of the watchlist columns // UCT Agent 4:55 PM On “Momentum”: moved Volume after % Change"
+   x one undo restores the board: {"charts":{"A":"[\"SPY\",\"D\",\"linear\",\"RTH\",true,[\"EMA 9\",\"EMA 20\",\"SMA 50\",\"SMA 200\"],3,null]"},"widgets":["w-chart-a@12,72,357,788","w-psort@375
+u18-cols-03 FAIL expected=watchlist.arrangeColumns say="widen the symbol column to 150 px"
+   receipt=true text="On “Momentum”: set Symbol to 150 px wide" card=false undoable=true
+   last: "Harness 4:56 PM widen the symbol column to 150 px // UCT Agent 4:56 PM On “Momentum”: set Symbol to 150 px wide"
+   x one undo restores the board: {"charts":{"A":"[\"SPY\",\"D\",\"linear\",\"RTH\",true,[\"EMA 9\",\"EMA 20\",\"SMA 50\",\"SMA 200\"],3,null]"},"widgets":["w-chart-a@12,72,357,788","w-psort@375
+u18-cols-04 FAIL expected=watchlist.arrangeColumns say="make the price column 70 wide"
+   receipt=true text="On “Momentum”: set Price to 70 px wide" card=false undoable=true
+   last: "Harness 4:56 PM make the price column 70 wide // UCT Agent 4:56 PM On “Momentum”: set Price to 70 px wide"
+   x one undo restores the board: {"charts":{"A":"[\"SPY\",\"D\",\"linear\",\"RTH\",true,[\"EMA 9\",\"EMA 20\",\"SMA 50\",\"SMA 200\"],3,null]"},"widgets":["w-chart-a@12,72,357,788","w-psort@375
+u18-cols-06 FAIL expected=watchlist.arrangeColumns say="on the Swing list, move volume right after symbol"
+   receipt=true text="On “Swing”: moved Volume after Symbol" card=false undoable=true
+   last: "Harness 4:56 PM on the Swing list, move volume right after symbol // UCT Agent 4:56 PM On “Swing”: moved Volume after Symbol"
+   x one undo restores the board: {"charts":{"A":"[\"SPY\",\"D\",\"linear\",\"RTH\",true,[\"EMA 9\",\"EMA 20\",\"SMA 50\",\"SMA 200\"],3,null]"},"widgets":["w-chart-a@12,72,357,788","w-scan2@375
