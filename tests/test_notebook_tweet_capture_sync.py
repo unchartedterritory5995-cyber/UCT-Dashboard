@@ -64,7 +64,7 @@ def notebook(monkeypatch, tmp_path, store):
 
     monkeypatch.setattr(hotlink_fetch, "download", fake_download)
     monkeypatch.setattr(tweet_price, "price_at_post", lambda s, p, wait_until=None: PricePoint("FAKE", 12.5, "posted", None))
-    monkeypatch.setattr(tweet_price, "start_refresh", lambda symbol: None)
+    monkeypatch.setattr(tweet_price, "start_refresh", lambda symbol, wait_until=None: None)
     monkeypatch.setattr(tweet_price, "still_comparable", lambda *a: True)
     monkeypatch.setenv("AUTH_DB_PATH", str(tmp_path / "auth.db"))
     from api.services import auth_db
@@ -534,6 +534,97 @@ def test_canaries_are_never_marked_or_removed(notebook, x, clock, alerts):
         assert row["gone_first_missed_at"] is None and row["removed_at"] is None, canary
     assert _rows("SELECT captured_text FROM j2_note_excerpts WHERE id = ?",
                  gone_canary["id"])[0]["captured_text"] == WORDS
+
+
+def _feed(*ids, age=86400):
+    for tid in ids:
+        tweet_store.upsert_tweet({
+            "id": tid, "author_handle": "fakedesk_feed", "author_name": "Fake Feed", "text": "a feed post",
+            "created_at": NOW - age, "url": f"https://x.com/fakedesk_feed/status/{tid}",
+            "reply_count": 0, "like_count": 0, "retweet_count": 0, "is_retweet": 0, "raw_json": "{}",
+        }, [])
+
+
+def test_every_saved_post_really_gone_is_removed_when_the_feed_answers(notebook, x, clock, alerts):
+    note_id = _note()
+    a = _save("7090", note_id)
+    b = _save("7091", note_id)
+    _feed("8001", "8002")
+    x["gone"] = {"7090", "7091"}
+
+    sweep = _sync().run_sweep()
+    assert sweep["outage"] is False and sweep["marked"] == 2
+
+    clock["t"] = T0 + timedelta(minutes=10)
+    confirm = _sync().run_confirm()
+    assert confirm["outage"] is False and confirm["removed"] == 2
+    for excerpt in (a, b):
+        assert _rows("SELECT captured_text FROM j2_note_excerpts WHERE id = ?", excerpt["id"])[0]["captured_text"] == ""
+    assert alerts == []
+    assert tweet_store.get_tweet("8001") is not None    # a feed post is only ever evidence
+
+
+def test_nothing_resolving_is_still_an_outage_when_the_feed_misses_too(notebook, x, clock, alerts):
+    note_id = _note()
+    _save("7092", note_id)
+    _save("7093", note_id)
+    _feed("8003")
+    x["gone"] = {"7092", "7093", "8003"}
+
+    out = _sync().run_sweep()
+
+    assert out["outage"] is True and out["marked"] == 0
+    assert len(alerts) == 1 and "2 of 2" in alerts[0][2]
+
+
+def test_a_failed_feed_lookup_is_no_evidence(notebook, x, clock, alerts, monkeypatch):
+    note_id = _note()
+    _save("7094", note_id)
+    _save("7095", note_id)
+    _feed("8004")
+    seen = []
+
+    def fake(ids):
+        seen.append(list(ids))
+        if len(seen) > 1:
+            raise twitterapi_io.TwitterApiError("down")
+        return set(ids)
+
+    monkeypatch.setattr(twitterapi_io, "find_deleted_tweet_ids", fake)
+    out = _sync().run_sweep()
+    assert seen[1] == ["8004"] and out["outage"] is True and out["marked"] == 0 and len(alerts) == 1
+
+
+def test_an_unreadable_feed_is_no_evidence(notebook, x, clock, alerts, monkeypatch):
+    note_id = _note()
+    _save("7096", note_id)
+    _save("7097", note_id)
+    x["gone"] = {"7096", "7097"}
+
+    def broken(*a, **k):
+        raise RuntimeError("no store")
+
+    monkeypatch.setattr(tweet_store, "oldest_tweet_ids", broken)
+    out = _sync().run_sweep()
+    assert out["outage"] is True and out["marked"] == 0 and len(alerts) == 1
+
+
+def test_the_feed_is_only_asked_when_nothing_resolved(notebook, x, clock, alerts):
+    note_id = _note()
+    _save("7098", note_id)
+    _save("7099", note_id)
+    _feed("8005")
+    x["gone"] = {"7098"}
+    _sync().run_sweep()
+    assert len(x["calls"]) == 1 and "8005" not in x["calls"][0]
+
+
+def test_feed_canaries_are_the_oldest_posts_not_already_asked_about(store):
+    _feed("8010", age=300)
+    _feed("8011", age=900)
+    _feed("8012", age=600)
+    assert tweet_store.oldest_tweet_ids(1) == ["8011"]
+    assert tweet_store.oldest_tweet_ids(5, exclude=["8011"]) == ["8012", "8010"]
 
 
 def test_a_single_post_really_gone_is_still_removed_after_both_checks(notebook, x, clock, alerts):

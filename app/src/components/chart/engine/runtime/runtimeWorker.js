@@ -47,6 +47,7 @@ self.onmessage = (event) => {
         name: (err && err.name) || 'Error',
         message: String((err && err.message) || err),
         guard: (err && err.guard) || null,
+        limit: (err && typeof err.limit === 'string') ? err.limit : null,
         bar: err && Number.isInteger(err.bar) ? err.bar : null,
         ms: Math.max(0, Math.round(clock() - startedAt)),
       },

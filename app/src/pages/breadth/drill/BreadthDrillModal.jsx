@@ -25,6 +25,8 @@ import JoinedDateNav from './JoinedDateNav'
 import { resetDrillSort } from './drillListCols'
 import { followAppTheme } from './drillTheme'
 import styles from './BreadthDrillModal.module.css'
+import { longHistoryCache, loadLongHistory, mergeHistory } from './longHistory'
+
 
 const FOCUSABLE = [
   'a[href]', 'button:not([disabled])', 'input:not([disabled])',
@@ -248,9 +250,17 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
   const colKey = drill?.colKey || null
   const drillDate = drill?.date || null
   const drillLive = !!drill?.live
+  // The page holds only its own window (90 sessions), so the count chart's
+  // 6M / 1Y ranges ask for a longer history, once, the first time one is picked.
+  const [longRows, setLongRows] = useState(() => longHistoryCache.rows)
+  const wantDays = useCallback(() => {
+    if (longHistoryCache.rows) return
+    loadLongHistory().then((r) => { if (r) setLongRows(r) })
+  }, [])
+  const ctxRows = useMemo(() => mergeHistory(rows, longRows), [rows, longRows])
   const ctx = useMemo(
-    () => (colKey ? dayContext(rows, colKey, drillDate, { live: drillLive, spark: 252 }) : null),
-    [rows, colKey, drillDate, drillLive],
+    () => (colKey ? dayContext(ctxRows, colKey, drillDate, { live: drillLive, spark: 252 }) : null),
+    [ctxRows, colKey, drillDate, drillLive],
   )
   const prevTarget = rows && onNavigate ? stepDate(rows, drillDate, drillLive, -1) : null
   const nextTarget = rows && onNavigate ? stepDate(rows, drillDate, drillLive, 1) : null
@@ -393,6 +403,7 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
           onPickMetric={onNavigate ? pickMetric : null}
           dateNav={dateNav}
           ctx={ctx}
+          onWantDays={wantDays}
           summary={deck.summary}
           mode={mode}
           modes={SCAN_MODES}
@@ -416,9 +427,12 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
               <ScanGrid
                 rows={deck.shownRows}
                 dir={deck.dir}
-                selectedSym={selectedSym}
-                onOpen={(sym) => { setSym('A', sym); setMode('focus') }}
+                // Clicking a card selects it (and points Focus at it) without leaving the grid.
+                onSelect={(sym) => setSym('A', sym)}
                 chartSettings={board.widgets.find(w => w.id === CHART_WIDGET_ID)?.opts?.settings || null}
+                // The enlarged chart's settings gear (and its legend edits) write the
+                // Focus chart's look, which every card draws with.
+                onChartSettingsChange={(next) => onBoardChange(b => ({ ...b, widgets: b.widgets.map(x => (x.id === CHART_WIDGET_ID ? { ...x, opts: { ...x.opts, settings: next } } : x)) }))}
                 toolbarStart={(
                   <>
                     <FilterButton filters={deck.filters} total={total} shown={deck.shownRows.length} />

@@ -344,6 +344,52 @@ def test_row7_worker_stops_keep_their_guard_and_are_never_cached(guard):
     assert len(fake.calls) == 2
 
 
+def _with_limit(limit):
+    def tamper(reply):
+        reply["results"][0]["refusals"][0]["limit"] = limit
+        return reply
+    return tamper
+
+
+def test_limits_r1_a_vm_wall_time_stop_keeps_time_budget_carries_its_limit_and_is_never_cached():
+    """LIMITS r1 (B2-a): the VM's own WALL_TIME stop arrives as runtime:time-budget with
+    ``limit: "WALL_TIME"``; the field is kept and the result is never cached."""
+    c, fake, _ = client()
+    fake.withhold["AAPL|D"] = (prc.TIME_BUDGET, "this script took more than 5000 ms to draw bar by bar")
+    fake.tamper = _with_limit("WALL_TIME")
+    cache = prc.RunCache()
+    [res] = run(c, [job()], cache=cache)
+    assert guard_of(res) == prc.TIME_BUDGET and res.run_refusal().limit == "WALL_TIME"
+    assert not prc.cacheable(res) and len(cache) == 0
+
+
+def test_limits_r2_an_old_shaped_refusal_decodes_on_the_new_client():
+    """Phase 1: the service emits {key, guard, sentence, bar} only; the new client reads it, limit None."""
+    c, fake, _ = client()
+    fake.withhold["AAPL|D"] = ("runtime:limit", "this script went past the number of function calls")
+    fake.tamper = lambda reply: (reply["results"][0]["refusals"][0].pop("limit", None), reply)[1]
+    [res] = run(c, [job()])
+    assert guard_of(res) == "runtime:limit" and res.run_refusal().limit is None
+    assert res.run_refusal().sentence == "this script went past the number of function calls"
+
+
+def test_limits_r1_a_limit_stop_names_its_limit_as_a_field():
+    c, fake, _ = client()
+    fake.withhold["AAPL|D"] = ("runtime:limit", "this script went past the number of function calls")
+    fake.tamper = _with_limit("CALL_COUNT")
+    [res] = run(c, [job()])
+    assert guard_of(res) == "runtime:limit" and res.run_refusal().limit == "CALL_COUNT"
+
+
+@pytest.mark.parametrize("bad", ["call_count", "", 7, ["CALL_COUNT"], "CALL COUNT"])
+def test_limits_r1_a_malformed_limit_is_integrity(bad):
+    c, fake, _ = client()
+    fake.withhold["AAPL|D"] = ("runtime:limit", "limit")
+    fake.tamper = _with_limit(bad)
+    [res] = run(c, [job()])
+    assert guard_of(res) == prc.INTEGRITY
+
+
 def test_row7_pool_failure_500_withholds_every_job_as_failed():
     c, fake, _ = client()
     fake.script_next = [(500, json.dumps({"protocol": 1, "error": {"guard": prc.FAILED, "sentence": "pool"}}).encode())]
