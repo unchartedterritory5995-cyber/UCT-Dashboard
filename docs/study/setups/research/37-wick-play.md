@@ -952,3 +952,40 @@ sessions after entry before the stop. Earnings dates are from the sandbox's Yaho
   10-day; day 3 opened at 141.27, printed 141.99 (through the 141.46 trigger) and closed at 138.01 with a low of 136.01,
   3.9% under the entry: stopped on the entry day on any ordering of the bars. The stock then reached 156.32 (4.5R) within
   20 sessions. Two warnings in one: a stretched name's first push can fail inside the day, and a stop is a stop (A4).
+
+## 14. Failures and near-misses (from our data)
+
+The same scan and the same trade as section 13 (strict form: day 2 wholly inside day 1's upper wick, bought a cent over
+day 2's high on day 3, stop 3 cents under day 2's low, 60 sessions forward, fixed stop). Four valid wick plays that
+stopped before 3R, one per ticker, four different years, and four two-day patterns that look like the setup but fail
+exactly one gate criterion of the card (`criteria/37-wick-play.json`). Charts:
+`scratchpad/setups/37-wick-play/final/fail_1-4.png`, `near_1-4.png`, and the confusable pair against the Inside Day in
+`pair_08-inside-day.png`. Code: `near_scan.py` (the scan with each gate relaxed to a band just outside the rule,
+keeping the patterns that fail one gate only; 2,630 of 2,630 names) and `fail_near.py`.
+
+**Failures: valid by every gate, stopped by the rules.**
+
+| ticker | day 1, bought | buy | stop (%) | where it stopped | what happened | criterion |
+|---|---|---|---|---|---|---|
+| AMZN | 2018-08-30, bought 2018-09-04 | 101.33 | 100.21 (1.1%) | day 1, 2018-09-05, low 99.49 | a 60% wick, a clean inside day, 1.1% under the 52-week high; the next session traded through the 1.1% stop and the stock fell to 94.37 within 10 sessions. The run was over. | wk.stop_width |
+| V | 2019-10-11, bought 2019-10-15 | 178.42 | 177.08 (0.75%) | day 1, 2019-10-16, low 176.27 | a 91% wick and a tight day 2, but no explosion in the prior 15 sessions and 5.3% under the 52-week high; a 0.75% stop inside the noise; low within 10 sessions 170.18. | wk.explosion (the grading cue) |
+| SHOP | 2024-02-08, bought 2024-02-12 | 91.40 | 88.89 (2.75%) | day 1, 2024-02-13: opened at 77.80, 15% lower | a 55% wick, a clean inside day, the entry day closed at 89.12 under the trigger; the next open was far through the stop. The sandbox earnings file has no date here; section 13 files it under B22. | wk.earnings_window |
+| ANET | 2025-08-11, bought 2025-08-13 | 141.46 | 138.17 (2.33%) | the entry day: low 136.01, close 138.01 | an 84% wick three sessions after the 08-06 earnings reaction, 8% over the 10-day; day 3 printed 141.99 over the trigger and closed 3.9% under the entry, stopped on any ordering of the bars; the next session opened under the stop (low 132.45). The stock reached 156.32 (4.5R) within 20 sessions without us. | wk.stop_broker |
+
+**Near-misses: one gate fails, everything else passes.**
+
+| ticker | day 1, bought | the one criterion that fails | the number | what it really is |
+|---|---|---|---|---|
+| AMZN | 2020-08-24, bought 2020-08-26 | wk.day2_strict | day 2's low 163.35 dips 1.3% (0.54 ATR) under day 1's body top 165.51; the strict form allows none, the B grade at most 0.25 ATR | an inside day that touched the body: an ordinary inside day (setup 08), not a wick play |
+| TSLA | 2018-06-07, bought 2018-06-11 | wk.trend | the close is 2.2% under the 200-day and the 50-day is 10.2% under the 200-day; the rule needs close > 50 > 200 | a reclaim attempt under a falling 200-day; it ran 6R, which is the reclaim's edge, not this setup's |
+| PBR | 2019-01-07, bought 2019-01-09 | wk.not_stretched | day 1 closed 12.3% over the 10-day SMA; the rule is 10% or less | a wick play too far from the averages after a sharp two-week run; stopped |
+| REGN | 2013-05-01, bought 2013-05-03 | wk.stop_width | the honest stop under day 2's low is 8.12% from the entry (the open was 3.64% over the trigger); the rule wants about 3% | a wick play after a wide, big-volume day 1 whose day 2 was too wide to stop under; size down or skip |
+
+**What the failures have in common.** All four were out within one session of the entry, and three of the four never
+traded above the entry day's high (best R 0.0). The two-day shape was textbook in every case (wicks of 55% to 91%, day
+2 wholly inside) and the shape is not what failed: AMZN and V came at the end of a move with stops of about 1%, inside
+one day's noise; SHOP and ANET came within the earnings window, one on the report, one three sessions after a reaction
+with the stock 8% over its 10-day. Section 13 measured that the strict form did not beat an ordinary inside day; these
+four are the picture of why. The location (an explosion within 15 sessions, not the end of a run), the earnings
+window and the honest stop width carry the trade, and the stop did its job each time: four losses of 1R, none worse,
+with B20 deciding the real size of the SHOP and ANET gaps.

@@ -1281,9 +1281,58 @@
     "trigger": "2026-10-15",
     "criterion": "pl.not_crash_start",
     "note": "all five boxes and a close at the top of its range, +7.4% from the open; the next day -12.2% and a new low, 149.48 by 10-26. A perfect-looking daily V in a fresh breakdown (the Nasdaq lost its 200-day in early November)."
+   },
+   {
+    "ticker": "BAC",
+    "date": "2020-02-28",
+    "criterion": "pl.not_crash_start",
+    "why": "every box ticked (5/5, a 3.9% gap, 3.6x volume, 6.2 ATR under the 50-day), bought at the 28.50 close with a 2.9% stop; stopped the next session and 17.95 by 03-23. The first week of a crash from an all-time high; the single-name chart of the 2020-02-28 cluster."
+   },
+   {
+    "ticker": "WDC",
+    "date": "2022-09-23",
+    "criterion": "pl.inv_new_low",
+    "why": "-31.6% in 20 sessions, 6.6 ATR under the 50-day, 4/5 boxes, 2.1x volume, bought on a Friday at 25.58; Monday closed 24.49 in its lower 3% through the stop and the low came 09-29 at 23.85, with the 9 EMA touched 09-30. The Monday low, not the Friday turn, was the trade."
+   },
+   {
+    "ticker": "KRE",
+    "date": "2025-04-04",
+    "criterion": "pl.no_frontrun",
+    "why": "4/5 boxes, a 4.1% gap, 3.1x volume, 5.6 ATR under the 50-day, bought on the Friday of the tariff crash at 49.26 with a 4.4% stop; Monday gapped under the stop (low 47.06) and printed the real climax, the day GE (example 10) fired; the 9 EMA came 04-09."
    }
   ],
-  "limits": "Daily bars only: the climax close stands in for the VWAP entry, which is usually lower with the same stop. Survivorship: names that went to zero are mostly missing. 83 of the 304 hits fired on 2020-02-28, so the sample is lumpy and the date decides more than the boxes. The 5-minute test (4.8) covers three months of one correction. Nothing here is a published statistic."
+  "limits": "Daily bars only: the climax close stands in for the VWAP entry, which is usually lower with the same stop. Survivorship: names that went to zero are mostly missing. 83 of the 304 hits fired on 2020-02-28, so the sample is lumpy and the date decides more than the boxes. The 5-minute test (4.8) covers three months of one correction. Nothing here is a published statistic.",
+  "near_misses": [
+   {
+    "ticker": "SYK",
+    "date": "2026-09-09",
+    "criterion": "pl.burst_count",
+    "why": "the climax gap plus 2 of the other 4 boxes (3 lower closes, an accelerating loss); the rule needs 3. A 22.6% decline to 5.1 ATR under the 50-day on 2.2x volume without the burst, under the 200-day: watch only. Stopped the next day."
+   },
+   {
+    "ticker": "CHTR",
+    "date": "2022-09-16",
+    "criterion": "pl.climax_gap",
+    "why": "the climax day opened 0.1% under the prior close, no gap down (the rule needs 1%), and no day-2 gap up either: a linear decline that went on to 297.66 by 10-13. Stopped the next day."
+   },
+   {
+    "ticker": "APD",
+    "date": "2025-04-07",
+    "criterion": "pl.volume_climax",
+    "why": "climax-day volume 1.5x the 50-day average; the rule needs 2x. The 4/5 boxes and the 6.5 ATR stretch were there on the tariff-crash Monday, but the volume climax was in the index, not in this name. Stopped the next day."
+   },
+   {
+    "ticker": "BABA",
+    "date": "2021-07-27",
+    "criterion": "pl.context_decline",
+    "why": "3.4 ATR under the 50-day (the rule needs 5) and 22% off the high (the rule needs 40%): the same China-liquidation day as HTHT (example 6) without the stretch; bounced 5% and made new lows. Stopped on day 15."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_39-parabolic-short.png"
+  }
  },
  "question_seeds": [
   {

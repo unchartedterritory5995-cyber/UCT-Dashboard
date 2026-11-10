@@ -1123,3 +1123,46 @@ What this section cannot settle: RS 80+ and the market reading were not tested; 
 version of the trigger (the dossier's "alternative" in 8.2) to pick textbook days, with the entry priced at the
 intraday trigger, so the base rate counts only days that also closed above the line, and the real intraday trigger
 would add false starts that never closed above it (section 8.2's trade-off).
+
+## 13. Failures and near-misses (from our data)
+
+The same scan and the same trade as section 12 (the entry at the higher of the line and the prior day's high, stop
+5 cents under the trigger day's low, 60 sessions forward, fixed stop). Four valid breaks that stopped before 3R, one
+per ticker, four different years, and four breaks that look like the setup but fail exactly one gate criterion of the
+card (`criteria/09-trendline-break.json`). Charts: `scratchpad/setups/09-trendline-break/final/fail_1-4.png`,
+`near_1-4.png`, and the confusable pair against the Bull Flag in `pair_02-bull-flag.png`. Code: `near_scan.py` (the
+scan with each gate relaxed to a band just outside the rule, keeping the breaks that fail one gate only; it covered
+2,126 of the 2,630 liquid names before its 540-second budget ran out, enough to pick examples from, not a base rate)
+and `fail_near.py`.
+
+One correction to section 12: the IFF 2020-08-10 failure named there has an earnings reaction day on 2020-08-11, the
+session after the entry (the report came after the close on the 10th). By the card it is a tl.earnings_window
+violation, not a valid break that failed, so it is not used here. TMUS 2014-03-21 is valid but shares its year with
+LBTYA, so the table below takes LBTYA.
+
+**Failures: valid by every gate, stopped by the rules.**
+
+| ticker | trigger day | buy | stop (%) | where it stopped | what happened | criterion |
+|---|---|---|---|---|---|---|
+| LBTYA | 2014-09-19 | 18.79 | 18.53 (1.35%) | day 1, 2014-09-22, low 18.39 | the best-looking line of the four (8 touches over 83 sessions, slope 0.022 ATR a session), but the break came on 1.25x volume and closed 0.39% over the line (18.85 against 18.78); the next day closed back under it at 18.58 and the stop traded. Low within 10 sessions 17.88. | tl.volume |
+| EL | 2018-12-03 | 145.75 | 144.17 (1.08%) | day 1, 2018-12-04, low 144.06 | 4 touches over 110 sessions; a +7.0% trigger bar on 2.33x volume closing 4.74% over the line, with the entry at the line and the stop under the bar's low. The next session opened at 152.00 and fell to 144.06; low within 10 sessions 129.67. One bar was the whole break. | tl.stop_broker (the stop is the exit) |
+| SCHW | 2020-02-20 | 48.12 | 47.25 (1.80%) | day 1, 2020-02-21, low 45.93 | 3 touches over 46 sessions, a clean break on 1.81x volume closing 0.98% over the line; the next session was the first day of the February 2020 market break and the stock fell to 34.45 within 10 sessions. | tl.market_reading |
+| DHR | 2021-01-05 | 200.06 | 197.41 (1.33%) | day 1, 2021-01-06, low 197.22 | 3 touches over 33 sessions, closed 2.03% over the line on 1.44x volume; the next session's low was 19 cents under the stop and the close 209.53 (6% over the stop); the stock reached 217 within a week without us. The trigger-day stop sat inside the noise; the structural stop under the low under the line would have held. | tl.stop_structure (pending the owner) |
+
+**Near-misses: one gate fails, everything else passes.**
+
+| ticker | trigger day | the one criterion that fails | the number | what it really is |
+|---|---|---|---|---|
+| GOOGL | 2025-06-06 | tl.volume | 0.86x the 50-day average volume; the rule is 1.2x or more | a clean line (3 touches, 85 sessions) traded through on a quiet day: a watch, not a buy. It stopped, then the real move came later |
+| DIS | 2021-06-14 | tl.slope | the line falls 0.198 ATR a session; the rule is 0.15 or less | a steep three-week drop with two lower highs; a drop, not the tight drift down the setup wants. Stopped the next session |
+| AMGN | 2005-11-03 | tl.line_age | the trigger day is 11 sessions after the first anchor; the rule needs 15 or more | three highs in two weeks: too young a line to mean anything. It went to 7.2R, which is the stock's trend, not the line's |
+| CAT | 2021-10-28 | tl.above_200 | the trigger day closes 4.9% under the 200-day SMA; the rule needs a close above it | a good-looking line (4 touches, 102 sessions, 1.32x volume) under a flat 200-day: bottom fishing (tl.bottom_fishing), not this setup |
+
+**What the failures have in common.** All four stopped on the first session after the entry, and none ever traded
+above the trigger day's high before the stop (best R 0.0 in every case). The stops were tiny, 1.1% to 1.8%, which is
+the setup's habit (median 1.17% in section 12) and its weakness: a stop under the trigger day's low sits inside one
+normal day's range, so a flat day (LBTYA), a reversal bar (EL), a market break (SCHW) or a 19-cent dip (DHR) all end
+the trade. Two of the four (DHR within a week, EL two months later) went on to the move the line promised. The lines
+themselves were fine; what failed was volume on the break (LBTYA), the market (SCHW), and the size of the stop (EL,
+DHR). That is why the card leaves tl.stop_structure to the owner, and why section 12's cut shows the under-1% stops
+reaching 3R more often only because 3R is then a 3% move.

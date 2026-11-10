@@ -1053,3 +1053,38 @@ rest (B19, E51, E52), so the realised R would be far lower.
 (nine of the 10 examples were checked against the dates we have; JBLU 2003 predates its first stored date). The short mirror (8.6)
 was not scanned: the dossier already says it was not measured, and a short-side scan deserves its own pass with
 borrow data.
+
+## 13. Failures and near-misses (from our data)
+
+The same scan and the same trade as section 12 (a cent over the inside day's high within 3 sessions, stop 5 cents under
+its low, 60 sessions forward, fixed stop). Four valid inside days that stopped before 3R, one per ticker, four
+different years, and four bars that look like the setup but fail exactly one gate criterion of the card
+(`criteria/08-inside-day.json`). Charts: `scratchpad/setups/08-inside-day/final/fail_1-4.png`, `near_1-4.png`, and
+the confusable pair against the Wick Play in `pair_37-wick-play.png`. Code: `near_scan.py` (the scan with each gate
+relaxed to a band just outside the rule, keeping the bars that fail one gate only) and `fail_near.py`.
+
+**Failures: valid by every gate, stopped by the rules.**
+
+| ticker | inside day, bought | buy | stop (%) | where it stopped | what happened | criterion |
+|---|---|---|---|---|---|---|
+| NVDA | 2024-03-28, bought 2024-04-01 | 91.31 | 89.14 (2.37%) | day 1, 2024-04-02: opened at 88.45, under the stop; low 87.62 | the entry day closed at 90.36, back under the 91.30 inside-day high; the inside day sat 0.7% under a flat 10-day after the March run. The open under the stop is the B20 case (first 30-minute low). Low within 10 sessions 83.02. | id.stop_gap (section 12 files it under id.inv_close_under_21: the stall under the fast average) |
+| TSLA | 2021-01-13, bought 2021-01-14 | 286.83 | 277.28 (3.33%) | day 1, 2021-01-15, low 273.03 | the inside day closed 9.1% over the 10-day (inside C29 by a hair) and 17% over the 21 EMA after the January run; the entry day closed at 281.67, under the trigger. | id.not_stretched |
+| NFLX | 2018-03-15, bought 2018-03-16 | 32.35 | 31.76 (1.81%) | day 1, 2018-03-19: opened at 31.58, under the stop; low 30.73 | the entry day closed at its low, 31.84, back under the inside day's high (the warning in id.after_entry_stop); the next open was through the stop and the stock fell to 27.50 within 10 sessions. | id.after_entry_stop |
+| AMZN | 2017-05-26, bought 2017-05-30 | 49.94 | 49.41 (1.06%) | day 1, 2017-05-31, low 49.11 | six up closes in a row before the inside day; the 1.06% stop sat inside the day's noise and traded the next session. Low within 10 sessions 46.35. | id.run_length |
+
+**Near-misses: one gate fails, everything else passes.**
+
+| ticker | bar, bought | the one criterion that fails | the number | what it really is |
+|---|---|---|---|---|
+| MSFT | 2024-02-08, bought 2024-02-09 | id.shape | the high is 0.30% above the prior day's high; the low is 1.26% inside | a narrow-range day after a breakout, not an inside day (id.nr_day_not_inside). Bought over its high it went 1.7R, which says nothing about the rule |
+| AMZN | 2025-10-15, bought 2025-10-16 | id.trend_21 | the close is 2.9% under the 21-day EMA and the EMA fell 0.9% over 5 sessions | an inside day inside a pullback under the fast averages, 0.6% over the 200-day; closer to a reclaim setup (13) than a continuation. Stopped |
+| QCOM | 2020-08-04, bought 2020-08-05 | id.not_stretched | the close is 13.0% over the 10-day SMA; the rule is 10% or less | an inside day three sessions after the 2020-07-30 earnings gap (92.08 to 102.42 at the open); the pause came too high. Stopped |
+| AAPL | 2017-08-01, bought 2017-08-02 | id.gap_over | the next open was 6.0% over the inside day's high; the rule is 4% or less | an earnings gap (report 2017-08-01 after the close): a gap trade (setup 21), not an inside-day buy. The stop under the inside day's low would be 6.95% away |
+
+**What the failures have in common.** Every one was stopped on the first session after the entry, and in all four the
+entry day itself closed back under the inside day's high (NVDA 90.36, TSLA 281.67, NFLX 31.84, AMZN 49.84): the break
+did not hold into the close. Two of the four opened under the stop the next morning (NVDA, NFLX), so the real loss depends
+on B20, not on the stop order. None of the four was at the ideal location: TSLA and AMZN came at the end of a run
+(id.not_stretched, id.run_length), NVDA and NFLX were pauses in a stall under or at the 10-day rather than fresh
+continuation. The inside day's shape and volume were ordinary in all four (ranges 51% to 85% of the mother bar, closes
+in the upper half), which is what section 12 found: the bar alone does not carry the edge, the location does.

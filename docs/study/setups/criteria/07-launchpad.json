@@ -1368,8 +1368,45 @@
     "trigger": "2021-04-30",
     "criterion": "lp.launch_volume_2x",
     "note": "a different date from his kept TEAM chart: +4.1% on 2.13x volume, stopped the next session. A 2x launch bar was not a protection."
+   },
+   {
+    "ticker": "FDX",
+    "date": "2010-07-26",
+    "criterion": "lp.not_gap",
+    "why": "a 28% correction, a 2.95% bundle (at the 3% line), +5.6% on 1.83x volume; the launch opened 4.2% up, inside the 6% line, and its whole range was 1.96%, so the honest stop was 1.7%. The next session traded through it. A launch that is mostly a gap leaves a stop inside the noise."
    }
   ],
+  "near_misses": [
+   {
+    "ticker": "MSFT",
+    "date": "2023-10-06",
+    "criterion": "lp.correction",
+    "why": "the lowest close of the last 60 sessions is 11.2% under the prior 60-session high; the rule needs 15% or more. A shallow pullback in an uptrend over a rising 200-day: a moving-average pullback, not a pad."
+   },
+   {
+    "ticker": "AAPL",
+    "date": "2013-08-13",
+    "criterion": "lp.bundle_tight",
+    "why": "the 8/21/50 span 5.77% of price the day before; the rule is 3% or less. The averages had not converged; the bar is a breakout through a loose bundle under a falling 200-day."
+   },
+   {
+    "ticker": "JPM",
+    "date": "2016-05-18",
+    "criterion": "lp.under_bundle",
+    "why": "3 of the last 40 closes under the bundle and 18 above; the rule needs 10 or more under. Price rode on top of the averages after the February low: a pullback breakout, not a pad."
+   },
+   {
+    "ticker": "AAPL",
+    "date": "2022-11-30",
+    "criterion": "lp.launch_above_all",
+    "why": "the bar closes at 148.03, above the 8/21/50 (top 146.83) but under the 200-day (154.21); the launch must clear all four. A bundle reclaim under a falling 200-day."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_01-flat-base.png"
+  },
   "limits": "Base count of pads, the real RS rating and group, the market reading and his grade are not in the scan. No delisted names, so the base rate leans toward survivors. Daily bars cannot order the moves inside a day, so the intraday entry's false starts are measured only in the fair test. Nothing here is a published statistic."
  },
  "question_seeds": [

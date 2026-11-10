@@ -1101,8 +1101,45 @@
     "trigger": "2025-08-13",
     "criterion": "wk.stop_broker",
     "note": "day 1 carried an 84% wick three sessions after the earnings reaction, 8% over the 10-day; day 3 printed 141.99 through the 141.46 trigger and closed at 138.01 with a low of 136.01, 3.9% under the entry: stopped on the entry day on any ordering of the bars; then 4.5R within 20 sessions. A stretched name's first push can fail inside the day, and a stop is a stop."
+   },
+   {
+    "ticker": "V",
+    "date": "2019-10-15",
+    "criterion": "wk.explosion",
+    "why": "day 1 2019-10-11 with a 91% wick, day 2 wholly inside it, bought day 3 at 178.42 with a 0.75% stop at 177.08; stopped the next session (low 176.27) and the stock fell to 170.18 within 10 sessions. No explosion in the prior 15 sessions and 5.3% under the 52-week high: a wick play in a pullback, not after a burst, with a stop inside the noise."
    }
   ],
+  "near_misses": [
+   {
+    "ticker": "AMZN",
+    "date": "2020-08-26",
+    "criterion": "wk.day2_strict",
+    "why": "day 1 2020-08-24 (57% wick), day 2's low 163.35 dips 1.3% (0.54 ATR) under day 1's body top 165.51; the strict form allows none and the B grade at most 0.25 ATR. An inside day that touched the body, not a wick play."
+   },
+   {
+    "ticker": "TSLA",
+    "date": "2018-06-11",
+    "criterion": "wk.trend",
+    "why": "day 1 2018-06-07 (84% wick), day 2 inside the wick, but the close is 2.2% under the 200-day and the 50-day is 10.2% under the 200-day; the rule needs close > 50 > 200. A reclaim attempt under a falling 200-day."
+   },
+   {
+    "ticker": "PBR",
+    "date": "2019-01-09",
+    "criterion": "wk.not_stretched",
+    "why": "day 1 2019-01-07 (44% wick) closed 12.3% over the 10-day SMA; the rule is 10% or less. The pause came too far from the averages; stopped."
+   },
+   {
+    "ticker": "REGN",
+    "date": "2013-05-03",
+    "criterion": "wk.stop_width",
+    "why": "day 1 2013-05-01 (40% wick), day 2 inside it, but the honest stop under day 2's low is 8.12% from the entry and the open was 3.64% over the trigger; the rule wants about 3%. Size down or skip."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_08-inside-day.png"
+  },
   "limits": "Daily bars only: the entry day's own low under the stop (511 hits) cannot be ordered against the trigger, so the base rate is quoted with its floor; the same-day push was not scanned at all (D-117). No earnings, RS or market filter in the scan. Survivors only. The strict form is rare (about 54 a year across the store), so the sample is small and unstable by decade. No one has published statistics for a wick play by that name."
  },
  "question_seeds": [

@@ -1345,9 +1345,58 @@
     "trigger": "2024-05-03",
     "criterion": "mr.stop_width",
     "note": "a report flush of 3.2 ATR on 6x volume, 17.5% in three days after a +27% run, four marks; the turn day reclaimed and failed, 0.2R. The honest stop was 6.4%, double A13's guide, and a report-driven drop in a name still well under its high had no level to lean on."
+   },
+   {
+    "ticker": "ILMN",
+    "date": "2018-10-08",
+    "criterion": "mr.inv_second_flush",
+    "why": "five down days, -11.2% after +34%, a 2.4 ATR flush on 2.2x volume, 4/5 marks; the second session after the turn was the 2018-10-10 market break, a new low under the flush low on heavier volume; stopped at 296.28, then 278.35 inside 20 sessions."
+   },
+   {
+    "ticker": "SBUX",
+    "date": "2025-03-07",
+    "criterion": "mr.inv_stall",
+    "why": "four down days, -9.4% after +34%, a 2.6 ATR flush on 1.6x volume at the rising 50-day, 4/5 marks; day 1 closed 101.13 in its lower quarter while the index made a new low and closed under its 200-day; stopped, then 81.30 inside 20 sessions."
+   },
+   {
+    "ticker": "AAL",
+    "date": "2016-07-13",
+    "criterion": "mr.short_setup",
+    "why": "the short: 10.7% under the 200-day, four up days, +23.1% on a 2.4 ATR pop, 5/5 marks, stopped the next day at 36.19. The 50-day (31.17) was 10% under the price and rising: a stock climbing off its late-June low, not a dead stock popping into a declining average."
    }
   ],
-  "limits": "A daily-bar proxy: no intraday turn, VWAP, VIX or breadth filter. Survivorship (today's tickers only). Five of the ten extremes were earnings reactions and the rules do not distinguish them. The dossier's own check (4.4) measured 20% to 24% to 3R with a different stop and signal set; the two are not comparable line by line. Nothing here is a published statistic."
+  "limits": "A daily-bar proxy: no intraday turn, VWAP, VIX or breadth filter. Survivorship (today's tickers only). Five of the ten extremes were earnings reactions and the rules do not distinguish them. The dossier's own check (4.4) measured 20% to 24% to 3R with a different stop and signal set; the two are not comparable line by line. Nothing here is a published statistic.",
+  "near_misses": [
+   {
+    "ticker": "META",
+    "date": "2024-07-15",
+    "criterion": "mr.stretch_count",
+    "why": "1 of 5 marks (RSI(2) 0 only; the drop 1.2 ATR, 2 down days); the rule needs 2. A two-day 7.6% dip to the 50-day in a leader up 29%: a moving-average pullback, not a flush. Stopped the next day."
+   },
+   {
+    "ticker": "AMZN",
+    "date": "2024-04-22",
+    "criterion": "mr.volume",
+    "why": "flush-day volume 1.4x the 50-day average; the rule needs 1.5x. Six down days drifting 8.3% through the rising 50-day on light volume: the pullback family, no volume climax. Stopped on day 3."
+   },
+   {
+    "ticker": "META",
+    "date": "2021-09-21",
+    "criterion": "mr.prior_trend_a",
+    "why": "up 15% from the 63-day low before the slide; the rule needs 25%. A 2.1 ATR flush with 4/5 marks but no leader's run behind it: a stock rolling over from a top, 317.37 inside 20 sessions. Stopped the next day."
+   },
+   {
+    "ticker": "LLY",
+    "date": "2025-03-11",
+    "criterion": "mr.prior_trend_b",
+    "why": "the flush closed 3.0% under the 200-day SMA (855.47): a below-200 flush that is not a parabolic long (2 marks, no burst), so B26 says watch only. Stopped on day 2."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_34-capitulation.png"
+  }
  },
  "question_seeds": [
   {

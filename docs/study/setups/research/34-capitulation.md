@@ -996,3 +996,44 @@ and every app claim was confirmed at its source in the finishing check. What was
 - Added: Mitchum's claim that Breitstein "coined" the right side of the V (3.6); confirmation that the CMT article is
   also published on TradingView (3.2, source 22); the result of the finishing pass's search for Breitstein's own
   capitulation criteria (none found in his words, 3.6).
+
+---
+
+## 14. Failures and near-misses (from our data)
+
+Built 2026-11-10 from the same `final/hits.json` as section 12 (`charts.py`, `near_scan.py` in the scratch folder
+`_study-resume/scratchpad/setups/34-capitulation/`). The four failures are hits that passed every gate of the criteria
+card (above the 200-day, no report inside the flush window, stop 3% or under) and were stopped before 3R; the four
+near-misses come from `near_scan.py`, which re-runs the section 12 rule with one gate relaxed at a time and keeps only
+the hits the strict rule rejects for that one criterion (the 200-day near-miss is a below-200 hit from `hits.json`).
+Charts: `final/fail_1.png` to `fail_4.png` (sheet `fail_1-4.png`), `final/near_1.png` to `near_4.png` (sheet
+`near_1-4.png`), and the confusable pair `final/pair_38-parabolic-long.png` (ALGM 2023-04-28 above BABA 2022-03-15).
+Buy, stop, 3R and 5R are drawn exactly as on the winners. All numbers are read off the daily bars.
+
+**Failures (every gate passed, stopped before 3R).**
+
+| # | Ticker | Flush, reclaim | Buy | Stop (risk) | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|---|
+| 1 | BN | 2020-03-09, 2020-03-10 | 19.57 | 19.40 (0.89%) | day 1, 2020-03-11, low 18.98 | -16.5% off the 10-day high, 3.29 ATR, 3.03x volume, burst 5/5; the index made a new low the same week and the stock traded 11.55 inside 30 sessions, 41% under the buy. The crash had one more leg. | cap.inv_index_new_low |
+| 2 | COP | 2022-06-17, 2022-06-22 | 92.82 | 91.41 (1.52%) | day 1, 2022-06-23, low 87.26 | the reclaim came only on the third session; day 1 opened 93.75 and closed 87.89 in its lower tenth, through the stop; 78.30 inside 30 sessions. | cap.inv_stall |
+| 3 | VOYA | 2023-03-13, 2023-03-15 | 64.66 | 63.75 (1.41%) | day 1, 2023-03-16, low 63.52 | the bank-panic flush, burst 5/5; day 1 traded 23 cents under the stop and closed 66.15 near its high; 70.12 ten sessions later, 8.4% above the buy. A whipsaw: the stop was right by the rule and the trade still lost. | cap.stop |
+| 4 | MP | 2025-04-04, 2025-04-07 | 22.13 | 21.72 (1.85%) | day 1, 2025-04-08, low 21.57 | day 1 opened 26.00, above the 5R line (24.18), then closed 21.94 in its lower tenth through the stop. With the house rule the two trims are taken at the open and only the last third is stopped; the fixed-stop scan counts the whole trade as a loss. | cap.trim_gap_open |
+
+**Near-misses (one gate fails, everything else passes).**
+
+| # | Ticker | Flush, reclaim | The one criterion that fails | The number | What it really is |
+|---|---|---|---|---|---|
+| 1 | MS | 2025-03-04, 2025-03-06 | cap.burst | 2 of 5 boxes (a bigger loss on 2 of 3 days, the gap); the rule needs 3 | a 2.61 ATR drop on 2.02x volume, 15.3% off the 10-day high, into the 200-day, but no burst: a controlled three-week mark down (cap.inv_no_burst). Closer to Mean Reversion form A than to a capitulation; stopped the next day. |
+| 2 | AMZN | 2018-03-28, 2018-03-29 | cap.stretch_stock | the flush low 12.9% under the 10-day high close; the rule needs 15% | a 2.95 ATR flush on 2.23x volume with burst 3/5, but only a 13% dip to the rising 50-day in a leader: a pullback, Mean Reversion form A at most. Stopped the next day. |
+| 3 | LLY | 2024-07-25, 2024-07-29 | cap.volume | flush-day volume 1.96x the 50-day average; the rule needs 2x | the whole shape is there (2.13 ATR, 15.2% off the high, burst 3/5, above the 200-day) and the volume misses by 2%. The rule says no; Mean Reversion form A (1.5x) would take it. Stopped the next day. |
+| 4 | UBER | 2024-12-11, 2024-12-16 | cap.above_200 | the reclaim closed 15.9% under the 200-day SMA (71.67); burst 3/5 does not pass the parabolic-long gate | setting (C), the deep-downtrend climax: 2.19 ATR on 3.48x volume, 17.6% off the high, but in a stock that had been falling for two months. Watch, do not buy (B26). Stopped the next day. |
+
+**What the failures have in common.** All four were stopped on the first session after the buy, and in three of the
+four that session closed in its lower tenth (COP, MP) or the index itself made a new low (BN): the bounce has to show
+up at once or it is not coming, which is why 8.5 puts the stall-and-weak-close warning first and why a 3-session time
+stop costs nothing. Two of the four (BN, MP) were market-wide washouts where the leader was bought before the index
+had finished; the one that worked out for a buyer who stayed (VOYA, +8.4% in ten sessions) was taken out by 23 cents,
+the price of a stop that sits right under the undercut low. The MP case is the one to teach with the management rule
+beside it: the stock opened above 5R the next morning, so the trade is a winner under cap.trim_gap_open and a loss
+under a fixed stop. WDC 2024-07-29 (section 12) is no longer counted as a failure: its report came on 2024-07-31,
+two sessions after the reclaim, so the buy fails cap.earnings_window and the case belongs with the near-misses.

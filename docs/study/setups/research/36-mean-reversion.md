@@ -1210,3 +1210,44 @@ distinguish them, and this set does not show that one kind bounces better. The o
 - **DASH 2024-05-03, long, 0.2R.** A report flush (2024-05-01 after the close) of 3.2 ATR on 6x volume, 17.5% in three
   days after a +27% run, four marks; the turn day reclaimed and failed. Lesson: the honest stop was 6.4%, double A13's
   guide, and a report-driven drop in a name still well under its high had no level to lean on (section 8.2, location).
+
+---
+
+## 14. Failures and near-misses (from our data)
+
+Built 2026-11-10 from the same `final/hits.json` as section 13 (`charts.py`, `near_scan.py` in the scratch folder
+`_study-resume/scratchpad/setups/36-mean-reversion/`). The failures are hits that passed every gate of the criteria
+card (stop 3% or under, no report inside the slide, the turn the next session) and were stopped before 3R; three leader
+flushes and one short mirror, four different years. The near-misses come from `near_scan.py`, which re-runs the long
+rule of section 13 with one gate relaxed at a time (stretch marks, volume, prior trend, the 200-day) and keeps only the
+hits the strict rule rejects for that one criterion. Charts: `final/fail_1.png` to `fail_4.png` (sheet `fail_1-4.png`),
+`final/near_1.png` to `near_4.png` (sheet `near_1-4.png`), and the confusable pair `final/pair_34-capitulation.png`
+(JXN 2024-08-06 above ALGM 2023-04-28 from the capitulation set). Buy or short, stop, 3R and 5R are drawn exactly as
+on the winners. All numbers are read off the daily bars.
+
+**Failures (every gate passed, stopped before 3R).**
+
+| # | Ticker, turn day | Side | Buy or short | Stop (risk) | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|---|
+| 1 | ELF 2024-04-04 | Long | 165.90 | 162.24 (2.2%) | day 1, 2024-04-05, low 160.61 | eight down days, -21.2% after a +58% run, a 2.2 ATR flush on 3.0x volume, 4/5 marks. The turn day traded above the flush close but closed 162.53 in the bottom 3% of its range, under the flush close (163.77); the next session took the stop. | mr.inv_stall |
+| 2 | ILMN 2018-10-08 | Long | 320.55 | 311.69 (2.8%) | day 2, 2018-10-10, low 296.28 | five down days, -11.2% after +34%, a 2.4 ATR flush on 2.2x volume, 4/5 marks. The second session after the turn was the 2018-10-10 market break: a new low under the flush low on heavier volume than the flush day. 278.35 inside 20 sessions. | mr.inv_second_flush |
+| 3 | SBUX 2025-03-07 | Long | 105.48 | 103.39 (2.0%) | day 1, 2025-03-10, low 99.80 | four down days, -9.4% after +34%, a 2.6 ATR flush on 1.6x volume, 4/5 marks, the low just above the rising 50-day. Day 1 closed 101.13 in its lower quarter while the index made a new low and closed under its 200-day (SPY 560.58 against 571.99); 81.30 inside 20 sessions. | mr.inv_stall, mr.bear_market |
+| 4 | AAL 2016-07-13 | Short | 34.65 | 35.34 (2.0%) | day 1, 2016-07-14, high 36.19 | the mirror: 10.7% under the 200-day, four up days, +23.1%, a 2.4 ATR pop on 2.2x volume, 5/5 marks. But the 50-day (31.17) was 10% under the price and rising: the stock had been climbing off its late-June low, not a dead stock popping into a declining average. 36.74 inside 20 sessions. | mr.short_setup |
+
+**Near-misses (one gate fails, everything else passes).**
+
+| # | Ticker, turn day | The one criterion that fails | The number | What it really is |
+|---|---|---|---|---|
+| 1 | META 2024-07-15 | mr.stretch_count | 1 of 5 marks (RSI(2) 0 only; the drop 1.2 ATR, 2 down days); the rule needs 2 | a two-day dip of 7.6% to the 50-day on 1.6x volume in a leader up 29%: an ordinary moving-average pullback (12-ma-pullbacks), not a flush. Stopped the next day. |
+| 2 | AMZN 2024-04-22 | mr.volume | flush-day volume 1.4x the 50-day average; the rule needs 1.5x | six down days drifting 8.3% through the rising 50-day on light volume, 3/5 marks (band, RSI(2), 3 down closes): the moving-average pullback family, without the volume climax a flush needs. Stopped on day 3. |
+| 3 | META 2021-09-21 | mr.prior_trend_a | up 15% from the 63-day low before the slide; the rule needs 25% | four down days, a 2.1 ATR flush on 1.5x volume, 4/5 marks, above both averages, but no leader's run behind it: a stock rolling over from a top (317.37 inside 20 sessions, 11% under the buy). Stopped the next day. |
+| 4 | LLY 2025-03-11 | mr.prior_trend_b (B26) | the flush closed 3.0% under the 200-day SMA (855.47) | a leader up 28% that slid 11.2% in three days to just under its 200-day, 2/5 marks: a below-200 flush that is not a parabolic long (no burst, no 40% fall), so B26 says watch only. Stopped on day 2. |
+
+**What the failures have in common.** Three of the four were stopped on the first session after the turn and the
+fourth on the second; in every long case the entry session or the next one closed weak (ELF in the bottom 3% of its
+range, SBUX in its lower quarter) or the market itself broke (ILMN into 2018-10-10, SBUX into the March 2025 correction
+with the index under its 200-day). The flush-day numbers were not the problem: all three longs had 4 of 5 marks and a
+2.2 to 2.6 ATR drop. What was missing was the turn holding: section 8.3's time stop (no close back above the flush
+day's high within 3 sessions, sell) would have taken all three out for less than the stop. The short failed for the
+opposite reason, a rising 50-day under the price, the sign that the rally was a new uptrend and not a dead stock
+bouncing into a declining average.

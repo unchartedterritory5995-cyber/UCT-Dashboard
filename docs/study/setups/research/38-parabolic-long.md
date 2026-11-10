@@ -1121,3 +1121,44 @@ would usually be lower, with the same stop.
 4. **SQQQ 2020-08-27, an inverse fund is not a capitulation.** A 3x inverse Nasdaq ETF 35% off its high with all 5
    boxes made 0.01R. Its "selling climax" is simply the index making a high; mean reversion in an inverse fund is a
    bet on an index pullback, which is a different setup with different odds.
+
+---
+
+## 13. Failures and near-misses (from our data)
+
+Built 2026-11-10 from the same `final/hits.json` as section 12 (`charts.py`, `near_scan.py` in the scratch folder
+`_study-resume/scratchpad/setups/38-parabolic-long/`). The failures are hits that passed every gate of the criteria
+card (4 or 5 boxes with the climax gap, the context, 2x volume, the 9 EMA at least 2R away, no report inside the burst)
+and were stopped before 3R; four different years, one per ticker. The near-misses come from `near_scan.py`, which
+re-runs the section 12 rule with one gate relaxed at a time (the box count, the climax gap, the volume, the context)
+and keeps only the hits the strict rule rejects for that one criterion. Charts: `final/fail_1.png` to `fail_4.png`
+(sheet `fail_1-4.png`), `final/near_1.png` to `near_4.png` (sheet `near_1-4.png`), and the confusable pair
+`final/pair_39-parabolic-short.png` (BABA 2022-03-15 above GDS 2025-02-20 from the parabolic-short set). The buy is
+the climax close (the daily stand-in for the VWAP reclaim), the stop a few cents under the climax low; 3R and 5R drawn
+as on the winners. All numbers are read off the daily bars.
+
+**Failures (every gate passed, stopped before 3R).**
+
+| # | Ticker | Climax day | Buy | Stop (risk) | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|---|
+| 1 | BAC | 2020-02-28 (Friday) | 28.50 | 27.67 (2.9%) | day 1, 2020-03-02, low 27.44 | -21.9% in 11 sessions, 6.2 ATR under the 50-day, 5/5 boxes, a 3.9% gap, 3.6x volume, a close 1.8% off the open: every box ticked. It was the first week of a crash from an all-time high; the stock traded 17.95 on 03-23, 37% under the buy. One of the 83 names that fired that day; none reached 5R. | pl.not_crash_start |
+| 2 | WDC | 2022-09-23 (Friday) | 25.58 | 24.94 (2.5%) | day 1, 2022-09-26, low 24.45 | -31.6% in 20 sessions, 6.6 ATR under the 50-day, 4/5 boxes, 2.1x volume. Bought on a Friday; Monday closed 24.49 in its lower 3%, through the stop, and the low came on 09-29 at 23.85. The stock was at the 9 EMA on 09-30, so the buyer of the Monday low, not the Friday turn, got the trade. | pl.inv_new_low |
+| 3 | BKU | 2023-03-16 | 23.10 | 21.70 (6.1%) | day 1, 2023-03-17, low 20.54 | -44.0% in 20 sessions, 8.2 ATR under the 50-day, 4/5 boxes, 4.4x volume, a green close. Day 1 closed 21.27, down 7.9%; the regional-bank panic had one more leg, 19.04 by 04-25. SLG (example 8) turned six sessions later on 03-24. | pl.inv_linear |
+| 4 | KRE | 2025-04-04 (Friday) | 49.26 | 47.09 (4.4%) | day 1, 2025-04-07, low 47.06 | -20.3% in 7 sessions, 5.6 ATR under the 50-day, 4/5 boxes, a 4.1% gap, 3.1x volume. Bought on the Friday of the tariff crash; Monday gapped to 47.50, traded 47.06 and then printed the real climax (the day GE, example 10, fired). The ETF was at the 9 EMA on 04-09. | pl.no_frontrun |
+
+**Near-misses (one gate fails, everything else passes).**
+
+| # | Ticker | Climax day | The one criterion that fails | The number | What it really is |
+|---|---|---|---|---|---|
+| 1 | SYK | 2026-09-09 | pl.burst_count | the gap plus 2 of the other 4 boxes (3 lower closes, an accelerating loss; no second gap, no rising volume); the rule needs 3 | -22.6% in 20 sessions to 5.1 ATR under the 50-day with a 1.7% gap on 2.2x volume: a stretched decline without the burst, under the 200-day. A mean-reversion candidate that B26 says to watch only. Stopped the next day. |
+| 2 | CHTR | 2022-09-16 | pl.climax_gap | the climax day opened 0.1% under the prior close, no gap down; the rule needs 1% | -20.6% in 20 sessions, 5.4 ATR under the 50-day, 3 of the other 4 boxes, 2.0x volume, but no climax gap and no day-2 gap up either (09-19 opened 0.7% lower): a linear decline that went on to 297.66 by 10-13, 21% lower. Stopped the next day. |
+| 3 | APD | 2025-04-07 | pl.volume_climax | climax-day volume 1.5x the 50-day average; the rule needs 2x | -21.3% in 20 sessions, 6.5 ATR under the 50-day, 4/5 boxes, a 1.7% gap on the tariff-crash Monday, but the volume climax was in the index (SPY 4.1x), not in this name. Stopped the next day at 243.69, then at the 9 EMA on 04-11. |
+| 4 | BABA | 2021-07-27 | pl.context_decline | 3.4 ATR under the 50-day (the rule needs 5) and 22% off the high (the rule needs 40%) | the same China-liquidation day as HTHT (example 6) with 4/5 boxes, a 4.3% gap and 3.7x volume, but not stretched: a flush in a downtrend that bounced 5% and then made new lows (152.80 on 08-23). Stopped on day 15. |
+
+**What the failures have in common.** All four were stopped on the very next session, and three of the four were
+bought on a Friday (BAC 2020-02-28, WDC 2022-09-23, KRE 2025-04-04) with the real low printing on the Monday or
+later: Bracco's Monday preference (8.6, pl.no_frontrun) is not a detail. In every case the boxes and the stretch were
+in order; what the bars could not show was where in the decline the day sat: the first week of a crash (BAC), the first
+leg of a bank panic (BKU), a Friday before a Monday washout (WDC, KRE). The rule reads the climax; the market reading
+has to say whether the selling is done, and the stop under the climax low is what keeps the cost of being a week early
+to one R.

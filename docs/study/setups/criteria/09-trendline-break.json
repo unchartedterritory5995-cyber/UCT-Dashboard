@@ -1251,8 +1251,57 @@
     "trigger": "2020-08-10",
     "criterion": "tl.overhead_supply",
     "note": "5 touches, 62 sessions, slope 0.077, a 1.4% close over the line on 1.36x volume; one more up day, then a reversal to the stop (1.7%) on day 2 and a further 4% slide. The overhead supply at anchor 1 and the 50-day just above the break are the places a learner should expect a fight."
+   },
+   {
+    "ticker": "EL",
+    "date": "2018-12-03",
+    "criterion": "tl.stop_broker",
+    "why": "4 touches over 110 sessions, slope 0.011; a +7.0% trigger bar on 2.33x volume that closed 4.74% over the line with the entry at the line (145.75) and a 1.08% stop. The next session opened at 152.00 and fell to 144.06, through the stop, then 10% more. One bar was the whole break; the stop was the exit."
+   },
+   {
+    "ticker": "SCHW",
+    "date": "2020-02-20",
+    "criterion": "tl.market_reading",
+    "why": "3 touches over 46 sessions, a clean break on 1.81x volume closing 0.98% over the line, stop 1.8%; stopped the next session (low 45.93) as the February 2020 market break began, and the stock fell to 34.45 within 10 sessions. A valid line in a Red market is a pass."
+   },
+   {
+    "ticker": "DHR",
+    "date": "2021-01-05",
+    "criterion": "tl.stop_structure",
+    "why": "3 touches over 33 sessions, closed 2.03% over the line on 1.44x volume, stop 1.33% under the trigger-day low; the next session's low was 197.22, 19 cents under the stop, and the close 209.53; the stock reached 217 within a week. The trigger-day stop was inside the noise; the structural stop (under the low under the line) would have held. The owner's choice in tl.stop_structure decides this case."
    }
   ],
+  "near_misses": [
+   {
+    "ticker": "GOOGL",
+    "date": "2025-06-06",
+    "criterion": "tl.volume",
+    "why": "3 touches over 85 sessions, a clean trade through the line and the prior day's high, but on 0.86x its 50-day average volume; the rule is 1.2x or more. A quiet break is a watch, not a buy."
+   },
+   {
+    "ticker": "DIS",
+    "date": "2021-06-14",
+    "criterion": "tl.slope",
+    "why": "the line over 3 highs falls 0.198 ATR a session; the rule is 0.15 or less. A steep line is a drop, not the tight drift down this setup wants; it stopped the next session."
+   },
+   {
+    "ticker": "AMGN",
+    "date": "2005-11-03",
+    "criterion": "tl.line_age",
+    "why": "3 highs touch the line but the trigger day is only 11 sessions after the first anchor; the rule needs 15 or more. Too young a line to mean anything."
+   },
+   {
+    "ticker": "CAT",
+    "date": "2021-10-28",
+    "criterion": "tl.above_200",
+    "why": "4 touches over 102 sessions and a 1.32x-volume break, but the trigger day closes 4.9% under the 200-day SMA; the rule needs a close above it. Bottom fishing (tl.bottom_fishing), not this setup."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_02-bull-flag.png"
+  },
   "limits": "RS 80 and the market reading were not tested. The scan used the close-above-the-line version of the trigger to pick textbook days with the entry priced at the intraday trigger, so the base rate counts only days that also closed above the line; the real intraday trigger would add false starts that never closed above it. The stops are tiny (median 1.17%), so 3R is often a 3% to 4% move. Survivors only. The 23 judged charts in the app's fixtures carry no symbols. No published study measures this entry with a stop and an exit the way we trade."
  },
  "question_seeds": [

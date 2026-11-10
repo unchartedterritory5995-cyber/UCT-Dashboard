@@ -1158,8 +1158,51 @@
     "trigger": "2026-09-08",
     "criterion": "id.not_stretched",
     "note": "his own 4 Sep 2026 inside day, 11.0% over its 10-day SMA; triggered and stopped the same day. C29 would have skipped it."
+   },
+   {
+    "ticker": "NFLX",
+    "date": "2018-03-16",
+    "criterion": "id.after_entry_stop",
+    "why": "inside day 2018-03-15 (85% of the mother bar's range), bought at 32.35 with the stop at 31.76 (1.81%); the entry day closed at its low, 31.84, back under the inside day's high, and the next session opened at 31.58, under the stop, with a low of 30.73. The entry-day close under the high is the warning; the stop is the exit, and B20 handles the gap."
+   },
+   {
+    "ticker": "AMZN",
+    "date": "2017-05-30",
+    "criterion": "id.run_length",
+    "why": "inside day 2017-05-26 after six up closes in a row, bought at 49.94 with a 1.06% stop at 49.41; the next session's low was 49.11 and the stock fell to 46.35 within 10 sessions. A pause at the end of a run with a stop inside the day's noise is the B- end."
    }
   ],
+  "near_misses": [
+   {
+    "ticker": "MSFT",
+    "date": "2024-02-09",
+    "criterion": "id.shape",
+    "why": "bar 2024-02-08: its high is 0.30% above the prior day's high while its low is 1.26% inside; both ends must be inside. A narrow-range day, not an inside day (id.nr_day_not_inside)."
+   },
+   {
+    "ticker": "AMZN",
+    "date": "2025-10-16",
+    "criterion": "id.trend_21",
+    "why": "bar 2025-10-15: the close is 2.9% under the 21-day EMA and the EMA fell 0.9% over 5 sessions; the rule needs a rising 21-day EMA with the close above it. An inside day inside a pullback under the fast averages, closer to a reclaim setup than a continuation."
+   },
+   {
+    "ticker": "QCOM",
+    "date": "2020-08-05",
+    "criterion": "id.not_stretched",
+    "why": "bar 2020-08-04, three sessions after the 2020-07-30 earnings gap: the close is 13.0% over the 10-day SMA; the rule is 10% or less."
+   },
+   {
+    "ticker": "AAPL",
+    "date": "2017-08-02",
+    "criterion": "id.gap_over",
+    "why": "bar 2017-08-01 is a clean inside day at the 21-day EMA, but the next open was 6.0% over its high on the earnings reaction (report 2017-08-01 after the close); the rule is 4% or less. An earnings gap trade, not an inside-day buy."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_37-wick-play.png"
+  },
   "limits": "Daily bars only: the 30-minute stop rule was not simulated and the entry day's order of events is unknown (the truth sits between 26.7% and 30.7% to 3R). No RS rating or market reading history; earnings dates thin before 2005. Survivors only. Scenario B was not scanned. The short mirror was not scanned."
  },
  "question_seeds": [

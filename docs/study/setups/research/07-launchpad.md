@@ -1263,3 +1263,38 @@ is what came next.
 Reading these: a launch bar with 2x or more volume was not a protection (11 of the owner's 26 kept charts had 2x, and
 so did these four failures). The base, the leadership of the stock and the market reading carry the edge, as 8.8
 point 10 says; the launch bar is the timing.
+
+## 13. Failures and near-misses (from our data)
+
+The same scan and the same trade as section 12 (buy at the launch-day close, stop 5 cents under the launch-day low,
+60 sessions forward, fixed stop). Four valid launchpads that stopped before 3R, one per ticker, four different years,
+and four bars that look like a launchpad but fail exactly one gate criterion of the card
+(`criteria/07-launchpad.json`). Charts: `scratchpad/setups/07-launchpad/final/fail_1-4.png`, `near_1-4.png`, and the
+confusable pair against the Flat Base in `pair_01-flat-base.png`. Code: `near_scan.py` (the scan with each gate
+relaxed to a band just outside the rule, keeping the hits that fail one gate only) and `fail_near.py`.
+
+**Failures: valid by every gate, stopped by the rules.**
+
+| ticker | launch day | buy | stop (%) | where it stopped | what happened | criterion |
+|---|---|---|---|---|---|---|
+| BA | 2021-11-15 | 233.09 | 226.87 (2.7%) | day 1, 2021-11-16, low 225.51 | a 20% correction, a 0.72% bundle, +5.5% on 2.55x volume above all four averages. The next session traded through the launch low and closed at 225.80; the low within 10 sessions was 193.85. BA had been in a downtrend for two years. | lp.tradeable_name |
+| CMCSA | 2017-12-04 | 37.79 | 36.89 (2.4%) | day 2, 2017-12-06, low 36.13 | a 16% correction, a 0.83% bundle, +4.9% on 2.17x volume. One flat day (high 37.85, 0.07R), then two red days back into the bundle. A big-volume launch in a slow large cap. | lp.tradeable_name |
+| NEE | 2025-03-10 | 76.16 | 72.43 (4.9%) | day 2, 2025-03-12, low 71.78 | a 22% correction, a 0.68% bundle, +4.6% on 2.36x volume closing at 0.97 of its range. The stop was 4.9% away, near the 6% cap, so the position was small; the loss stayed at 1R. The low within 10 sessions was 68.42. | lp.stop_cap |
+| FDX | 2010-07-26 | 67.20 | 66.03 (1.7%) | day 1, 2010-07-27, low 65.92 | a 28% correction, a 2.95% bundle (at the 3% line), +5.6% on 1.83x volume. The launch opened 4.2% up (inside the 6% line) and its whole range was 66.08 to 67.40, so the honest stop was 1.7% and sat inside the noise; the next session traded through it. The stock reached 71.28 on 2010-09-30 without us. | lp.not_gap |
+
+**Near-misses: one gate fails, everything else passes.**
+
+| ticker | bar | the one criterion that fails | the number | what it really is |
+|---|---|---|---|---|
+| MSFT | 2023-10-06 | lp.correction | the lowest close of the last 60 sessions is 11.2% under the prior 60-session high; the rule needs 15% or more | a shallow pullback in an uptrend over a rising 200-day (7.5% away); a moving-average pullback (setups 11 and 12), not a pad. It went to 5.2R, which is the pullback's edge, not the launchpad's |
+| AAPL | 2013-08-13 | lp.bundle_tight | the 8, 21 and 50-day span 5.77% of price the day before (16.66 to 15.49 against a 16.80 close); the rule is 3% or less | the averages had not converged; a +4.8% breakout on 2.78x volume through a loose bundle under a falling 200-day. A rally bar, not a launch |
+| JPM | 2016-05-18 | lp.under_bundle | 3 of the last 40 closes under the bundle and 18 above; the rule needs 10 or more under | price rode on top of the averages after the February low; a pullback breakout (the lp.inv_pullback_breakout shape), not a pad |
+| AAPL | 2022-11-30 | lp.launch_above_all | the bar closes at 148.03, above the 8/21/50 (top 146.83) but under the 200-day (154.21); the launch must clear all four | a bundle reclaim under a falling 200-day after a 23% correction; +4.9% on 1.25x volume. Stopped on the way to the December low |
+
+**What the failures have in common.** All four stopped within two sessions. On the launch bar nothing separated them
+from the ten winners: +4.6% to +5.6% on 1.8x to 2.6x volume, closes in the top third of the range, above all four
+averages, three of the four already stacked 8 over 21 over 50. What differed is the stock and the bar's anatomy: BA,
+CMCSA, NEE and FDX are slow large caps, three of them out of a long downtrend, and FDX's launch was mostly a gap with a
+stop inside the day's noise. The rules that would have kept a learner out are the ones that are not on the launch bar:
+a stock he would trade (lp.tradeable_name), the stop cap and the size it forces (lp.stop_cap), and the gap line
+(lp.not_gap). The stop did its job every time: four losses of 1R each, none worse.

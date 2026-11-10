@@ -1265,9 +1265,58 @@
     "trigger": "2024-08-02",
     "criterion": "cap.setting",
     "note": "the app's 5-star fixture, 44% under its 200-day with a 7.3 ATR flush on 6.2x volume: gapped under the low the next day and never traded above the flush close in 10 sessions. The deep-downtrend climax (C) the course does not buy."
+   },
+   {
+    "ticker": "BN",
+    "date": "2020-03-10",
+    "criterion": "cap.inv_index_new_low",
+    "why": "a 16.5% flush on 2020-03-09 (3.29 ATR, 3.03x volume, burst 5/5), reclaimed the next day at 19.57 with a 0.89% stop; stopped on day 1 as the index made a new low the same week; 11.55 inside 30 sessions. The crash had one more leg."
+   },
+   {
+    "ticker": "VOYA",
+    "date": "2023-03-15",
+    "criterion": "cap.stop",
+    "why": "the bank-panic flush (2.31 ATR, 2.57x volume, burst 5/5) reclaimed at 64.66 with a 1.41% stop; day 1 traded 23 cents under the stop and closed near its high, 70.12 ten sessions later. A whipsaw: the stop was right by the rule and the trade still lost."
+   },
+   {
+    "ticker": "MP",
+    "date": "2025-04-07",
+    "criterion": "cap.trim_gap_open",
+    "why": "the tariff-crash Monday reclaim at 22.13 with a 1.85% stop; day 1 opened 26.00, above the 5R line (24.18), then closed 21.94 in its lower tenth through the stop. Under the house rule the two trims are taken at the open; the fixed-stop scan counts a loss."
    }
   ],
-  "limits": "The location rule, the intraday trigger, the 3-session time stop, the market reading and the 1%-of-volume cap are not in the scan. The median stop is 1.7%, so 3R is about a 5% bounce; the rate measures the first bounce, not a trend trade. No delisted names. Nothing here is a published statistic."
+  "limits": "The location rule, the intraday trigger, the 3-session time stop, the market reading and the 1%-of-volume cap are not in the scan. The median stop is 1.7%, so 3R is about a 5% bounce; the rate measures the first bounce, not a trend trade. No delisted names. Nothing here is a published statistic.",
+  "near_misses": [
+   {
+    "ticker": "MS",
+    "date": "2025-03-06",
+    "criterion": "cap.burst",
+    "why": "2 of 5 burst boxes (a bigger loss on 2 of 3 days, the gap); the rule needs 3. A 2.61 ATR drop on 2.02x volume, 15.3% off the 10-day high into the 200-day, but a controlled three-week mark down, no burst. Stopped the next day."
+   },
+   {
+    "ticker": "AMZN",
+    "date": "2018-03-29",
+    "criterion": "cap.stretch_stock",
+    "why": "the flush low 12.9% under the 10-day high close; the rule needs 15%. A 2.95 ATR flush on 2.23x volume with burst 3/5, but only a pullback to the rising 50-day in a leader. Stopped the next day."
+   },
+   {
+    "ticker": "LLY",
+    "date": "2024-07-29",
+    "criterion": "cap.volume",
+    "why": "flush-day volume 1.96x the 50-day average; the rule needs 2x. Everything else holds (2.13 ATR, 15.2% off the high, burst 3/5, above the 200-day). Stopped the next day."
+   },
+   {
+    "ticker": "UBER",
+    "date": "2024-12-16",
+    "criterion": "cap.above_200",
+    "why": "the reclaim closed 15.9% under the 200-day SMA (71.67) and burst 3/5 does not pass the parabolic-long gate: setting (C), the deep-downtrend climax, watch only (B26). Stopped the next day."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_38-parabolic-long.png"
+  }
  },
  "question_seeds": [
   {
