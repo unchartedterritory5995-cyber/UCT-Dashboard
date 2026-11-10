@@ -76,7 +76,7 @@ approach was dropped. #1011 reverts its page-walk code, and the page-host branch
 - **Fresh full runner pass** at `f570d32a69` (Vite fresh, frozen cases file): **314 VERIFIED of 338 cases.**
   - No new failures against the previous pass.
   - Status regenerated: 314 VERIFIED, 6 NOT IN PRODUCT (`runs/2026-11-10.wlwidget.results.json`).
-- **Locked suite:** see below.
+- **Locked SCOPED suite:** see below. It is not a whole-tree run.
 
 ## Note for the stack
 This branch was cut from `teach-cov-5` before #1011's page-walk revert (`a7397ec6e3`). It does not change those
@@ -86,9 +86,9 @@ files, so stacking on #1011 keeps the revert. A merge of #1011's head in here be
 
 https://claude.ai/code/session_01Dhm4qhJhGoto7iixuJEEzM
 
-## Locked suite and bytes (SIMULATED)
-- **One locked full suite** at `3ad0d4c277` (`src/agent`, `src/pages/command`, `src/pages/Watchlists*`,
-  `src/pages/charts/widgets`; quiet machine; BelowNormal):
+## Locked scoped suite and bytes (SIMULATED)
+- **One locked SCOPED suite** at `3ad0d4c277` (`src/agent`, `src/pages/command`, `src/pages/Watchlists`,
+  `src/pages/charts/widgets`; 413 files; quiet machine; BelowNormal). It is not a whole-tree run:
   - `Test Files 3 failed | 405 passed | 5 skipped (413)`, `Tests 4 failed | 10894 passed | 14 skipped (10912)`.
   - All four failures are the pre-existing master reds: `keyListenerCensus` ×2, `shortcutRegistry` DrillPlayer ×1, and
     the `Watchlists.entitykeys` golden.
@@ -112,9 +112,16 @@ https://claude.ai/code/session_01Dhm4qhJhGoto7iixuJEEzM
   - The one failure is the pre-existing `Watchlists.entitykeys` master red.
   - The regenerated cases are identical to the frozen 338.
 - **Notebook bytes:** master `388dee7fce` 2,254,173 B → this head 2,254,173 B. **Delta 0.**
-- **One locked full suite** at `0d605b91fd`:
+- **One locked SCOPED suite** at `0d605b91fd` (`src/agent`, `src/pages/command`, `src/pages/Watchlists`,
+  `src/pages/charts/widgets`; 412 files). It is not a whole-tree run:
   - `Test Files 3 failed | 404 passed | 5 skipped (412)`, `Tests 4 failed | 10884 passed | 14 skipped (10902)`.
   - All four failures are the pre-existing master reds (command ×3, entitykeys golden).
+- **Outside that scope (reconciled 2026-11-10, LOCAL / SIMULATED):** a whole-tree run elsewhere found 51 test files
+  outside the scope failing on master: censuses, goldens and others, owned by other teams. The 51 were rerun here at the
+  master base `388dee7fce` and at `0d605b91fd`. Both gave `50 failed | 702 passed | 48 skipped (800)`, with an
+  identical failing set, so this branch adds no failure in them.
+  - `0d605b91fd..002cfb5516` changes only `teach.mjs` (the opt-in evidence capture) and docs.
+  - The 51 fail the same way on pl-mc-fw's own fresh install, so they are not environmental.
 
 ## R-RAW browser evidence: the 9 title-menu cases (`docs/agent/program/evidence/teach-wl-widget/`)
 LOCAL headless Chrome on the agent harness, real CDP input, scripted model. Same format as
