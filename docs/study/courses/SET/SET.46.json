@@ -826,7 +826,7 @@
    "title": "MAS, July 2024: two lines in one place",
    "steps": [
     "MAS, 2024. A 19.2% fall from the March high, then 70 closes under the AVWAP. The line goes flat near 70.",
-    "2024-07-12: it closes 0.49 ATR over the line. The 50-day sits right there too: a second level, the A+ cue.",
+    "2024-07-12: it closes 0.49 ATR over the line, with the 50-day within one ATR: a second level, the A+ cue.",
     "Next session, over the reclaim day's high: buy at market, 71.15. Stop a few cents under that day's low, 69.53.",
     "Failure mode: back under the line, stop taken. Instead 3R in eight sessions. A third off, then a third at 5R."
    ],
@@ -1435,7 +1435,7 @@
    "rung": 4,
    "format": "numeric",
    "criterion": "av.size_by_grade",
-   "q": "Account 50,000. Risk 1%. Fill 120.84, stop 118.83. How many shares?",
+   "q": "Account 100,000. Risk 0.5%. Fill 120.84, stop 118.83. How many shares?",
    "answer": 248,
    "why": "248. Account times risk percent, divided by the fill minus the stop, rounded down. The stop sets the size.",
    "lesson_line": "The stop sets the size, never the other way round.",
@@ -1448,8 +1448,8 @@
    "calc": {
     "fn": "shares_from_risk",
     "args": {
-     "account": 50000,
-     "risk_pct": 1,
+     "account": 100000,
+     "risk_pct": 0.5,
      "entry": 120.84,
      "stop": 118.83
     },
@@ -1649,14 +1649,14 @@
    "format": "scenario",
    "criterion": "av.stop",
    "q": "What did the stop do?",
-   "story": "A 7.6 ATR fall, 47 closes under, a flat line. You bought at 262.81, stop 255.97. Day 2 takes the stop. Twenty sessions later it is 12.7% under your buy.",
+   "story": "A 7.6 ATR fall, 47 closes under, a flat line. You bought at 262.81, stop 255.97. Day 2 takes the stop. Its low over the next twenty sessions is 12.7% under your buy.",
    "choices": [
     "Its job: a planned 1R loss",
     "Cost you; it needed room",
     "Nothing; the line was the exit"
    ],
    "answer": "Its job: a planned 1R loss",
-   "why": "Its job. Everything in the picture was right and the reclaim still failed; the stop said so. Holding would have cost five times as much.",
+   "why": "Its job. Everything in the picture was right and the reclaim still failed; the stop said so. Holding to that low would have cost about five times as much.",
    "lesson_line": "A loss taken at plan is the system working.",
    "facts": [
     "d10",
@@ -1816,7 +1816,7 @@
    "format": "scenario",
    "criterion": "av.after_entry_stop",
    "q": "What changes on your next AVWAP reclaim?",
-   "story": "Bought at 43.22, stop 42.43. The next session takes the stop. The next 10 closes are all back under the line. Twenty sessions later it is 11.6% under your buy.",
+   "story": "Bought at 43.22, stop 42.43. The next session takes the stop. The next 10 closes are all back under the line. Its low over the next twenty sessions is 11.6% under your buy.",
    "choices": [
     "Nothing; same stop, same rules",
     "Widen the stop next time",
@@ -1824,7 +1824,7 @@
     "Buy the dip under the line"
    ],
    "answer": "Nothing; same stop, same rules",
-   "why": "Nothing. You followed every rule and the reclaim failed. The stop cost 1R where holding would have cost five.",
+   "why": "Nothing. You followed every rule and the reclaim failed. The stop cost 1R; holding to that low would have cost many times that.",
    "lesson_line": "You will take this loss again. It is the price of the ones that run.",
    "facts": [
     "d13",
@@ -2155,7 +2155,7 @@
     "h21"
    ],
    "wrong": {
-    "The original stop": "The stop is at breakeven or higher by now, far below the trail.",
+    "The original stop": "By now the stop sits at breakeven. The trail is the exit that follows the price up.",
     "Nothing; hold for the rebound": "Hope is not a stop. The trail is the exit for the last third."
    },
    "house": true
@@ -2168,7 +2168,7 @@
    "criterion": "av.trim_2",
    "q": "Bought at 52.67, stop 51.99. You sell a third at 56.07. How many R did that third bank?",
    "answer": 5.0,
-   "why": "5R. The gain divided by the fill minus the stop. That is the second trim; EPC got there after 3R in six sessions.",
+   "why": "5R. The gain divided by the fill minus the stop. That is the second trim. EPC reached 3R in six sessions and ran to 18.9R.",
    "lesson_line": "Count every exit in R. The second third is 5R.",
    "facts": [
     "h20",
@@ -2336,7 +2336,7 @@
    "format": "scenario",
    "criterion": "av.stop",
    "q": "Write the plan: entry, stop, first trim.",
-   "story": "NOW, April 2017. Above a rising 200-day, the line flat, a close 0.31 ATR over it. Next session it trades over the reclaim day's high.",
+   "story": "NOW, April 2017. Above a rising 200-day, the line flat, a close 0.31 ATR over it. The reclaim day's high is 17.68 and its low is 17.53. Next session it opens over that high, at 17.70.",
    "choices": [
     "Market 17.70; stop 17.50; third at 3R",
     "Limit at the AVWAP; stop 5% under",
@@ -2449,7 +2449,429 @@
   "The dossier's example numbers (d1) are a Tier 3 repo source: read off our own daily bars by the research scan (dossier sections 12 and 13), not a public page or an owner ruling. The scan has no delisted names, its AVWAP is computed from daily bars, and the owner has not yet reviewed the examples. Walk-through fills are the scan's (one cent over the reclaim day's high, or the open on a gap over it) and stops 3 cents under the reclaim day's low.",
   "q42, q60 and q67 teach two scan cuts (reclaim-day volume, stop width) as what OUR data found, cited to the dossier; no source publishes a rate for AVWAP reclaims. They are measured, not rules, and the base rate (25.7% to 3R before the stop, fixed stop, no trims) is not a promise of results.",
   "q29's numbers (52.41, 50.95, 51.40) are the card's seed; q30, q31, q32 and q33 use plain round numbers, not a real example. q36 and q43 use the AMZN 2026-10-12 and MRK 2012-12-12 failures; q55 uses TMO 2022-03-22 from the card's failure list, which the dossier set aside as a day-2 fill (outside the card's next-session trigger); its lesson is only the market reading. q59 is a what-if built on CDW 2019-02-05, which the dossier replaced because the earnings rule forbids it.",
-  "The short mirror, the AVWAP loss (dossier 8.6), is not taught here (D-001)."
+  "The short mirror, the AVWAP loss (dossier 8.6), is not taught here (D-001).",
+  "Cold check 2026-11-10: 62 pass (6 fixed), 0 fix, 5 cut of 67 questions; 3 walk-throughs pass (w3 reworded). q29, q34, q55, q63, q67 cut (q29 and q34 repeat q05, q63 repeats q02, q67 repeats q42; q55 is leading and rests on TMO, which the dossier set aside as a day-2 fill). Numbers corrected: q28 (1% risk on a 2.01 stop is 248 shares = 60% of a 50,000 account, over the 40% cap, A7; account now 100,000 at 0.5% risk, 30%), q43 ('holding would have cost five times' is about 6.4R for MRK), q36 and q43 (the 12.7% and 11.6% are the low in the next 20 sessions, not the price then). The g1a quote is verbatim in docs/study/setups/GLOSSARY.md (atr), which is not on the brief's source list; the two TrendSpider quotes (t01, t02) are verbatim in dossier section 3 but the live page was unreachable for the quote checker. Owner should look first at: (1) D-003, the trigger (next session over the reclaim day's high), because w1 to w3 and q64 narrate it; (2) D-011, RS 80, because nine of the ten examples score under 80; (3) q64, whose story now gives a reclaim-day high of 17.69 and a low of 17.53, derived from the scan's rule (buy a cent over the high, stop three cents under the low), to be confirmed on the NOW 2017-04-19 bars."
  ],
- "verify": {}
+ "verify": {
+  "q17": {
+   "status": "pass",
+   "notes": "c23 (shortened in the repair) still says an AVWAP reclaim takes back 'the volume-weighted average cost since one named event' and a Remount a moving average or flat level; the why's 'starts at an event day and bends with volume' rests on that plus c08 (price times volume summed from the anchor day). Supported. Slightly easy: the story describes the AVWAP; the Remount is the card's lookalike tell.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "h03 (A5): size is the SMALLER of the risk size and the cap. 1% of 50,000 on a 2.01 stop gives 248 shares = 29,968, 60% of the account, over the 40% cap (A7), so 248 was wrong for that account (the cap gives 165). Account now 100,000 and risk 0.5% (A and B grade): 500 / 2.01 = 248.8, rounded down 248; 248 x 120.84 = 29,968 = 30%, under the cap. Stop 118.83 matches AJG in d08.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "cut",
+   "notes": "Duplicate of q05: the same fact (a close back under the AVWAP after the buy is not an exit, the stop decides; c13) asked as a scenario; q05 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "cut",
+   "notes": "Restates q05's answer (the stop is the exit, A4) with no new fact; the unit already teaches it in q05, q36 and q43.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "d10/d11/d12 verbatim (AMZN buy 262.81, stop 255.97 = 2.6%, stopped day 2). The dossier says 'the low 20 sessions later was 12.7% under the buy'; the story said it 'is' 12.7% under 20 sessions later, which reads as the price then. Now 'its low over the next twenty sessions'. 12.7 / 2.6 = 4.9, so 'about five times' is right for AMZN.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "d13/d14 verbatim (MRK buy 43.22, stop 42.43 = 1.8%, stopped day 1). The why said holding would have cost five times as much; for MRK 11.6% / 1.8% is about 6.4R, and 'five' is the dossier's range across AMZN and MRK. Now 'many times that'; story reworded the same way as q36.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "d19/d20 verbatim (AAPL 0.56 ATR). Key rests on the proposed av.line_flattened (0.5 ATR is the dossier's number; it says drop it if the owner prefers). Shannon b01/b02 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "d17/d18 verbatim (ADC 3.9 ATR, 19 closes under, 6.4R). Key rests on the proposed 4 ATR gate; the dossier calls this a borderline case better asked as a grade question. Kept: the why says it reached 6.4R and the rule still rejects it.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "cut",
+   "notes": "Leading and overreaching: the story states 'the broad market fell that year', which is the answer, and one 0.0R stop in a falling year does not show the market was the cause. The dossier also set TMO aside (a day-2 fill outside the next-session trigger). The market-reading fact is already asked in q14, q61 and q65.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "h20/h21 verbatim. Wrong note said the stop is 'far below the trail', which is not always so; now says the stop sits at breakeven by then.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "(56.07 - 52.67) / (52.67 - 51.99) = 3.40 / 0.68 = 5.0R. EPC fill and stop match d01. The why said 'EPC got there after 3R in six sessions', which could be read as 5R timing; now says it reached 3R in six sessions and ran to 18.9R (d01).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "cut",
+   "notes": "Duplicate of q02: the same fact (the AVWAP from a high shows whether the average holder since is winning or losing, g01) asked a second way; q02 kept. The name-the-anchor line is in q06.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "d03/d04 verbatim (NOW buy 17.70, stop 17.50). The story did not give the reclaim day's high and low, so the numbers in the right choice could not be derived. The scan buys one cent over the reclaim day's high and stops three cents under its low (dossier 12), so the story now gives a high of 17.69 and a low of 17.53. Derived from the scan's rule, not read off the table: confirm on the bars. | Coordinator, 2026-11-10: reclaim-day high checked on the bars is 17.68 (low 17.53); the next session opens at 17.70, over it. Story corrected.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q67": {
+   "status": "cut",
+   "notes": "Duplicate of q42: the same fact (loud reclaim-day volume did not help in our scan, d25) asked as a scenario; q42 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "17.70 + 3 x (17.70 - 17.50) = 18.30; NOW numbers match d03. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "(60.00 - 51.00) / 1.80 = 5.0 ATR, over the 4 ATR gate (proposed). Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "(46.55 - 45.20) / 1.10 = 1.23 ATR, past 1.0: no trade (card). Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "(22.93 - 22.68) / 22.93 = 1.09%; MAR numbers match d07. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "52.40 / 50.00 = 1.048, 4.8% over the trigger, past C28's 4%. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "Loss to 48.40 = (50.00 - 48.40) / 1.00 = 1.6R, inside B20's 2R ceiling. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "44.80 / 40.00 - 1 = 12%, over C29's 10%. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "Gap open at 3.3R is past the 3R trim: F63 takes it at the open. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "1% of 3,000,000 = 30,000 (D42). Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "d27 verbatim (CDW 2019-02-05, 22.4R, buy two sessions before its reaction day); B22 forbids it. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "d26 verbatim: over 3% 22.5% against 29.3% (2 to 3%) and 26.5% (2% or less). Measured on a fixed stop, so wider stops also put 3R further away; the unit says 'in our scan'. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "d25 verbatim: 1.5x or more 22.3% against 27.0% under 1.0x (3R). Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "t03 (TrendSpider) and a05 (Shannon) verbatim: two publishers, both Tier 2. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "c02/a03 verbatim (proposed). The wrong note about crossings does not contradict Shannon's repeated-tests slide (touches from below are not crossings). Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "d05/d06 verbatim (MAS), c09 proposed A+ cue; MAS numbers match d05. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "c10, h26 verbatim; Orange is A+ only and a line 3% overhead grades B-. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "h30/h31 verbatim (E49, D38); no stop distance in the question, so the 40% cap does not bind. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "h27 (F68) and c19 verbatim. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "c06/h10 verbatim: B26 reads the reclaim-day close (settled). Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "d21/d22 verbatim (CAG +0.23 ATR close, chopped to 2.7R). Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "d23/d24 verbatim (AGCO 0.91 ATR over the line, past 0.5). Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "c22, h09, t02 verbatim; $8 and $5 million a day fail B23 on both counts. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "pass",
+   "notes": "x04/c08 verbatim: typical price is the average of high, low and close. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "c13 verbatim (D-136 settled); Shannon b03 verbatim. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "g01 (Shannon) and x02 (ChartSchool) verbatim: two publishers. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "a08 (Shannon) and t01 (TrendSpider) verbatim: two publishers. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "c08, x02, x04 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "c06, h10 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "a04, a10, c03 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "c15, h24, h01 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "c04, g1a verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "c11 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "e02, c05 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "c01, g1a verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "c07, c06 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "h13 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "c17, h26 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "c14, c15, h24 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "c20, h11, h12 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "c08, a07 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "c10, d09 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "c21, h08 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "c24 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "c26, p01, p02 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "h21 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "c12, a06 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "c19 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "h28, h29, d15, d16 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "h15 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "h05 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "c16, h01, h04 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "c18 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "c25 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w1": {
+   "status": "pass",
+   "notes": "EPC numbers match d01/d02 (18.7%, 42 closes under, flat at 52, +0.86 ATR, buy 52.67, stop 51.99, 3R in six sessions). Breakeven at the first trim is B19's default. Sentences 22 words or fewer.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "NOW numbers match d03/d04 (11.9%, 40 under, +0.31 ATR, buy 17.70, stop 17.50, 3R in five sessions, report after the first trim).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "MAS numbers match d05/d06 (19.2%, 70 under, +0.49 ATR, buy 71.15, stop 69.53, 3R in eight sessions). Step 2 said the 50-day 'sits right there'; the dossier says the reclaim day, the 50-day and the trigger are within one ATR; reworded.",
+   "fixed": true,
+   "by": "checker"
+  }
+ }
 }

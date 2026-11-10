@@ -1343,7 +1343,7 @@
     "k10"
    ],
    "wrong": {
-    "A close under the 200-day": "That is far below. The pop has failed long before it gets there.",
+    "A close under the 200-day": "Not the line. The pop is judged against its own low first, long before the 200-day.",
     "Any red day after the pop": "A red day can hold above the pop day's low. Noise is not a failure.",
     "A close under the day's open": "A red candle is not a failure by itself. The line is the pop day's low."
    },
@@ -1480,7 +1480,7 @@
    "q": "By our default, the stop moves to breakeven at the first trim.",
    "answer": "True",
    "why": "True. Breakeven between 2R and 5R, at the first trim by default. The hard rule for that trim is a third at 3R.",
-   "lesson_line": "First third off, stop to breakeven. Then the trade cannot hurt you.",
+   "lesson_line": "First third off, stop to breakeven. Then a stop-out costs about nothing.",
    "facts": [
     "c43",
     "h05"
@@ -1692,7 +1692,7 @@
     "k11"
    ],
    "wrong": {
-    "Wait for a pullback to 50.00": "The strongest pops often never come back. Inside the chase line, the open is the buy.",
+    "Wait for a pullback to 50.00": "Inside the chase line the open is the buy. Waiting for a dip can mean no trade at all.",
     "Pass, gaps tend to fill": "Kell says the powerful pops often start with gaps. A gap up is strength.",
     "A limit order at 50.00": "Entries are market orders. A limit under the market waits for a dip that may not come."
    },
@@ -1774,7 +1774,7 @@
     "A flat base breakout"
    ],
    "answer": "EMA Crossback",
-   "why": "An EMA Crossback. A wedge pop comes after a correction spent mostly under the averages. A crossback is the first pullback into averages the stock already rides. DECK in May 2024 looked like this.",
+   "why": "An EMA Crossback. A wedge pop comes after a correction spent mostly under the averages. A crossback is the first pullback into averages the stock already rides. DECK in May 2024 was a near-miss of this kind: a pullback inside an uptrend.",
    "lesson_line": "Ask where the stock came from. Up from under the averages is a pop; down into them is a crossback.",
    "facts": [
     "c01",
@@ -1883,7 +1883,7 @@
     "They grade the same"
    ],
    "answer": "The close near the high",
-   "why": "The close near the high. In our scan a close back under the pivot on the pop day cut the hit rate to 23.1% against 46.5%, the biggest cut of any single mark.",
+   "why": "The close near the high. In our scan a close back under the pivot on the pop day cut the success rate to 23.1% against 46.5%, the strongest single cut.",
    "lesson_line": "Where the pop day closes tells you if the pop is real.",
    "facts": [
     "d27",
@@ -1891,7 +1891,7 @@
     "c10"
    ],
    "wrong": {
-    "The close under the pivot": "That is the failure mode starting. A close back under the pivot was the weakest group in our scan.",
+    "The close under the pivot": "That is the failure mode starting. A close back under the pivot was the strongest single cut in our scan.",
     "They grade the same": "The close grades the pop. Our card wants it above the pivot, near the high."
    },
    "house": true
@@ -1904,11 +1904,11 @@
    "criterion": "wp.inv_back_in_base",
    "q": "A close back under both averages and inside the base, within 5 sessions of the pop, invalidates it.",
    "answer": "True",
-   "why": "True. A close back under both averages and back inside the base within 5 sessions ends it. Kell played defence when TSLA rejected the day after its pop.",
+   "why": "True. A close back under both averages and back inside the base within 5 sessions ends it. That is the failure mode: the pop fades.",
    "lesson_line": "A real pop holds its ground. Back in the base means the pop is gone.",
    "facts": [
     "c21",
-    "w02"
+    "c03"
    ],
    "house": true
   },
@@ -2331,7 +2331,7 @@
    "q": "Kell says to get aggressive in stocks when the index makes a Reversal Extension.",
    "answer": "True",
    "why": "True. Get aggressive trading individual stocks when you see a Reversal Extension on the index. Deepvue says the same: at market turning points he trades more aggressively.",
-   "lesson_line": "The index's own low is when the first leaders pop. Watch the index first.",
+   "lesson_line": "Kell watches the index first. When it makes its low, he gets aggressive in stocks.",
    "facts": [
     "r03",
     "p04"
@@ -2404,7 +2404,7 @@
     "Yes, with a stop at the low"
    ],
    "answer": "No, that is bottom fishing",
-   "why": "No. Buying the Reversal Extension low itself is bottom fishing. Kell: trading it is best avoided; wait for the price to consolidate under the averages as it forms a tradable pivot.",
+   "why": "No. Buying the Reversal Extension low itself is bottom fishing. Kell: trading it is often best avoided; wait for the price to consolidate under the averages as it forms a tradable pivot.",
    "lesson_line": "Let the low form, then let the base form. The pop is the buy, not the panic.",
    "facts": [
     "c33",
@@ -2564,10 +2564,10 @@
    ],
    "wrong": {
     "A Wedge Pop": "A pop closes up through the averages. This one closed down through them.",
-    "An EMA Crossback": "A crossback is a pullback that holds the rising averages. This one broke them."
+    "An EMA Crossback": "A crossback is a pullback that holds rising averages. This one sits under falling averages and broke down."
    },
    "house": true,
-   "story": "After a strong run, the stock stalls a few days on its averages. Then it closes down through both of them."
+   "story": "After a climax top and a drop, the stock coils up into its falling averages for a few tight days. Then it closes down through both of them."
   },
   {
    "key": "q62",
@@ -2633,7 +2633,7 @@
     "0.25%, it could fail"
    ],
    "answer": "Up to 1.5%, sized up",
-   "why": "Sized up. A+ risks 1% to 1.5%; A and B setups trade at normal size. 2% is the absolute ceiling.",
+   "why": "Sized up. A+ risks 1% to 1.5%; A and B setups trade at normal size. 2% is the absolute ceiling, and the position cap can still shrink the shares.",
    "lesson_line": "Grade sets the size. A+ in a Green market is where I lean in, inside the ceiling.",
    "facts": [
     "h32",
@@ -2644,10 +2644,10 @@
    "wrong": {
     "0.5%, sized down": "Sizing down is for B- or lower. This one is A+.",
     "2.5%, it is A+": "That is past the 2% absolute ceiling. A+ tops out at 1.5%.",
-    "0.25%, it could fail": "Every pop could fail; the stop handles that. 0.25% is for B- setups or new traders."
+    "0.25%, it could fail": "Every pop could fail; the stop handles that. 0.25% is for B- or lower setups."
    },
    "house": true,
-   "story": "An A+ pop in a Green market: a gap through the pivot after the index's own low, on heavy volume. The stop is 1.8% away."
+   "story": "An A+ pop in a Green market: a gap through the pivot after the index's own low, on heavy volume."
   },
   {
    "key": "q65",
@@ -2730,7 +2730,423 @@
   "Walk-through fills: the scan filled at the pivot plus a cent (TGT 181.80, STLD 175.52) or at the open when it gapped over the pivot (RCL 13.18), and stopped 5 cents under the pop day's low; a live market order fills a little differently. The scan's qualifying facts on the pop day (the close, the volume) are known only at the close.",
   "The chart questions (q65 TGT asof 2021-03-18, q66 TSLA asof 2023-11-13) show the day before the pop as the last bar on the member's own chart with their averages; the keys rest on the dossier's reads (d01, d02, d13, d14) and the proposed tight test (c06), never on reading the picture. If the member's chart does not draw short averages, the question still reads.",
   "UNITS-method's SET.16 row says the stop goes 'under the coil low'; the card's default (and the rulebook's A3) is a few cents under the pop day's low, with the base low only an option under D-008. The unit follows the card.",
-  "The short mirror is the Wedge Drop (SET.17). q61 teaches only the difference in direction; a first Wedge Drop above the 200-day is a sell signal, not a short (B26, D47), as SET.17 teaches."
+  "The short mirror is the Wedge Drop (SET.17). q61 teaches only the difference in direction; a first Wedge Drop above the 200-day is a sell signal, not a short (B26, D47), as SET.17 teaches.",
+  "Cold check 2026-11-10: 62 pass (10 fixed), 1 fix, 3 cut of 66 questions; 3 walk-throughs pass. q32, q49, q57 cut as duplicates (q05, q08/q13, q43 kept); q45 (COIN) held as fix on D-006. Numbers corrected: q64 (1.5% risk on a 1.8% stop is an 83% position, over the 40% cap, A7; stop distance removed from the story). Owner should look first at: (1) D-006, the volume gate, which decides whether COIN 2024-08-23 was a planned loss (q45); (2) the card lists 'index still falling' both as a no-buy invalidation and as a B- cue, and q37 keys the stricter one; (3) a 1.5% A+ risk with a stop inside 3% always hits the 40% cap (it needs a stop of 3.75% or wider), so the risk-by-grade table and the cap need one sentence in the lesson."
  ],
- "verify": {}
+ "verify": {
+  "q14": {
+   "status": "pass",
+   "notes": "c20, k10 verbatim (card invalidations; Kell via TraderLion). Key right. Wrong note for the 200-day said 'far below', which is not always true (DHI closed 0.8% above it); now 'not the line', fixed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "c43/h05 verbatim; key is B19's default. Lesson line said 'the trade cannot hurt you', an overclaim (a gap can still jump a breakeven stop); now 'a stop-out costs about nothing'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "2.4% gap (51.20 vs 50.00) is inside the 4% line (c11, h11). Wrong note claimed 'the strongest pops often never come back', which no source says; now 'waiting for a dip can mean no trade'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "c01/c29 verbatim; key right. The why said 'DECK in May 2024 looked like this', but the story's 14 sessions since a pop are not DECK's numbers; now says DECK was a near-miss of this kind (a pullback inside an uptrend, d12). Never states DECK's 7 of 15 (pending D-077).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "cut",
+   "notes": "Duplicate of q05: the same fact (a cross of the averages alone is not a Wedge Pop, c17/k08) asked a second way; q05 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "d27 verbatim (23.1% / 46.5%, the strongest single cut). 'Hit rate' was ambiguous (the scan has a 'hits' count); now 'success rate' (reaching 3R before the stop). Wrong note called it 'the weakest group in our scan', which the dossier does not say (it says the strongest cut); fixed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "c21 verbatim (proposed). The Kell TSLA line (w02) is about rejection at a gap, not a close back inside a base, so it did not support the key; replaced with the card's failure mode (c03) and the fact list changed to c21, c03.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "c23/c42 verbatim; key follows the card's invalidation (proposed). The card also lists 'index still falling' under B- (a smaller trade), so the key 'No' is the stricter of the card's two readings; owner may want one.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "c26 verbatim (proposed); TSLA gap-resistance line (w02) verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "fix",
+   "notes": "The key 'a planned loss at a smaller size' needs the pop to pass the volume gate, and wp.volume is pending-owner (D-006). 1.24x the base days passes the card's 'above the base days' option but COIN's 1.04x the 50-day fails the app's 1.05x option, and the card files COIN's failure under wp.volume, not the stop. The story does not give the prior day's volume. Hold until D-006 is settled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "cut",
+   "notes": "Duplicate: no-adding is asked in q08 and the crossback-is-a-new-trade fact in q13; this scenario restates both and its why repeats them.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "pass",
+   "notes": "r03 (TraderLion) and p04 (Deepvue) verbatim: two publishers. Lesson line said 'the index's own low is when the first leaders pop', which is the pending wp.market_timing claim (D-018; our test found no edge); now states only what Kell does.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "c33, r01, r02 verbatim. Kell wrote 'Often, trading ... is best avoided'; the why had dropped 'often'; restored.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "cut",
+   "notes": "Near-duplicate of q43: same choice ('leave the stop', 'never lower it'), same wrong note, same rule (A4, h02); q43 kept because it also carries the card's pop-day-low failure line.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "c35 verbatim. The story put a stall 'on its averages' after a strong run, which also reads as a failed crossback; the card's Wedge Drop is a tight range up into the averages after a climax, then a break down. Story rewritten to that picture and the crossback wrong note now says falling averages.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "E49 (A+ 1% to 1.5%) and A1 (2% ceiling) verbatim. The story gave a stop 1.8% away: 1.5% risk on a 1.8% stop is a position of 83% of the account, over the 40% cap (A7), so the key was wrong for that story. Stop distance removed from the story and the why now says the cap can still shrink the shares. Wrong note 'or new traders' is not in the rulebook; removed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "0.7 = 2.10 / 3.00; under the proposed 0.85 line (c06). Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "(104 - 100) / (106 - 100) = 66.7%; top 40% means 60% or more, so it passes (c09). Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "175.52 + 3 x (175.52 - 171.31) = 188.15; fill and stop match STLD in d05. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "31.70 / 30.24 = 1.048, 4.8% past the pivot, over the 4% line (C28). Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "55.40 / 50.00 - 1 = 10.8%, over C29's 10%. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "(24.58 - 23.68) / 24.58 = 3.66%; CROX numbers match d07 (3.6%). Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "200,000 x 0.25% = 500; 500 / 2.22 = 225.2, rounded down 225; 225 x 181.80 = 40,905, 20% of the account, under the 40% cap (A7). TGT fill and stop match d01. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "1% of 1,500,000 = 15,000; the tenth and ten-times notes check. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "(50.00 - 48.15) / 50.00 = 3.7%, wider than about 3%: size, not stop (A13). Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "Stop 39.10 sits five cents under a pop-day low near 39.15 to 39.20; the close at 39.15 is under it. Key right. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "14 x 1,300,000 = 18.2 million, under the 20 million floor (B23). Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "PLTR numbers match d22/d23 (buy 184.95, stop 182.70, low 180.21). Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "AMZN 2018-11-07 numbers match d24/d25 (buy 84.88, stop 83.15, 2.5R, low 81.50); key follows B19's default (breakeven at the first trim), see conflicts. The fill at 83.15 assumes no gap. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "(60.00 - 57.30) / (60.00 - 59.00) = 2.7R, past B20's 2R ceiling. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "3R = 40 + 3 x 1 = 43.00; opens 43.60, past it; F63 takes the trim at the open. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "d30 verbatim (CRWD 8.6% stop). The story never says earnings day; the card files CRWD under wp.not_earnings_day (pending), so only the A13 8%-or-more line is keyed. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "d09/d10 verbatim: pivot 30.24, buy 30.25, close 31.72 = 4.9% over (31.72 / 30.24 = 1.049). Key follows E57 and C28 (settled). Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "d01/d02 verbatim; chart asof 2021-03-18, pop 2021-03-19; contraction 0.44. Key rests on the proposed tight test, not on reading the picture. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "d13/d14 verbatim; chart asof 2023-11-13, pop 2023-11-14; 1.11x against the 0.85 line. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "d15, h10, c45 verbatim: AMZN 2019-01-04 closed 7.3% under the 200-day; key rests on B26 (settled), not on the pending index/ETF option (D-009). Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "d16/d17 verbatim: CSCO 0.88x the base days. Key rests on the proposed wp.inv_no_volume. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "c36/c11/d06 verbatim; the key is the card's A+ row, not the pending volume gate (D-006). Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "c24/c37 verbatim (proposed). DHI three sessions after SPY's 2023-10-27 low (d11). Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "h29/h28 verbatim (E56, B21): three tries a week, so a third after two stop-outs is allowed. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "F65 and D46 verbatim: Red, mostly cash. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "c30, c09, c02 verbatim; a U&R reclaims one prior low and can fire from under the averages. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "c01/y01: 'most of three weeks under the 20-day' holds under every D-077 option. Key right; every wrong note true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "y01, p01, k03 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "c18, h24, h01, v01 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "c13, h11 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "y04, p03, y05 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "k08, c17 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "c08, p02, k04 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "c12, h22, h23 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "h30, c40, a01 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "k01, w04 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "c05, k05 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "c07, k12 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "k11, c11, d28 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "c14, w03 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "h09, c39 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "h20, h05 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "h21 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "h15, d32 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "h08, c16, d18, d19 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "h24, c18, d04 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "h26, c28 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "h31, c38 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "c44, c06 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "c25 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w1": {
+   "status": "pass",
+   "notes": "TGT numbers match d01/d02 (17%, 15 of 15, base 166.83 to 181.79, 0.44, 2.2x, buy 181.80, stop 179.58, 3R on day 1). Sentences 22 words or fewer.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "RCL numbers match d03/d04 (34%, 14 of 15, 4-day base 11.80 to 12.95, open 13.18, stop 12.97, 3R day 1). 'Under the 4% chase line' is the dossier's wording and holds (13.18 is 1.8% over 12.95). Breakeven at the first trim is B19's default.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "STLD numbers match d05/d06 (22%, 15 of 15, base 162.16 to 175.51, 1.2x, buy 175.52, stop 171.31 = 2.4%, 3R on day 6, 175 to 280).",
+   "fixed": false,
+   "by": "checker"
+  }
+ }
 }

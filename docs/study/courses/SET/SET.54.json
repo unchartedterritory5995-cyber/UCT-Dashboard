@@ -982,7 +982,7 @@
     "SANM, 2026-09-11, 5-minute bars. A leader: RS 81, 10% over its 200-day. It gaps up 1.2%.",
     "The first 5-minute bar runs 205.71 to 207.99 on 2.3x volume: a dip, then recovery. At 9:35 it trades through.",
     "Buy at market, 208.00. Stop a few cents under the day's low, 205.66: 1.1% away. 3R, 215.02, comes at 10:35.",
-    "A third comes off at 3R. On 09-14 it gaps down through the stop. The first 30-minute low decides; out past 2R."
+    "Third off at 3R, stop to breakeven. On 09-14 it gaps down through it. First 30-minute low decides; out past 2R."
    ],
    "facts": [
     "d04",
@@ -1693,7 +1693,7 @@
     "Take it at half size"
    ],
    "answer": "Pass; RS 77 is not a leader",
-   "why": "Pass. We buy leaders: RS 80 or more. CROX still ran 5.8R at its best, and it is still not ours. A trade that works is not a rule broken.",
+   "why": "Pass. We buy leaders: RS 80 or more. CROX still ran 5.8R at its best, and it is still not ours. A trade that works does not change the rule.",
    "lesson_line": "A drive that works is not always our drive. Under RS 80, I pass.",
    "facts": [
     "d12",
@@ -1803,7 +1803,7 @@
    "wrong": {
     "The next green candle": "A green candle is not a level. The second entry needs a pullback that holds.",
     "The close, at market": "The card has no close entry. The second entry is the pullback break.",
-    "Tomorrow's open": "The drive is an entry for its own morning. The pullback comes the same morning."
+    "Tomorrow's open": "The drive is a morning entry. The second entry is the pullback that holds, not a later open."
    },
    "house": true
   },
@@ -1831,11 +1831,11 @@
    "criterion": "od.volume_a_plus",
    "q": "Two drives on the same daily setup. Which grades higher?",
    "choices": [
-    "The one trading average volume by 9:45",
-    "The one on average first-bar volume",
+    "One trading a full day's volume by 9:45",
+    "One on average first-bar volume",
     "They grade the same"
    ],
-   "answer": "The one trading average volume by 9:45",
+   "answer": "One trading a full day's volume by 9:45",
    "why": "The one that trades its average daily volume in the first 15 minutes. That is an A+ mark: the average daily volume within the first 15 to 30 minutes.",
    "lesson_line": "A stock that trades a full day's average volume before 9:45 is in play.",
    "facts": [
@@ -1844,7 +1844,7 @@
     "u03"
    ],
    "wrong": {
-    "The one on average first-bar volume": "Average volume in the first bar is only the floor. The A+ mark is far heavier.",
+    "One on average first-bar volume": "Average volume in the first bar is only the floor. The A+ mark is far heavier.",
     "They grade the same": "Volume grades the drive. Our card marks the heavy one A+."
    },
    "house": true
@@ -1855,19 +1855,19 @@
    "rung": 6,
    "format": "numeric",
    "criterion": "od.stop",
-   "q": "Account 100,000. Risk 1%. Fill 208.00, stop 205.66. How many shares?",
-   "answer": 427,
+   "q": "Account 100,000. Risk 0.4%. Fill 208.00, stop 205.66. How many shares?",
+   "answer": 170,
    "calc": {
     "fn": "shares_from_risk",
     "args": {
      "account": 100000,
-     "risk_pct": 1,
+     "risk_pct": 0.4,
      "entry": 208.0,
      "stop": 205.66
     },
     "round": 0
    },
-   "why": "427. Account times risk percent, divided by the fill minus the stop, rounded down. The stop sets the size, never the other way round.",
+   "why": "170. Account times risk percent, divided by the fill minus the stop, rounded down. The stop sets the size, never the other way round.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h03",
@@ -2294,7 +2294,7 @@
    "format": "scenario",
    "criterion": "od.reentry",
    "q": "Buy again?",
-   "story": "PAYC, 2026-10-01: you buy at 9:35 and the fill is the high of the day. It slides and takes the stop at 10:35. At 10:40 it is back above your fill.",
+   "story": "PAYC, 2026-10-01: you buy at 9:35 and the fill is the high of the day. It slides and takes the stop at 10:35, then bounces for the rest of the day.",
    "choices": [
     "Yes; the stop-out was a fluke",
     "Yes, with a wider stop",
@@ -2311,7 +2311,7 @@
     "d23"
    ],
    "wrong": {
-    "Yes; the stop-out was a fluke": "Price back above your fill is not a trigger. A new trade needs its own trigger.",
+    "Yes; the stop-out was a fluke": "A bounce is not a trigger. A new trade needs its own trigger.",
     "Yes, with a wider stop": "The stop only moves up, never wider, and a new trade needs a new trigger first.",
     "No; never trade it again": "A new trigger is allowed. It counts against 3 tries a week and 6 a month."
    },
@@ -2351,7 +2351,7 @@
    "rung": 8,
    "format": "mcq",
    "criterion": "failure_mode",
-   "q": "In our 12-week scan, about how many strict drives were stopped on the drive day?",
+   "q": "In our 12-week scan, 41 drives passed every rule. About how many were stopped on the drive day?",
    "choices": [
     "About nine in ten",
     "About four in ten",
@@ -2359,7 +2359,7 @@
     "Almost none"
    ],
    "answer": "About four in ten",
-   "why": "About four in ten. Many strict drives fail fast: 87.8% were stopped within 20 sessions and 41.5% on the drive day itself.",
+   "why": "About four in ten. Many drives that pass every rule fail fast: 87.8% were stopped within 20 sessions and 41.5% on the drive day itself.",
    "lesson_line": "Plan on losing often. A drive that keeps going pays in minutes; one that does not is over by 10:00.",
    "facts": [
     "c28",
@@ -2507,7 +2507,7 @@
    "rung": 9,
    "format": "tf",
    "criterion": "od.swing_exit",
-   "q": "The SMB Capital desk exits a scalp when the stock slows. Our exit is a third at 3R, a third at 5R and a trail, because we swing trade.",
+   "q": "SMB Capital scalps the drive with its own exits. Ours is a third at 3R, a third at 5R and a trail, because we swing trade.",
    "answer": "True",
    "why": "True. SMB's scalp exits are not ours. We swing trade, so the drive is held under the house trims and the trail.",
    "lesson_line": "Borrow the entry, not the exit. Our trims are 3R and 5R, then the trail.",
@@ -2667,7 +2667,423 @@
   "Sources: k04 (Kullamagi, 'just look at the daily chart and enter when the stock is starting to break out') is the live page's sentence, the same one SET.32 cites as k06; the dossier's section 3.4 extract shows only the last clause. check_course_quotes found it on the live page. z01 and z02 (Zarattini et al., SSRN) are dossier section 3.5 quotes that the dossier's cold check matched byte for byte against the open-access PDF; the quote checker could not reach SSRN (unreachable, not missing). SMB's pages are one publisher, so they support and never key alone; every key rests on a Tier 3 card or rulebook fact (house: true).",
   "The criteria card (c1) is cited as a Tier 3 repo source for its proposed criteria (first bar green, the day's low in the first bar, back-to-open, VWAP, volume under its average, the A+ volume mark, the second entry, not on day 3 to 5, the Nasdaq and group cues, the lookalike tells). Those lines are the dossier's proposals built on the sources it names, not owner rulings; every question keyed on them carries house: true and the owner's review is the gate. The EP's '10% or more on a named catalyst' (q45) is the card's lookalike tell, not a ruling made in this unit.",
   "Stories and numerics that use made-up prices: q23 (75.00 over a 71.99 high), q32 (a 12% stretch), q60 (the 2R price from SANM's fill and stop), q64 (an 88.31 ten-day average that reproduces MXL's 9.8%), q65 (a made-up average volume). q15, q21 and q37 reuse real fills. No made-up number is a rule.",
-  "Rulebook ids (A3, B20 and so on) appear in claims and notes, never in a question a member reads; the member-facing words are 'the gap rule', 'the 2R ceiling' and so on."
+  "Rulebook ids (A3, B20 and so on) appear in claims and notes, never in a question a member reads; the member-facing words are 'the gap rule', 'the 2R ceiling' and so on.",
+  "Cold check 2026-11-10: 59 pass (7 fixed), 0 fix, 7 cut of 66 questions; 3 walk-throughs pass (w2 fixed). q08, q31, q44, q47, q50, q59, q64 cut as duplicates (q05, q06, q25, q33, q36, q26, q32 kept). Numbers corrected: q37 (1% risk on a 2.34 stop is 427 shares = 89% of a 100,000 account, over the 40% cap, A7; risk now 0.4%, 170 shares, 35%). Story corrected: q53 (PAYC 'back above your fill at 10:40' contradicts 'the fill was the high of the day'), w2 and q59's cut story (a 3R trim moves the stop to breakeven, B19). Kept consistent with SET.32: the drive-or-ORB tell (day's low in the first 5-minute bar, bought by about 9:40; an ORB waits for 10:00) reads the same in q16 here and q45 there. z01 (SSRN) is verbatim in dossier section 3.5 but the page was unreachable for the quote checker. Owner should look first at: (1) D-031, the trigger bar: the whole unit is the 5-minute drive (the card's recommendation) while the register's default teaches the 30-minute window; (2) q55 and the 'four in ten stopped on the drive day' figure: 41 trades on 21 days in one autumn, built on the strict rule that includes the pending gap (D-134) and first-bar volume (D-006) numbers, so decide whether to teach it at all; (3) the 40% cap: a drive's stop under the first bar is often 1% to 2% away, so at 1% risk the cap always binds (it needs a stop of 2.5% or more); the sizing lessons should say the smaller of the two wins."
  ],
- "verify": {}
+ "verify": {
+  "q01": {
+   "status": "pass",
+   "notes": "c01, c35, k01 verbatim. The 5-minute bar is this unit's definition of the drive (the card's recommendation); D-031's default would teach the 30-minute window (SET.32), so the question says 'our drive card'. Owner call, see conflicts.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "cut",
+   "notes": "Duplicate of q05: the same fact (buy the trade through, do not wait for the bar to close; c02, h22, b06) asked as a scenario; q05 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "m04, m05 (SMB, one publisher) and c34 (the card's 'by about 9:40') verbatim; the SMB claim alone is one Tier 2 publisher, so the key rests on the card tell, which agrees.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "c08/c09 verbatim (proposed). The 2x volume floor is pending (D-006) and is not keyed; only 'under its average is not a drive'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "(277.24 - 272.75) / 277.24 = 1.62%; LRCX numbers match d01/d02.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "581.57 + 3 x (581.57 - 572.82) = 607.82; SITM numbers match d11 (3R at 9:50 the same day).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "75.00 / 71.99 - 1 = 4.18%, past C28's 4%; 71.99 is CNC's first-bar high (d07).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "c07/m06 verbatim (proposed). Story: green first bar, then ten cents under the open before any entry: no trade.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "d12/d13/d14 verbatim (CROX RS 77, 5.8R). The 'RS' is the dossier's proxy rank, not the app's rating. The why ended 'A trade that works is not a rule broken', which reads backwards; now 'does not change the rule'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "cut",
+   "notes": "Duplicate of q06: the same fact (no long below the 200-day, however big the volume or gap; B26) with the same key and the same 'no half size' wrong note; q06 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "h13/c26/d15/d17 verbatim; 12% is past C29's 10%; MXL 9.8% and 5.2R match d15/d17.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "c16 (proposed) and b05 verbatim. Kept as the one 'day 3 to 5 is not a long' item.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "c14 (proposed), m12, u01 verbatim. A wrong note said the pullback 'comes the same morning'; no source says so; now says the drive is a morning entry and the second entry is the pullback that holds.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "c13 (proposed), k03, u03 verbatim. The right choice read 'average volume by 9:45', which a member can read as normal volume; the mark is a full day's average daily volume in the first 15 to 30 minutes. Choice reworded to 'a full day's volume by 9:45' (39 characters); wrong notes re-keyed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "h03 (A5): size is the SMALLER of the risk size and the 40% cap (A7). 1% of 100,000 on a 2.34 stop is 427 shares = 88,816, 89% of the account, so 427 was wrong (the cap gives 192). Risk now 0.4%: 400 / 2.34 = 170.9, rounded down 170; 170 x 208.00 = 35,360 = 35%, under the cap. SANM numbers match d05.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "d29/d30 verbatim (WDC stop 3.53% under 445.63). Keyed on A3/A5 only, never 'size down' against 'skip' (D-005 pending). 1% risk on a 3.53% stop is a 28% position, under the cap.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "d08/d09 verbatim: 72.00 + 3 x (72.00 - 70.16) = 77.52. The house plan (stop to breakeven at the first trim, B19) was not simulated by the scan, so 'the rest near even' is the plan applied to the dossier's prices; the unit's conflicts say so.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "c06 (proposed), d02/d03 verbatim: LRCX first bar closed at 63% of its range after a dip and ran 16.8R.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "cut",
+   "notes": "Duplicate of q25: the same fact (price trades back under the open before the entry: an open-test, no trade; c07) asked with NVT's numbers; q25 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "c36/c34 verbatim. The 4.7% gap only separates a drive from an EP (10% or more on a named catalyst, neglected name); the gap-floor number (D-134) is not keyed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "c37/c38 verbatim; the Kicker's 3.5% stop cap is in c38's source text and the owner's Kicker ruling.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "cut",
+   "notes": "Duplicate of q33: the same fact (a euphoric drive on day 3 to 5 of a parabolic burst is the short setup, not a long; c16/c39) asked as a scenario; q33 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "b01/b02/b03 (Breitstein) and c29 verbatim. Breitstein's steady-drive tests are qualitative, from one stock's open; the unit does not key them as numbers.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "cut",
+   "notes": "Duplicate of q36: the same fact (the A+ volume mark, a full day's average volume in the first 15 to 30 minutes; c13) asked with CNC's numbers. It also states 1.6x, a pending D-006 number.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "d18/d19 verbatim: TSEM fill 216.48, stop 214.23, R = 2.25, 2.1R reached by 9:50, stopped within the hour. A planned 1R loss, not a mistake.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "pass",
+   "notes": "c10, d20, d21 verbatim (EAT 211.21 at 9:40, high 9:45, first close under VWAP 9:55, stop 14:20, close 24% of range). Key follows A4 and D-136.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "h28/h29/d22/d23 verbatim (PAYC 229.02 at 9:35, stop 224.09 at 10:35). The story said 'at 10:40 it is back above your fill', which contradicts 'the fill was the high of the day' (dossier: it slid, then recovered to close at 78% of its range); now 'bounces for the rest of the day'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "c20, d24, d25, d26 verbatim; F65 Red is none on the card (the rulebook says mostly cash). The why does not call 2026-10-06 a Red day.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "d31 verbatim: 17.1% to 3R, 9.8% to 5R, 87.8% stopped within 20 sessions, 41.5% on the drive day, from 41 trades on 21 days. Measured, one autumn, and built on the dossier's strict rule, which includes pending numbers (gap 1%, first-bar volume 2x). 'Strict' is an untaught word and the member could not tell what 41 meant; question and why reworded to 'drives that passed every rule' with the count. Stays a report of our scan, not a rate.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "d01/d02 verbatim: first bar 272.80 to 277.23, buy 277.23 + 0.01 = 277.24, stop 272.80 - 0.05 = 272.75. The choices' numbers are derivable from the story.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "cut",
+   "notes": "Duplicate of q26: the same fact (gap through the stop: the first 30-minute low is the new stop, out past 2R; B20) as a scenario; q26 kept, q60 keeps the 2R arithmetic. The story also kept the original stop after a 3R trim, against B19's breakeven default.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "208.00 - 2 x (208.00 - 205.66) = 203.32; SANM numbers match d05.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "m09, c32, h16, h20 verbatim. The question said SMB 'exits a scalp when the stock slows', which no cited quote says (it is in the card's evidence text only); reworded to 'trades the drive as a scalp with its own exits'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "m09, c31 verbatim: scalp or hold plan, chosen before the entry; switching mid-trade is the card's named mistake.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "cut",
+   "notes": "Near-duplicate of q32 (C29's 10% stretch rule, MXL's 9.8%). It also uses a made-up 10-day average (88.31) and says 'that is MXL's case'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "1% of 850,000 = 8,500 (D42).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "c05, m03, m01 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "c04, h24, k02 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "c03, h11, h12 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "c02, h22, b06 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "h10, c23 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "h14, c24 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "c11 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "c19, h08 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "c12, h02, h18 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "c20, h26 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "c34, c35 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "c10, b07 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "h05, h20 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "h05 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "h09 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "k04, k02, u02 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "c03, c14, m12 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "h06, h07, h02 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "c15, m14 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "h21, h20 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "h15 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "c22, c40 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "c11, h02, d21 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "h20, h21 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "c21, u04 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "h03b, m08, m10, m13, c30 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "c14, c15, u01 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "c18, h10 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "h25, c33 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "c20, h26 verbatim in the card, rulebook, dossier or sources; key right; every wrong note true; numbers re-derived from the story or calc.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w1": {
+   "status": "pass",
+   "notes": "LRCX numbers match d01/d02/d03 (RS 82, gap 1.5%, first bar 272.80 to 277.23 on 5.7x, buy 277.24, stop 272.75 = 1.6%, 3R at the next open, 5R at 11:40). Sentences 22 words or fewer.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "SANM numbers match d04/d05/d06 (RS 81, gap 1.2%, bar 205.71 to 207.99 on 2.3x, buy 208.00, stop 205.66 = 1.1%, 3R 215.02 at 10:35, gap down on 09-14). Step 4 left the stop at 205.66 after the 3R trim, but B19's default moves it to breakeven at the first trim (w3 does); now 'the stop goes to breakeven ... gaps down through that stop', which is still true (the gap went below 205.66).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "CNC numbers match d07/d08/d09 (RS 90, gap 4.7%, bar 70.21 to 71.99 on 5.3x, buy 72.00, stop 70.16 = 2.6%, 3R 77.52 at 9:35 next day, faded two days later). Breakeven at the first trim is B19's default; the house plan was not simulated.",
+   "fixed": false,
+   "by": "checker"
+  }
+ }
 }
