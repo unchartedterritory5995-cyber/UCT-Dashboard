@@ -85,6 +85,19 @@ plus every `*guard*` test in `tests/test_uct_agent_knowledge.py` (fixture tests 
 
 CI/AUDIT runs pytest.
 
+## Real pytest (2026-11-10, local, focused files, at `b0d295318e`)
+
+Owner decision 2026-11-10: workers may run backend pytest locally on focused files. Env: a scratchpad venv
+(`<scratchpad>\pl-grid\venv`, `pytest` + `requirements.txt`; nothing installed globally; this PC's system python
+has no pytest). Log: `<scratchpad>\pl-grid\pytest-1039.log`.
+
+* `tests/test_uct_agent_server_capability_mirrors.py`: **17 passed** (includes the capfd stdout rail under real capfd)
+* `tests/test_uct_agent_knowledge.py`: **180 passed** (37 of them are the guard tests, `-k guard`)
+* total **197 passed**, exit 0
+
+Reconciliation with the standalone stub runner (not pytest): its 54 = the 17 mirrors tests + the 37 `*guard*` tests
+of `test_uct_agent_knowledge.py` it selects, which is exactly pytest's 17 + 37.
+
 ## AUDIT hard precondition
 
 `docs/feature_flags.json` gains a new top-level section, `audit_preconditions.G1_knowledge_guard_bare_action_names`.
