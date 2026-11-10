@@ -48,13 +48,13 @@ export const RELATIVE = new RegExp(`\\b(?:(?:right|just|directly|immediately|exa
 // meant is named before the relation ("the chart / the one / the ticker / whatever … above it"). "alert above it" and "a line
 // under it" relate a price or a drawing to "it", not a chart to the click: no relation here.
 const REL_CHART_ANCHOR = new RegExp(`(?:this|that)\\s+${REL_ANCHOR_NOUN}\\b|\\bthe\\s+(?:selected|clicked|current|highlighted|active|focused)\\b|\\bthe\\s+one\\s`, 'i')
-const REL_MEANT = new RegExp(`\\b(?:the|which|whichever|any)\\s+(?:[a-z]+\\s+)?${REL_ANCHOR_NOUN}s?\\b|\\b(?:whatever|whichever)\\b`, 'i')
+const REL_MEANT = new RegExp(`\\b(?:the|which|whichever|any)\\s+(?:(?:[a-z]+|[1-9](?:st|nd|rd|th))\\s+)?${REL_ANCHOR_NOUN}s?\\b|\\b(?:whatever|whichever)\\b`, 'i')
 // ⭐ 2026-11-07 (pl-auto u5-relation-controls-02, revisited after the owner's conversational-targeting decision): an ANCHORLESS
 // relation — "the chart above", "the one to the right", "the one to its left" — reads from the click (or the conversation's
 // target, which stands in for it): with a click and no other context that is the natural reading. Only on a CHART noun, and never
 // followed by "of …", a number or a price ("the one above 50" is a value). No click → no neighbour → asked, as before.
 // Groups as RELATIVE's: 1 above/below, 2 left/right (3, 4 never match here).
-const RELATIVE_BARE = /\b(?:the|that)\s+(?:(?:second|third|next[-\s]but[-\s]one)\s+)?(?:chart|one|cell|pane|panel|graph|neighbou?r)\s+(?:(?:one|two|three|four|five|[1-9])\s+(?:(?:charts?|cells?|panes?|panels?|places?|spots?|positions?|slots?|spaces?)\s+)?(?:over\s+(?=(?:to|on)\s))?)?(?:(?:right|just|directly|immediately)\s+)?(?:(above|over|below|under|underneath|beneath)|(?:to|on)\s+(?:the|its)\s+(left|right)(?:[-\s]+hand(?:\s+side)?)?)(?:(x(?!x)x)|(x(?!x)x))?\b(?!\s*(?:of\b|it\b|this\b|that\b|the\b|my\b|[$\d]))/i
+const RELATIVE_BARE = /\b(?:the|that)\s+(?:(?:second|third|2nd|3rd|next[-\s]but[-\s]one)\s+)?(?:chart|one|cell|pane|panel|graph|neighbou?r)\s+(?:(?:one|two|three|four|five|[1-9])\s+(?:(?:charts?|cells?|panes?|panels?|places?|spots?|positions?|slots?|spaces?)\s+)?(?:over\s+(?=(?:to|on)\s))?)?(?:(?:right|just|directly|immediately)\s+)?(?:(above|over|below|under|underneath|beneath)|(?:to|on)\s+(?:the|its)\s+(left|right)(?:[-\s]+hand(?:\s+side)?)?)(?:(x(?!x)x)|(x(?!x)x))?\b(?!\s*(?:of\b|it\b|this\b|that\b|the\b|my\b|[$\d]))/i
 // unseen9 P1: the DIAGONAL of the click — "diagonally opposite / across from this", "across the diagonal from this", "kitty-corner
 // (catty-corner) from / to this" (a chart noun may sit between: "the kitty corner chart from this one"), "opposite this one".
 // The click is the anchor, never the target. The match carries `diagonal` (relativeChart reads the cell from the grid).
@@ -86,7 +86,7 @@ const STRUCT_TAIL = new RegExp(`\\b${SPATIAL_WORD}\\b[^.;,]{0,24}?\\b(?:this|tha
 // AUDIT #988 (belt and braces): a COUNT with a DIRECTION anywhere in the words ("2 spaces left of here", "a couple over to the
 // right", "3 over") is a relation from the click even when its shape is not one UCT can place: the click is its anchor, so it is
 // never applied and never offered (the reference resolves to no chart and is asked about without the anchor)
-const COUNT_DIRECTION = /\b(?:two|three|four|five|six|[2-9]|second|third|a\s+couple(?:\s+of)?|next[-\s]but[-\s]one)\s+(?:(?:charts?|cells?|panes?|panels?|places?|spots?|positions?|slots?|spaces?|ones?)\s+)?(?:(?:over|across)\b|(?:(?:to|on)\s+the\s+)?(?:left|right)\b|above\b|below\b|under\b|beneath\b)/i
+const COUNT_DIRECTION = /\b(?:two|three|four|five|six|[2-9]|second|third|2nd|3rd|a\s+couple(?:\s+of)?|next[-\s]but[-\s]one)\s+(?:(?:charts?|cells?|panes?|panels?|places?|spots?|positions?|slots?|spaces?|ones?)\s+)?(?:(?:over|across)\b|(?:(?:to|on)\s+the\s+)?(?:left|right)\b|above\b|below\b|under\b|beneath\b)/i
 // AUDIT #988 (possessive anchor): "its / it's / this one's / this chart's / the selected one's" before a RELATIONAL noun or phrase
 // makes the click a REFERENCE POINT, as R1: "the neighbour on its left" = the cell to the click's left, "its right neighbour", "its
 // diagonal", "its row's far end", "both of its neighbours". Rewritten to the anchored phrase the readers below already resolve; a
@@ -556,7 +556,7 @@ function lineFrom(charts, s, side) {
   for (let i = 0; i < charts.length; i++) { const next = sideOf(charts, at, side); if (next.length !== 1) break; out.push(next[0]); at = next[0] }
   return side === 'left' || side === 'above' ? out.reverse() : out
 }
-const NUM_WORD = { one: 1, two: 2, three: 3, four: 4, five: 5, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, second: 2, third: 3 }
+const NUM_WORD = { one: 1, two: 2, three: 3, four: 4, five: 5, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, second: 2, third: 3, '2nd': 2, '3rd': 3 }
 const COUNT_NOUN = '(?:chart|one|cell|pane|panel|graph)'
 // AUDIT #988 probe 13: the unit a count may carry ("two PLACES to the left", "2 charts over to the right")
 const COUNT_UNIT = '(?:charts?|cells?|panes?|panels?|places?|spots?|positions?|slots?|spaces?)'
@@ -566,7 +566,7 @@ function relationCount(s, m) {
   const scope = `${s.slice(0, m.index)}${m[0]}`
   const at = (re) => re.exec(scope)
   const c = at(new RegExp(`\\b${COUNT_NOUN}\\s+(one|two|three|four|five|[1-9])\\s+(?:${COUNT_UNIT}\\s+)?(?:over\\s+)?(?:(?:right|just|directly|immediately)\\s+)?(?:above|over|below|under|underneath|beneath|to|on)\\b`, 'i'))
-    || at(new RegExp(`\\b(second|third)\\s+${COUNT_NOUN}\\s+(?:(?:right|just|directly|immediately)\\s+)?(?:above|over|below|under|underneath|beneath|to|on)\\b`, 'i'))
+    || at(new RegExp(`\\b(second|third|2nd|3rd)\\s+${COUNT_NOUN}\\s+(?:(?:right|just|directly|immediately)\\s+)?(?:above|over|below|under|underneath|beneath|to|on)\\b`, 'i'))
     // unseen10: the count with its unit and no noun before it ("the chart two charts below this one")
     || at(new RegExp(`\\b(two|three|four|five|[2-9])\\s+${COUNT_UNIT}\\s+(?:over\\s+)?(?:(?:right|just|directly|immediately)\\s+)?(?:above|over|below|under|underneath|beneath|to|on)\\b`, 'i'))
   if (c) return NUM_WORD[c[1].toLowerCase()] || 1
