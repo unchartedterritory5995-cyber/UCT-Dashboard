@@ -67,8 +67,9 @@ const C = {
   collection: ['collection'],
   // an answer named indirectly: "what the AI said / wrote / told me", and "the response" ONLY beside the AI ("the AI search
   // response", "the response I got from AI search"). "response time", "API response", "responsive layout" and "the chart
-  // isn't responding" stay out: no AI in the words (pattern pieces: no literal spaces)
-  answer: ['answer', 'reply', 'respons\\w*(?=.*\\bai\\b)', '(?<=\\bai\\b.*)respons', 'what\\s+(?:the\\s+)?(?:ai(?:\\s+search)?|it|search)\\s+(?:said|wrote|told\\s+me|gave\\s+me|came\\s+back\\s+with)'],
+  // isn't responding" stay out: no AI in the words (pattern pieces: no literal spaces; no lookbehind, iOS 16 floor: "ai" before
+  // "respons" is the lookahead on "ai")
+  answer: ['answer', 'reply', 'respons\\w*(?=.*\\bai\\b)', 'ai\\b(?=.*\\brespons)', 'what\\s+(?:the\\s+)?(?:ai(?:\\s+search)?|it|search)\\s+(?:said|wrote|told\\s+me|gave\\s+me|came\\s+back\\s+with)'],
   scan: ['scan', 'screen'],
   index: ['index', 'indexes', 'indices', '=dow', 'nasdaq', 's&p'],
   journal: ['journal'],
