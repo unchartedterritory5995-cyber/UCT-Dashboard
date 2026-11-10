@@ -608,6 +608,9 @@ function FocusList({ mode, onMode }) {
     if (touched.current || landingWaitOver || normalSpec(s.baseSpec) !== normalSpec(was.spec)) { setLandPhase('final'); return }
     if (!serverAnswered) return
     setLandPhase('final')
+    // A failed read says nothing about the screen: keep it, and let the kept-screen effect look
+    // again if a later read answers.
+    if (savedError) return
     if (landedFromLast.current) {
       seedKept.current = false
       const srv = [...starters, ...saved].find(it => String(it.id) === String(was.id))
@@ -626,12 +629,12 @@ function FocusList({ mode, onMode }) {
     const hit = defaultLanding(landingItems)
     if (hit && !sameScreen(hit, was)) { seedKept.current = false; applyScreen(hit.spec || { filters: [] }, hit) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [landPhase, landingItems, landingWaitOver, serverReady, serverAnswered, current, s.filters, s.baseSpec, starters, saved, serverItems])
+  }, [landPhase, landingItems, landingWaitOver, serverReady, serverAnswered, savedError, current, s.filters, s.baseSpec, starters, saved, serverItems])
   // A seeded screen the page kept (the member touched it, or the server answered past the cap)
   // may be an OLD copy of that screen: when the server's copy under the same id has another spec,
   // the screen on view is that screen EDITED, never silently labelled as the current version.
   useEffect(() => {
-    if (landPhase !== 'final' || !seedKept.current || !serverAnswered) return
+    if (landPhase !== 'final' || !seedKept.current || !serverAnswered || savedError) return
     seedKept.current = false
     const was = landedOn.current
     const srv = [...starters, ...saved].find(it => String(it.id) === String(was?.id))
@@ -643,7 +646,7 @@ function FocusList({ mode, onMode }) {
     if (!sameScreen(srv, was)) {
       setCurrent(c => (c && String(c.id) === String(srv.id) ? { ...c, name: srv.name, spec: srv.spec || { filters: [] } } : c))
     }
-  }, [landPhase, serverAnswered, starters, saved])
+  }, [landPhase, serverAnswered, starters, saved, savedError])
   const markTouched = () => { touched.current = true }
   const myScans = useMemo(() => ((meta?.filters || []).find(f => f.key === 'scan')?.scans || [])
     .filter(x => x?.def_hash).map(x => ({ hash: x.def_hash, name: x.name || 'Untitled scan' })), [meta])

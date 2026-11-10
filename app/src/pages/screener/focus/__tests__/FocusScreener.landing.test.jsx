@@ -31,6 +31,7 @@ let starters
 let savedDelay
 let metaGate
 let fail
+let savedFails
 const minOf = spec => (spec.filters || []).find(f => f.key === 'rs_rank')?.min
 beforeEach(() => {
   __resetCountCache()
@@ -42,6 +43,7 @@ beforeEach(() => {
   savedDelay = 0
   metaGate = null
   fail = false
+  savedFails = false
   globalThis.fetch = vi.fn(async (u, o) => {
     const url = String(u)
     if (url.startsWith('/api/screener/meta')) {
@@ -56,6 +58,7 @@ beforeEach(() => {
       return { ok: true, json: async () => ({ counts: specs.map(sp => ({ count: countsByMin[minOf(sp)] })) }) }
     }
     if (url.startsWith('/api/screener/saved-screens')) {
+      if (savedFails) return { ok: false, status: 500, json: async () => ({}) }
       const body = { ok: true, json: async () => ({ saved: [], starters }) }
       return savedDelay ? new Promise(r => setTimeout(() => r(body), savedDelay)) : body
     }
@@ -165,6 +168,17 @@ test('review: a last-used screen whose server copy changed reads as edited once 
   await waitFor(() => expect(screen.getByRole('button', { name: /Wide screen \(edited\)/ })).toBeInTheDocument(), { timeout: 6000 })
   expect(scanMins()).toEqual([70])
 }, 12000)
+
+test('review: a failed saved-screens read keeps the member on their screen', async () => {
+  localStorage.setItem(lastScreenKey('member-a'), JSON.stringify({ ...OTHER, kind: 'starter' }))
+  savedFails = true
+  pin([THIN.id])
+  mount()
+  await waitFor(() => expect(scanMins()).toEqual([50]))
+  await new Promise(r => setTimeout(r, 800))
+  expect(screen.getByRole('button', { name: /Other screen/ })).toBeInTheDocument()
+  expect(scanMins()).toEqual([50])
+}, 6000)
 
 test('Perf 3: with last-known pins, the scan starts before the saved screens answer', async () => {
   seed([WIDE])
