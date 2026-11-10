@@ -173,3 +173,17 @@ export function sanitizeState(raw) {
     group,
   }
 }
+
+// A saved multichart layout's stored shape ({kind:'multichart'} on the /api/charts/layouts service) for the board in
+// `state` — what "Save grid as…" (MultiChartMenu) and the UCT Agent both save. `widgets: []` satisfies the backend's
+// arrangement-shape validation; `kind` keeps it out of the workspace Open-layout menu. A forked cell's own chart settings
+// travel with it (policy A) — sanitizeState carries them back on apply.
+export function gridTemplateLayout(state) {
+  return {
+    kind: 'multichart',
+    widgets: [],
+    layout: state.layout,
+    cells: (state.cells || []).map(c => ({ sym: c.sym, tf: c.tf, chartType: c.chartType || null, ...(c.settings ? { settings: c.settings } : {}) })),
+    group: state.group || null,
+  }
+}
