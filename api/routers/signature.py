@@ -922,10 +922,39 @@ def _rs_warm_bars(ticker: str, tf: str) -> None:
                                 _RS_WARM_DEEP_BARS if date_tf else 400, date_tf)
 
 
+def _rs_rating_provider(sym: str, tf: str, inputs: dict) -> dict:
+    """RS split unit U4: `rsRating`, the same thin-wrapper shape as `_rs_line_provider`."""
+    return rs_provider.rs_rating_envelope(sym, tf, inputs, fetch_bars=_fetch_bars_for_tf, cache_key=_ck,
+                                          warm=lambda ticker: _rs_warm_bars(ticker, tf))
+
+
+def _rs_phases_provider(sym: str, tf: str, inputs: dict) -> dict:
+    """RS split unit U4: `rsPhases`."""
+    return rs_provider.rs_phases_envelope(sym, tf, inputs, fetch_bars=_fetch_bars_for_tf, cache_key=_ck,
+                                          warm=lambda ticker: _rs_warm_bars(ticker, tf))
+
+
+def _rs_vs_ema_provider(sym: str, tf: str, inputs: dict) -> dict:
+    """RS split unit U4: `rsVsEma`."""
+    return rs_provider.rs_vs_ema_envelope(sym, tf, inputs, fetch_bars=_fetch_bars_for_tf, cache_key=_ck,
+                                          warm=lambda ticker: _rs_warm_bars(ticker, tf))
+
+
+#: The RS split's three tenants by row id (unit U4). Tests install a row and
+#: plug the matching wrapper in by hand; production registers them below only
+#: when `RS_SPLIT_ENABLED` put the rows in `SERVER_DEFS` (`register_provider`
+#: refuses an id with no row, so the two cannot be armed apart).
+RS_SPLIT_PROVIDERS: dict = {"rsRating": _rs_rating_provider, "rsPhases": _rs_phases_provider,
+                            "rsVsEma": _rs_vs_ema_provider}
+
+
 registry_defs.register_provider("uct-darkpool-levels", _dpl_provider)
 registry_defs.register_provider("uct-gex-walls", _gxw_provider)
 registry_defs.register_provider("uct-flow-breakout", _fcb_provider)
 registry_defs.register_provider("rsLine", _rs_line_provider)
+if registry_defs.RS_SPLIT_ENABLED:
+    for _def_id, _fn in RS_SPLIT_PROVIDERS.items():
+        registry_defs.register_provider(_def_id, _fn)
 
 
 # ── routes (all sync `def` — see rule 3) ────────────────────────────────────

@@ -332,3 +332,125 @@ def test_the_rating_view_5000_bar_compute_and_its_read_stay_in_budget(lane_ratin
           f"rating stage median {read:.2f} ms, envelope {_wire_bytes(lane_rating())} bytes")
     assert med < MS_BUDGET_5000, f"5,000-bar rating-view build median {med:.0f} ms (runs {runs})"
     assert read < MS_BUDGET_RATING_READ, f"the rating stage median {read:.1f} ms (runs {reads})"
+
+
+# ── RS split (unit U4, 2026-11-09): the three new envelopes' budgets ──────────
+#
+# Measured on the same box and fixture (study venv, 2026-11-09), median of 5
+# cold builds, the shared core reset before every build so each one pays the
+# bars read. Each envelope is a fraction of the RS line's: two or three columns
+# and a payload of a few scalar blocks (no regime, sensitivity, checks or
+# evidence; `test_none_of_the_three_reads_regime_sensitivity_or_evidence` in
+# tests/test_rs_split_rows.py holds that).
+# * 5,000-bar daily: rsRating 75,525 bytes with the history dark (93,859 over
+#   the 1,300-session `rating_store`, the widest), build median 10 ms;
+#   rsPhases 84,121 bytes, 171 ms (the 63-bar z-score window re-summed per
+#   bar); rsVsEma 136,070 bytes, 45 ms.
+# * 600-bar daily: rsRating 9,523, rsPhases 10,458, rsVsEma 16,569 bytes,
+#   pinned within 2%.
+# Byte budgets ~1.5x the widest measured; the time budget is the RS line's
+# own 1,500 ms (~9x the slowest median).
+BYTES_BUDGET_5000_SPLIT = {"rsRating": 140_000, "rsPhases": 130_000, "rsVsEma": 210_000}
+#: 600-bar daily, pinned within 2% (the same band as the RS line's pins).
+SIZE_600_PIN_SPLIT = {"rsRating": 9_523, "rsPhases": 10_458, "rsVsEma": 16_569}
+MS_BUDGET_5000_SPLIT = 1_500.0
+
+_SPLIT_FNS = {"rsRating": "rs_rating_envelope", "rsPhases": "rs_phases_envelope", "rsVsEma": "rs_vs_ema_envelope"}
+
+
+@pytest.fixture
+def lane_split(monkeypatch):
+    """The three envelopes with their I/O pinned like `lane`: a store-backed
+    fetcher, a cache that never hits, a constant data generation, and the
+    shared core reset before every build so each one is a full cold path."""
+    from api.services.cache import cache
+    monkeypatch.setattr(cache, "get", lambda k: None)
+    monkeypatch.setattr(cache, "set", lambda k, v, ttl: None)
+    monkeypatch.setattr(rsp, "_rs_data_generation", lambda now=None: "r-|e-")
+    monkeypatch.setattr(rb, "_groups_for", lambda s: {"sector": "Technology", "industry": "Semiconductors"})
+
+    def build(def_id: str, store: dict, inputs: dict | None = None, *, reset: bool = True) -> dict:
+        if reset:
+            rsp.rs_core_reset()
+
+        def fetch(sym, tf, count):
+            return list(store.get(sym.upper(), []))
+        fn = getattr(rsp, _SPLIT_FNS[def_id])
+        return fn("NVDA", "D", dict(inputs or {"benchmark": "SPY"}), fetch_bars=fetch,
+                  cache_key=lambda kind, s: f"sig:{kind}:{s}")
+    yield build
+    rsp.rs_core_reset()
+
+
+@pytest.mark.parametrize("def_id", sorted(_SPLIT_FNS))
+def test_each_split_5000_bar_payload_stays_under_its_byte_budget(def_id, lane_split):
+    env = lane_split(def_id, _long_daily(n=5000))
+    assert len(env["times"]) == 5000
+    size = _wire_bytes(env)
+    assert size < BYTES_BUDGET_5000_SPLIT[def_id], (
+        f"the 5,000-bar {def_id} envelope is {size} bytes, over its {BYTES_BUDGET_5000_SPLIT[def_id]} budget")
+
+
+@pytest.mark.parametrize("def_id", sorted(_SPLIT_FNS))
+def test_each_split_5000_bar_compute_stays_under_its_time_budget(def_id, lane_split):
+    store = _long_daily(n=5000)
+    lane_split(def_id, store)                          # warm the imports
+    runs = []
+    for _ in range(3):
+        t = time.perf_counter()
+        lane_split(def_id, store)
+        runs.append((time.perf_counter() - t) * 1000.0)
+    med = statistics.median(runs)
+    assert med < MS_BUDGET_5000_SPLIT, f"5,000-bar {def_id} build median {med:.0f} ms (runs {runs})"
+
+
+@pytest.mark.parametrize("def_id", sorted(_SPLIT_FNS))
+def test_each_split_600_bar_payload_size_is_pinned(def_id, lane_split):
+    env = lane_split(def_id, _long_daily(n=600))
+    size = _wire_bytes(env)
+    pin = SIZE_600_PIN_SPLIT[def_id]
+    print(f"[measure] 600 bars: {def_id} envelope {size} bytes")
+    assert abs(size - pin) <= pin * 0.02, (
+        f"the 600-bar {def_id} envelope is {size} bytes; pinned at {pin} (2% band). "
+        "Re-measure and move the pin if the change is intended.")
+
+
+def test_the_three_on_one_chart_cost_one_bars_read_and_record_their_timing(lane_split, monkeypatch):
+    """The shared core: after the first envelope on a cycle the other two read
+    no bars (their ``bars`` stage is ~0), and each records a cold timing with
+    ``bars`` and ``compute`` (``rating`` on the rating one), never ``evidence``."""
+    store = _long_daily(n=600)
+    reads = []
+    real = dict(store)
+
+    def counting_store():
+        class S(dict):
+            def get(self, k, d=None):
+                reads.append(k)
+                return real.get(k, d)
+        return S()
+    first = True
+    for def_id in ("rsVsEma", "rsPhases", "rsRating"):
+        rsp.timing_reset()
+        lane_split(def_id, counting_store(), reset=first)
+        first = False
+        rec = rsp.last_timing()
+        assert rec["tier"] == "cold" and "evidence" not in rec["stages"], (def_id, rec)
+        assert list(rec["stages"]) == (["bars", "rating", "compute"] if def_id == "rsRating" else ["bars", "compute"])
+    assert reads == ["NVDA", "SPY"], reads
+
+
+def test_the_rating_envelope_over_a_real_history_stays_in_budget(lane_split, rating_store):
+    """The daily rating envelope over the 1,300-session store: one bounded
+    indexed read (`rs_history.rating_series`) and the 5,000-bar envelope
+    inside its byte budget."""
+    env = lane_split("rsRating", rating_store)
+    assert len(env["times"]) == 5000
+    assert sum(1 for v in env["columns"]["ratingLine"] if v is not None) == RATING_STORE_SESSIONS
+    assert env["payload"]["ratingHistory"]["reason"] is None
+    assert _wire_bytes(env) < BYTES_BUDGET_5000_SPLIT["rsRating"]
+    reads = []
+    for _ in range(5):
+        lane_split("rsRating", rating_store)
+        reads.append(rsp.last_timing()["stages"]["rating"])
+    assert statistics.median(reads) < MS_BUDGET_RATING_READ, reads

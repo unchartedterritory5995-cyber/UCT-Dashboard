@@ -1836,3 +1836,371 @@ def _rs_bars_count(store_tf: str, lookback: int) -> int:
     if store_tf in ("W", "M"):
         return int(lookback) + 200
     return 400
+
+
+# ── The RS split (unit U4, 2026-11-09): one shared core, three envelopes ─────
+#
+# `rsRating`, `rsPhases` and `rsVsEma` (engineering map projects/rs-split-
+# handoff-2026-11-09/engineering-map.md §(a) U4, formulas §(d)) are served by
+# the three envelopes below. None of them reads the regime, the sensitivity
+# legs or the evidence artifact: those stay the RS line's (and Compass's,
+# `rs_read_tools`) until unit U10, which keeps the three under the provider
+# budget rail (`tests/test_rs_provider_budget.py`).
+#
+# ⭐ THE CORE IS MEMOISED PER PROCESS FOR ONE REQUEST CYCLE. A chart with the
+# RS line, RS Phases and RS vs 21 EMA on it asks the lane three times in the
+# same second; `_rs_core` keeps the stock's bars, and the resolved benchmark
+# with its bars and the ratio, for `_RS_CORE_TTL_S` seconds keyed on what was
+# asked (symbol, store timeframe, benchmark, custom ticker, bar count, ET
+# session day), so the second and third request read no bars at all. It is a
+# short in-process memo like `_rs_data_generation`'s, bounded (`_RS_CORE_MAX`
+# entries, expired ones swept on every write), and the per-envelope cache
+# (`cache`, the rsLine pattern: `compute.rev` and a payload-shape number lead
+# the key, the ET session day is in it, TTL to the next session close on D/W/M
+# and 900 s intraday, 60 s for a degraded answer) sits in front of it, so the
+# memo only ever matters on a cold cycle.
+
+_RS_CORE_TTL_S = 15.0
+_RS_CORE_MAX = 64
+_RS_CORE_MEMO: dict = {}
+_RS_CORE_LOCK = threading.Lock()
+
+#: Each new envelope's payload shape, in its cache key (bump when a payload
+#: field or a wire blanking rule changes inside one `compute.rev`).
+_RS_RATING_PAYLOAD_SHAPE = 1
+_RS_PHASES_PAYLOAD_SHAPE = 1
+_RS_VS_EMA_PAYLOAD_SHAPE = 1
+
+#: The phase column's words (the legend row; the bgcolor paint reads the number).
+_RS_PHASE_LABELS = {1: "RS rising while the market falls", 0: "RS falling while the market rises"}
+_RS_NO_PHASE = "no split: RS and the market trend together"
+
+
+def rs_core_reset() -> None:
+    """Forget every memoised core (tests; a bars repair that must be seen now)."""
+    with _RS_CORE_LOCK:
+        _RS_CORE_MEMO.clear()
+
+
+def _rs_core_get(key: tuple):
+    now = time.monotonic()
+    with _RS_CORE_LOCK:
+        hit = _RS_CORE_MEMO.get(key)
+        if hit is not None and 0 <= now - hit[0] < _RS_CORE_TTL_S:
+            return hit[1]
+    return None
+
+
+def _rs_core_put(key: tuple, value) -> None:
+    now = time.monotonic()
+    with _RS_CORE_LOCK:
+        for k in [k for k, (at, _v) in _RS_CORE_MEMO.items() if not (0 <= now - at < _RS_CORE_TTL_S)]:
+            _RS_CORE_MEMO.pop(k, None)
+        while len(_RS_CORE_MEMO) >= _RS_CORE_MAX:
+            _RS_CORE_MEMO.pop(next(iter(_RS_CORE_MEMO)))
+        _RS_CORE_MEMO[key] = (now, value)
+
+
+def _rs_core(sym: str, tf: str, requested: str | None, custom: str | None, *,
+             fetch_bars, warm, count: int, day: str) -> dict:
+    """``{bars, times, bench, rs, same_symbol, no_bench, short_history}`` for
+    one (symbol, timeframe, benchmark) ask, memoised (see above). ``requested``
+    None means no benchmark (the rating): ``bench`` and ``rs`` are None and the
+    two blank-state flags are False. The bars memo and the benchmark memo are
+    separate entries, so the rating and the two ratio indicators share the
+    stock's bars while only the latter pay for the benchmark."""
+    from api.services import relative_strength as rsmod
+    from api.services import rs_benchmarks
+    store = registry_defs.store_tf(tf)
+    sym_u = sym.upper()
+    bars_key = ("bars", sym_u, store, int(count), day)
+    bars = _rs_core_get(bars_key)
+    if bars is None:
+        bars = fetch_bars(sym, tf, count)
+        _rs_core_put(bars_key, bars)
+    times = [int(b["t"]) for b in bars]
+    out = {"bars": bars, "times": times, "bench": None, "rs": None,
+           "same_symbol": False, "no_bench": False,
+           "short_history": bool(times) and len(times) < count}
+    if requested is None:
+        return out
+    bench_key = ("bench", sym_u, store, str(requested), str(custom or ""), int(count), day)
+    hit = _rs_core_get(bench_key)
+    if hit is None:
+        bench = rs_benchmarks.resolve_benchmark(sym, requested, tf, count, fetch_bars=fetch_bars,
+                                                custom=custom or None, warm=warm)
+        hit = {"bench": bench, "rs": rsmod.rs_line(bars, bench.get("bars") or [])}
+        _rs_core_put(bench_key, hit)
+    out["bench"] = hit["bench"]
+    out["rs"] = hit["rs"]
+    out["same_symbol"] = str(hit["bench"].get("resolved", "")).upper() == sym_u
+    out["no_bench"] = not hit["bench"].get("bars")
+    return out
+
+
+def _rs_split_rev(def_id: str) -> int:
+    """The row's `compute.rev`, read from `registry_defs.RS_SPLIT_DEFS` (built
+    whether or not the flag is on, so a direct call never needs the row
+    installed)."""
+    return int(next(d for d in registry_defs.RS_SPLIT_DEFS if d["id"] == def_id)["compute"]["rev"])
+
+
+def _rs_split_state(core: dict, intraday: bool) -> str:
+    return ("same-symbol" if core["same_symbol"] else "no-benchmark-bars" if core["no_bench"]
+            else "no-bars" if not core["times"] else "intraday" if intraday
+            else "short-history" if core["short_history"] else "ok")
+
+
+def _rs_split_why(core: dict) -> str | None:
+    """The blank-state reason, the RS line's own words (`rs_line_envelope`)."""
+    if core["same_symbol"]:
+        return "benchmark is the symbol"
+    if core["no_bench"]:
+        return "no benchmark bars"
+    if not core["times"]:
+        return "no bars for this symbol"
+    return None
+
+
+def _rs_split_benchmark_block(core: dict, legend_index, *, intraday: bool) -> dict:
+    bench = core["bench"]
+    return dict({k: bench.get(k) for k in ("requested", "resolved", "label", "fallback")},
+                bars=len(bench.get("bars") or []),
+                note=_rs_benchmark_note(bench, {"index": legend_index}, core["times"],
+                                        intraday=intraday, same_symbol=core["same_symbol"]))
+
+
+def _rs_split_history(core: dict, count: int) -> dict:
+    return {"bars": len(core["times"]), "requested": int(count), "short": core["short_history"]}
+
+
+def _rs_split_cached(ck):
+    try:
+        return cache.get(ck)
+    except Exception:                                  # noqa: BLE001 — a cache read is bookkeeping
+        return None
+
+
+def _rs_split_store(ck, envelope: dict, ttl: int, def_id: str, sym: str) -> None:
+    try:
+        cache.set(ck, envelope, ttl=ttl)
+    except Exception:                                  # noqa: BLE001 — see the DPL cache-write note
+        logger.exception("signature: %s cache write failed for %s", def_id, sym)
+
+
+def _rs_split_ttl(core: dict, intraday: bool) -> int:
+    """The rsLine rule: a degraded answer (no benchmark bars yet) lives one
+    minute, an intraday one 900 s, a D/W/M one until the next session close."""
+    return 60 if core["no_bench"] else (900 if intraday else _seconds_to_next_et_close())
+
+
+def rs_rating_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key, warm=None) -> dict:
+    """`rsRating`: the stock's stored daily rating at each bar's session and its
+    21-session average (`ratingLine` / `ratingMa`), with the `rating` block
+    (ibd + m1/m3/m6/m9/m12 + asof + summary + components, `_rs_rating`) and the
+    `ratingHistory` block exactly as the rsLine rev 5 Rating Reading builds them
+    (`_rs_rating_view`), so the JS definition reuses the same `scalar:` paths.
+
+    Daily charts only: on W/M/intraday the columns are blank and
+    ``ratingHistory.reason`` says "daily charts only" (`_rs_rating_view`'s own
+    rule). No benchmark input and no benchmark read. The cache key carries the
+    rating data generation (`_rs_data_generation`), so the first request after
+    the nightly job lands is a cold compute."""
+    t0 = time.perf_counter()
+    from api.services import relative_strength as rsmod
+    from api.services.indicator_compute import _round_series
+    store = registry_defs.store_tf(tf)
+    intraday = store not in ("D", "W", "M")
+    count = _rs_bars_count(store, rsmod.DEFAULT_LOOKBACK)
+    rev = _rs_split_rev("rsRating")
+    day = _et_session_day()
+    ck = cache_key(f"rsRating{rev}p{_RS_RATING_PAYLOAD_SHAPE}",
+                   f"{sym.upper()}:{store}:{_rs_data_generation()}:{day}")
+    hit = _rs_split_cached(ck)
+    if hit:
+        _record_timing("cache", t0, {})
+        return hit
+    stages: dict = {"bars": 0.0}
+    t_build = time.perf_counter()
+    core = _rs_core(sym, tf, None, None, fetch_bars=_timed_fetch(fetch_bars, stages), warm=warm,
+                    count=count, day=day)
+    times = core["times"]
+    view = _rs_rating_view(sym, times, store, "rating", stages)
+    cols = dict(view["columns"])
+    cols["ratingMa"] = _round_series(cols["ratingMa"], 2)   # a 1-99 average; the line is whole numbers
+    state = "no-bars" if not times else "daily-only" if store != "D" else "ok"
+    payload = {
+        "rating": _timed(stages, "rating", _rs_rating, sym, True),
+        "ratingHistory": view["block"],
+        "history": _rs_split_history(core, count),
+        "inputs": {},
+        "intraday": intraday,
+        "state": state,
+    }
+    envelope = {"columns": cols, "times": times, "asOf": time.time(), "payload": payload}
+    t_built = time.perf_counter()
+    if times:
+        _rs_split_store(ck, envelope, 900 if intraday else _seconds_to_next_et_close(), "rsRating", sym)
+    _record_timing("cold", t0, _stage_order(stages, (t_built - t_build) * 1000.0))
+    return envelope
+
+
+def _rs_last_finite(*cols) -> int | None:
+    """The last index at which every given column is finite, or None."""
+    n = min((len(c) for c in cols), default=0)
+    for i in range(n - 1, -1, -1):
+        if all(_rs_num(c[i]) for c in cols):
+            return i
+    return None
+
+
+def _rs_phases_legend(cols: dict, times, why: str | None) -> dict:
+    """The RS Phases legend: the newest bar's phase (1 / 0 / None), its words,
+    the divergence z-score and the two trends, read at the last bar with both
+    trends; ``summary`` is the phase's words plus ``· divergence +1.2`` when
+    the z-score exists, with ``· as of Nov 4`` when that bar is not the newest.
+    A blank state carries its reason as the summary."""
+    out = {"phase": None, "phaseLabel": None, "divergence": None, "rsTrend": None, "benchTrend": None,
+           "asOf": None, "stale": None, "summary": why}
+    if why:
+        return out
+    idx = _rs_last_finite(cols["rsTrend"], cols["benchTrend"])
+    if idx is None:
+        out["summary"] = "not enough bars yet"
+        return out
+    phase = cols["phase"][idx]
+    z = cols["divergence"][idx]
+    out.update(phase=int(phase) if _rs_num(phase) else None,
+               phaseLabel=_RS_PHASE_LABELS.get(int(phase)) if _rs_num(phase) else _RS_NO_PHASE,
+               divergence=float(z) if _rs_num(z) else None,
+               rsTrend=float(cols["rsTrend"][idx]), benchTrend=float(cols["benchTrend"][idx]),
+               asOf=_rs_bar_ymd(times[idx]), stale=idx < len(times) - 1)
+    summary = out["phaseLabel"]
+    if out["divergence"] is not None:
+        summary += f" · divergence {out['divergence']:+.1f}"
+    if out["stale"] and _rs_short_date(out["asOf"]):
+        summary += f" · as of {_rs_short_date(out['asOf'])}"
+    out["summary"] = summary
+    return out
+
+
+def rs_phases_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key, warm=None) -> dict:
+    """`rsPhases`: `relative_strength.compute_rs_phases_columns` on the shared
+    core, the `phase` and `divergence` wire columns, and a payload of
+    `benchmark`, `legend`, `history`, `inputs`, `intraday`, `state`. Every
+    timeframe (the ratio exists intraday). Same-symbol and no-benchmark states
+    blank both columns and put the RS line's reason in ``legend.summary``."""
+    t0 = time.perf_counter()
+    from api.services import relative_strength as rsmod
+    from api.services.indicator_compute import _round_series
+    src = inputs or {}
+    store = registry_defs.store_tf(tf)
+    intraday = store not in ("D", "W", "M")
+    count = _rs_bars_count(store, rsmod.DEFAULT_LOOKBACK)
+    requested = src.get("benchmark") or registry_defs.RS_LINE_BENCHMARKS[0]
+    custom = str(src.get("customBenchmark") or "")
+    params = {
+        "benchmark": requested, "customBenchmark": custom,
+        "shortEma": int(round(rsmod._clamp(src.get("shortEma"), *rsmod.PHASES_SHORT_RANGE,
+                                           default=rsmod.DEFAULT_PHASES_SHORT))),
+        "longEma": int(round(rsmod._clamp(src.get("longEma"), *rsmod.PHASES_LONG_RANGE,
+                                          default=rsmod.DEFAULT_PHASES_LONG))),
+    }
+    rev = _rs_split_rev("rsPhases")
+    day = _et_session_day()
+    ck = cache_key(f"rsPhases{rev}p{_RS_PHASES_PAYLOAD_SHAPE}",
+                   f"{sym.upper()}:{store}:{json.dumps(params, sort_keys=True)}:{day}")
+    hit = _rs_split_cached(ck)
+    if hit:
+        _record_timing("cache", t0, {})
+        return hit
+    stages: dict = {"bars": 0.0}
+    t_build = time.perf_counter()
+    core = _rs_core(sym, tf, requested, custom, fetch_bars=_timed_fetch(fetch_bars, stages), warm=warm,
+                    count=count, day=day)
+    times = core["times"]
+    why = _rs_split_why(core)
+    if why is None:
+        cols = rsmod.compute_rs_phases_columns(core["bars"], core["bench"]["bars"],
+                                               params["shortEma"], params["longEma"])
+    else:
+        cols = {k: [None] * len(times) for k in rsmod.RS_PHASES_COLUMNS}
+    legend = _rs_phases_legend(cols, times, why)
+    wire = {"phase": list(cols["phase"]), "divergence": _round_series(cols["divergence"], 4)}
+    payload = {
+        "benchmark": _rs_split_benchmark_block(core, _rs_last_finite(core["rs"]), intraday=intraday),
+        "legend": legend,
+        "history": _rs_split_history(core, count),
+        "inputs": params,
+        "intraday": intraday,
+        "state": _rs_split_state(core, intraday),
+    }
+    envelope = {"columns": wire, "times": times, "asOf": time.time(), "payload": payload}
+    t_built = time.perf_counter()
+    if times:
+        _rs_split_store(ck, envelope, _rs_split_ttl(core, intraday), "rsPhases", sym)
+    _record_timing("cold", t0, _stage_order(stages, (t_built - t_build) * 1000.0))
+    return envelope
+
+
+def rs_vs_ema_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key, warm=None) -> dict:
+    """`rsVsEma`: `relative_strength.compute_rs_vs_ema_columns` on the shared
+    core (`dist`, `fast`, `slow`), and a payload of `benchmark`, `legend`,
+    `history`, `inputs`, `intraday`, `state`. The legend is the RS line's own
+    (`_rs_legend` over `legend_scalars` at the 21 EMA), so ``legend.summary``
+    prints the same "above its 21 EMA by 6.8%" and ``legend.pctFromMa`` IS the
+    newest `dist` cell; ``legend.fast`` / ``legend.slow`` are the two averages
+    at that bar. Every timeframe. Blank states carry the RS line's reason."""
+    t0 = time.perf_counter()
+    from api.services import relative_strength as rsmod
+    from api.services.indicator_compute import _round_series
+    src = inputs or {}
+    store = registry_defs.store_tf(tf)
+    intraday = store not in ("D", "W", "M")
+    count = _rs_bars_count(store, rsmod.DEFAULT_LOOKBACK)
+    requested = src.get("benchmark") or registry_defs.RS_LINE_BENCHMARKS[0]
+    custom = str(src.get("customBenchmark") or "")
+    params = {"benchmark": requested, "customBenchmark": custom,
+              "maLength": rsmod.DEFAULT_VS_EMA_LENGTH, "maType": "EMA",
+              "fast": rsmod.DEFAULT_VS_EMA_FAST, "slow": rsmod.DEFAULT_VS_EMA_SLOW}
+    rev = _rs_split_rev("rsVsEma")
+    day = _et_session_day()
+    ck = cache_key(f"rsVsEma{rev}p{_RS_VS_EMA_PAYLOAD_SHAPE}",
+                   f"{sym.upper()}:{store}:{json.dumps(params, sort_keys=True)}:{day}")
+    hit = _rs_split_cached(ck)
+    if hit:
+        _record_timing("cache", t0, {})
+        return hit
+    stages: dict = {"bars": 0.0}
+    t_build = time.perf_counter()
+    core = _rs_core(sym, tf, requested, custom, fetch_bars=_timed_fetch(fetch_bars, stages), warm=warm,
+                    count=count, day=day)
+    times = core["times"]
+    why = _rs_split_why(core)
+    if why is None:
+        cols = rsmod.compute_rs_vs_ema_columns(core["bars"], core["bench"]["bars"],
+                                               params["maLength"], params["fast"], params["slow"])
+        ma = rsmod.rs_moving_average(core["rs"], params["maLength"], "EMA")
+        legend = _rs_legend(rsmod.legend_scalars({"rsLine": core["rs"], "rsMa": ma}), times, params)
+    else:
+        cols = {k: [None] * len(times) for k in rsmod.RS_VS_EMA_COLUMNS}
+        legend = _rs_legend(rsmod.legend_scalars({"rsLine": [], "rsMa": []}), times, params)
+        legend["summary"] = why
+    idx = legend.get("index")
+    legend["fast"] = float(cols["fast"][idx]) if isinstance(idx, int) and _rs_num(cols["fast"][idx]) else None
+    legend["slow"] = float(cols["slow"][idx]) if isinstance(idx, int) and _rs_num(cols["slow"][idx]) else None
+    wire = {k: _round_series(cols[k], 4) for k in rsmod.RS_VS_EMA_COLUMNS}   # percents: four places
+    payload = {
+        "benchmark": _rs_split_benchmark_block(core, idx, intraday=intraday),
+        "legend": legend,
+        "history": _rs_split_history(core, count),
+        "inputs": params,
+        "intraday": intraday,
+        "state": _rs_split_state(core, intraday),
+    }
+    envelope = {"columns": wire, "times": times, "asOf": time.time(), "payload": payload}
+    t_built = time.perf_counter()
+    if times:
+        _rs_split_store(ck, envelope, _rs_split_ttl(core, intraday), "rsVsEma", sym)
+    _record_timing("cold", t0, _stage_order(stages, (t_built - t_build) * 1000.0))
+    return envelope
