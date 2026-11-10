@@ -1290,7 +1290,7 @@ def _fmt_sqlite_bars(rows: list[tuple], tf: str, ticker: str | None = None) -> l
         except Exception:
             pass  # best-effort: never let normalization blank a chart
     if ticker and not date_tf and len(out) > 1:
-        # Intraday split cliff → bounded background store heal (cache reads only here).
+        # Intraday split cliff → bounded background DETECT + LOG, no writes (cache reads only here).
         try:
             from api.services import intraday_split_heal as _ish
             _ish.note_served(ticker, tf, out)

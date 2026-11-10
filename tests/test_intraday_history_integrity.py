@@ -1,7 +1,7 @@
 """W-F — stored intraday history integrity (2026-11-10).
 
 Synthetic stores and fake providers only; every price here is an invented round
-number. Covers: the intraday split heal, the R2 merge (holes / corrections / chunks),
+number. Covers: intraday split-cliff detection (detect + log, no writes), the R2 merge (holes / corrections / chunks),
 the fallback-provider basis + history-complete guard, half-day `_is_market_open`,
 null-volume delta parsing, the prior-session gap-fill reach, and the RTH gap audit.
 """
@@ -56,98 +56,55 @@ def _stored(ticker, tf):
     return bars_sqlite.get_bars(ticker, tf, 100000)
 
 
-# ── 1. Intraday split heal (in-place, chunked, resumable) ────────────────────
+# ── 1. Intraday split cliff: DETECT + LOG only (no writes — review N1/N2) ────
 
 SPLITS = [(SPLIT_DAY, 2.0)]
 
 
-def _island():
-    """An old replay-style island far below the recent series, on the OLD basis."""
-    return [{"t": _et(2026, 6, 1, 10, 0) + k * 300, "o": 100.0, "h": 101.0, "l": 99.0,
-             "c": 100.0, "v": 1000} for k in range(4)]
-
-
-def test_split_cliff_is_rescaled_in_place_and_is_idempotent(store):
+def test_split_cliff_is_detected_and_logged_but_nothing_is_written(store, caplog):
     bars_sqlite.put_bars("SPLT", "5", _series(100.0, 50.0))
-    assert bs.intraday_unadjusted_splits(
-        [{"t": r[0], "c": r[4]} for r in _stored("SPLT", "5")], SPLITS)   # the cliff exists
-    res = ish.heal_series("SPLT", "5", splits=SPLITS)
-    assert res["method"] == "rescale" and res["written"] == 18 and res["finished"]
-    rows = _stored("SPLT", "5")
-    assert len(rows) == 36 and {r[4] for r in rows} == {50.0}
-    assert {r[5] for r in rows if r[0] < _et(2026, 10, 8, 0, 0)} == {2000}   # volume x2
-    again = ish.heal_series("SPLT", "5", splits=SPLITS)
-    assert again["cliffs"] == [] and again["written"] == 0
+    before = _stored("SPLT", "5")
+    with caplog.at_level(logging.WARNING, logger=ish._log.name):
+        res = ish.heal_series("SPLT", "5", splits=SPLITS)
+    assert res["cliffs"] == [(SPLIT_DAY, 2.0)] and res["written"] == 0
+    assert _stored("SPLT", "5") == before                    # byte-identical store
+    assert "intraday-split-cliff" in caplog.text and "NOT rewritten" in caplog.text
 
 
-def test_heal_never_deletes_islands_live_rows_or_rows_after_the_boundary(store):
-    """F1/F4: deep rows, replay islands and live rows are rewritten in place or untouched."""
-    bars_sqlite.put_bars("SPLT", "5", _island() + _series(100.0, 50.0))
-    live = {"t": _et(2026, 10, 12, 15, 55), "o": 50.0, "h": 51.0, "l": 49.0, "c": 50.0, "v": 7}
-    real = bars_sqlite.rescale_before
-
-    def _with_live_write(*a, **k):            # the live feed writes mid-heal
-        bars_sqlite.put_bars("SPLT", "5", [live])
-        return real(*a, **k)
-    import unittest.mock as um
-    with um.patch.object(bars_sqlite, "rescale_before", _with_live_write):
-        ish.heal_series("SPLT", "5", splits=SPLITS)
-    rows = {r[0]: r for r in _stored("SPLT", "5")}
-    assert len(rows) == 4 + 36 + 1
-    assert rows[live["t"]][4] == 50.0 and rows[live["t"]][5] == 7
-    assert all(rows[b["t"]][4] == 50.0 for b in _island())          # island rescaled, kept
+def test_partially_rewritten_or_mixed_series_is_never_modified(store):
+    """N1/N2: whatever mix of bases the store holds, detection never writes."""
+    mixed = _series(100.0, 50.0)
+    mixed[:6] = [dict(b, o=50.0, h=51.0, l=49.0, c=50.0) for b in mixed[:6]]   # new basis deep
+    bars_sqlite.put_bars("MIX", "5", mixed)
+    before = _stored("MIX", "5")
+    ish.heal_ticker("MIX", splits=SPLITS)
+    assert _stored("MIX", "5") == before
 
 
-def test_an_interrupted_heal_resumes_from_its_cursor_and_never_double_applies(store):
-    """F3: chunked writes; a stop mid-way leaves a durable cursor the next run finishes."""
-    bars_sqlite.put_bars("SPLT", "5", _series(100.0, 50.0))
-    part = ish.heal_series("SPLT", "5", splits=SPLITS, chunk_rows=5, max_chunks=1)
-    assert part["written"] == 5 and part["finished"] is False
-    assert bars_sqlite.pending_split_rescales("SPLT", "5")
-    done = ish.heal_series("SPLT", "5", splits=SPLITS, chunk_rows=5)
-    assert done["resumed"] == 1 and done["written"] == 13 and done["finished"]
-    assert {r[4] for r in _stored("SPLT", "5")} == {50.0}           # nothing scaled twice
-    assert bars_sqlite.pending_split_rescales("SPLT", "5") == []
-    assert ish.heal_series("SPLT", "5", splits=SPLITS)["written"] == 0
+def test_continuous_series_reports_no_cliff(store):
+    bars_sqlite.put_bars("OK", "5", _series(50.0, 50.0))
+    assert ish.heal_series("OK", "5", splits=SPLITS)["cliffs"] == []
 
 
-def test_the_cliff_is_reverified_inside_the_write_transaction(store):
-    bars_sqlite.put_bars("SPLT", "5", _series(50.0, 50.0))             # already on one basis
-    r = bars_sqlite.rescale_before(
-        "SPLT", "5", _et(2026, 10, 8, 0, 0), 2.0,
-        start=ish._verifier("SPLT", "5", _dt.date(2026, 10, 8), 2.0))
-    assert r["aborted"] and r["rows"] == 0
-    assert {r[4] for r in _stored("SPLT", "5")} == {50.0}
-
-
-def test_old_basis_rows_coming_back_after_a_finished_heal_are_healed_again(store):
-    bars_sqlite.put_bars("SPLT", "5", _series(100.0, 50.0))
-    ish.heal_series("SPLT", "5", splits=SPLITS)
-    bars_sqlite.put_bars("SPLT", "5", _series(100.0, 50.0))            # e.g. a stale restore
-    res = ish.heal_series("SPLT", "5", splits=SPLITS)
-    assert res["written"] == 18
-    assert {r[4] for r in _stored("SPLT", "5")} == {50.0}
-
-
-def test_detection_streams_closes_in_pages(store, monkeypatch):
+def test_detection_streams_closes_in_pages(store):
     bars_sqlite.put_bars("SPLT", "5", _series(100.0, 50.0))
     seen = list(bars_sqlite.iter_ts_close("SPLT", "5", batch=7))
     assert len(seen) == 36 and [t for t, _ in seen] == sorted(t for t, _ in seen)
 
 
-def test_no_declared_split_never_reads_or_writes(store, monkeypatch):
+def test_no_declared_split_never_reads(store, monkeypatch):
     bars_sqlite.put_bars("FLAT", "5", _series(100.0, 50.0))
     monkeypatch.setattr(bars_sqlite, "iter_ts_close", lambda *a, **k: pytest.fail("read"))
-    assert ish.heal_series("FLAT", "5", splits=[])["written"] == 0
+    assert ish.heal_series("FLAT", "5", splits=[])["cliffs"] == []
 
 
-def test_heal_ticker_covers_every_intraday_tf(store):
+def test_heal_ticker_checks_every_intraday_tf(store):
     for tf in ("5", "15"):
         bars_sqlite.put_bars("SPLT", tf, _series(100.0, 50.0))
-    res = ish.heal_ticker("SPLT", splits=SPLITS)
-    by_tf = {r["tf"]: r for r in res}
+    by_tf = {r["tf"]: r for r in ish.heal_ticker("SPLT", splits=SPLITS)}
     assert set(by_tf) == {"1", "5", "15", "30", "60"}
-    assert by_tf["5"]["written"] and by_tf["15"]["written"] and not by_tf["1"]["written"]
+    assert by_tf["5"]["cliffs"] and by_tf["15"]["cliffs"] and not by_tf["1"]["cliffs"]
+    assert all(r["written"] == 0 for r in by_tf.values())
 
 
 def test_note_served_schedules_once_per_split_and_only_near_a_declared_split(monkeypatch):
