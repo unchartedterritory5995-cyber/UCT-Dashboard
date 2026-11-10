@@ -62,6 +62,37 @@ C3-054 (save as global, admin) is **not done** (owner-blocked). The Agent saves 
   - `app/src/agent/qa/chartsOutcome/multiChart.outcome.test.jsx`: the 16 it.todo rows turned into outcome cases, plus boundary and ambiguity cases.
   - `app/src/agent/qa/chartsOutcome/multiChartGrid.family.test.jsx` (new): the held-out family over 2×2, 2×3 and 3×3.
 
+## Changed files (`git diff --stat origin/master...HEAD`, head before this doc edit)
+
+- `api/services/uct_agent/knowledge/guard.py` (4 lines)
+- `api/services/uct_agent/scan/sat/section_b_requests.json` (120 lines)
+- `api/services/uct_agent/turn_v2.py` (3 lines)
+- `app/src/agent/agentRouting.test.jsx` (2 lines)
+- `app/src/agent/builtins.js` (2 lines)
+- `app/src/agent/capabilities/multiChart.js` (475 lines)
+- `app/src/agent/contract/manifest.golden.json` (127 lines)
+- `app/src/agent/host.js` (5 lines)
+- `app/src/agent/qa/chartsOutcome/multiChart.outcome.test.jsx` (379 lines)
+- `app/src/agent/qa/chartsOutcome/multiChartGrid.family.test.jsx` (406 lines)
+- `app/src/agent/routing.js` (10 lines)
+- `app/src/pages/charts/ChartsWorkspace.jsx` (6 lines)
+- `app/src/pages/charts/grid/GroupPicker.jsx` (15 lines)
+- `app/src/pages/charts/grid/MultiChartGrid.jsx` (29 lines)
+- `app/src/pages/charts/grid/MultiChartMenu.jsx` (64 lines)
+- `app/src/pages/charts/grid/gridGroupActions.js` (97 lines)
+- `app/src/pages/charts/grid/gridLayouts.js` (14 lines)
+- `app/src/pages/charts/grid/useGridAgentControl.js` (81 lines)
+- `app/src/pages/charts/grid/useMultiChartState.js` (18 lines)
+- `docs/agent/CHARTS_EXECUTION_STATUS.md` (59 lines)
+- `docs/agent/program/PR-exec-multichart-grid.md` (113 lines)
+- `tests/fixtures/nl1_assemble_parity.json` (33 lines)
+- `tests/test_uct_agent_contract.py` (4 lines)
+- `tests/test_uct_agent_server_capability_mirrors.py` (98 lines)
+
+Totals: 24 files changed, 2023 insertions(+), 141 deletions(-)
+
+**Note: `app/src/agent/host.js` changed** (5 lines: the `gridControl` param handed to the Multi Chart capability). It is the shared Agent host, so review it as a shared-file change, not grid-only.
+
 ## Results
 
 All runs went through `python ../tools/agent_suite_lock.py run --who pl-grid -- powershell -File <scratch>\pl-grid\bn.ps1 node node_modules/vitest/vitest.mjs run <scope>`, from `app/`, at BelowNormal. Every run is SCOPED, never full; the Lead schedules the full suite.
