@@ -1267,3 +1267,47 @@ market-reading and pre-earnings rules were not in the scan. The ten charts were 
 ticker each, ten different years) and each was looked at; GNRC 2021, HRB 2017 and TREX 2018 also qualified on the
 numbers but were left out because their pullbacks drifted for weeks before the 3-close count began, which a learner
 would not read as a Slingshot. The scan completed; no part of the universe was skipped for time.
+
+## 13. Failures and near-misses (from our data)
+
+Built 2026-11-10 from the section 12 scan (`final/hits.json`), for the spot, discriminate and grade questions and the
+method plan's rule that every setup unit ships with a correctly traded loss. Charts in the scratch folder's `final/`:
+`fail_1-4.png`, `near_1-4.png`, and the confusable pair `pair_11-ema20-pullback.png` (the UTHR 2025-09-18 winner above
+the 20 EMA Pullback's ILMN 2013-12-05 winner, each captioned with the card's tell: which line was lost). Every number
+is read off the bars. Each failure passed every gate of the card (a drive day, 3 to 7 closes under the 4-day EMA of
+the highs, 5% to 12% deep, orderly, a decisive trigger close over the 50-day and the 200-day, a stop under the trigger
+day's low within 6.5%) and the earnings table shows no report reaction day from the session before the buy to 3
+sessions after it. **A correction to section 12:** two of its named failures, FSLR 2013-05-06 and BIIB 2022-10-24,
+were not setup failures. The earnings table puts a report reaction on the session after each buy (FSLR 2013-05-07,
+BIIB 2022-10-25): both trades were inside the 3-session blackout (`ss.earnings_window`) and should not have been
+taken; the "violent next-day reversal" in each was the earnings reaction. They are replaced here by SRPT and LOW, and
+the card's entries are relabelled.
+
+**Four failures, traded by the rules** (one per name, four different years):
+
+| Ticker | Trigger | Drive day | Pullback and trigger | Buy (close) | Stop (risk) | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|---|---|
+| SRPT | 2019-01-25 | 2019-01-04, 4%+ volume day +8.2% (not an earnings day) | 3 closes, 6.6% deep, 1.13 ATR, DCR 0.94 | 122.76 | 119.10 (3.0%) | day 1, 2019-01-28, best +0.0R | The next session opened at 121.51 and fell to 115.90, under the pullback low; then the stock reversed and printed the 3R level 4 sessions later without us. A one-day flush through the trigger day's low; the stop did its job and the re-entry rule (a new run of closes under the line) is what a second try needs. | ss.stop |
+| LOW | 2008-08-28 | 2008-08-08, 4%+ volume day +8.8% (not an earnings day) | 3 closes, 6.9% deep, 1.09 ATR, DCR 1.0 | 24.90 | 24.53 (1.5%) | day 1, 2008-08-29, best +0.0R | Stopped the next session; the 3R level printed 2 sessions later on a spike, then the stock fell 12.6% under the buy within 20 sessions as the 2008 market broke. The 50-day sat under the 200-day on the trigger day, the location the card prefers to avoid (ss.ma_rising_pref). | ss.ma_rising_pref (not a gate) |
+| PSX | 2020-12-10 | 2020-11-09, PEG-style gap +22.2% (not an earnings day) | 3 closes, 5.5% deep, 1.18 ATR, DCR 0.76 | 70.86 | 68.12 (3.9%) | day 2, 2020-12-14, best +0.0R | The same market-wide drive day as the LPLA winner (2020-11-09); 2 closes back under the line and the stop went on day 2, the low 20 sessions later 10% under the buy; the 3R level printed 44 sessions later. The bars cannot say whether PSX was a leader by RS that day. | ss.leadership (not in the scan) |
+| PLTR | 2026-08-27 | 2026-08-04, PEG-style gap +29.5% (earnings) | 3 closes, 7.4% deep, 1.14 ATR, DCR 0.89 | 185.93 | 177.98 (4.3%) | day 4, 2026-09-02, a gap under the stop, best +0.31R | The second try after a first Slingshot six sessions earlier had failed; reached +0.31R, then a gap under the stop on day 4. The re-entry rule allows it; a stock that failed its first Slingshot has said the pullback was no longer orderly. | ss.reentry |
+
+**Four near-misses, each failing exactly one gate** (the scan re-run with that one gate relaxed):
+
+| Ticker | Trigger | The one criterion that fails | The number | What it really is |
+|---|---|---|---|---|
+| ASO | 2024-02-20 | ss.drive | no drive day in the 25 sessions before the pullback (no 5%+ gap, no 4%+ close on above-average volume, no 20% in five sessions) | A pullback in a steady climb with nothing to sling from: no gap, no 4% volume day, no 20% in five sessions in the 25 before. The shape (4 closes under the line, 5.5% deep, a 0.98 DCR trigger) is the Slingshot shape; the engine is missing. It reached 4.1R; the test cannot say whether that was the setup or the climb. |
+| BA | 2022-11-25 | ss.pullback_length | 8 closes under the line; the rule wants 3 to 7 | A pullback that ran to 8 closes under the line: it is becoming a base (ss.inv_long_or_deep says the same). Stopped at 0R. |
+| CMCSA | 2019-02-15 | ss.depth | 2.7% deep from the drive leg's high; the rule wants 5% to 12% | Too shallow: a 2.7% dip after a 5.5% earnings day, 4 closes under the line. A pause, not a pullback; it reached 9.5R, which is the trend, not the setup. |
+| GSK | 2025-10-23 | ss.trigger_decisive | trigger day closed at 0.54 of its range; the rule wants 0.7 or more | An indecisive trigger: the first close back over the line closed at 0.54 of its range, the middle of the bar. Stopped at 0R. |
+
+Also in `near/` and not charted: `ss.orderly` (the pullback's range over 1.6 ATR, 1,078 hits in 850 names; EPAM
+2026-01-22 at 2.8 ATR is the clean one) and `ss.above_50_200` (a trigger that closes under the 50-day).
+
+**What the failures have in common.** Three of the four were stopped within two sessions and three had never traded
+above the fill: the trigger day's low did not hold, which is what the stop under it is placed to detect. In three of
+the four (SRPT, LOW, PSX) the 3R level printed later anyway, 2 to 44 sessions on, which repeats section 4's point
+that the Slingshot's edge is in the resumption of the drive, not in the first close over the line; the course's
+answer is the re-entry rule (`ss.reentry`: a new run of 3 closes under the line, a new close over it, a new stop), not
+a wider first stop. Two stops were over 3% (PSX 3.9%, PLTR 4.3%), inside the 6.5% limit, sized down by A5; both lost
+1R. The drive in all four was a real one (+8% to +30%), so a bigger drive did not protect the trigger.

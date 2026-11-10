@@ -1256,9 +1256,46 @@
     "trigger": "2019-06-21",
     "criterion": "rm.ma200_rising",
     "note": "29 closes under the 200-day after the 737 MAX gap, then a 2.7x-volume remount day (2019-06-18). Stopped in a week; the line was retaken and lost again twice more that summer. A 200-day that is flat (it just passed the 20-session test) after a news-driven break is the weakest version of the setup."
+   },
+   {
+    "ticker": "DOCU",
+    "date": "2024-03-14",
+    "criterion": "rm.after_entry_stop",
+    "why": "remount 2024-03-11 of the 50-day after 24 closes under (a 3.74 ATR break) on 2.0x volume, close +0.97 ATR; an inside quiet day, buy 59.54, stop 58.44 (1.8%); a gap under the stop the morning after the buy. It then held the 50-day for 20 sessions and traded up to 61.47 (+1.75R) inside the window without reaching 3R. The level was right; the trigger did not run."
    }
   ],
-  "limits": "The MA remount only: level remounts, 20 EMA remounts, the hourly and red-to-green variants and the short mirror were not scanned. RS 80+, the market reading and the earnings blackout are not in the scan (the examples were checked by hand against the earnings table). Fixed stop, so stopped includes trades that ran to 2R and came back. Prices are split-adjusted, so the $10 rule is approximate for older years. ETFs are in the base rate but not the examples. No delisted names. Nothing here is a published statistic; the course should not state a win rate for this setup."
+  "limits": "The MA remount only: level remounts, 20 EMA remounts, the hourly and red-to-green variants and the short mirror were not scanned. RS 80+, the market reading and the earnings blackout are not in the scan (the examples were checked by hand against the earnings table). Fixed stop, so stopped includes trades that ran to 2R and came back. Prices are split-adjusted, so the $10 rule is approximate for older years. ETFs are in the base rate but not the examples. No delisted names. Nothing here is a published statistic; the course should not state a win rate for this setup.",
+  "near_misses": [
+   {
+    "ticker": "ENOV",
+    "date": "2019-10-15",
+    "criterion": "rm.time_under",
+    "why": "only 3 closes under the 50-day before the remount day; the rule wants 5 to 30. A three-day dip and straight back: a pullback or a U&R (setup 29), the line was never really lost. It reached 20.7R on the trend."
+   },
+   {
+    "ticker": "EOG",
+    "date": "2011-07-25",
+    "criterion": "rm.volume",
+    "why": "remount-day volume 0.81x the 20-day average; the rule wants 1.2x or more. A line taken back after 28 closes under with nobody showing up; stopped at 0R ahead of a two-month slide."
+   },
+   {
+    "ticker": "ESS",
+    "date": "2014-10-22",
+    "criterion": "rm.remount_day_margin",
+    "why": "the remount day closed only +0.08 ATR over the 50-day; the rule wants 0.25 to 2 ATR. A marginal poke inside the noise; the next sessions remounted it clearly and it reached 14.9R. Wait for the clear close."
+   },
+   {
+    "ticker": "EHC",
+    "date": "2019-09-10",
+    "criterion": "rm.ma200_rising",
+    "why": "the 200-day SMA was 0.83 lower than 20 sessions ago; the rule wants it higher. A 50-day remount under a falling 200-day, which the drawing rejects; it reached 0.9R and stopped."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_29-undercut-rally.png"
+  }
  },
  "question_seeds": [
   {

@@ -1213,9 +1213,58 @@
     "trigger": "2024-04-01",
     "criterion": "hg.length",
     "note": "ADX 49.5, a 10-day pullback (the longest the rule allows) and a 3.4% stop at 81.37 against an 84.24 buy. Ten days is a flag that has already lost its urgency. Stopped within the 60-session window with no excursion past 0.5R."
+   },
+   {
+    "ticker": "MELI",
+    "date": "2014-09-17",
+    "criterion": "hg.failed_grail",
+    "why": "ADX 51.2, a 4-day 5.3% pullback, buy 113.96, stop 111.34 (2.3%); stopped the next session and never traded above the fill, 9 of the next 10 closes under the 20 EMA, a 10.1% drop to the 50-day. The 3R level printed 32 sessions later after a new momentum high: the re-buy rule wants that new high first."
+   },
+   {
+    "ticker": "MRVL",
+    "date": "2021-07-09",
+    "criterion": "hg.failed_grail",
+    "why": "ADX 49.1, a 6-day 6.4% pullback, buy 56.66, stop 54.95 (3.0%); reached +0.54R, stopped on day 5 (2021-07-16), then the 3R level printed 18 sessions after the buy without us. A stop-out is not a signal to chase; a re-buy needs its own fresh trigger."
+   },
+   {
+    "ticker": "BAC",
+    "date": "2006-05-16",
+    "criterion": "hg.after_entry_stop",
+    "why": "ADX 44.0 built on a short burst (up 10.9% in 60 sessions), a 6-day 3.7% pullback, buy 49.79, stop 48.55 (2.5%); stopped the next session, 8 of the next 10 closes under the 20 EMA, the low 20 sessions later 7.9% under the buy, no 3R in 60 sessions."
    }
   ],
-  "limits": "Daily bars only; the RS rating, group rank, earnings blackout and market reading were not in the scan (the ten picks were checked by hand against the earnings dates). No delisted names. Shorts were not scanned. Nothing here is a published statistic; no source publishes a win rate for the Holy Grail, and Raschke's 5% to 10% is a judgment, not a test."
+  "limits": "Daily bars only; the RS rating, group rank, earnings blackout and market reading were not in the scan (the ten picks were checked by hand against the earnings dates). No delisted names. Shorts were not scanned. Nothing here is a published statistic; no source publishes a win rate for the Holy Grail, and Raschke's 5% to 10% is a judgment, not a test.",
+  "near_misses": [
+   {
+    "ticker": "BOX",
+    "date": "2024-11-21",
+    "criterion": "hg.adx_gate",
+    "why": "the highest ADX(14) in the 10 sessions before the touch was 26.1; the rule wants a session above 30 and rising. A 4-day 5.6% dip to a rising 20 EMA with no ADX push: the plain 20 EMA pullback (setup 11). It reached 2.9R; only the ADX tells the two apart."
+   },
+   {
+    "ticker": "RIG",
+    "date": "2012-03-07",
+    "criterion": "hg.above_200",
+    "why": "the touch closed at 51.44, under the 200-day SMA (52.79); the rule wants the close above the 200-day. A bear-market rally that ran to 5.4R; the location rule still says no."
+   },
+   {
+    "ticker": "CRM",
+    "date": "2018-02-12",
+    "criterion": "hg.depth",
+    "why": "the touch low 106.26 went under the 50-day SMA (107.16); the rule wants the low above the 50-day. A 50-day pullback (setup 12), stopped at 0R."
+   },
+   {
+    "ticker": "COST",
+    "date": "2009-10-29",
+    "criterion": "hg.setup_void",
+    "why": "the trigger came 6 sessions after the touch; the rule voids the setup after 5. A stale setup that reached 4.4R anyway, a case for the owner to weigh the 5-session limit."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_11-ema20-pullback.png"
+  }
  },
  "question_seeds": [
   {

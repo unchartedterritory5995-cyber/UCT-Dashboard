@@ -1173,3 +1173,46 @@ example per year where possible.
 Other names in the same list: DIS 2020-02-05 (200-day remount two weeks before the 2020 crash), MSFT and NVDA both
 on 2020-11-06 (a 5-day dip and remount that failed in the sector rotation), DOCU 2024-03-14 (24 closes below, 2.0x
 volume, stopped).
+
+## 13. Failures and near-misses (from our data)
+
+Built 2026-11-10 from the section 12 scan (`final/hits.json`, Entry B only), for the spot, discriminate and grade
+questions and the method plan's rule that every setup unit ships with a correctly traded loss. Charts in the scratch
+folder's `final/`: `fail_1-4.png`, `near_1-4.png`, and the confusable pair `pair_29-undercut-rally.png` (the MAR
+2010-03-09 winner above the U&R's NTAP 2004-10-27 winner, each captioned with the card's tell: count the closes under
+the line). Every number is read off the bars. Each failure passed every gate of the card (5 to 30 closes under the
+50-day or 200-day, a break of 0.5 ATR or more, a green remount day closing in its upper half 0.25 to 2 ATR over the
+line on 1.2x volume or more, above a 200-day not lower than 20 sessions ago, a quiet day within 5 sessions, a fill no
+more than 4% over its high, a stop under the quiet day's low within 3.3%) and the earnings table shows no report
+reaction day from the session before the buy to 3 sessions after it. The four are the dossier's own named failures
+(AMZN, PYPL, BA) plus DOCU from its list.
+
+**Four failures, traded by the rules** (one per name, four different years):
+
+| Ticker | Remount / buy | Line and break | Buy | Stop (risk) | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|---|
+| AMZN | 2021-10-15 / 2021-10-20 | 50-day, 14 closes under, break 3.08 ATR, close +0.95 ATR, vol 1.77x | 172.74 | 171.05 (1.0%) | day 1, 2021-10-21, a gap under the stop, best +0.0R | A remount of the 50-day and the 200-day on the same day on 1.77x volume after 14 closes under; the quiet day was so tight that the stop sat 1.0% under the buy, and the next session gapped under it. SPY was above its 200-day. Only 4 of the next 20 closes went back under the line and the 3R level printed 12 sessions later without us. | none (a 1.0% stop on a mega-cap left no room; rm.stop_width sets a ceiling, not a floor) |
+| PYPL | 2018-10-19 / 2018-10-23 | 200-day, 9 closes under, break 2.02 ATR, close +0.71 ATR, vol 2.98x | 86.24 | 83.52 (3.2%) | day 1, 2018-10-24, best +0.0R | A 200-day remount on 2.98x volume (the earnings reaction) in the October 2018 correction, with SPY under its own 200-day on the buy day; stopped the next session and never traded above the fill, the low 20 sessions later 12.5% under the buy. The 3.2% stop is at the edge of the 'about 3%' rule. | rm.index_remounting |
+| BA | 2019-06-18 / 2019-06-21 | 200-day, 29 closes under, break 3.12 ATR, close +1.21 ATR, vol 2.69x | 375.80 | 368.91 (1.8%) | day 2, 2019-06-25, best +0.0R | 29 closes under the 200-day after the 737 MAX gap, then a 2.69x-volume remount; stopped on day 2 and 13 of the next 20 closes were back under the 200-day. The 200-day had just passed the 'not lower than 20 sessions ago' test; a flat line after a news break is the weakest version. | rm.ma200_rising (passed, barely) |
+| DOCU | 2024-03-11 / 2024-03-14 | 50-day, 24 closes under, break 3.74 ATR, close +0.97 ATR, vol 2.0x | 59.54 | 58.44 (1.8%) | day 1, 2024-03-15, a gap under the stop, best +0.0R | A textbook picture: 24 closes under the 50-day, a 3.74 ATR break, a 2.0x-volume remount day, an inside quiet day; then a gap under the stop the morning after the buy. It held the 50-day for the next 20 sessions (0 closes under) and traded up to 61.47 (+1.75R) inside the window without reaching 3R. The level was right; the trigger did not run. | none (rm.after_entry_stop) |
+
+**Four near-misses, each failing exactly one gate** (the scan re-run with that one gate relaxed):
+
+| Ticker | Remount / buy | The one criterion that fails | The number | What it really is |
+|---|---|---|---|---|
+| ENOV | 2019-10-11 / 2019-10-15 | rm.time_under | 3 closes under the 50-day before the remount day; the rule wants 5 to 30 | A three-day dip under the 50-day and straight back: a pullback or a U&R (setup 29), not a Remount; the line was never really lost. It reached 20.7R, which is the trend, and the point of the gate is to name the setup correctly, not to skip the trade. |
+| EOG | 2011-07-21 / 2011-07-25 | rm.volume | remount-day volume 0.81x the 20-day average; the rule wants 1.2x or more | The line was taken back on 0.81x volume after 28 closes under: a remount nobody showed up for. Stopped at 0R, and the slide that followed is on the chart. |
+| ESS | 2014-10-14 / 2014-10-22 | rm.remount_day_margin | remount-day close +0.08 ATR over the line; the rule wants 0.25 to 2 | A marginal poke: the remount day closed 0.08 ATR over the 50-day, inside the noise, so the close could not be called a remount that evening. The next sessions remounted it clearly and it reached 14.9R; the lesson is to wait for the clear close. |
+| EHC | 2019-09-06 / 2019-09-10 | rm.ma200_rising | the 200-day SMA 0.83 lower than 20 sessions ago; the rule wants it higher | A 50-day remount under a falling 200-day (0.83 lower than 20 sessions ago): the drawing rejects it. It reached 0.9R and stopped. |
+
+Also in `near/` and not charted: `rm.break_left_line` (the deepest close under the line under 0.5 ATR, 9 hits in 900
+names: a shallow loss of the line that the rule reads as a pullback) and `rm.remount_day_candle`.
+
+**What the failures have in common.** All four were stopped within two sessions of the buy, two of them by a gap
+under the stop at the open: the pause entry's stop is tight (1.0% to 3.2%) because the quiet day is tight, and a
+tight stop is taken by ordinary noise. Three of the four later held or retook the line (AMZN printed the 3R level 12
+sessions on, DOCU held the 50-day for the next 20 sessions, BA chopped around the 200-day); only PYPL, bought with the
+index under its own 200-day, kept falling. Heavy remount volume did not help (2.0x to 2.98x in three of the four),
+which repeats section 12's cut. The picture the four give the course is the dossier's expected-losses rule
+(`rm.expect_losses`): about four in five remounts hit the first stop, the stop is the whole cost, and a second try
+after a failed first try is a new trade with its own trigger and stop (`rm.failed_first_try`).

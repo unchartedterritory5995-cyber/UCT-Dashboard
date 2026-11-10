@@ -1022,3 +1022,48 @@ sessions, with the ADX in the 40s to high 50s but the run itself only a few week
 **Data limits.** Daily bars only; the RS rating, group rank and the earnings blackout were not applied in the scan
 (the 10 picks were checked by hand against the earnings dates). The scan covered the whole liquid universe within the
 time budget, so the base rate is for the complete set, not a sample. Shorts were not scanned.
+
+
+## 13. Failures and near-misses (from our data)
+
+Built 2026-11-10 from the same scan as section 12 (`final/hits.json`), for the spot, discriminate and grade questions
+and the method plan's rule that every setup unit ships with a correctly traded loss. The charts are in the scratch
+folder's `final/`: `fail_1-4.png` (one column, four charts), `near_1-4.png`, and the confusable pair
+`pair_11-ema20-pullback.png` (the CI 2000-10-26 winner above the 20 EMA Pullback's ILMN 2013-12-05 winner, each
+captioned with the card's tell: check the ADX). Every number below is read off the bars; "stopped" is the first session
+whose low traded at or under the stop, with the best excursion before it. Each failure passed every gate of the card
+(ADX push, momentum high, first pullback, touch above the 50-day, close above the 200-day, trigger within 5 sessions,
+stop under the swing low within 3.3%, no fill more than 4% over the trigger) and was checked against the earnings
+table: no report reaction day from the session before the buy to 3 sessions after it.
+
+**Four failures, traded by the rules** (one per name, four different years):
+
+| Ticker | Buy date | Buy | Stop (risk) | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|
+| NVDA | 2024-04-03 | 90.11 | 87.57 (2.8%) | day 1, 2024-04-04, best +0.0R | Up 86.4% in the 60 sessions before the touch; the first touch of the line after that run was the start of the April correction: 8 of the next 10 closes under the 20 EMA, the low 20 sessions later 16.1% under the buy. The 3R level printed 36 sessions later. | hg.not_climax |
+| MELI | 2014-09-17 | 113.96 | 111.34 (2.3%) | day 1, 2014-09-18, best +0.0R | Stopped the morning after the buy and never traded above the fill; 9 of the next 10 closes under the 20 EMA and a 10.1% drop to the 50-day. The 3R level printed 32 sessions later, after a new momentum high; the re-buy rule wants that new high first. | none (hg.failed_grail for the re-buy) |
+| MRVL | 2021-07-09 | 56.66 | 54.95 (3.0%) | day 5, 2021-07-16, best +0.54R | Reached +0.54R, then five sessions of drift took out the stop; only 2 closes under the 20 EMA after that and the 3R level printed 18 sessions after the buy without us. A stop-out is not a signal to chase; a re-buy needs its own fresh trigger. | none (hg.failed_grail for the re-buy) |
+| BAC | 2006-05-16 | 49.79 | 48.55 (2.5%) | day 1, 2006-05-17, best +0.0R | Up only 10.9% in the 60 sessions before the touch; stopped the next session, 8 of the next 10 closes under the 20 EMA, the low 20 sessions later 7.9% under the buy, no 3R in 60 sessions. | none (hg.after_entry_stop) |
+
+**Four near-misses, each failing exactly one gate** (the scan re-run with that one gate relaxed; everything else held):
+
+| Ticker | Buy date | The one criterion that fails | The number | What it really is |
+|---|---|---|---|---|
+| BOX | 2024-11-21 | hg.adx_gate | highest ADX(14) in the 10 sessions before the touch 26.1; the rule wants above 30 and rising | The plain 20 EMA pullback (setup 11): a 4-day, 5.6% dip to a rising 20 EMA with no ADX push behind it. It reached 2.9R, which is the point: the picture alone cannot tell the two apart, only the ADX can. |
+| RIG | 2012-03-07 | hg.above_200 | touch close 51.44 under the 200-day SMA 52.79 | A pullback in a stock still under a falling 200-day (a bear-market rally). It ran to 5.4R, and the rule still says no: the 200-day gate is a location rule, not a prediction. |
+| CRM | 2018-02-12 | hg.depth | touch low 106.26 under the 50-day SMA 107.16 | A 50-day pullback (setup 12): the touch session went through the 20 EMA and under the 50-day before closing back above it. Stopped at 0R. |
+| COST | 2009-10-29 | hg.setup_void | trigger 6 sessions after the touch; the rule voids it after 5 | A stale setup: a 2-day dip to the line, then six sessions before price cleared the prior high. The rule voids the setup after 5 sessions without a trigger; it reached 4.4R anyway, which is why the owner may want to weigh the 5-session limit (section 10). |
+
+Not charted: the `hg.length` near-miss (a 1-session dip, 291 hits in 1,038 names) and the `hg.first_pullback` near-miss
+(a second touch inside the same ADX push, 11,642 hits in 1,418 names, most of them a touch one or two sessions after
+the first); both exist in `near/` for a later pass. A pullback longer than 10 sessions fails `hg.length` and
+`hg.momentum_high` together, so it is not a one-criterion near-miss.
+
+**What the failures have in common.** Three of the four were stopped the very next session and never traded above
+the fill: the touch did not hold, the line was lost (8 or 9 of the next 10 closes under the 20 EMA) and price went to
+the 50-day. The ADX was high in all four (44 to 53), which repeats section 12's finding that the ADX level above 30
+does not sort winners from losers; what differed was the run that produced it (NVDA's 86% in 60 sessions against
+BAC's 11%). Three of the four (NVDA, MELI, MRVL) printed the 3R level 18 to 36 sessions after the buy, from a new momentum
+high: the lesson for the course is `hg.failed_grail`, a re-buy only on a fresh trigger with its own stop, never a
+chase of the move that left without us. The stop width was 2.3% to 3.0% in all four, inside the 3% rule, so the loss
+was 1R each time; nothing in the four argues for a wider stop.

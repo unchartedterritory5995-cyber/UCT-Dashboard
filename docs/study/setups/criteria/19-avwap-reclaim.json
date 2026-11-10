@@ -1184,9 +1184,58 @@
     "trigger": "2022-03-22",
     "criterion": "av.market_reading",
     "note": "a +0.78 ATR close on 1.54x volume after a 9.6 ATR fall, in a year the broad market fell; stopped with 0.0R. The index's own standing matters, and the scan did not read it."
+   },
+   {
+    "ticker": "PG",
+    "date": "2017-06-16",
+    "criterion": "av.stop_gap",
+    "why": "reclaim 2017-06-15 of the AVWAP from the 2017-03-17 high (8.6 ATR fall, 61 closes under, +0.83 ATR close on 1.06x volume), buy 89.72, stop 88.20 (1.7%); drifted to +0.32R, closed back under the line on day 7 and gapped through the stop on day 9 (2017-06-29); all of the next 10 closes stayed under."
+   },
+   {
+    "ticker": "LIN",
+    "date": "2019-09-13",
+    "criterion": "av.after_entry_stop",
+    "why": "reclaim 2019-09-12 of the AVWAP from the 2019-07-23 high (8.4 ATR fall, 35 closes under, +0.41 ATR close), buy 192.63, stop 189.29 (1.7%); stopped the next session with one close under the line, then held the line and printed the 3R level 39 sessions later without us. A re-entry is a new trigger (av.reentry)."
+   },
+   {
+    "ticker": "MRK",
+    "date": "2012-12-12",
+    "criterion": "av.after_entry_stop",
+    "why": "reclaim 2012-12-11 of the AVWAP from the 2012-10-18 high (11.2 ATR fall, 34 closes under, +0.68 ATR close on 1.26x volume), buy 43.22, stop 42.43 (1.8%); stopped the next session and never traded above the fill, the next 10 closes all back under the line, the low 20 sessions later 11.6% under the buy."
    }
   ],
-  "limits": "The from-the-high variant only; the earnings and IPO anchors were not scanned. The RS rating and group (a proxy is given), the earnings blackout (checked by hand for the ten) and the market reading are not in the scan. No delisted names. The daily-bar line differs from the intraday line. Nothing here is a published statistic; no source publishes a rate for AVWAP reclaims."
+  "limits": "The from-the-high variant only; the earnings and IPO anchors were not scanned. The RS rating and group (a proxy is given), the earnings blackout (checked by hand for the ten) and the market reading are not in the scan. No delisted names. The daily-bar line differs from the intraday line. Nothing here is a published statistic; no source publishes a rate for AVWAP reclaims.",
+  "near_misses": [
+   {
+    "ticker": "ADC",
+    "date": "2019-01-09",
+    "criterion": "av.real_fall",
+    "why": "the fall from the 2018-12-07 anchor high was 3.9 ATR; the rule wants 4 or more. A one-month dip reclaimed after 19 closes under; it reached 6.4R, a borderline case for a grade question."
+   },
+   {
+    "ticker": "AAPL",
+    "date": "2021-10-19",
+    "criterion": "av.line_flattened",
+    "why": "the AVWAP from the 2021-09-07 high still fell 0.56 ATR over the 10 sessions before the reclaim; the rule wants under 0.5. It reached 9.3R; the owner may want the 0.5 ATR cut read as a grade cue."
+   },
+   {
+    "ticker": "CAG",
+    "date": "2019-11-15",
+    "criterion": "av.reclaim_day_close",
+    "why": "the reclaim day closed only +0.23 ATR over the line; the rule wants 0.3 to 1.0 ATR. A marginal poke inside the noise; it chopped to 2.7R before the December earnings gap."
+   },
+   {
+    "ticker": "AGCO",
+    "date": "2019-09-09",
+    "criterion": "av.no_gap_over",
+    "why": "the reclaim day opened +0.91 ATR over the line; the rule allows 0.5 ATR at most. The line was never retaken from below in regular hours: a gap setup, not an AVWAP reclaim; it reached 3.1R."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_32-remount.png"
+  }
  },
  "question_seeds": [
   {

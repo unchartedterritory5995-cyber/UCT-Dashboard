@@ -1152,3 +1152,51 @@ reclaim on 2.47x volume, the heaviest of any failure here; stop 4.1%; stopped at
 which matches the base-rate cut above. (3) TMO, reclaim 2022-03-18, buy 03-22: a +0.78 ATR close on 1.54x volume
 after a 9.6 ATR fall, in a year the broad market fell; stopped with 0.0R. A reminder of 8.7: the index's own standing
 matters, and the scan did not read it.
+
+
+## 13. Failures and near-misses (from our data)
+
+Built 2026-11-10 from the section 12 scan (`final/hits.json`), for the spot, discriminate and grade questions and the
+method plan's rule that every setup unit ships with a correctly traded loss. Charts in the scratch folder's `final/`:
+`fail_1-4.png`, `near_1-4.png`, and the confusable pair `pair_32-remount.png` (the MAR 2004-09-16 reclaim above the
+Remount's MAR 2010-03-09 winner, each captioned with the card's tell: name the line). Every number is read off the
+bars. Each failure passed every gate (anchor high 20 to 150 sessions old, a fall of 4 ATR or more, 15 closes under,
+at most 2 crossings, a flattened line, a close 0.3 to 1.0 ATR over it with no gap over, above the 200-day, a fill the
+next session no more than 4% over the trigger, a stop under the reclaim-day low within 3.3%) and the earnings table
+shows no report reaction day from the session before the buy to 3 sessions after it. Two candidates the first pass
+had picked were dropped for that reason: JNJ 2020-07-15 (its report reacted on 07-16) and INTU 2014-05-20 (the "gap
+under the stop" on 05-21 was the earnings reaction); both were `av.earnings_window` violations, not setup failures.
+Of section 12's three named failures, DIS 2021-07-13 carried a 4.1% stop (outside `av.stop_width`) and TMO 2022-03-22
+was a day-2 fill (outside `av.trigger`'s next session), so only AMZN is kept.
+
+**Four failures, traded by the rules** (one per name, four different years):
+
+| Ticker | Reclaim / buy | Anchor, fall, closes under, reclaim day | Buy | Stop (risk) | Where it stopped | What happened | Criterion |
+|---|---|---|---|---|---|---|---|
+| AMZN | 2026-10-09 / 2026-10-12 | 2026-08-03, fall 7.6 ATR, 47 under, close +0.42 ATR, vol 0.88x | 262.81 | 255.97 (2.6%) | day 2, 2026-10-14, best +0.0R | The first close after the buy was back under the line and 7 of the next 10 stayed under; the low 20 sessions later was 12.7% under the buy. Everything in the picture was right (a 7.6 ATR fall, 47 closes under, a flat line); the reclaim simply failed and the stop said so. | av.after_entry_stop |
+| PG | 2017-06-15 / 2017-06-16 | 2017-03-17, fall 8.6 ATR, 61 under, close +0.83 ATR, vol 1.06x | 89.72 | 88.20 (1.7%) | day 9, 2017-06-29, a gap under the stop, best +0.32R | Drifted to +0.32R, closed back under the line on day 7 and gapped through the stop on day 9; all of the next 10 closes stayed under. A slow failure the time stop would have caught a session later. | av.stop_gap |
+| LIN | 2019-09-12 / 2019-09-13 | 2019-07-23, fall 8.4 ATR, 35 under, close +0.41 ATR, vol 1.01x | 192.63 | 189.29 (1.7%) | day 1, 2019-09-16, best +0.0R | Stopped the next session, with one close under the line; then it held the line for weeks and the 3R level printed 39 sessions later without us. A one-day shake-out under the reclaim-day low; the rule is still the stop, and a re-entry is a new trigger (av.reentry). | av.after_entry_stop |
+| MRK | 2012-12-11 / 2012-12-12 | 2012-10-18, fall 11.2 ATR, 34 under, close +0.68 ATR, vol 1.26x | 43.22 | 42.43 (1.8%) | day 1, 2012-12-13, best +0.0R | Stopped the next session and never traded above the fill; all of the next 10 closes were back under the line and the low 20 sessions later was 11.6% under the buy. A failed reclaim that became the start of a decline. | av.after_entry_stop |
+
+**Four near-misses, each failing exactly one gate** (the scan re-run with that one gate relaxed):
+
+| Ticker | Reclaim / buy | The one criterion that fails | The number | What it really is |
+|---|---|---|---|---|
+| ADC | 2019-01-08 / 2019-01-09 | av.real_fall | fall from the anchor high 3.9 ATR; the rule wants 4 or more | Not a real fall: a 3.9 ATR dip from a one-month high, reclaimed after 19 closes under. It reached 6.4R, and the rule still rejects it by a tenth of an ATR; a borderline case worth a grade question, not a spot question. |
+| AAPL | 2021-10-18 / 2021-10-19 | av.line_flattened | the AVWAP fell 0.56 ATR over the 10 sessions before; the rule wants under 0.5 | The line had not flattened: the AVWAP was still dropping 0.56 ATR per 10 sessions when price crossed it. It reached 9.3R; the rule is a quality filter, not a prediction, and the owner may want the 0.5 ATR cut read as a grade cue (section 10). |
+| CAG | 2019-11-14 / 2019-11-15 | av.reclaim_day_close | reclaim-day close +0.23 ATR over the line; the rule wants 0.3 to 1.0 | A marginal poke: the reclaim day closed 0.23 ATR over the line, inside the noise. The next session filled the trigger and it chopped to 2.7R before the December gap did the real work. |
+| AGCO | 2019-09-06 / 2019-09-09 | av.no_gap_over | reclaim-day open +0.91 ATR over the line; the rule allows 0.5 at most | A gap over the line: the reclaim day opened 0.91 ATR above the AVWAP, so the line was never retaken from below in regular hours. Judged as a gap setup, not an AVWAP reclaim; it reached 3.1R. |
+
+Not charted: the `av.time_under` near-miss (5 to 9 closes under a line the stock had held, the U&R lookalike) is rare
+in the data: 3 hits in 1,162 names scanned (BRK-B 2001-09-27, AIZ 2010-08-30), because a stock that held its AVWAP
+for weeks and dipped under it for a week rarely also passes the fall and the flattened-line gates. The U&R contrast
+is better taught from the U&R's own charts (setup 29). The `av.above_200` near-miss exists in `near/` (116 hits) and
+was left out for space.
+
+**What the failures have in common.** All four stopped on a close back under the line within days: the reclaim did
+not hold, which is exactly what the stop under the reclaim-day low is placed to detect (`av.stop`). Volume on the
+reclaim day was ordinary in all four (0.88x to 1.26x), consistent with section 12's finding that volume does not sort
+winners from losers here. Two of the four (LIN, PG) were later proved right about the level: LIN printed the 3R level
+39 sessions later and PG went on to 2.9R inside the window, after a second, cleaner retake; the lesson is
+`av.reentry`, a new trigger with its own stop, not a wider first stop. The two that never came back (AMZN, MRK) fell
+11.6% to 12.7% in the next 20 sessions: the stop cost 1R where holding would have cost five.

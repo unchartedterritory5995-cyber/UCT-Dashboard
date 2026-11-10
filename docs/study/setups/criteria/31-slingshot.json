@@ -1095,14 +1095,14 @@
    {
     "ticker": "FSLR",
     "trigger": "2013-05-06",
-    "criterion": "ss.stop",
-    "note": "the drive was a 45.5% day on 2013-04-09, the pullback 3 closes and 7.1% deep, the trigger closed at 0.94 of its range with a 3.3% stop. The next session opened lower and traded through the stop (low 42.61 against a 46.62 open): out in one day, 0.0R. A giant drive does not make the trigger safer; the stop is what keeps it small."
+    "criterion": "ss.earnings_window",
+    "note": "the drive was a 45.5% day on 2013-04-09, the pullback 3 closes and 7.1% deep, the trigger closed at 0.94 of its range with a 3.3% stop. The next session opened lower and traded through the stop (low 42.61 against a 46.62 open): out in one day, 0.0R. A giant drive does not make the trigger safer; the stop is what keeps it small. Corrected 2026-11-10: the earnings table puts FSLR's report reaction on 2013-05-07, the session after the buy, so the trade was inside the 3-session blackout and the reversal was the earnings reaction. Not a setup failure; replaced in the failure sheet by SRPT 2019-01-25."
    },
    {
     "ticker": "BIIB",
     "trigger": "2022-10-24",
-    "criterion": "ss.stop_gap",
-    "note": "a 39.9% news gap on 2022-09-28, a 6-close pullback 8.2% deep, a 2.4% stop. The day after the trigger opened at 278.60 and fell to 265.46, through the stop: 0.0R. The biggest gaps breed the most violent next-day reversals, even with a tight stop."
+    "criterion": "ss.earnings_window",
+    "note": "a 39.9% news gap on 2022-09-28, a 6-close pullback 8.2% deep, a 2.4% stop. The day after the trigger opened at 278.60 and fell to 265.46, through the stop: 0.0R. The biggest gaps breed the most violent next-day reversals, even with a tight stop. Corrected 2026-11-10: the earnings table puts BIIB's report reaction on 2022-10-25, the session after the buy, so the trade was inside the 3-session blackout and the gap down was the earnings reaction. Not a setup failure; replaced in the failure sheet by LOW 2008-08-28."
    },
    {
     "ticker": "PLTR",
@@ -1115,9 +1115,52 @@
     "trigger": "2020-12-10",
     "criterion": "ss.leadership",
     "note": "the same market-wide drive day as LPLA (2020-11-09, +22.2%), 3 closes, 5.5% deep, DCR 0.76, a 3.9% stop: stopped in 2 sessions, 0.0R. The bars cannot say whether PSX was a leader by RS that day; it is the kind of case rule 8 exists for."
+   },
+   {
+    "ticker": "SRPT",
+    "date": "2019-01-25",
+    "criterion": "ss.stop",
+    "why": "drive 2019-01-04 (+8.2% on volume, not an earnings day), 3 closes under the line, 6.6% deep, 1.13 ATR, trigger DCR 0.94, buy 122.76, stop 119.10 (3.0%); the next session opened at 121.51 and fell to 115.90, under the pullback low, then the 3R level printed 4 sessions later without us. A one-day flush; a second try needs a new run of closes under the line (ss.reentry)."
+   },
+   {
+    "ticker": "LOW",
+    "date": "2008-08-28",
+    "criterion": "ss.ma_rising_pref",
+    "why": "drive 2008-08-08 (+8.8% on volume, not an earnings day), 3 closes under the line, 6.9% deep, 1.09 ATR, trigger DCR 1.0, buy 24.90, stop 24.53 (1.5%); stopped the next session, a spike printed the 3R level 2 sessions later, then the stock fell 12.6% under the buy within 20 sessions as the 2008 market broke. The 50-day sat under the 200-day on the trigger day, the location the card prefers to avoid."
    }
   ],
-  "limits": "Fixed stop, no trims; a gap through the stop exits at the stop price (daily bars cannot apply B20), which flatters the failures slightly. RS, group, market reading and the pre-earnings rule were not in the scan. The ten were chosen by eye from the 5R winners, one ticker each, ten different years. No delisted names. The one published backtest (Analyzing Alpha, hourly bars, QQQ members, fixed reward-to-risk exits) does not carry over to our daily rule."
+  "limits": "Fixed stop, no trims; a gap through the stop exits at the stop price (daily bars cannot apply B20), which flatters the failures slightly. RS, group, market reading and the pre-earnings rule were not in the scan. The ten were chosen by eye from the 5R winners, one ticker each, ten different years. No delisted names. The one published backtest (Analyzing Alpha, hourly bars, QQQ members, fixed reward-to-risk exits) does not carry over to our daily rule.",
+  "near_misses": [
+   {
+    "ticker": "ASO",
+    "date": "2024-02-20",
+    "criterion": "ss.drive",
+    "why": "no drive day in the 25 sessions before the pullback: no 5%+ gap, no 4%+ close on above-average volume, no 20% in five sessions. The shape is right (4 closes under the line, 5.5% deep, trigger DCR 0.98); the engine is missing. It reached 4.1R on the climb."
+   },
+   {
+    "ticker": "BA",
+    "date": "2022-11-25",
+    "criterion": "ss.pullback_length",
+    "why": "8 closes under the line; the rule wants 3 to 7 (past 7 it is becoming a base, ss.inv_long_or_deep says the same). Stopped at 0R."
+   },
+   {
+    "ticker": "CMCSA",
+    "date": "2019-02-15",
+    "criterion": "ss.depth",
+    "why": "the pullback was 2.7% deep from the drive leg's high; the rule wants 5% to 12%. A pause after a 5.5% earnings day, not a pullback; it reached 9.5R on the trend."
+   },
+   {
+    "ticker": "GSK",
+    "date": "2025-10-23",
+    "criterion": "ss.trigger_decisive",
+    "why": "the trigger day closed at 0.54 of its range; the rule wants 0.7 or more. An indecisive first close over the line; stopped at 0R."
+   }
+  ],
+  "sheets": {
+   "failures": "final/fail_1-4.png",
+   "near_misses": "final/near_1-4.png",
+   "pair": "final/pair_11-ema20-pullback.png"
+  }
  },
  "question_seeds": [
   {
