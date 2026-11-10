@@ -137,12 +137,29 @@ export function withArticle(name) {
   return `${/^[AEIOU]/i.test(n) ? 'an' : 'a'} ${n}`
 }
 
+/** THE HOUSE TRIMS (docs/study/sizing_rule.md §9, B19 and E51; study_trade.TRIM_R): a third at 3R, a third at 5R. The
+ *  plan carries them as `trim_r`; a plan from before the rulebook (an old fixture) lacks it and reads the same. */
+export const TRIM_R = Object.freeze([3, 5])
+export function trimR(plan) {
+  const r = plan?.trim_r
+  return Array.isArray(r) && r.length >= 2 && Number.isFinite(r[0]) && Number.isFinite(r[1]) ? [r[0], r[1]] : [...TRIM_R]
+}
+/** The trims' names on the chart and in the copy: '3R' and '5R'. */
+export const trimLabels = (plan) => trimR(plan).map((m) => `${m}R`)
+/** "three times" the risk, in words. */
+export function timesWord(m) {
+  const words = { 1: 'once', 2: 'twice', 3: 'three times', 4: 'four times', 5: 'five times', 6: 'six times' }
+  return words[m] || `${m} times`
+}
+
 /** THE TRADE, REVIEWED (round 23; the owner, 2026-11-08: the answers "are out there ... in the app"). The plan comes from
- *  the server with the reveal (api/services/study_trade.py: the setup's own detector's trigger and stop, targets at 2R
- *  and 3R, the trail; the Kicker on his rulings), and this plays it against the bars after the signal: the best price
- *  while the trade was alive, when each target was reached, and when the stop was. A Kicker or an Oops enters during the
- *  signal day (that day's extreme counts once it has entered; its own low never stops it); every other setup enters on
- *  the signal's close. A bar that reaches the stop ends the trade before its extreme counts. Short setups mirror it. */
+ *  the server with the reveal (api/services/study_trade.py: the setup's own detector's trigger and stop, the trims at 3R
+ *  and 5R, the trail; the Kicker on his rulings), and this plays it against the bars after the signal: the best price
+ *  while the trade was alive, when each trim level was reached, and when the plan's stop was. A Kicker or an Oops enters
+ *  during the signal day (that day's extreme counts once it has entered; its own low never stops it); every other setup
+ *  enters on the signal's close. A bar that reaches the stop ends the trade before its extreme counts. Short setups
+ *  mirror it. The stop here is the plan's original stop throughout: the breakeven stop after the first trim (B19) is
+ *  Trade Story's (games/tradeStory.storyOf), read on top of this. */
 export function reviewTrade(plan, signal, forward) {
   if (!plan || !signal || !Number.isFinite(plan.entry) || !Number.isFinite(plan.stop)) return null
   const long = plan.direction !== 'bearish'

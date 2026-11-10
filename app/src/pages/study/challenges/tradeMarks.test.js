@@ -9,29 +9,37 @@ const n = 50
 const plan = { kind: 'plan', long: true, entry: 110.5, stop: 108.5, t1: 114.5, t2: 116.5, t1At: 3, t2At: 3, stoppedSession: null }
 
 describe('the trade on the chart', () => {
-  it('draws the levels as dashed lines and nothing else', () => {
+  it('draws the levels as dashed lines and nothing else: the entry, the stop, the trims at 3R and 5R', () => {
     const out = tradeAnnotations(plan, bars[n - 1], bars)
-    expect(out.map((a) => [a.id, a.type])).toEqual([['hard-ENTRY', 'hray'], ['hard-STOP', 'hray'], ['hard-2R', 'hray'], ['hard-3R', 'hray']])
+    expect(out.map((a) => [a.id, a.type])).toEqual([['hard-ENTRY', 'hray'], ['hard-STOP', 'hray'], ['hard-3R', 'hray'], ['hard-5R', 'hray']])
     expect(tradeAnnotations(null, bars[n - 1], bars)).toBe(null)
   })
 
-  it('marks each action at its own bar: bought under the signal, the targets over the bar they traded', () => {
+  it('names the trims from the plan\'s own trim_r, and reads 3R and 5R when an older plan has none', () => {
+    const own = { ...plan, trim_r: [2, 4] }
+    expect(tradeAnnotations(own, bars[n - 1], bars).map((a) => a.id)).toEqual(['hard-ENTRY', 'hard-STOP', 'hard-2R', 'hard-4R'])
+    expect(tradeMarkers(own, bars, n).map((m) => m.text)).toEqual(['BOUGHT', '2R', '4R'])
+    expect(tradeMarkers({ ...plan, trim_r: [3.0, 5.0] }, bars, n).map((m) => m.text)).toEqual(['BOUGHT', '3R', '5R'])
+    expect(tradeMarkers({ ...plan, trim_r: null }, bars, n).map((m) => m.text)).toEqual(['BOUGHT', '3R', '5R'])
+  })
+
+  it('marks each action at its own bar: bought under the signal, the trims over the bar they traded', () => {
     const out = tradeMarkers(plan, bars, n)
     expect(out.map((m) => [m.time, m.text, m.position])).toEqual([
-      [bars[n - 1].t, 'BOUGHT', 'belowBar'], [bars[n + 2].t, '2R', 'aboveBar'], [bars[n + 2].t, '3R', 'aboveBar'],
+      [bars[n - 1].t, 'BOUGHT', 'belowBar'], [bars[n + 2].t, '3R', 'aboveBar'], [bars[n + 2].t, '5R', 'aboveBar'],
     ])
   })
 
   it('marks only what the replay has drawn so far', () => {
     expect(tradeMarkers(plan, bars.slice(0, n), n).map((m) => m.text)).toEqual(['BOUGHT'])
-    expect(tradeMarkers(plan, bars.slice(0, n + 3), n).map((m) => m.text)).toEqual(['BOUGHT', '2R', '3R'])
+    expect(tradeMarkers(plan, bars.slice(0, n + 3), n).map((m) => m.text)).toEqual(['BOUGHT', '3R', '5R'])
   })
 
   it('marks the stop, and mirrors a short', () => {
     const stopped = { ...plan, t1At: null, t2At: null, stoppedSession: 2 }
     expect(tradeMarkers(stopped, bars, n).map((m) => [m.text, m.position, m.shape])).toEqual([['BOUGHT', 'belowBar', 'arrowUp'], ['STOPPED', 'belowBar', 'square']])
     const short = { ...plan, long: false, t1At: 1, t2At: null }
-    expect(tradeMarkers(short, bars, n).map((m) => [m.text, m.position])).toEqual([['SHORTED', 'aboveBar'], ['2R', 'belowBar']])
+    expect(tradeMarkers(short, bars, n).map((m) => [m.text, m.position])).toEqual([['SHORTED', 'aboveBar'], ['3R', 'belowBar']])
   })
 
   it('a signal-only trade marks where it broke its line; no trade marks nothing', () => {

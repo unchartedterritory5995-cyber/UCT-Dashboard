@@ -115,7 +115,7 @@ function useForward(attempt, rest) {
 }
 
 /** The trade a checked chart reviews, on Hard mode's rules: the setup's own plan from the reveal when it fired (the
- *  detector's entry and stop, 2R and 3R), otherwise the move measured from the signal candle. */
+ *  detector's entry and stop, the trims at 3R and 5R), otherwise the move measured from the signal candle. */
 function useTrade(item, result, attempt, fwd) {
   const n = item.bars.length
   const signal = item.bars[n - 1]

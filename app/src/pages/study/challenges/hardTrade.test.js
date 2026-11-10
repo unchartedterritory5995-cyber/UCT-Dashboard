@@ -1,18 +1,36 @@
 import { describe, expect, it } from 'vitest'
-import { reviewTrade, tradeOf } from './hardMode'
+import { TRIM_R, reviewTrade, timesWord, tradeOf, trimLabels, trimR } from './hardMode'
 
 // Round 23: the trade plan comes from the server with the reveal (api/services/study_trade.py: the setup's own entry and
-// stop, targets at 2R and 3R); the client plays it against the bars after the signal.
+// stop, the house trims t1 and t2, 3R and 5R since the account rulebook); the client plays it against the bars after the
+// signal. The review reads the plan's ORIGINAL stop; the breakeven stop is Trade Story's (games/tradeStory.js). This
+// fixture keeps its old levels (t1 at 2R, t2 at 3R): reviewTrade reads whatever prices the plan carries.
 const K = { o: 10.2, h: 11.2, l: 10.5, c: 11.1 }
 const KICK = { skill: 'setup.family3.kicker', direction: 'bullish', entry: 10.71, stop: 10.5, t1: 11.13, t2: 11.34, enters_intraday: true }
 
+describe('the house trims on a plan', () => {
+  it('reads trim_r from the plan, and 3R and 5R when an older plan has none', () => {
+    expect(TRIM_R).toEqual([3, 5])
+    expect(trimR({ trim_r: [3, 5] })).toEqual([3, 5])
+    expect(trimR({ trim_r: [2, 4] })).toEqual([2, 4])
+    expect(trimR({})).toEqual([3, 5])
+    expect(trimR(null)).toEqual([3, 5])
+    expect(trimR({ trim_r: [3] })).toEqual([3, 5])
+    expect(trimR({ trim_r: ['3', '5'] })).toEqual([3, 5])
+    expect(trimLabels({ trim_r: [3, 5] })).toEqual(['3R', '5R'])
+    expect(trimLabels({ trim_r: [2.5, 4] })).toEqual(['2.5R', '4R'])
+    expect(trimLabels(undefined)).toEqual(['3R', '5R'])
+    expect([timesWord(2), timesWord(3), timesWord(5), timesWord(7)]).toEqual(['twice', 'three times', 'five times', '7 times'])
+  })
+})
+
 describe('reviewTrade', () => {
-  it('counts the Kicker day once it has entered, marks each target and the stop', () => {
+  it('counts the Kicker day once it has entered, marks each trim and the stop', () => {
     const t = reviewTrade(KICK, K, [{ o: 11.1, h: 11.5, l: 10.9, c: 11.4 }, { o: 11.4, h: 11.3, l: 10.4, c: 10.5 }])
     expect(t.best).toBe(11.5)
     expect(t.bestSessions).toBe(1)
-    expect(t.t1At).toBe(0)                 // 2R (11.13) was already reached on the Kicker day (high 11.20)
-    expect(t.t2At).toBe(1)                 // 3R (11.34) the next session
+    expect(t.t1At).toBe(0)                 // t1 (11.13) was already reached on the Kicker day (high 11.20)
+    expect(t.t2At).toBe(1)                 // t2 (11.34) the next session
     expect(t.stoppedSession).toBe(2)
     expect(t.advancePct).toBeCloseTo((11.5 / 10.71 - 1) * 100, 6)
     expect(t.r).toBeCloseTo((11.5 - 10.71) / 0.21, 6)

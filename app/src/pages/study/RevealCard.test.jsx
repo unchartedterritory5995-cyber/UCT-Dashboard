@@ -179,7 +179,8 @@ describe('RevealCard trade review', () => {
     expect(box).toHaveTextContent('The trade · your Kicker rules')
     expect(box).toHaveTextContent('$10.71')
     expect(box).toHaveTextContent('$11.13 · $11.34')
-    expect(box).toHaveTextContent('3R hit on session 1')
+    // the house trims (sizing_rule.md §9): a third at 3R, a third at 5R, named from the plan's trim_r (3R and 5R when it has none)
+    expect(box).toHaveTextContent('a third at 3R, hit on the signal day; a third at 5R, hit on session 1')
   })
   it('a reveal without a plan shows no trade', () => {
     render(<RevealCard correct reveal={{ answer: 'Yes' }} item={item} fire={false} />)

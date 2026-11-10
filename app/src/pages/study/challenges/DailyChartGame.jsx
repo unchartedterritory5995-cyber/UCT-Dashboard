@@ -142,7 +142,7 @@ function Round({ idx, total, day, item, results, prefs, fetcher, signedOut, onSc
   // the replay within the day: each forward day grows through its real 30-minute closes; slow on the trade's key days
   const ticks = useMemo(() => alignTicks(fwd, intraday), [fwd, intraday])
   const keys = useMemo(() => (ticks ? keyDays(trade, culm) : null), [ticks, trade, culm])
-  // the replay stops and asks at 2R and 3R (the plan's own questions, api/services/study_trade.replay_checks)
+  // the replay stops and asks at the trims, 3R and 5R (the server's own questions, api/services/study_trade.replay_checks)
   const checks = useMemo(() => (state === 'ask' ? NONE : replayChecks(trade)), [state, trade])
   const holdAt = useMemo(() => new Set(checks.filter((c) => !answered.has(c.at)).map((c) => c.session)), [checks, answered])
   const { bars: all, k, clock } = useRunOnTicks(bars, fwd, runN, state !== 'ask' && !takeover, { slowMs: RUN_ON_MS, ticks, keys, develop: developing, holdAt })

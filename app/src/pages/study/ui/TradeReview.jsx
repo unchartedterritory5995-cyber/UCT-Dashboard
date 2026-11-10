@@ -1,6 +1,6 @@
 // THE TRADE, REVIEWED, for every Study screen that shows a setup's lesson (Hard mode's coach card, the drills' answer
 // card): the owner's rule 8 and the one-fix-everywhere rule (docs/study/OWNER_PRINCIPLES.md).
-import { reviewTrade } from '../challenges/hardMode'
+import { reviewTrade, trimLabels } from '../challenges/hardMode'
 import Emph from './emphasize'
 import s from './study.module.css'
 
@@ -8,7 +8,7 @@ import s from './study.module.css'
 // rather have Entry, Stop, Trim, Trail, Advance, Numbers stuff like that. Detail and review the trade and explain the
 // trade and the setup and the entry and the pattern and teach it all."). Round 23 (2026-11-08, "Those answers are out
 // there ... in the app"): every setup the detectors cover comes with its plan from the server (api/services/
-// study_trade.py: the detector's own entry and stop, trims at 2R and 3R, its trail; the Kicker on his rulings), reviewed
+// study_trade.py: the detector's own entry and stop, the house trims at 3R and 5R, its trail; the Kicker on his rulings), reviewed
 // against the bars after the signal (hardMode.reviewTrade). A chart without a plan shows the move measured from the
 // candle that fired, and the line a close must not break (hardMode.culmination). The table: docs/study/TRADE_PLANS.md.
 const px = (v) => (Number.isFinite(v) ? `$${v.toFixed(2)}` : '—')
@@ -20,6 +20,7 @@ export function TradeBlock({ trade: t, name }) {
   if (t.kind === 'plan') {
     const own = t.skill === 'setup.family3.kicker' ? 'your Kicker rules' : `the ${name} rules`
     const hit = (at) => (at == null ? 'not reached' : at === 0 ? 'hit on the signal day' : `hit on session ${at}`)
+    const [l1, l2] = trimLabels(t)
     const r = Number.isFinite(t.r) ? ` · ${t.r.toFixed(1)}R` : ''
     const notes = [t.trail ? `Trail ${t.trail}.` : null, t.trim_note ? `${t.trim_note.charAt(0).toUpperCase()}${t.trim_note.slice(1)}.` : null].filter(Boolean)
     return (
@@ -28,7 +29,7 @@ export function TradeBlock({ trade: t, name }) {
         <div className={s.legs} role="list">
           <Leg k={t.long ? 'Entry' : 'Short'} v={px(t.entry)} note={t.entry_note} tone="gold" />
           <Leg k="Stop" v={px(t.stop)} note={`${t.stop_note} · risk ${pct(t.riskPct, false)}`} tone="down" />
-          <Leg k="Trim" v={`${px(t.t1)} · ${px(t.t2)}`} note={`2R ${hit(t.t1At)}; 3R ${hit(t.t2At)}`} tone={t.t1At != null ? 'up' : ''} />
+          <Leg k="Trim" v={`${px(t.t1)} · ${px(t.t2)}`} note={`a third at ${l1}, ${hit(t.t1At)}; a third at ${l2}, ${hit(t.t2At)}`} tone={t.t1At != null ? 'up' : ''} />
           <Leg k={t.long ? 'Advance' : 'Fall, in your favour'} v={t.long ? pct(t.advancePct) : `${Math.abs(t.advancePct).toFixed(1)}%`} note={t.bestSessions != null ? `to the best ${t.long ? 'high' : 'low'}, session ${t.bestSessions}${r}` : `no new ${t.long ? 'high' : 'low'} after entry`} tone="up" />
         </div>
         <p className={s.tradeLine}>
@@ -59,7 +60,7 @@ function takeaway(t) {
   if (t.kind === 'plan') {
     const verb = t.long ? 'Bought' : 'Shorted'
     const r = Number.isFinite(t.r) ? ` (${t.r.toFixed(1)}R)` : ''
-    const targets = t.t2At != null ? ' and reached both targets' : t.t1At != null ? ' and reached 2R' : ''
+    const targets = t.t2At != null ? ' and reached both trims' : t.t1At != null ? ` and reached ${trimLabels(t)[0]}` : ''
     const stop = t.stoppedSession ? `, then the stop was hit on session ${t.stoppedSession}` : ''
     const move = t.bestSessions != null ? `${t.long ? `it ran ${c(t.advancePct)}` : `it fell ${Math.abs(t.advancePct).toFixed(1)}% in your favour`}${r}${targets}${stop}` : `it never got going${stop}`
     return `${verb} at ${p(t.entry)}, risking ${t.riskPct.toFixed(1)}% to the stop at ${p(t.stop)}; ${move}.`

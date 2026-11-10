@@ -38,7 +38,8 @@ import {
 const bar = (t, c) => ({ t, o: c - 0.2, h: c + 0.3, l: c - 0.4, c, v: 100 })
 const BARS = Array.from({ length: 30 }, (_, i) => bar(20250101 + i, 10 + i * 0.1))
 // the plan api/services/study_trade.py sends with the reveal for this chart: a cent over the red day's high (13.10), the
-// stop 3.5% under the entry (closer than the Kicker's low, 12.50), targets at 2R and 3R
+// stop 3.5% under the entry (closer than the Kicker's low, 12.50), the trims t1 and t2 (an older fixture's levels; the
+// review reads the prices the plan carries, and names them 3R and 5R, the house trims, when the plan has no trim_r)
 const KICKER_PLAN = { skill: 'setup.family3.kicker', direction: 'bullish', entry: 13.11, stop: 12.65, t1: 14.03, t2: 14.49, enters_intraday: true,
   entry_note: "over the red day's high, on the Kicker day", stop_note: "under the Kicker's low, or 3.5% under the entry if that is closer", trail: 'under each higher low, or under the 10-day average' }
 const kicker = { id: 'k1', type: 'spot', skill_id: 'setup.family3.kicker', prompt_json: { q: "Does the firm's Kicker Candle setup fire on the last bar of this chart?", choices: ['Yes', 'No'] }, bars: { symbol: 'k1', tf: 'D', bars: BARS } }
@@ -167,7 +168,7 @@ describe('HardChallenge', () => {
     // the coach's card: a direct headline, the last candle measured, the rule
     const lesson = screen.getByTestId('hard-lesson')
     expect(lesson).toHaveTextContent('Why it’s a Kicker')
-    // round 23: the trade is the server's plan (entry a cent over the red day's high, the stop, 2R and 3R), reviewed
+    // round 23: the trade is the server's plan (entry a cent over the red day's high, the stop, the two trims), reviewed
     // against the bars after the signal; the table of numbers is gone
     expect(lesson).toHaveTextContent('The trade · your Kicker rules')
     expect(lesson).toHaveTextContent('$13.11')

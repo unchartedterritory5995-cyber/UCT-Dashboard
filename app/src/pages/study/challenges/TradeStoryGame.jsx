@@ -11,22 +11,26 @@
 // over the screen (rule 15) with the ticker and the plan in one line; a miss names the setup and keeps its lesson on the
 // screen for the whole trade.
 //
-// THE TRADE is the reveal's plan (api/services/study_trade.py; docs/study/TRADE_PLANS.md): the entry, the stop, the
-// targets at 2R and 3R, drawn on the chart as Hard mode draws them, with the trail's line added once it trails. The replay
-// STOPS only where the plan defines a decision (games/tradeStory.js: 2R, 3R, the Gap Support's post-gap high, the High
+// THE TRADE is the reveal's plan (api/services/study_trade.py; docs/study/TRADE_PLANS.md) on the account rulebook
+// (docs/study/sizing_rule.md §9): the entry, the stop, the house trims at 3R and 5R (a third at each, B19 and E51; the
+// plan's trim_r), drawn on the chart as Hard mode draws them, with the trail's line added once it trails. The replay
+// STOPS only where the plan defines a decision (games/tradeStory.js: 3R, 5R, the Gap Support's post-gap high, the High
 // Volume Edge's first return to the high-volume close, the stop trading, the trail breaking) and holds there (the run-on
 // is asked for no further than the next stop, so it waits under reduced motion too, and never shows a candle past a
-// decision before it is made). Hold, Take some off, or Sell the rest. A call on the plan flashes and says why; a miss
+// decision before it is made). Hold, Sell a third, or Sell the rest. A call on the plan flashes and says why; a miss
 // takes over the screen with the plan's call, then "See the working" opens the working on the plan's own prices and the
 // rule it comes from. Between stops nothing is asked. The chart's marks and the plan key only ever show what has already
-// happened. The post-gap high is a dotted green line from the start (a plan level, like the targets); the high-volume
-// close IS the entry line, so the key names it there. The first return is a call the owner has not ruled on
-// (HVE_RETURN_CALL): until he does, it asks, says the plan's words and its stop, shows the working, and is neither right
-// nor wrong (no flash, no takeover, not in the calls, the log or the XP; the end screen says it was the member's call).
+// happened. At the 3R trim the stop on the rest moves up to breakeven (the entry line; the key grows a "Breakeven stop"
+// row and the position chip reads Breakeven); a bar back at the entry from then on is the breakeven stop trading, marked
+// STOPPED by the game itself (hardMode.reviewTrade reads the plan's original stop and does not know it). The post-gap
+// high is a dotted green line from the start (a plan level, like the trims); the high-volume close IS the entry line, so
+// the key names it there. The first return is a call the owner has not ruled on (HVE_RETURN_CALL): until he does, it
+// asks, says the plan's words and its stop, shows the working, and is neither right nor wrong (no flash, no takeover,
+// not in the calls, the log or the XP; the end screen says it was the member's call).
 //
 // THE END of each trade lists every stop with the plan's call and its R, the member's exits beside the plan's, each at its
-// own R: the plan names the levels, not how much to sell at each, so no fraction is invented and no single R is claimed
-// for the whole trade. The run's end screen (EndHard) counts the calls on the plan, logs each one, and says each trade in
+// own R: the rulebook's trims are a third each, so no single R is claimed for the whole trade (the thirds went at
+// different prices). The run's end screen (EndHard) counts the calls on the plan, logs each one, and says each trade in
 // a line. The calls are computed against the plan in the browser, so they report once through POST /api/study/game-runs
 // (kind 'story'); the entry answers already earned their XP through /attempts and are not reported again. The level bar
 // runs from before the first scored answer to the game run's grant; if the report fails the end screen stays whole and
@@ -39,12 +43,12 @@ import { useIsPhone } from '../../../hooks/useBreakpoint'
 import ChallengeError, { isSignedOut } from './ChallengeError'
 import { beginRunXp, fetchForwardRest, runXp, scoreAttempt } from './challengeBank'
 import { yesNo } from './SpotSetupChallenge'
-import { RUN_ON_MS, hardAnswer, hardRight, idSeed, replayView } from './hardMode'
+import { RUN_ON_MS, hardAnswer, hardRight, idSeed, replayView, timesWord, trimLabels, trimR } from './hardMode'
 import { alignTicks, developing, fetchIntraday, showChart } from './replayTicks'
 import { tradeAnnotations, tradeMarkers } from './tradeMarks'
 import {
   ACTIONS, EMPTY_LINE, ENTRY_DETAIL, ENTRY_Q, EXIT_NOTE, FAILED_LINE, GAP_SUPPORT, HVE, HVE_RETURN_CALL, NOTHING_TRADED, NOT_SCORED, NO_PLAN,
-  START_LEAD, STORY_KIND, STORY_SOURCE, STORY_TOTAL, STORY_VIEW, STORY_VIEW_PHONE, actionLabel, bankLine, callsOf, entryChoices,
+  START_LEAD, STORY_KIND, STORY_SOURCE, STORY_TOTAL, STORY_VIEW, STORY_VIEW_PHONE, actionLabel, bankLine, breakevenAt, callsOf, entryChoices,
   entryTitle, exitsOf, exitsText, freeCalls, isFree, legsOf, levelAfter, logRows, namedLine, planExits, planLine, planOk, poolItems,
   positionLine, positionWord, postGapHigh, px, questionOf, rAt, rText, riskPct, runIdOf, stopAt, stopTag, storyKeys, storyOf, storyVerdict,
   tally, tradeLine, tradeOk, tradeTitle, trailAt, trailMeasured, trimNote, whyOf, workingOf, yoursLines,
@@ -77,7 +81,7 @@ const POOL_URL = '/api/study/spot-setup'
 const GAME_RUNS_URL = '/api/study/game-runs'
 const GOLD_SOFT = '#f6e2a0'   // the line colour Draw it draws the member's own entry in
 const RED = '#ef5350'         // tradeMarks' STOPPED
-const GREEN = '#2faf68'       // tradeMarks' targets: the post-gap high is a place to take some off, like them
+const GREEN = '#2faf68'       // tradeMarks' trims: the post-gap high is a place to take some off, like them
 const GOLD = '#dcbb5e'        // tradeMarks' ENTRY: the high-volume close is the entry
 const NONE = []
 const into = (el) => { try { el?.scrollIntoView?.({ block: 'nearest' }) } catch { /* an old engine without options */ } }
@@ -87,34 +91,45 @@ const typing = (e) => !!e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.ta
 const capFirst = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t)
 const dayOf = (p) => (p.session === 0 ? 'the entry day' : `day ${p.session}`)
 
-/** Under the chart while the trade runs: where the member stands, where the price is in R, and the stop in force. */
+/** Under the chart while the trade runs: where the member stands, where the price is in R, and the stop in force (the
+ *  plan's, breakeven once 3R has traded, the trail once a higher low has lifted it). */
 function PositionBar({ word, r, stop }) {
+  const label = stop.kind === 'trail' ? 'Trail' : stop.kind === 'breakeven' ? 'Breakeven' : 'Stop'
   return (
     <div className={g.pos} role="group" aria-label="Your position" data-testid="story-position">
       <span className={`${g.chip} ${word === 'Out' ? g.out : ''}`}><small>Position</small><b data-testid="story-position-word">{word}</b></span>
       <span className={`${g.chip} ${rTone(r)}`}><small>Price now</small><b data-testid="story-r">{r == null ? '' : rText(r)}</b></span>
-      <span className={`${g.chip} ${stop.kind === 'trail' ? g.trail : ''}`}><small>{stop.kind === 'trail' ? 'Trail' : 'Stop'}</small><b data-testid="story-stop-level">{px(stop.level)}</b></span>
+      <span className={`${g.chip} ${stop.kind === 'trail' ? g.trail : ''}`} data-testid="story-stop-chip" data-kind={stop.kind}><small>{label}</small><b data-testid="story-stop-level">{px(stop.level)}</b></span>
     </div>
   )
 }
 
 /** The plan's levels in the chart key's rows (ui/ChartKey's look): each line, its price, why it sits there in the plan's
- *  own words, and a status only once the replay has reached it. The trim the plan names is a row of its own: the post-gap
+ *  own words or the rulebook's, and a status only once the replay has reached it. Once 3R has traded the breakeven stop
+ *  is a row of its own (the entry line is that stop, B19). The trim the plan names is a row of its own too: the post-gap
  *  high (the dotted green line) or the high-volume close (the entry line itself). */
 function PlanKey({ plan, story, k, name, gapHigh }) {
   const long = story ? story.long : plan.direction !== 'bearish'
   const pts = story?.points || NONE
-  // a level reached so far (a post-gap high on a target's bar is one stop with both)
-  const at = (id) => pts.find((p) => legsOf(p).some((l) => l.id === id) && k >= p.session) || null
+  // a level reached so far (a post-gap high on a trim's bar is one stop with both)
+  const at = (id, test = () => true) => pts.find((p) => legsOf(p).some((l) => l.id === id) && test(p) && k >= p.session) || null
   const day = dayOf
-  const t1 = at('t1'), t2 = at('t2'), stopHit = at('stop'), trailHit = at('trail')
+  const t1 = at('t1'), t2 = at('t2'), stopHit = at('stop', (p) => !p.breakeven), beHit = at('stop', (p) => !!p.breakeven), trailHit = at('trail')
   const now = story ? stopAt(story, plan, k) : { kind: 'stop', level: plan.stop, low: null }
+  const [l1, l2] = trimLabels(plan)
+  const [m1, m2] = trimR(plan)
   const rows = [
     { tone: 'gold', name: long ? 'Entry' : 'Short entry', price: px(plan.entry), why: plan.entry_note, status: { ok: true, text: long ? 'bought here' : 'shorted here' } },
     { tone: 'red', name: 'Stop', price: px(plan.stop), why: plan.stop_note, risk: riskPct(plan), status: stopHit ? { ok: false, text: `hit on ${day(stopHit)}` } : null },
-    { tone: 'green', name: '2R', price: px(plan.t1), why: 'the first target, twice the risk', status: t1 ? { ok: true, text: `reached on ${day(t1)}` } : null },
-    { tone: 'green', name: '3R', price: px(plan.t2), why: 'the second target, three times the risk', status: t2 ? { ok: true, text: `reached on ${day(t2)}` } : null },
   ]
+  if (story && breakevenAt(story, k)) {
+    rows.push({ tone: 'gold', name: 'Breakeven stop', price: px(plan.entry), why: `the entry: the stop on what is left since the ${l1} trim`,
+      status: beHit ? { ok: false, text: `hit on ${day(beHit)}` } : { ok: true, text: `in force since ${day(t1)}` } })
+  }
+  rows.push(
+    { tone: 'green', name: l1, price: px(plan.t1), why: `the first trim, ${timesWord(m1)} the risk: a third off, the stop on the rest to breakeven`, status: t1 ? { ok: true, text: `reached on ${day(t1)}` } : null },
+    { tone: 'green', name: l2, price: px(plan.t2), why: `the second trim, ${timesWord(m2)} the risk: another third off, the last third trails`, status: t2 ? { ok: true, text: `reached on ${day(t2)}` } : null },
+  )
   const note = capFirst(trimNote(plan))
   if (plan.skill === GAP_SUPPORT) {
     const level = gapHigh?.level
@@ -131,7 +146,7 @@ function PlanKey({ plan, story, k, name, gapHigh }) {
   if (plan.trail) {
     rows.push({ tone: 'soft', name: 'Trail', price: now.kind === 'trail' ? px(now.level) : '',
       // the plan's own words; a trail the bars cannot place (the Gap Support's) is said, and not applied
-      why: trailMeasured(plan) ? `${plan.trail}. This replay trails under the higher lows, from 3R on.` : `${plan.trail}. This replay keeps the plan's stop on what is left.`,
+      why: trailMeasured(plan) ? `${plan.trail}. This replay trails the last third under the higher lows from ${l2} on, starting at breakeven.` : `${plan.trail}. This replay keeps what is left on the stop: the plan's until ${l1}, breakeven after.`,
       status: trailHit ? { ok: false, text: `hit on ${day(trailHit)}` } : now.kind === 'trail' ? { ok: true, text: `under day ${now.low}` } : null })
   }
   return (
@@ -316,8 +331,9 @@ function Trade({ idx, total, item, results, prefs, fetcher, phone, signedOut, on
     if (stage === 'ask' || !story || !all) return null
     const whole = all.slice(0, n + k)
     const out = [...(tradeMarkers(story.shown, whole, n) || NONE)]
-    const hit = story.end.kind === 'trail' && k >= story.end.session ? whole[n - 1 + story.end.session] : null
-    if (hit) out.push({ time: hit.t, size: 1.4, position: 'belowBar', shape: 'square', color: RED, text: 'TRAIL HIT' })
+    // a broken trail or a breakeven stop is the game's own mark (the review reads the plan's original stop)
+    const hit = (story.end.kind === 'trail' || story.end.breakeven) && k >= story.end.session ? whole[n - 1 + story.end.session] : null
+    if (hit) out.push({ time: hit.t, size: 1.4, position: story.long ? 'belowBar' : 'aboveBar', shape: 'square', color: RED, text: story.end.kind === 'trail' ? 'TRAIL HIT' : 'STOPPED' })
     // the trims the plan names, on the bar where they traded
     for (const p of story.points) {
       const b = (p.id === 'pgh' || p.id === 'hvc') && p.session >= 1 && k >= p.session ? whole[n - 1 + p.session] : null
@@ -544,13 +560,13 @@ export default function TradeStoryGame({ profile = null, fetcher = studyFetch, o
         <StartArena plate="Story" title="Trade Story" caption="Manage the trade" testId="story-intro" startTestId="story-start" hotkey
           total={count} ready={ready} onStart={start}
           label={failed ? 'The trades did not load' : pool == null ? 'Loading the bank' : ready ? 'Take the first trade' : 'No trades yet'}
-          stakes={[{ v: count, l: count === 1 ? 'real trade' : 'real trades', icon: 'chart' }, { v: 'No', l: 'ticker', icon: 'lock' }, { v: '2R · 3R', l: 'targets', icon: 'flag' }]}
+          stakes={[{ v: count, l: count === 1 ? 'real trade' : 'real trades', icon: 'chart' }, { v: 'No', l: 'ticker', icon: 'lock' }, { v: '3R · 5R', l: 'trims', icon: 'flag' }]}
           lead={failed ? FAILED_LINE : empty ? EMPTY_LINE : START_LEAD}
           reward={failed || empty ? null : <><Medal size={40} testId={null} /><span>Every call on the plan lights the <b>Legendary</b> medal</span></>}
           howTo={<HowItPlays mode="story" testId="story-howto" steps={[
             { icon: 'eye', title: 'Name the setup', body: 'A real chart from the UCT bank, ticker hidden. Name the setup that fired on the last candle.' },
-            { icon: 'play', title: 'Take the trade', body: 'You enter on the setup\'s own plan: the entry, the stop, and targets at 2R and 3R, drawn on the chart.' },
-            { icon: 'flag', title: 'Make the calls', body: 'The replay stops at each moment that matters. Hold, take some off, or sell the rest. The plan scores every call.' },
+            { icon: 'play', title: 'Take the trade', body: 'You enter on the setup\'s own plan: the entry, the stop, and the trims at 3R and 5R, drawn on the chart.' },
+            { icon: 'flag', title: 'Make the calls', body: 'The replay stops at each moment that matters. Hold, sell a third, or sell the rest. The plan and the account rules score every call.' },
           ]} />}>
           {failed || empty ? (
             <span className={g.way} data-testid={failed ? 'story-load-failed' : 'story-empty'}>

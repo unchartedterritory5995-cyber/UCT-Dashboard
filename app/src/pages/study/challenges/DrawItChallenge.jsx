@@ -63,7 +63,7 @@ function Round({ idx, total, item, results, prefs, fetcher, onDone }) {
   const intraday = useMemo(() => (res?.forward_intraday?.days ? { tf: Number(res.forward_intraday.tf) || 30, days: res.forward_intraday.days } : null), [res])
   const ticks = useMemo(() => alignTicks(fwd, intraday), [fwd, intraday])
   const keys = useMemo(() => (ticks ? keyDays(trade) : null), [ticks, trade])
-  // the replay stops and asks at 2R and 3R (N033; the plan's own questions, api/services/study_trade.replay_checks)
+  // the replay stops and asks at the trims, 3R and 5R (N033; the server's own questions, api/services/study_trade.replay_checks)
   const [answered, setAnswered] = useState(() => new Set())
   const checks = useMemo(() => (state === 'ask' ? [] : replayChecks(trade)), [state, trade])
   const holdAt = useMemo(() => new Set(checks.filter((c) => !answered.has(c.at)).map((c) => c.session)), [checks, answered])
