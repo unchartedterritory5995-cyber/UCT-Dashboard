@@ -123,3 +123,20 @@ describe('desktopBridge with the real shape', () => {
     expect(window.uctDesktop.ackBeforeQuit).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('reportDesktopEvent', () => {
+  it('calls the shell only when it lists site-events, and never throws', async () => {
+    const { reportDesktopEvent } = await import('./desktopBridge')
+    const reportEvent = vi.fn()
+    window.uctDesktop = { bridgeVersion: 1, capabilities: ['site-events'], reportEvent }
+    reportDesktopEvent('desk_restored')
+    expect(reportEvent).toHaveBeenCalledWith('desk_restored')
+    window.uctDesktop = { bridgeVersion: 1, capabilities: [], reportEvent }
+    reportDesktopEvent('signed_in')
+    expect(reportEvent).toHaveBeenCalledTimes(1)
+    window.uctDesktop = { bridgeVersion: 1, capabilities: ['site-events'], reportEvent: () => { throw new Error('gone') } }
+    expect(() => reportDesktopEvent('signed_in')).not.toThrow()
+    delete window.uctDesktop
+    expect(() => reportDesktopEvent('signed_in')).not.toThrow()
+  })
+})
