@@ -1232,13 +1232,16 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     }
     // ⛔ APPROVAL BINDING: every approval runs only on an IDENTICAL structured binding — the same change
     // to the same targets in the same material state (a composed approval was checked at its gate).
+    let freshCard = false
     if (suggested === 'approved' && binding && !composed) {
       const drift = bindingDrift(binding, approvalBinding(plan, host), { subset })
       if (drift) {
-        const text = boundRefusal(drift)
+        // `freshCardOnDrift` (opt-in, drawing.deleteBoard): nothing runs; the card is shown again as things are NOW, to approve anew
+        freshCard = !subset && ops.length > 0 && ops.every(o => getCapability(o?.action)?.freshCardOnDrift === true)
+        const text = freshCard ? `That proposal can’t run as you approved it — ${drift} — so nothing was changed. Here it is as it is now:` : boundRefusal(drift)
         refusalPush(text)
         record({ member, outcome: text, outcomeData: { kind: 'refused-stale-proposal', actions }, telemetry: { path, refused: true, actions, voice } })
-        return
+        if (!freshCard) return
       }
     }
     if (composing && !composed) {
@@ -1263,7 +1266,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     }
     // ⭐ AUTO-APPLY (live test 2026-10-28): an expansion ("add 4 charts on SPY, QQQ, …") the member asked for is
     // applied like any explicit change — the policy (decideMode) still sends anything confirm-risk to a card.
-    const mode = repeatOfInterrupted ? 'propose' : (suggested === 'approved' ? 'apply' : decideMode(suggested, plan))
+    const mode = (repeatOfInterrupted || freshCard) ? 'propose' : (suggested === 'approved' ? 'apply' : decideMode(suggested, plan))
     // Any write to the board is preceded by the cross-session check (once per Apply).
     if (mode !== 'propose' && !composed && !(await boardStillOurs(ops, earlySync))) return
     if (mode === 'propose') {

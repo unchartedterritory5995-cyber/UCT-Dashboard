@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { registerBuiltins } from './builtins'
-import { getCapability, buildContext } from './capabilities'
+import { getCapability, getTargetKind, buildContext } from './capabilities'
 import { planOps, collectTargets } from './executor'
 import { decideMode } from './policy'
 import { commitPlan, undoEntry } from './runtime'
@@ -48,6 +48,12 @@ const opsOf = (host, text) => {
   return f && f.kind === 'ops' ? f.ops.map(o => ({ ...o, target: 'drawingBoards' })) : f
 }
 const plan = (host, ops) => planOps(collectTargets(host, ['drawingBoards']), ops, {}, CTX)
+const addTo = (id, sym) => {
+  const back = store.getActiveTracingId()
+  store.setActiveTracing(id)
+  store.addDrawing(sym, { type: 'horizontal', points: [{ price: 40 }], color: '#fff', lineWidth: 1 })
+  store.setActiveTracing(back)
+}
 const names = () => store.listTracings().map(t => store.tracingLabel(t))
 
 describe('Drawing Boards: switch, create, rename (applied, read back, exact Undo)', () => {
@@ -169,7 +175,57 @@ describe('Drawing Boards: delete (a card that names the board, no Undo)', () => 
     store.setActiveTracing(ids.swing)
     const res = await commitPlan(host, p)
     expect(res.ok).toBe(false)
+    expect(JSON.stringify(res.failed)).toMatch(/changed/)
     expect(names()).toEqual(['Swing', 'Earnings', 'Board 3'])
+    expect(store.tracingStats(ids.earnings).drawings).toBe(3)
+  })
+
+  it('the delete writer itself re-checks the board against the card (the last guard before deleteTracing)', async () => {
+    const host = makeHost()
+    const kind = getTargetKind('drawingBoards')
+    const p = plan(host, opsOf(host, 'delete the Earnings board'))
+    const patch = p.plans[0].patch
+    expect(patch.remove).toMatchObject({ id: ids.earnings, label: 'Earnings', drawings: 2, wasActive: false })
+    addTo(ids.earnings, 'TSLA')
+    await expect(kind.commit(host, 'drawingBoards', patch)).rejects.toThrow(/“Earnings” changed since you saw the card, so nothing was deleted/)
+    expect(names()).toEqual(['Swing', 'Earnings', 'Board 3'])
+    // the same board, unchanged: the writer deletes it
+    const fresh = plan(host, opsOf(host, 'delete the Earnings board')).plans[0].patch
+    await kind.commit(host, 'drawingBoards', fresh)
+    expect(names()).toEqual(['Swing', 'Board 2'])
+  })
+
+  it('the Apply-time re-check also holds for a rename or a switch of active board after the card', async () => {
+    for (const change of [() => store.renameTracing(ids.earnings, 'Earnings 2'), () => store.setActiveTracing(ids.earnings)]) {
+      store._reset(); localStorage.clear()
+      ids.swing = store.getActiveTracingId(); store.renameTracing(ids.swing, 'Swing')
+      ids.earnings = store.createTracing({ name: 'Earnings' })
+      const host = makeHost()
+      const p = plan(host, opsOf(host, 'delete the Earnings board'))
+      change()
+      const res = await commitPlan(host, p)
+      expect(res.ok).toBe(false)
+      expect(store.listTracings()).toHaveLength(2)
+    }
+  })
+
+  it('save not seen after a delete: the receipt says it was not confirmed, never "deleted", and still no Undo', async () => {
+    serverStale = true
+    const host = makeHost()
+    const res = await commitPlan(host, plan(host, opsOf(host, 'delete the Earnings board')))
+    expect(res.ok).toBe(true)
+    expect(names()).toEqual(['Swing', 'Board 2'])
+    const said = res.lines.join(' ')
+    expect(said).toMatch(/^“Earnings” is gone from Drawing Boards on this device, but I couldn't confirm the change reached your account yet/)
+    expect(said).not.toMatch(/delet/i)
+    expect(said).toMatch(/This can't be undone./)
+    expect(res.undo).toBeNull()
+  })
+
+  it('no Undo exists for a delete: the capability says none, and the kind gives no undo patch', () => {
+    const c = getCapability('drawing.deleteBoard')
+    expect(c.undo).toBe('none')
+    expect(getTargetKind('drawingBoards').undoPatch({ patch: { remove: { id: 'x', label: 'X', drawings: 0, wasActive: false } } })).toBeNull()
   })
 
   it('the last board is never deleted', () => {

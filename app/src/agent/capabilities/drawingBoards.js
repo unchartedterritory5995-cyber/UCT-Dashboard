@@ -79,7 +79,10 @@ function lineOf(p) {
   if (p.undoCreate) return `Removed the new, empty drawing board ${quote(p.undoCreate.label)} and switched back to ${quote(p.undoCreate.backLabel)}.`
   return null
 }
-const NOT_SYNCED = ' It is on this device, but saving it to your account was not confirmed yet. Keep this tab open a few seconds.'
+// A delete the server's copy has not shown yet: the board is off this device, but the account may still hold it, so this
+// receipt never says it was deleted (C1-170). There is no Undo either way.
+const removeNotSynced = (r) => `${quote(r.label)} is gone from Drawing Boards on this device, but I couldn't confirm the change reached your account yet, so it may still be there on another device. Keep this tab open a few seconds, then check Drawing Boards. This can't be undone.${r.wasActive ? ` You now draw on ${quote(r.fallbackLabel)}.` : ''}`
+const NOT_SYNCED =' It is on this device, but saving it to your account was not confirmed yet. Keep this tab open a few seconds.'
 
 const byId = (s, id) => s.boards.find(b => b.id === id) || null
 
@@ -134,7 +137,9 @@ export const drawingBoardsKind = {
     } else return false
     const sync = typeof src.confirm === 'function' ? await src.confirm() : { ok: false }
     const line = lineOf(patch)
-    return { lines: line ? [sync?.ok ? line : `${line}${NOT_SYNCED}`] : [] }
+    if (!line) return { lines: [] }
+    if (sync?.ok) return { lines: [line] }
+    return { lines: [patch.remove ? removeNotSynced(patch.remove) : `${line}${NOT_SYNCED}`] }
   },
   landed(s, p) {
     if (!s) return false
@@ -296,6 +301,8 @@ export function registerDrawingBoardCapabilities() {
     risk: 'confirm',
     reversible: false,
     undo: 'none',
+    // an Apply on a board that changed since the card (the approval binding drifts) is refused and the card shown again as it is now
+    freshCardOnDrift: true,
     exclusive: true,
     exclusiveReason: 'Delete the board on its own, then ask for any other changes.',
     summary: 'Delete one Drawing Board and every drawing on it, on every symbol (the bin on its row in Drawing Boards). Permanent: it cannot be undone. Never the last board.',
