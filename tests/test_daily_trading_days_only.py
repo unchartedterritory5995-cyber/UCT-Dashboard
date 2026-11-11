@@ -296,3 +296,54 @@ class TestCleanup:
     def test_crypto_untouched(self, fresh_db):
         _raw_insert([("BTC-USD", "D", 20261107, 10, 11, 9, 10.5, 1)])
         assert bars_sqlite.purge_off_calendar_daily("BTC-USD") == 0
+
+
+class TestBootPassIsBounded:
+    """The full daily-history scan is a ONE-TIME cost (marker); later boot passes scan
+    only the recent window — the write door + serve guard stop new bad rows."""
+
+    def test_first_pass_is_full_and_sets_the_marker(self, fresh_db):
+        _raw_insert([("OLD", "D", 20150103, 10, 11, 9, 10.5, 1)])        # a 2015 Saturday
+        c = bars_sqlite._conn()
+        assert not bars_sqlite._marker_set(c, bars_sqlite.OFF_CALENDAR_CLEAN_MARKER)
+        bars_sqlite.purge_mis_keyed_weekly_rows()
+        assert _stored("OLD", "D") == []
+        assert bars_sqlite._marker_set(c, bars_sqlite.OFF_CALENDAR_CLEAN_MARKER)
+
+    def test_after_the_marker_only_the_recent_window_is_scanned(self, fresh_db, monkeypatch):
+        bars_sqlite.purge_mis_keyed_weekly_rows()                        # sets the marker
+        monkeypatch.setattr(bars_sqlite, "_off_calendar_window_start", lambda: 20261101)
+        _raw_insert([("OLD", "D", 20150103, 10, 11, 9, 10.5, 1),         # outside window
+                     ("NEW", "D", 20261107, 10, 11, 9, 10.5, 1)])        # inside window
+        seen = []
+        real = bars_sqlite.purge_off_calendar_daily
+        monkeypatch.setattr(bars_sqlite, "purge_off_calendar_daily",
+                            lambda t, c=None, since_ymd=None: seen.append(since_ymd) or real(t, c, since_ymd))
+        bars_sqlite.purge_mis_keyed_weekly_rows()
+        assert set(seen) == {20261101}
+        assert _stored("NEW", "D") == []
+        assert _stored("OLD", "D") == [20150103]     # not rescanned: bounded
+
+    def test_a_failed_full_pass_does_not_set_the_marker(self, fresh_db, monkeypatch):
+        _raw_insert([("ERR", "D", 20261106, 10, 11, 9, 10.5, 1)])
+        def boom(*a, **k):
+            raise RuntimeError("x")
+        monkeypatch.setattr(bars_sqlite, "purge_off_calendar_daily", boom)
+        bars_sqlite.purge_mis_keyed_weekly_rows()
+        assert not bars_sqlite._marker_set(bars_sqlite._conn(), bars_sqlite.OFF_CALENDAR_CLEAN_MARKER)
+
+    def test_since_bound_on_the_direct_call(self, fresh_db):
+        _raw_insert([("B", "D", 20150103, 10, 11, 9, 10.5, 1), ("B", "D", 20261107, 10, 11, 9, 10.5, 1)])
+        assert bars_sqlite.purge_off_calendar_daily("B", since_ymd=20261101) == 1
+        assert _stored("B", "D") == [20150103]
+        assert bars_sqlite.purge_off_calendar_daily("B") == 1
+
+
+def test_crypto_exemption_reaches_the_producer_and_resamplers():
+    from api.services.bars_fetch import _massive_raw_to_iso, _resample_weekly_iso
+    raw = [_massive_day(date(2026, 11, 6)), _massive_day(date(2026, 11, 7))]
+    assert len(_massive_raw_to_iso(raw, "BTC-USD")) == 2
+    assert len(_massive_raw_to_iso(raw, "META")) == 1
+    sat = [_bar("2026-11-06", v=1), _bar("2026-11-07", v=2)]
+    assert _resample_weekly_iso(sat, ticker="BTC-USD")[0]["v"] == 3
+    assert _resample_weekly_iso(sat)[0]["v"] == 1

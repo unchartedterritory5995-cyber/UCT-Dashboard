@@ -589,6 +589,34 @@ def _sixty_grid_clean(c: sqlite3.Connection) -> bool:
         return False
 
 
+#: Set once a boot pass has scanned EVERY ticker's full daily history for off-calendar
+#: keys (`purge_off_calendar_daily`). After it, each pass scans only the last
+#: `OFF_CALENDAR_RECENT_DAYS` — the write door and the serve guard stop new bad rows,
+#: so the full scan (tens of millions of D rows, and the R2 uploader waits on this
+#: pass) is a one-time cost. It lives IN bars.db, so a restored snapshot that never
+#: had the full pass carries no marker and gets one.
+OFF_CALENDAR_CLEAN_MARKER = "daily_off_calendar_2026_11_11_clean"
+OFF_CALENDAR_RECENT_DAYS = 30
+
+
+def _marker_set(c: sqlite3.Connection, name: str) -> bool:
+    try:
+        return c.execute("SELECT 1 FROM _migrations WHERE name=?", (name,)).fetchone() is not None
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _set_marker(c: sqlite3.Connection, name: str) -> None:
+    try:
+        with _WRITE_LOCK:
+            c.execute("CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY, applied_at INTEGER)")
+            c.execute("INSERT OR IGNORE INTO _migrations(name, applied_at) VALUES (?, ?)",
+                      (name, int(time.time())))
+            c.commit()
+    except Exception as e:  # noqa: BLE001
+        _logger.warning(f"[sqlite] marker {name} not written (non-fatal): {e}")
+
+
 def _mark_sixty_grid_clean(c: sqlite3.Connection) -> None:
     try:
         with _WRITE_LOCK:
@@ -638,6 +666,10 @@ def purge_mis_keyed_weekly_rows() -> int:
     c = _conn()
     deleted = 0
     off_calendar = 0
+    # Full daily history once (until the marker), then a bounded recent window.
+    off_full = not _marker_set(c, OFF_CALENDAR_CLEAN_MARKER)
+    off_since = None if off_full else _off_calendar_window_start()
+    off_errors = 0
     # ⭐ Same pass, same PK-prefixed seeks: a ticker still carrying the
     # pre-2026-11-10 clock-hour 60m layout is REBUILT in place from its own stored
     # 15m/30m rows (bars_fetch.rebuild_sixty_min_grid — local, no provider call),
@@ -659,8 +691,9 @@ def purge_mis_keyed_weekly_rows() -> int:
         # weeks/months they were summed into). Runs before the W scan below so a W row
         # it rewrites is judged by that scan like any other.
         try:
-            off_calendar += purge_off_calendar_daily(tkr, c)
+            off_calendar += purge_off_calendar_daily(tkr, c, since_ymd=off_since)
         except Exception as e:  # noqa: BLE001 — never let it stop the weekly purge
+            off_errors += 1
             _logger.warning(f"[sqlite] off-calendar daily purge {tkr} failed (non-fatal): {e}")
         bad = [
             ts for (ts,) in c.execute(
@@ -688,7 +721,17 @@ def purge_mis_keyed_weekly_rows() -> int:
         _logger.info(f"[sqlite] purge_mis_keyed_weekly_rows: deleted {deleted} stale weekly rows")
     if off_calendar:
         _logger.warning(f"[sqlite] purge_off_calendar_daily: deleted {off_calendar} non-trading-day daily rows")
+    if off_full and not off_errors:
+        _set_marker(c, OFF_CALENDAR_CLEAN_MARKER)
     return deleted
+
+
+def _off_calendar_window_start() -> int:
+    """YYYYMMDD of the bounded per-boot scan's lower edge (ET date − N days)."""
+    import datetime as _dt
+    from zoneinfo import ZoneInfo
+    d = _dt.datetime.now(ZoneInfo("America/New_York")).date() - _dt.timedelta(days=OFF_CALENDAR_RECENT_DAYS)
+    return int(d.strftime("%Y%m%d"))
 
 
 def _off_calendar_candidate_sql() -> tuple[str, list]:
@@ -706,14 +749,17 @@ def _off_calendar_candidate_sql() -> tuple[str, list]:
     return sql, hol
 
 
-def purge_off_calendar_daily(ticker: str, c: sqlite3.Connection | None = None) -> int:
+def purge_off_calendar_daily(ticker: str, c: sqlite3.Connection | None = None,
+                             since_ymd: int | None = None) -> int:
     """Delete ``ticker``'s daily rows keyed on a non-trading day, then rebuild the
     stored W / M rows those days were summed into from the remaining daily rows.
 
     Idempotent (a second run finds nothing) and bounded (one PK-prefixed read per
     ticker; writes only for a ticker that has a bad row). A W/M row is rebuilt only
     when the store holds the period's daily rows from its start — otherwise it is
-    left as it is rather than replaced by a partial period. Returns D rows deleted.
+    left as it is rather than replaced by a partial period. ``since_ymd`` bounds the
+    scan to keys at/after it (the per-boot window once the full pass has run; see
+    `OFF_CALENDAR_CLEAN_MARKER`); None scans the whole history. Returns D rows deleted.
     Rule: `date_bar_keys`. The write gate (`_writable_bars`) stops new ones."""
     from api.services import date_bar_keys as _dk
     tkr = ticker.upper()
@@ -721,8 +767,10 @@ def purge_off_calendar_daily(ticker: str, c: sqlite3.Connection | None = None) -
         return 0
     c = c or _conn()
     pred, params = _off_calendar_candidate_sql()
+    lo = "" if since_ymd is None else " AND ts>=?"
     cand = [ts for (ts,) in c.execute(
-        f"SELECT ts FROM ohlcv WHERE ticker=? AND tf='D' AND {pred}", [tkr, *params]).fetchall()]
+        f"SELECT ts FROM ohlcv WHERE ticker=? AND tf='D'{lo} AND {pred}",
+        [tkr, *([] if since_ymd is None else [int(since_ymd)]), *params]).fetchall()]
     bad = [ts for ts in cand if not _dk.key_ok("D", ts)]
     if not bad:
         return 0
@@ -769,7 +817,7 @@ def _rebuild_periods_from_daily(tkr: str, bad_ts: list[int], c: sqlite3.Connecti
                   "l": r[3], "c": r[4], "v": r[5]} for r in rows if None not in r[1:5]]
         if not daily:
             continue
-        built = (_resample_weekly_iso if tf == "W" else _resample_monthly_iso)(daily)
+        built = (_resample_weekly_iso if tf == "W" else _resample_monthly_iso)(daily, ticker=tkr)
         if built:
             put_bars(tkr, tf, built[-1:], date_tf=True)
 
