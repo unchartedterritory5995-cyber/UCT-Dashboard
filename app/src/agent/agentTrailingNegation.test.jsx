@@ -110,3 +110,31 @@ describe('control: ", not <a value>" still applies on the click', () => {
     expect(choices(), out).toEqual([])
   }, 40000)
 })
+
+// three charts, the click on a chart the words leave: a ticker or an order said only to leave a chart out is no chart the
+// member NAMED, so the click still answers (no over-ask)
+const NAMES3B = ['NVDA', 'the first chart', 'the NVDA one']
+describe('three charts: an exclusion by bare ticker or order leaves the click answering', () => {
+  const SAYS3B = FORMS3.flatMap(f => NAMES3B.map(n => f(n)))
+  it.each(SAYS3B)('"%s" (AMD clicked, model on AMD) — applied there, no question', async (t) => {
+    const m = mount(B13, 'c1')
+    p.st.envelopes.push(volOn('AMD'))
+    const out = await m.say(t)
+    expect(hidden(m.board), out).toEqual(['c1'])
+    expect(choices(), out).toEqual([])
+  }, 40000)
+})
+
+// with no model plan at all (the instant path, or the model answering in words): the excluded chart is never changed, offered
+// or named, whichever chart is clicked
+describe('no model plan: the excluded chart is never changed, offered or named', () => {
+  const ALL = [...SAYS.map(t => [B12, t]), ...FORMS3.flatMap(f => [...NAMES3, ...NAMES3B].map(n => [B13, f(n)]))]
+  it.each(ALL.flatMap(([b, t]) => [null, b.w[0].id].map(c => [b === B12 ? '1x2' : '1x3', t, c])))('%s: "%s" (click %s)', async (shape, t, click) => {
+    const b = shape === '1x2' ? B12 : B13
+    const m = mount(b, click)
+    const out = await m.say(t)
+    expect(hidden(m.board), out).not.toContain(b.w[0].id)
+    expect(choices(), out).not.toContain('NVDA')
+    expect(words(out).replace(t, ' '), out).not.toMatch(/NVDA/)
+  }, 40000)
+})
