@@ -436,6 +436,12 @@
    "claim": "A5: shares are account times risk percent, divided by entry minus stop, rounded down, then capped."
   },
   {
+   "id": "h32",
+   "source": "h1",
+   "quote": "Max position 40% of the account",
+   "claim": "A7: the maximum position is 40% of the account."
+  },
+  {
    "id": "cDef",
    "source": "c1",
    "quote": "A swing trade against a short, unusually fast move, aimed at a return to a short average",
@@ -744,7 +750,7 @@
     "EQT, August 2011. A leader up 32% falls five straight days, 25.2% in all, in a market sell-off.",
     "Flush day: a 2.2 ATR drop on 2.0x volume, closing on the rising 200-day. A level to lean on. We wait.",
     "2011-08-09: it climbs back over the flush close. Buy at market, 26.76. Stop a few cents under the low, 26.00.",
-    "Failure mode: a second flush under the low. Instead it closes near its high; 3R prints next day. Trim a third."
+    "Failure mode: a second flush under the low. Instead it closes near its high; 3R prints next day. We trim a third."
    ],
    "facts": [
     "dEQT",
@@ -763,7 +769,7 @@
     "KRYS, August 2023. A leader up 59% slides four days, 17.9%. The report on 2023-08-07 is the flush day.",
     "It is 12.6% under a rising 50-day, still 20% above its 200-day. A 3.3 ATR drop on 4.0x volume. We wait.",
     "2023-08-08: it opens above the flush close. Buy at market, 109.13. Stop a few cents under the lows, 106.88.",
-    "Failure mode: a weak close. Instead it closes at 3R and 5R prints two sessions later. Trim a third at each."
+    "Failure mode: a weak close. Instead it closes at 3R and 5R prints two sessions later. We trim a third at each."
    ],
    "facts": [
     "dKR",
@@ -782,7 +788,7 @@
    "steps": [
     "ACMR, September 2020. A stock up 79% runs parabolic, then breaks. Three down days, 38.6% lost, 39% under its 10-session high.",
     "The flush: 3.5 ATR on 3.5x volume, the heaviest of the chart. RSI(2) at 0. Five stretch marks. We wait.",
-    "2020-09-09: it turns. Buy at market, 20.00. Stop a few cents under the lows, 19.29, which is 3.5% wide.",
+    "2020-09-09: it turns. Buy at market, 20.00. Stop a few cents under the lows, 19.29: 3.5% wide, so the size shrinks.",
     "Failure mode: a stall. Instead it bounces to the 20-day, 8.1R at best, then drifts sideways."
    ],
    "facts": [
@@ -833,7 +839,7 @@
    "criterion": "mr.prior_trend_a",
    "q": "We buy a leader flush only when the stock sat above its 50-day and 200-day before the drop.",
    "answer": "True",
-   "why": "True. The card wants a leader above its 200-day and 50-day the day before the flush. Connors: look for buying opportunities when above the 200-day.",
+   "why": "True. We want a leader above its 200-day and 50-day before the drop. Connors: look for buying opportunities when above the 200-day.",
    "lesson_line": "Buy the dip in strength. A stock under its 200-day is not our dip.",
    "facts": [
     "cA",
@@ -966,8 +972,7 @@
    "why": "False. A slow, controlled decline is a skip. We want a fast, hard move with range and volume.",
    "lesson_line": "Slow and orderly is a pullback. A flush is fast.",
    "facts": [
-    "cG",
-    "ke1"
+    "cG"
    ],
    "house": true
   },
@@ -1063,7 +1068,7 @@
    "wrong": {
     "A limit 2% under the print": "A limit under the market can miss the turn. We use market orders.",
     "A stop order above the high": "That waits for a break we do not need. The turn is the trigger.",
-    "Wait for the close": "The close of the flush is a B-minus entry. We buy the turn, in regular hours."
+    "Wait for the close": "Buying the close of the flush means buying before any turn. We buy the turn, in regular hours."
    },
    "house": true
   },
@@ -1130,7 +1135,7 @@
    "format": "fill",
    "criterion": "mr.trim_1",
    "q": "Tap the word that fits the blank.",
-   "sentence": "The first trim is a ___ of the position at 3R.",
+   "sentence": "In our plan, the first trim is a ___ of the position at 3R.",
    "bank": [
     "third",
     "half",
@@ -1138,7 +1143,7 @@
     "tenth"
    ],
    "answer": "third",
-   "why": "third. The hard rule for the first trim is a third at 3R. Another third comes off at 5R and the rest trails.",
+   "why": "third. Our hard rule for the first trim is a third at 3R. Another third comes off at 5R and the rest trails.",
    "lesson_line": "A third at 3R, a third at 5R, then trail the rest.",
    "facts": [
     "h05",
@@ -1154,7 +1159,7 @@
    "criterion": "mr.bear_market",
    "q": "Mean-reversion longs work better in a bear market, even above the 200-day.",
    "answer": "False",
-   "why": "False. They do worse in bear markets, even above the 200-day. A steady bear market grades B-minus.",
+   "why": "False. They do worse in bear markets, even above the 200-day. A steady bear market weakens the case.",
    "lesson_line": "A bear market bends the snapback. Be pickier.",
    "facts": [
     "cP",
@@ -1223,7 +1228,7 @@
    "criterion": "mr.market_fear",
    "q": "The setup works best when the VIX is racing toward 30 and short-term breadth is oversold.",
    "answer": "True",
-   "why": "True. A fast move in the VIX toward 30, oversold breadth and an index also stretched down make the best backdrop. A calm index grades B-minus.",
+   "why": "True. A fast move in the VIX toward 30, oversold breadth and an index also stretched down make the best backdrop. A calm index weakens the case.",
    "lesson_line": "Fear in the market feeds the snapback.",
    "facts": [
     "cI",
@@ -1364,7 +1369,7 @@
     },
     "round": 2
    },
-   "why": "29.04. One R is the fill minus the stop. Add three of them to the fill. A third comes off there.",
+   "why": "29.04. One R is the fill minus the stop. Add three of them to the fill. In our plan a third comes off there.",
    "lesson_line": "Know your 3R before the open. The first third comes off there.",
    "facts": [
     "h05",
@@ -1391,11 +1396,12 @@
     },
     "round": 0
    },
-   "why": "328 shares. Stop first, then the size from the stop: the dollar risk divided by the fill minus the stop, rounded down.",
+   "why": "328 shares. Stop first, then the size from the stop: the dollar risk divided by the fill minus the stop, rounded down. The 40% position cap does not bind here.",
    "lesson_line": "The stop sets the size. The size never sets the stop.",
    "facts": [
     "h31",
-    "h01"
+    "h01",
+    "h32"
    ],
    "house": true
   },
@@ -1439,7 +1445,7 @@
     "Yes, but at half size"
    ],
    "answer": "No, wait for the turn",
-   "why": "No, wait for the turn. Buying the close of the flush is a B-minus: no turn yet. StockCharts: the signal can be early.",
+   "why": "No, wait for the turn. Buying the close of the flush means no turn yet. StockCharts: the signal can be early.",
    "lesson_line": "A stretch is the setup. The turn is the trigger.",
    "facts": [
     "cJ",
@@ -1528,10 +1534,10 @@
     "ra3"
    ],
    "wrong": {
-    "Take it, 8% in four sessions is plenty": "A big drop with no level is just a drop. Mid-range grades B-minus.",
+    "Take it, 8% in four sessions is plenty": "A big drop with no level under it is just a drop. Raschke: buying mid-range is the worst timing.",
     "Take it with a wider stop": "A wider stop only makes the loss bigger. The stop only moves up, never wider."
    },
-   "story": "A leader loses 8% in four sessions and stops in the middle of a two-month range. No level is near.",
+   "story": "A leader loses 8% in four sessions and stops in the middle of a two-month range.",
    "house": true
   },
   {
@@ -1647,7 +1653,7 @@
    "criterion": "mr.stop_width",
    "q": "The honest stop is 3.7% away. Pulling it tighter to keep your usual size is fine.",
    "answer": "False",
-   "why": "False. Stop first, then the size from the stop. If the honest stop does not fit the risk, skip. The stop only moves up, never wider.",
+   "why": "False. Stop first, then the size from the stop. If the honest stop does not fit the risk, skip.",
    "lesson_line": "Never squeeze the stop to fit the size.",
    "facts": [
     "h01",
@@ -1767,7 +1773,8 @@
    "lesson_line": "Know the other rules, then trade ours.",
    "facts": [
     "ke2",
-    "h05"
+    "h05",
+    "h20"
    ],
    "wrong": {
     "The 200-day average": "Kell names the retest of the 20 EMA, not the 200-day.",
@@ -1811,7 +1818,7 @@
     "Proof the flush is complete"
    ],
    "answer": "The early warning of a failing bounce",
-   "why": "The early warning. A bounce that stalls and closes weak on day one or two is how the card flags a failing bounce.",
+   "why": "The early warning. A bounce that stalls and closes weak on day one or two warns that it is failing.",
    "lesson_line": "A weak close on day one is the early warning.",
    "facts": [
     "cN"
@@ -1894,14 +1901,14 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "mr.mark_down_days",
-   "q": "Which card is this?",
+   "q": "Which setup is this?",
    "choices": [
     "Parabolic long",
     "Mean-reversion flush",
     "Moving-average pullback"
    ],
    "answer": "Parabolic long",
-   "why": "Parabolic long. A multi-day burst of gap downs is the parabolic family. A one-day leader flush with no burst is this card.",
+   "why": "Parabolic long. A multi-day burst of gap downs is the parabolic family. A one-day leader flush with no burst is mean reversion.",
    "lesson_line": "A burst of gaps is parabolic. A one-day flush is mean reversion.",
    "facts": [
     "tPa1",
@@ -1910,7 +1917,7 @@
     "h10"
    ],
    "wrong": {
-    "Mean-reversion flush": "The flush on this card is a one-day leader flush with no multi-day burst.",
+    "Mean-reversion flush": "A mean-reversion flush is a one-day leader flush with no multi-day burst.",
     "Moving-average pullback": "A pullback drifts on light volume. Four gaps and a 45% fall is no drift."
    },
    "story": "A stock gaps down four days in a row and ends 45% off its peak, with a gap down on the last day.",
@@ -2074,7 +2081,7 @@
     "Yes, you should have held it": "The stop is the exit. It only moves up, never down or wider.",
     "Yes, the stop was too tight": "The stop sat under the lows, where the rules put it. A wider stop only makes the loss bigger."
    },
-   "story": "You buy at 105.48 with the stop at 103.39. Day one trades down to 99.80 and closes at 101.13, near its low. The index makes a new low.",
+   "story": "You buy at 105.48 with the stop at 103.39. Day one trades down to 99.80 and closes at 101.13, in the lower quarter of its range. The index makes a new low.",
    "house": true
   },
   {
@@ -2112,13 +2119,13 @@
    "criterion": "mr.mark_down_days",
    "q": "Which flush grades higher?",
    "choices": [
-    "B, by a long way",
+    "B, the stronger case",
     "A, it is calmer",
     "They grade the same"
    ],
-   "answer": "B, by a long way",
-   "why": "B. A 4th down day, a level to lean on and fear in the market are the A+ cues. A 2nd day, mid-range, in a calm index is B-minus.",
-   "lesson_line": "More stretch, a level and fear grade higher.",
+   "answer": "B, the stronger case",
+   "why": "B. Flush A is only the second red day, a skip on its own. B has the 4th down day, a level to lean on and fear in the market.",
+   "lesson_line": "More stretch, a level and fear make the stronger case.",
    "facts": [
     "gD1",
     "gD2",
@@ -2127,7 +2134,7 @@
     "gF2"
    ],
    "wrong": {
-    "A, it is calmer": "Calm is a B-minus cue. Fear in the market is the A+ cue.",
+    "A, it is calmer": "Calm weakens the case, and a second red day is a skip. Fear in the market strengthens it.",
     "They grade the same": "The 4th day, the level and the fear all point to B."
    },
    "story": "Flush A is the second red day, mid-range, with the VIX at 14 and the index at highs. Flush B is the fourth red day, into the prior breakout level, with the VIX at 31 and breadth washed out.",
@@ -2141,7 +2148,7 @@
    "criterion": "mr.inv_business_change",
    "q": "Forced selling in a good business grades better than a business-changing collapse.",
    "answer": "True",
-   "why": "True. Forced selling or an overreaction, not a broken business, is an A+ cue. A real change in the business makes the dead-cat bounce the likely path.",
+   "why": "True. Forced selling or an overreaction, not a broken business, is a stronger case. A real change in the business makes the dead-cat bounce the likely path.",
    "lesson_line": "Overreaction is a setup. A broken business is not.",
    "facts": [
     "gB1",
@@ -2246,7 +2253,7 @@
     "Pass; the report is too close"
    ],
    "answer": "Take it; market order, stop under low",
-   "why": "Take it. A leader above both averages, up 30%, four down days, a level, the turn printed, a report five days out. Market order, stop a few cents under the flush low.",
+   "why": "Take it. A leader above both averages, up 30%, a real stretch, a level, the turn printed, a report five days out. Market order, stop a few cents under the flush low.",
    "lesson_line": "All gates pass: buy the turn at market, stop under the low.",
    "facts": [
     "cA",
@@ -2255,13 +2262,15 @@
     "cJ",
     "cK",
     "h08",
-    "h22"
+    "h22",
+    "cB",
+    "cD"
    ],
    "wrong": {
     "Wait for the close of the next day": "The turn is the trigger. Waiting for another close buys later and at a worse price.",
     "Pass; the report is too close": "The rule is no new buys in the 3 days before a report. Five days out is clear."
    },
-   "story": "A leader is up 30% over three months, above its 50-day and 200-day. It falls four days to its rising 50-day, then trades back over the prior day's low. Its report is five days away.",
+   "story": "A leader is up 30% over three months, above its 50-day and 200-day. It falls four days, the last a 2.4 ATR drop with RSI(2) at 1, to its rising 50-day. Then it trades back over the prior day's low. Its report is five days away.",
    "house": true
   },
   {
@@ -2287,7 +2296,7 @@
    ],
    "wrong": {
     "Pass; it is under the 200-day": "Look again: price sits well above a rising 200-day.",
-    "Buy this close; the drop is huge": "Buying the close of the flush is a B-minus. We wait for the turn."
+    "Buy this close; the drop is huge": "Buying the close of the flush buys before any turn. We wait for the turn."
    },
    "house": true,
    "chart": {
@@ -2344,7 +2353,405 @@
   "The chart questions (KRYS asof 2023-08-07, the flush day itself; LLY asof 2025-03-10, taken as the trading day before the 2025-03-11 turn day, the flush day) show the member's own chart with their averages; the ticker is not in the question. The keys rest on dossier reads (dKR1, dKR2, dLL1, dLL2). If the importer's bars start the forward window one day off, the reveal text still holds.",
   "The stock questions apply B26 (no longs below the 200-day, unless a parabolic long) as written; the card's index exception is D-009 and is not taught here.",
   "The Kell question teaches Kell's retest of the 20 EMA as Kell's own target; the dossier recommends a similar first trim for this setup (Option 2, pending D-013). If the owner adopts Option 2, the 3R fill, 3R price, trim-at-open and breakeven questions need a second look.",
-  "The time-stop question keys C33's 10 trading days as the general time stop. The card's own time stop for this setup (3 sessions without a close above the flush day's high) is pending D-019 and may replace it."
+  "The time-stop question keys C33's 10 trading days as the general time stop. The card's own time stop for this setup (3 sessions without a close above the flush day's high) is pending D-019 and may replace it.",
+  "Cold check 2026-11-10: 65 pass (62 questions and 3 walk-throughs; 22 fixed, 3 of them walk-throughs), 0 fix, 1 cut (q29 as a duplicate of q07). Look first at: (1) the trims: the unit teaches our thirds at 3R and 5R (B19, E51) and says so (\"in our plan\"), but the card recommends Option 2, a first trim at the 20-day (D-013, pending); if you adopt it, q15, q25, q33, q34, q35, q41, w1 and w2 need a second look; (2) the card's mr.location is a gate in its pattern line (\"not in the middle of a range\") and a B-minus row in its grading; q31 keys Pass on the pattern line, so say which it is; (3) the card's mr.prior_trend_a says \"the day before the flush\" but the scan and every winner use \"before the slide began\" (q02 keys the looser reading), and the ten examples (EQT, KRYS, ACMR and the failures) are still unreviewed by you. Also fixed: q55 told the member a second red day grades B-minus when the unit keys it as a skip (rewritten); the grade-row labels (A+, B-minus) in q12, q16, q19, q28, q55, q56, q62 were reworded to stronger or weaker case (E50); q61 gave one stretch mark while keying \"all gates pass\"; q26 now cites the 40% cap (328 shares is 17.6% of the account); w3 states that the 3.5% stop shrinks the size; q43 and q47 no longer say \"the card\"."
  ],
- "verify": {}
+ "verify": {
+  "q01": {
+   "status": "pass",
+   "notes": "cDef and bo4 verbatim. The 1-to-5-session hold (mr.definition, pending D-016) is not keyed. Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "cA, h10, sc1 verbatim. 'The card wants' reworded to 'We want'. Rests on the card's proposed mr.prior_trend_a (house) and B26. The card says 'the day before the flush'; the scan and the winners use 'before the slide began' (KRYS closed above its 50-day the day before its flush, 124.20 against 122.58; ELF had already slid under it). Key right under either reading; owner item.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "cD verbatim in the card; sc2 verbatim on the cited page. Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "cJ verbatim in the card; br1/sc3 verbatim on the cited page. Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "cK/h24 verbatim in the card, the rulebook (sizing_rule.md section 9); ke2 verbatim on the cited page. Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "h18 verbatim in the rulebook (sizing_rule.md section 9); sc4/al2 verbatim on the cited page. Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "cC verbatim in the card; bl1 verbatim on the cited page. Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "cG verbatim; ke1 (Kullamagi's entry) did not support the key and was dropped from the facts. Key right; wrong notes true.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "cH verbatim in the card; ra3 verbatim on the cited page. Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "h10, sc1 verbatim. B26 as written; the index exception (mr.prior_trend_b, D-009) is not keyed. Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "h09 verbatim in the rulebook (sizing_rule.md section 9). Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "h22/h23/ra4 verbatim. The wrong note called the flush close 'a B-minus entry', a grade-row label (E50 says grading is discretionary, no checklist taught as ours); reworded to the plain fact.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "cB verbatim. (60.00 - 55.90) / 1.80 = 2.278 = 2.28 ATR, at least 2, so mark 1 ticks. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "cB..cF verbatim. Lists marks only; no count is keyed (mr.stretch_count, D-114 pending). Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "h05, h20 verbatim. Now phrased as our plan (B19 hard rule, E51), not as the card's Option 2 (D-013 pending). Key right.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "cP, gF2 verbatim. 'A steady bear market grades B-minus' was a grade-row label (E50); now 'weakens the case'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "cK, h24 verbatim. The lower of 52.40 and 52.90 is 52.40; the stop goes a few cents under it. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "h02/h18/h30 verbatim in the rulebook (sizing_rule.md section 9). Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "cI, gF1, gF2 verbatim. 'A calm index grades B-minus' reworded to 'weakens the case' (E50).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "h11/h12 verbatim in the rulebook (sizing_rule.md section 9). Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "h08 verbatim in the rulebook (sizing_rule.md section 9). Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "cA verbatim. (41.60 - 32.00) / 32.00 = 30.0%, at least 25%. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "cF verbatim. (33.00 - 19.50) / 33.00 = 40.909 = 40.9%, at least 40%. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "h04, dKR verbatim. Stop 106.93 - 0.05 = 106.88; (109.13 - 106.88) / 109.13 = 2.06%. Bars: the 08-07 low is 106.925. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "h05, dEQT verbatim. 26.76 + 3 x 0.76 = 29.04. The why now says it is our plan that trims a third there (B19, not Option 2 of D-013). Key right.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "h31, h01 verbatim. 50,000 x 0.5% = 250; 250 / 0.76 = 328.9, rounded down 328. Position 328 x 26.76 = 8,777 = 17.6% of the account, under the 40% cap (A7, now cited as h32), so the cap does not bind. Key right.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "h06, h07 verbatim. Loss at 37.20 = 2.80 / 1.50 = 1.87R, inside the 2R ceiling, so the first 30-minute low is the new stop (B20). Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "cJ, gT, sc3, br1 verbatim. 'Buying the close of the flush is a B-minus' reworded to 'means no turn yet' (E50; D-003 pending). Key right.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "cut",
+   "notes": "Cut: the same fact as q07 (mark 2 is a close under the lower band, a tag is not a signal), asked again on the same facts (cC, bl1) with a near-identical lesson line. q07 stays.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "cG, gD2, cE verbatim. A skip on the second down day is the card's no-trade row. Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "cH, gL, ra3 verbatim. The story ended 'No level is near', which handed over the answer (rule 10); removed, the mid-range stop in the story still carries it. A wrong note called mid-range 'B-minus' while the key is Pass; now Raschke's line only.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "h11, h12, h22 verbatim. 52.40 / 50.00 = 4.8% above the trigger, more than 4%. Key right. Same rule as q20 (tf) but a different decision and number; kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "h25, h05 verbatim. R = 1.50, 3R = 44.50, the open 45.10 is past it. Key right; the trim is our plan (B19, F63).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "h21, h20 verbatim. Key right; the thirds are our plan (E51).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "h05, h02 verbatim. 3R is inside B19's 2R-to-5R window for breakeven. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "h01, h02, h04 verbatim. The why ended 'The stop only moves up, never wider', which does not answer 'pulling it tighter'; removed. Key right (A3: never fit the stop to the size). The 3.7% is not a keyed number (D-005 pending).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "h30/h28 verbatim in the rulebook (sizing_rule.md section 9). Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "h29, h28 verbatim. Three stop-outs this week make a fourth try over E56's cap. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "h15 verbatim. Keys C33's 10 trading days. The card's 3-session time stop (D-019 pending) is not keyed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "h18/h05 verbatim in the rulebook (sizing_rule.md section 9); sc4/sc5 verbatim on the cited page. Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "ke2, h05 verbatim (Kell's own first target; the house plan is stated as ours, B19 and E51). h20 added to the facts because the why also gives E51. D-013 (Option 2) is pending and not keyed. Key right.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "cE verbatim in the card; bo3 verbatim on the cited page. Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "cN verbatim. The why said 'how the card flags'; 'the card' means nothing to a member, so it now says the bounce warns that it is failing.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "cJ verbatim in the card; ku1 verbatim on the cited page. Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "h19 verbatim. 1% of 800,000 = 8,000; 12,000 is over. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "tMA/cG verbatim in the card. Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "tPa1, tPa2, ku2, h10 verbatim. The parabolic long's thresholds belong to card 38 and may be pending there; the key is the type (a multi-day burst of gap downs). 'Which card' and 'this card' reworded to 'setup' and 'mean reversion'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "tUR/cG verbatim in the card. Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "tOo/cG verbatim in the card. Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "cA, dMe, dMe2 verbatim (META 2021-09-21: up 15% from the 63-day low, 2.1 ATR, four down days). Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "dEL, cA verbatim; the ELF numbers (up 58%, eight down closes, 21%, 3x, RSI(2) 0) are in the dossier failures tables. The dossier files it under mr.inv_stall (section 14) and the card under mr.prior_trend_a; the question asks the broken-leader reading (conflicts). Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "pass",
+   "notes": "cM, h28, dIL1, dIL2 verbatim. Bars: buy 320.55 = flush close + a cent, stop 311.69 = 5 cents under the turn-day low 311.74, 2018-10-10 low 296.28, volume 2.18M against 2.15M on the flush day (heavier). Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "dSB1, dSB2, cN, h02 verbatim. Bars: SBUX 2025-03-10 ranged 99.80 to 106.00 and closed 101.13, the lower quarter; the story said 'near its low', now 'in the lower quarter of its range' as the dossier says. The open (105.73) was above the stop, so the gap rule does not apply. Key right.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "cY, dDA1, dDA2 verbatim. The key rests on the proposed location line ('no level to lean on'), not on the 6.4% (D-005 pending). Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "gD1, gD2, gL, gF1, gF2 verbatim. Flush A is the second red day, which is a skip (q08, q30) and not a B-minus, so the why contradicted the unit, and the A+/B-minus labels were E50 checklist wording. Rewritten: B is the stronger case; the choice 'B, by a long way' is now 'B, the stronger case'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "gB1, cO verbatim. 'Is an A+ cue' reworded to 'a stronger case' (E50).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "cO, bu1 verbatim. Key right; a real change in the business is the card's no-trade row.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "ra1, ra2, cX verbatim (Raschke, 1993 interview). Key right; a source-trivia item.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "bo1, sc1 verbatim. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "h06, h07 verbatim. Loss at 36.80 = 3.20 / 1.50 = 2.13R, past the 2R ceiling, so get out. Pairs with q27 (the within-ceiling branch); different numbers, kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "cA, cE, cH, cJ, cK, h08, h22 verbatim. The story had four down days only (one mark) while the key said all gates pass; the card needs at least two marks (D-114 pending), so the story now gives the last day as a 2.4 ATR drop with RSI(2) at 1 (cB and cD added to the facts). Key right.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "cA, dKR1, dKR2, h10 verbatim. Bars: KRYS 2023-08-07 has 1,478 daily bars before it (120 needed) and 819 after; flush day low 106.925, close 108.51, 19.6% over the 200-day (90.69), 11.3% under the 50-day (122.38) on the close, 12.6% on the low. The wrong note 'a B-minus' reworded (E50). Key right.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "dLL1, dLL2, h10 verbatim. Bars: LLY 2025-03-10 has 7,580 daily bars before it and 421 after; close 829.76 against the 200-day 855.47 = 3.0% under. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w1": {
+   "status": "pass",
+   "notes": "dEQT/dEQ1/dEQ2 verbatim in the dossier tables; re-derived from the bars: buy 26.76 = the turn-day open, stop 26.00 = 5 cents under the flush low 26.05, 3R 29.04 printed on 2011-08-10 (high 29.16). Step 4 now says 'We trim a third'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "dKR/dKR1/dKR2 verbatim; re-derived from the bars: buy 109.13 = the 2023-08-08 open, stop 106.88 = 5 cents under the 08-07 low 106.925, 3R 115.88 (close 115.89), 5R 120.38 printed 08-10 (two sessions later), 12.6% is the low against the 50-day (106.93 / 122.38), 19.6% over the 200-day on the close. Step 4 now says 'We trim a third at each'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "dAC/dAC1/dAC2 verbatim; bars: buy 20.00 = the 09-09 open, stop 19.29 = 5 cents under the 09-09 low 19.34. The stop is 3.55%, a bit past A13's about 3%, and the step gave it with no comment; it now says the size shrinks (A5). The best 8.1R is the dossier's.",
+   "fixed": true,
+   "by": "checker"
+  }
+ }
 }

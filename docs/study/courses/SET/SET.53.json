@@ -264,6 +264,12 @@
    "claim": "A5: shares are account times risk percent, divided by entry minus stop, rounded down, then capped."
   },
   {
+   "id": "h32",
+   "source": "h1",
+   "quote": "Max position 40% of the account",
+   "claim": "A7: the maximum position is 40% of the account."
+  },
+  {
    "id": "cRole",
    "source": "c1",
    "quote": "One of the four entry triggers (SET.06), riding on a setup that already qualifies",
@@ -674,7 +680,7 @@
     "CEG, 2025-10-01, hourly bars. A leader drifts two weeks down to its rising 20-day EMA. That pullback is the setup.",
     "It opens red, 325.97 against a prior close of 329.07, and dips to 323.88. The trigger is the prior close.",
     "First hourly bar: price trades a cent over 329.07. Buy at market, 329.08. Stop a few cents under the dip low, 323.85.",
-    "Failure mode: a fall back under the line. Instead it closes near its high and 3R prints the next day."
+    "Failure mode: a fall back under the line. Instead it closes near its high; 3R is behind it by the next day."
    ],
    "facts": [
     "dCE",
@@ -959,16 +965,15 @@
     "Red"
    ],
    "answer": "Green",
-   "why": "Green. Full risk per grade comes with a Green reading. Yellow is smaller and fewer, Orange A+ only, Red shorts only below the 200-day.",
+   "why": "Green. Full risk per grade comes with a Green reading. Yellow is smaller and fewer, Orange A+ only, Red mostly cash and shorts.",
    "lesson_line": "Green means full risk.",
    "facts": [
-    "cMkt",
     "h26"
    ],
    "wrong": {
     "Yellow": "Yellow is smaller and fewer.",
     "Orange": "Orange allows only A+ setups.",
-    "Red": "Red is shorts only, below the 200-day."
+    "Red": "Red is mostly cash and shorts."
    },
    "house": true
   },
@@ -1053,11 +1058,10 @@
     },
     "round": 2
    },
-   "why": "1.96%. The entry minus the stop, divided by the entry. That is inside the 3% the stop usually keeps, and in the A+ range of 1% to 2.5%.",
+   "why": "1.96%. The entry minus the stop, divided by the entry. That is inside the 3% the stop usually keeps.",
    "lesson_line": "Measure the stop in percent before you size.",
    "facts": [
     "h04",
-    "gS1",
     "dHO"
    ],
    "house": true,
@@ -1080,7 +1084,7 @@
     },
     "round": 2
    },
-   "why": "115.47. One R is the fill minus the stop. Add three of them to the fill. A third comes off there.",
+   "why": "115.47. One R is the fill minus the stop. Add three of them to the fill. In our plan a third comes off there.",
    "lesson_line": "Know your 3R before the open.",
    "facts": [
     "h05",
@@ -1111,7 +1115,7 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "rg.index_gap_down",
-   "q": "Which cue helps a red-to-green grade the most?",
+   "q": "Which of these helps a red to green?",
    "choices": [
     "The index gapped down and got bought too",
     "The stock has no level nearby",
@@ -1119,16 +1123,15 @@
     "The 20-day EMA is falling"
    ],
    "answer": "The index gapped down and got bought too",
-   "why": "The index gapped down and got bought the same morning. That is an A+ cue: the market is buying the same dip.",
+   "why": "The index gapped down and got bought the same morning. That helps: the market is buying the same dip.",
    "lesson_line": "The market buying the dip helps your cross.",
    "facts": [
-    "cIdx",
-    "gI"
+    "cIdx"
    ],
    "wrong": {
-    "The stock has no level nearby": "Not at a level, in the middle of nowhere, is a B-minus cue.",
-    "The cross came late in the day": "A slow, grinding cross long after the open is a B-minus cue.",
-    "The 20-day EMA is falling": "A flat or falling 20-day EMA is a B-minus cue."
+    "The stock has no level nearby": "Not at a level, in the middle of nowhere, weakens the case.",
+    "The cross came late in the day": "A slow, grinding cross long after the open is the weaker cross.",
+    "The 20-day EMA is falling": "A falling 20-day EMA is a bounce in a correction, not a pullback in a trend."
    },
    "house": true
   },
@@ -1308,20 +1311,19 @@
    "criterion": "rg.market_reading",
    "q": "Take the red-to-green long?",
    "choices": [
-    "No, Red is shorts only",
+    "No, Red is mostly cash and shorts",
     "Yes, the setup is clean",
     "Yes, at half size"
    ],
-   "answer": "No, Red is shorts only",
-   "why": "No. In a Red market it is shorts only, below the 200-day. A leader's long waits for a better market.",
+   "answer": "No, Red is mostly cash and shorts",
+   "why": "No. In a Red market it is mostly cash, plus shorts below the 200-day. A leader's long waits for a better market.",
    "lesson_line": "Red market: no long.",
    "facts": [
-    "cMkt",
     "h26"
    ],
    "wrong": {
-    "Yes, the setup is clean": "A clean setup does not lift the market reading. Red is shorts only.",
-    "Yes, at half size": "Red is shorts only, not a size rule."
+    "Yes, the setup is clean": "A clean setup does not lift the market reading. Red is mostly cash and shorts.",
+    "Yes, at half size": "Red is not a size rule. It is mostly cash and shorts."
    },
    "story": "The market reading is Red. A leader above its 200-day gaps down onto its 20-day EMA and crosses the prior close.",
    "house": true
@@ -1453,23 +1455,24 @@
    "rung": 5,
    "format": "numeric",
    "criterion": "rg.full_size",
-   "q": "Account 100,000. You risk 0.75%. Buy at 111.93, stop at 110.75. How many shares?",
-   "answer": 635,
+   "q": "Account 100,000. You risk 0.75% and the position cap is 40%. Buy at 111.93, stop at 110.75. How many shares?",
+   "answer": 357,
    "calc": {
-    "fn": "shares_from_risk",
+    "fn": "arith",
     "args": {
-     "account": 100000,
-     "risk_pct": 0.75,
-     "entry": 111.93,
-     "stop": 110.75
+     "expr": "a * b / c",
+     "a": 100000,
+     "b": 0.4,
+     "c": 111.93
     },
     "round": 0
    },
-   "why": "635 shares. Stop first, then the size from the stop: the dollar risk divided by the fill minus the stop, rounded down.",
-   "lesson_line": "The stop sets the size.",
+   "why": "357 shares. The size is the smaller of the stop-based size and the cap. This tight stop would allow more, so 40% of the account divided by the price sets it.",
+   "lesson_line": "The size is the smaller of the risk size and the cap.",
    "facts": [
     "h31",
     "h01",
+    "h32",
     "dTP"
    ],
    "house": true
@@ -1717,23 +1720,22 @@
    "rung": 6,
    "format": "mcq",
    "criterion": "rg.index_gap_down",
-   "q": "What helped this red to green most?",
+   "q": "What helped this red to green?",
    "choices": [
     "The market gapped down, then got bought",
     "The stock was a laggard",
     "The cross came after lunch"
    ],
    "answer": "The market gapped down, then got bought",
-   "why": "The market gapped down and was bought the same morning. That is an A+ cue. The leader had flagged four days on its 9-day EMA.",
+   "why": "The market gapped down and was bought the same morning. That helps. The leader had flagged four days on its 9-day EMA.",
    "lesson_line": "A dip the whole market buys is stronger.",
    "facts": [
     "dCD",
-    "gI",
     "cIdx"
    ],
    "wrong": {
-    "The stock was a laggard": "CDE was a metals leader. A laggard is a B-minus cue.",
-    "The cross came after lunch": "It crossed in hour one, which grades higher."
+    "The stock was a laggard": "CDE was a metals leader. A laggard weakens the case.",
+    "The cross came after lunch": "It crossed in hour one, which is the quicker cross."
    },
    "house": true
   },
@@ -1839,7 +1841,7 @@
     "A red to green; it crossed the line": "A big news gap is a gap setup, not this trigger. A small gap leaves the uptrend intact.",
     "A Kicker; it gapped": "A Kicker gaps up. This gapped down."
    },
-   "story": "A leader gaps down 7% on a downgrade and ticks green at 10:40.",
+   "story": "A leader gaps down hard on a fraud probe and a guidance cut. It ticks green at 10:40.",
    "house": true
   },
   {
@@ -1936,14 +1938,14 @@
     "They grade the same"
    ],
    "answer": "The 9:50 cross on a gap that holds",
-   "why": "The 9:50 cross that holds. A quick cross inside the first hour that does not chop back and forth grades higher. A slow cross after chopping is B-minus.",
+   "why": "The 9:50 cross that holds. A quick cross inside the first hour that does not chop back and forth is the stronger case. A slow cross after chopping is weaker.",
    "lesson_line": "Quick and clean beats slow and choppy.",
    "facts": [
     "gT1",
     "gT2"
    ],
    "wrong": {
-    "The 13:30 cross after chopping": "A slow, grinding cross long after the open is a B-minus cue.",
+    "The 13:30 cross after chopping": "A slow, grinding cross long after the open is the weaker cross.",
     "They grade the same": "The clean first-hour cross grades higher."
    },
    "story": "Cross A came at 9:50 on a 0.9% gap that held. Cross B came at 13:30 after the stock chopped across the line four times.",
@@ -1957,24 +1959,22 @@
    "criterion": "rg.leader",
    "q": "Which red to green grades higher?",
    "choices": [
-    "A, by a long way",
-    "B, it is cheaper",
+    "A, the stronger case",
+    "B, it has more room to run",
     "They grade the same"
    ],
-   "answer": "A, by a long way",
-   "why": "A. A true leader with RS 90 or more above a rising 20-day, the market buying the dip too, and a quick cross are A+ cues. RS under 80, a flat 20-day and a level missing are B-minus.",
+   "answer": "A, the stronger case",
+   "why": "A. It is a true leader above a rising 20-day, the market is buying the dip too, and the cross is quick. B has RS 74, under 80, so it is not a leader.",
    "lesson_line": "Leader, rising average, level and market all line up.",
    "facts": [
     "gLd",
     "gI",
     "gT1",
-    "gE",
-    "gL",
     "cLeader"
    ],
    "wrong": {
-    "B, it is cheaper": "Price is not a grade cue. Every cue points to A.",
-    "They grade the same": "Every cue points to A."
+    "B, it has more room to run": "B is not a leader. RS 74 is under 80.",
+    "They grade the same": "A is a leader and B is not."
    },
    "story": "Setup A: RS 94, above a rising 20-day, 50-day and 200-day, the index gapped down and got bought, a quick cross. Setup B: RS 74, a flat 20-day, not at a level, a late cross.",
    "house": true
@@ -2115,7 +2115,7 @@
     "Wait for the close, then buy": "The trigger is the first trade over the prior close. Waiting for the close buys later at a worse price.",
     "Pass; it opened red": "Opening red is how a red to green starts. Red to green needs a dip under the line."
    },
-   "story": "A leader with RS 93 drifts two weeks to its rising 20-day EMA. It opens at 325.97 against a prior close of 329.07, dips to 323.88, then trades over 329.07 in hour one. The market is Green and the report is weeks away.",
+   "story": "A leader drifts two weeks to its rising 20-day EMA. It opens at 325.97 against a prior close of 329.07, dips to 323.88, then trades over 329.07 in hour one. The market is Green and the report is weeks away.",
    "house": true
   },
   {
@@ -2124,7 +2124,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "rg.ema20_rising",
-   "q": "Hidden ticker, the day before a gap down. Is it a leader pulling back to a rising 20-day EMA? Watch or pass?",
+   "q": "Hidden ticker, the day before a gap down. The daily chart shows the pullback and averages, not RS or the hourly cross. Watch or pass?",
    "choices": [
     "Watch for the cross; 20-day is rising",
     "Pass; the 20-day EMA is falling",
@@ -2157,7 +2157,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "rg.ema20_rising",
-   "q": "Hidden ticker, the day before a gap down. Is the 20-day EMA rising? Watch or pass?",
+   "q": "Hidden ticker, the day before a gap down. The daily chart shows the 20-day EMA, not RS or the hourly cross. Watch or pass?",
    "choices": [
     "Pass; the 20-day EMA is falling",
     "Watch for the cross; it is a leader",
@@ -2266,7 +2266,7 @@
     "The old stop at 38.50": "The gap went through it. The first 30 minutes decide the new stop.",
     "The prior close": "The prior close is the line you bought over. After a gap against the stop, the first 30-minute low is the new stop."
    },
-   "story": "You hold a red-to-green winner overnight. It bought at 40.00 with the stop at 38.50. The next morning it gaps down to 38.04. The first 30-minute low is 37.50.",
+   "story": "You hold a red-to-green winner overnight. You bought at 40.00 with the stop at 38.50. The next morning it gaps down to 38.04. The first 30-minute low is 37.50.",
    "house": true
   }
  ],
@@ -2284,7 +2284,405 @@
   "Chart questions: the app's chart item shows daily bars only (prompt chart tf D), so the hourly cross cannot be shown. The two chart questions use the daily context the day before the gap (CEG asof 2025-09-30, the setup is a leader at a rising 20-day EMA; APP asof 2025-10-16, the 20-day EMA is falling). The ticker is not in either question. The hourly cross itself has no chart question.",
   "Sources: the web quotes are short and from pages the dossier read. Investors Underground and Bohen are educators with promotional tone (Bohen's site lists an AI use disclosure) and are used only for a plain definition and one general line beside the card. Investors Underground's 'anticipate' advice is the aggressive day-trader variant and is not taught. Raschke's gap-reversal entry is the opposite of red to green and only her stop (under the gap-down day's low) is used. The Aziz forum quotes and the AI-written pages were not used.",
   "The 'every cross is a buy' question rests on the card's mistake line ('two of three gap-down days cross, half fail by the close'), which is our own data, not a published statistic; the question keys the mistake, not the numbers.",
-  "The retry question keys that a retry two weeks after a same-day stop-out is allowed as a new trade (B21, E56). The card's tries rule ('a third failed attempt in a week: stop trying') and E56 (at most 3 tries in a week) agree on a fourth try in a week being out; the dossier's CRM case (three stabs in seven sessions) is not used because 'in a week' is ambiguous between calendar and trading days."
+  "The retry question keys that a retry two weeks after a same-day stop-out is allowed as a new trade (B21, E56). The card's tries rule ('a third failed attempt in a week: stop trying') and E56 (at most 3 tries in a week) agree on a fourth try in a week being out; the dossier's CRM case (three stabs in seven sessions) is not used because 'in a week' is ambiguous between calendar and trading days.",
+  "Cold check 2026-11-10: 61 pass (58 questions and 3 walk-throughs; 15 fixed, 1 of them walk-throughs), 0 fix, 5 cut (q12 as a duplicate of q24 and q54, q29 as a duplicate of q39, q36 as a duplicate of q51, q38 for teaching the card's grade-row numbers, q42 because its key contradicts q56 and q59). Look first at: (1) q32 keyed 635 shares, which is 71% of the 100,000 account and over the 40% cap (A7); it now states the cap and keys 357; (2) the card says Red is \"shorts only\" but the rulebook says \"mostly cash and shorts below the 200-day\" (F65, D46); q11 and q26 follow the rulebook, so the card's rg.market_reading text needs fixing; (3) the card lists a falling 20-day EMA both as a gate (its APP near-miss fails on it) and as a B-minus row (ALAB), so q42 is cut and q56 and q59 key the gate; rg.role (D-002) is pending and q03 keys \"a trigger that rides on a setup\", which fits two of its three options. Also fixed: the hourly data: the dossier says CEG's 3R came the next day but the daily bars show it on the buy day (w1 now says \"behind it by the next day\"), and its 325.97 open is the hourly bar's, not the daily 326.05 (q14); q47 keyed a 4% news-gap ceiling that is still pending (D-133) and now has no number; q57 gave CEG an RS of 93 that the dossier gives only to TWLO; q58 and q59 now say what a daily chart cannot show (RS, the hourly cross); q63 said \"It bought\"."
  ],
- "verify": {}
+ "verify": {
+  "q01": {
+   "status": "pass",
+   "notes": "cLine verbatim in the card; iu1 verbatim on the cited page. Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "mGreen/cLine verbatim in the card. Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "cRole, cSetup verbatim. 'A trigger that rides on a setup' is rg.role, pending-owner D-002 (options: trigger only, own setup unit, both); the key fits options a and c, not b. The course plans (SET.06) call it a trigger. Owner item.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "mCross, cRole verbatim. Key right under every D-002 option (a trigger needs a setup under it).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "cRole/cSetup verbatim in the card. Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "cStop, h01, ku1, ra1 verbatim. rg.stop is pending-owner (D-008: the dip's low, the prior day's low or a moving average) but the key is A3's first alternative and the card's choice; q60 keys the settled never-wider line. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "cFull/mStart/h30 verbatim in the card, the rulebook (sizing_rule.md section 9). Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "cLeader, cAbove, cEma, h10 verbatim. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "cStretch/h13 verbatim in the card, the rulebook (sizing_rule.md section 9). Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "cTiming, gT2 verbatim (C30: no time-of-day rule; D-143). Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "h26 verbatim; the cMkt fact was dropped. The card says Red is 'shorts only'; the rulebook (F65, D46) says 'mostly cash and shorts below the 200-day', and the rulebook wins; the why and wrong note now follow it.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "cut",
+   "notes": "Cut: the same fact as q24 and q54 (a close back under the prior close the same day is a warning, not an exit; the stop is the exit), as a true-or-false. q24 (scenario with numbers) and q54 (TSLA 2025-01-22) stay.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "cLine verbatim. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "dCE, cLine verbatim. (329.07 - 325.97) / 329.07 = 0.942 = 0.94%. The 325.97 is the first hourly bar's open in the dossier; the daily bar's open is 326.05 (0.92%), which the member's daily chart would show. Owner item, minor. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "h04, dHO verbatim. Stop 23.54 - 0.03 = 23.51; (23.98 - 23.51) / 23.98 = 1.96%. The why's 'in the A+ range of 1% to 2.5%' was a grade-row label (E50); removed with gS1.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "h05, dTP verbatim. 111.93 + 3 x 1.18 = 115.47. The why now says it is our plan that trims a third there (B19). Key right.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "cOrder, h22 verbatim. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "cIdx verbatim; gI was dropped and the why and wrong notes lost their A+ / B-minus labels (E50). The stem said 'helps a grade the most'; now 'helps a red to green'. The wrong note for a falling 20-day EMA said 'a B-minus cue' while q56 and q59 treat it as a pass; now 'a bounce in a correction'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "cLine verbatim in the card; iu1 verbatim on the cited page. Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "cAbove/h10 verbatim in the card, the rulebook (sizing_rule.md section 9). Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "cRole/cSetup/cLine verbatim in the card. Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "mWide, cStopUp verbatim. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "mAnt/cLine verbatim in the card; bo1 verbatim on the cited page. Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "cBack, h02, h05, dTW verbatim. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "cChase/h11/h12 verbatim in the card, the rulebook (sizing_rule.md section 9). Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "h26 verbatim; cMkt dropped. The card's 'Red: shorts only' conflicts with the rulebook's 'mostly cash and shorts' (F65, D46); the choice 'No, Red is shorts only' now follows the rulebook.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "cEarn/h08 verbatim in the card, the rulebook (sizing_rule.md section 9). Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "cSupport, cLine verbatim. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "cut",
+   "notes": "Cut: the same fact and the same lesson line as q39 (volume grades the cross, it does not gate it); q39 stays.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "cLeader/h14 verbatim in the card, the rulebook (sizing_rule.md section 9). Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "cBack, dTW verbatim. (96.36 - 95.90) / (96.36 - 94.67) = 0.46 / 1.69 = 0.27R. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "h31, h01, dTP verbatim; h32 (A7, Max position 40% of the account) added. As written, the answer 635 was wrong: 635 x 111.93 = 71,075 is 71% of a 100,000 account, over the 40% cap. A5 sizes to the smaller of the risk size and the cap, so the question now states the cap and keys 357 (40% of the account over the price, 40,000 / 111.93 = 357.4, rounded down). Rung and format kept.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "h25/h05/dTP verbatim in the dossier tables, the rulebook (sizing_rule.md section 9). Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "cTries, h29 verbatim. Key right (E56's 3 tries a week; the card's 'third failed attempt' wording is the same cap).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "mGreen, cLine verbatim. Same fact as q02 in a scenario with numbers (79.10 against 80.00); kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "cut",
+   "notes": "Cut: the same fact as q51 (a quick, clean first-hour cross is a grading factor, not a rule), and its key, 'a B-minus cue', is a grade-row label that E50 does not teach as ours. q51 stays, reworded.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "h15 verbatim. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "cut",
+   "notes": "Cut: keys the card's grade-row numbers (a stop 1% to 2.5% is an 'A+ cue', over 3% a 'B-minus cue'); E50 says grading is discretionary with no checklist taught as ours, and the settled part (within about 3%, size by the stop) is already q40 and q15.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "cVol, dAN, dAN1 verbatim (ANF 0.6x volume, 3R in 2 days; bars: 3R 144.73 first reached 2026-10-12, day 2). Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "cWidth/dDE/dDE1 verbatim in the card, the dossier tables. Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "dNV, dNV1, h02, h06 verbatim; bars: NVDA 2025-08-14 closed 182.02 (green, 72% of its range), low 179.46 against the 179.43 stop; 08-15 opened 181.88 (under the prior close, above the stop) and fell to 178.04, so 'opened red and took the stop' is loose but true. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "cut",
+   "notes": "Cut: keys 'B-minus' for a falling 20-day EMA, but the same card makes a rising 20-day EMA a gate (rg.ema20_rising; its own APP near-miss fails on it) and q56, q59 and q8 key 'pass' on it. The two keys contradict each other, and the 'grade' is a card row (E50).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "dCD verbatim; gI dropped; 'most' and 'an A+ cue' removed (E50). The wrong notes lost their B-minus labels. Key right.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "tOo, cLine verbatim. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "tGo/tGo2 verbatim in the card. Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "tKi/cLine verbatim in the card. Key right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "mBig, qr1, qr2 verbatim. The story said 7% on a downgrade; the 4% ceiling (rg.gap_ceiling) is pending-owner D-133, and a downgrade is not clearly news. Rewritten with no number: a fraud probe and a guidance cut, keyed on the card's named mistake.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "cShortL, h10 verbatim. Key right (B26: shorts only below the 200-day).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "dPL, dPL1, cSupport, gL verbatim. (188.24 - 182.94) / 182.94 = 2.9%, past the 1% (rg.support_tag, proposed). The 1% is the dossier's; the key holds under any near threshold. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "dWW, dWW1, h08 verbatim. Key right (report 3 sessions away, inside the window).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "gT1, gT2, cTiming verbatim. 'B-minus' reworded to 'weaker' (E50). The dossier shows first-hour crosses are the whippy ones (29% stopped the same day against 12% and 8% in hours 2 and 3), so 'grades higher' is the settled grading factor (D-143), not a result. Key right.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "pass",
+   "notes": "gLd, gT1, gI, cLeader verbatim. The wrong choice 'B, it is cheaper' was obviously silly (no price in the story); now 'B, it has more room to run'. The why leaned on the card's B-minus rows (a flat 20-day, no level), which are gates elsewhere; it now keys the one clean fact: RS 74 is under 80 (C31), so B is not a leader.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "dAMD, dAMD1, dAMD2, h02 verbatim. (194.80 - 190.33) / 194.80 = 2.29%. Key right; the loss is the plan.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "dTS, dTS1, cBack verbatim. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "dTW2, h28, h29 verbatim. The why gives the retry's 14.8R as what happened next; the key is B21 and E56. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "dAP, dAP1, cEma verbatim. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "cSetup, cLine, cStop, h22, h26, cEarn verbatim. The story said 'RS 93', which is TWLO's rating in the dossier; CEG's is not given, so it now says only 'a leader'. The Green market and 'report weeks away' are the story's givens.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "dCE, dCE1, cSetup, cEma verbatim. Bars: CEG 2025-09-30 has 927 daily bars before it (120 needed) and 280 after; prior close 329.07, 20-day EMA 326.57 against 323.19 five sessions earlier (rising), 200-day 281.87. The question now says the daily chart cannot show RS or the hourly cross; 'is it a leader' was not visible on the chart.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "dAP, dAP1, cEma verbatim. Bars: APP 2025-10-16 has 1,132 daily bars before it and 268 after; 20-day EMA 612.33 against 624.73 five sessions earlier (the dossier's numbers), close 605.68 above the 200-day 392.14. The question now says the daily chart cannot show RS or the hourly cross.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "cStop, cStopUp, mWide verbatim. Key rests on the settled never-wider line. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "qr1, qr2, mBig verbatim. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "cStruct, cSetup verbatim. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "h06, h07 verbatim. Loss at 37.50 = 2.50 / 1.50 = 1.67R, under 2R, so the first 30-minute low is the stop. The story said 'It bought at 40.00'; now 'You bought'. Key right.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w1": {
+   "status": "pass",
+   "notes": "dCE, dCE1, cSetup, cLine, cStop verbatim; bars: CEG prior close 329.07, low 323.88, 20-day EMA rising (326.57 against 323.19 five sessions earlier), 200-day 281.87. Step 4 said '3R prints the next day' (the dossier's wording) but the daily bars show the 2025-10-01 high 352.25 already past 3R (344.77) on the buy day; now '3R is behind it by the next day', true either way. The open 325.97 is the dossier's hourly bar; the daily bar's open is 326.05.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "dTW, dTW1, cEarn verbatim; bars: TWLO 3R 101.43 first reached 2024-11-21 (high 102.49), the next day. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "dHO, dHO1 verbatim; bars: HOOD buy 23.98, stop 23.51, 3R 25.39 first reached 2024-11-06, day 2; 2.0% = 0.47 / 23.98. Key right.",
+   "fixed": false,
+   "by": "checker"
+  }
+ }
 }
