@@ -17,7 +17,7 @@ import { memHas as _memHasRaw, memPut as _memPutRaw, memPeek as _memPeekRaw, mem
 import { seriesCacheTf, barsSessionQuery, barsGridQuery } from '../components/chart/barTime'
 import { setViewShowExtended } from './viewSession'
 import { FIRST_PAINT_BARS, firstPaintBarsFor, fullBarsFor } from './barsBackfill'
-import { isDailyTailStale, isDailyTodayCloseProvisionalForPaint, isCurrentEnoughForPaint, classifyIntradayTail } from './marketSession'
+import { isDailyTailStale, isDailyTodayCloseProvisionalForPaint, classifyIntradayTail, isCacheCurrentForView } from './marketSession'
 
 // ⛔ D10 (2026-11-10): a non-OK body is NOT data. `r.json()` on a 404/429/500 handed the
 // error body ({detail:…}) to the caller as if it were bars. Both fetchers now throw the
@@ -166,6 +166,16 @@ function memPeekSavedAt(sym, tf) { return _memPeekSavedAtRaw(sym, _ck(tf)) }
 // The chart's own URL tail: `&session=` on intraday (StockChart's `_primaryBase` adds
 // the same, so a warm and the chart's request are ONE SWR key / one in-flight join).
 function _sessQ(tf) { return barsSessionQuery(tf, _prefetchShowExtended) }
+// ⛔⛔ THE WARMERS ASK THE CHART'S QUESTION, NOT A PRIVATE COPY OF IT (W-L 2026-11-11).
+// "Is this cache current for the view?" is `isCacheCurrentForView` in marketSession — the
+// SAME call StockChart's mem/IDB paint gates make — with the view's session. The private
+// copy that stood here asked the RTH question for an extended-hours chart, so a cache the
+// chart refused was "warm" here: promoted, never repaired, and every switch waited on the
+// network. One function, so the warmer and the painter cannot disagree again.
+function _paintSession() { return _prefetchShowExtended ? 'extended' : 'rth' }
+function _paintCurrent(lastT, tf, bars = null) {
+  return isCacheCurrentForView(bars, lastT, tf, { session: _paintSession() })
+}
 // ⛔ THE KEY IS PINNED PER JOB, NEVER RE-READ AT WRITE TIME (#1061 review F3). A job
 // decides its cache key ONCE (`_ck` at its start, or from the URL it was queued with)
 // and writes only under that key — and only when the SERVER's answer is on that key's
@@ -224,7 +234,7 @@ async function _fillUrgent(url, sym, tf) {
   if (_memUsable(sym, tf)) return
   let have = null
   try { have = await _idbGetRaw(sym, k) } catch { /* IDB unavailable: fetch instead */ }
-  if (have?.bars?.length && _memPromoteFresh(tf, have.lastT, have.savedAt)) { _memPutRaw(sym, k, have.bars, { savedAt: have.savedAt ?? null }); return }
+  if (have?.bars?.length && _memPromoteFresh(tf, have.lastT, have.savedAt, have.bars)) { _memPutRaw(sym, k, have.bars, { savedAt: have.savedAt ?? null }); return }
   const json = _noteWarmResult(await _warmLoad(url))
   if (json?.bars?.length && !json.delta && _gridOk(k, json)) {
     const staleDaily = tf === 'D' && have?.bars?.length && _dailyNeedsRefresh(have.lastT, have.savedAt)
@@ -390,7 +400,7 @@ export async function prepareForDisplay(sym, tf) {
     const lastT = have?.lastT
     const hasBars = !!have?.bars?.length
     if (hasBars && _INTRADAY_TFS.has(String(tf)) && typeof lastT === 'number'
-        && isCurrentEnoughForPaint(lastT, tf)) {
+        && _paintCurrent(lastT, tf, have.bars)) {
       _memPutRaw(sym, k, have.bars, { savedAt: have.savedAt ?? null })
       return 'current'
     }
@@ -398,7 +408,7 @@ export async function prepareForDisplay(sym, tf) {
     // repair, the window when we have nothing. Same URLs the warmer uses, so
     // this shares its dedupe and its shed-ability rather than opening a door.
     const asked = (hasBars && typeof lastT === 'number'
-      && classifyIntradayTail(lastT, tf) === 'behind')
+      && classifyIntradayTail(lastT, tf) !== 'gapped')
     const url = asked ? _sinceUrl(sym, tf, lastT) : _url(sym, tf)
     const json = _noteWarmResult(await _warmLoad(url))
 
@@ -421,7 +431,7 @@ export async function prepareForDisplay(sym, tf) {
     _memPutRaw(sym, k, next)
     const newestT = next[next.length - 1]?.t
     if (!_INTRADAY_TFS.has(String(tf))) return 'current'
-    if (typeof newestT === 'number' && isCurrentEnoughForPaint(newestT, tf)) return 'current'
+    if (typeof newestT === 'number' && _paintCurrent(newestT, tf, next)) return 'current'
     // We asked the authority for this exact symbol + timeframe and it confirmed
     // there is nothing newer. The cache IS the frontier for this symbol.
     return 'authoritative'
@@ -563,10 +573,16 @@ export function prefetchBar(sym, tf = 'D') {
 // Prefetch all timeframes for a selected ticker so TF-tab switches are instant.
 // Bounded + deferred via the shared queue, so it trickles in the background and
 // never blocks the chart that's currently loading.
+// ⛔⛔ W-L (2026-11-11): INTO THE CACHES THE CHART READS. This used to `_enqueue` the
+// `&warm=1` URLs, whose answers land only in SWR's preload table and are dropped there
+// on settle (`_warmRaw`) — a `warm=1` URL is never a chart key — so all eight requests
+// per selection bought nothing on the client. The durable queue writes mem + IDB under
+// the chart's key, skips a (sym, tf) that is already durable and current, and repairs a
+// behind one with a `since=` tail.
 export function prefetchAllTimeframes(sym) {
   if (!sym) return
   prefetchTickerMeta(sym)
-  for (const tf of ALL_TFS) _enqueue(_url(sym, tf))
+  for (const tf of ALL_TFS) prefetchBarsToIDB([sym], tf)
 }
 
 // Replay Mode: warm every intraday timeframe for a chosen cutoff date so switching TF in
@@ -648,8 +664,8 @@ async function _idbWarmOne({ sym, tf, visible = false }) {
     // symbol is CURRENT", which is the only one the member can see.
     const behindIntraday = _INTRADAY_TFS.has(String(tf)) && have?.bars?.length
       && typeof have.lastT === 'number'
-      && classifyIntradayTail(have.lastT, tf) === 'behind'
-      && !isCurrentEnoughForPaint(have.lastT, tf)
+      && classifyIntradayTail(have.lastT, tf) !== 'gapped'
+      && !_paintCurrent(have.lastT, tf, have.bars)
     if (behindIntraday) {
       if (_holdJob({ visible })) return
       if (!_repairCooldownOk(sym, tf)) return
@@ -775,7 +791,7 @@ function _memUsable(sym, tf) {
   // most needed repair, so the click then waited on the chart's own fetch.
   if (_INTRADAY_TFS.has(String(tf))) {
     const bars = memPeek(sym, tf)
-    return _memPromoteFresh(tf, bars?.[bars.length - 1]?.t)
+    return _memPromoteFresh(tf, bars?.[bars.length - 1]?.t, null, bars)
   }
   if (String(tf) !== 'D') return true
   const bars = memPeek(sym, tf)
@@ -795,7 +811,7 @@ function _memUsable(sym, tf) {
 // whose newest bar is older than max(6 tf-periods, 20min) is NOT promoted,
 // because the chart itself refuses to paint it (it full-refetches instead);
 // promoting it would flash an old session mid-scan. D/W/M always promote.
-function _memPromoteFresh(tf, lastT, savedAt = null) {
+function _memPromoteFresh(tf, lastT, savedAt = null, bars = null) {
   // Daily: reject a tail missing recent sessions, or (after the bell) a today bar
   // written mid-session (mirrors the chart's gate — it would just be suppressed).
   if (String(tf) === 'D') return !_dailyNeedsRefresh(lastT, savedAt)
@@ -805,7 +821,7 @@ function _memPromoteFresh(tf, lastT, savedAt = null) {
   // sound base (not gapped) that is within one expected bucket of the frontier. The
   // old window promoted a 20-minute-old 1m tail (19 bars behind) that the chart then
   // refused to paint — or, through the mem fallback, painted as current.
-  return classifyIntradayTail(lastT, tf) !== 'gapped' && isCurrentEnoughForPaint(lastT, tf)
+  return _paintCurrent(lastT, tf, bars)
 }
 
 export function warmMemFromIDB(tickers, tfs = SCAN_WARM_TFS) {
@@ -816,7 +832,7 @@ export function warmMemFromIDB(tickers, tfs = SCAN_WARM_TFS) {
       const k = _ck(tf)                    // pinned: read and write the SAME key
       if (_memHasRaw(sym, k)) continue        // already hot — pure no-op per press
       _idbGetRaw(sym, k).then(entry => {
-        if (entry?.bars?.length && !_memHasRaw(sym, k) && _memPromoteFresh(tf, entry.lastT, entry.savedAt)) {
+        if (entry?.bars?.length && !_memHasRaw(sym, k) && _memPromoteFresh(tf, entry.lastT, entry.savedAt, entry.bars)) {
           _memPutRaw(sym, k, entry.bars, { savedAt: entry.savedAt ?? null })   // the SOURCE stamp, never now
         }
       }).catch(() => { /* best-effort accelerator; IDB stays the fallback */ })
@@ -981,7 +997,7 @@ async function _warmIntentNow(sym, tf) {
     // stale-intraday miss pays the fetch.
     const k = _ck(tf)   // pinned for this job (see _gridOk)
     const have = await _idbGetRaw(sym, k)
-    if (have?.bars?.length && _memPromoteFresh(tf, have.lastT, have.savedAt)) {
+    if (have?.bars?.length && _memPromoteFresh(tf, have.lastT, have.savedAt, have.bars)) {
       _memPutRaw(sym, k, have.bars, { savedAt: have.savedAt ?? null })
       return
     }

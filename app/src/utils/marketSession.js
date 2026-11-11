@@ -10,7 +10,7 @@
 // session." Outside `hasCoverage`'s covered years this degrades EXACTLY to the
 // prior weekday-only/16:00 behavior — never a guess, never a throw.
 import { hasCoverage, holidayOn, earlyCloseOn } from '../lib/marketClock/nyseCalendar'
-import { bucketStartUnix as _sharedBucketStartUnix } from '../components/chart/barTime'
+import { bucketStartUnix as _sharedBucketStartUnix, RTH_OPEN_MIN as _VIEW_RTH_OPEN, rthCloseMinuteOf as _viewRthClose } from '../components/chart/barTime'
 
 const _pad = (n) => String(n).padStart(2, '0')
 
@@ -569,6 +569,43 @@ export function isCurrentEnoughForPaint(lastTUnixSec, tf, { nowMs = Date.now(), 
   // return anything newer.
   if (behind == null) return true
   return behind <= toleranceBars
+}
+
+// ── THE ONE CACHE-PAINT CONTRACT (W-L 2026-11-11) ──────────────────────────────
+// ⛔⛔ "MAY THIS CACHED SERIES BE THE FIRST FRAME OF THIS VIEW?" HAD TWO IMPLEMENTATIONS.
+// StockChart asked it with the view's session on the cache's RAW tail; the warmers in
+// `prefetchBars` asked it with NO session (always RTH). Where they disagreed, the warmer
+// called a cache current that the chart then refused — the scanned row was "warm" and the
+// switch still waited on the network (extended-hours view pre-market / 09:30-09:35 / after
+// the close: 96/96 switches, keypress→current p50 ~110 ms, every one exposed to the
+// production 0.5-1.5 s request tail). And BOTH judged the raw tail: a regular-hours view
+// of a cache ending in today's 07:20 pre-market bars draws YESTERDAY's 15:55 as its last
+// candle, yet the raw 07:20 tail passed as "one bucket behind" at 09:38.
+//
+// Now there is ONE answer, judged on the tail the VIEW draws, and every reader calls it.
+
+/** The newest bar a (session) view DRAWS from `bars`: an RTH view shows only the regular
+ *  session (barTime's policy: 09:30 to the day's close, half-days included), an extended
+ *  view shows everything. Falls back to `lastT` when nothing in `bars` is drawable. */
+export function viewTailT(bars, lastT, { session = 'rth' } = {}) {
+  if (session === 'extended' || !Array.isArray(bars) || !bars.length) return lastT
+  // Bounded walk back from the tail: a whole extended day is 192 5m bars / 960 1m bars.
+  for (let i = bars.length - 1, n = 0; i >= 0 && n < 2000; i--, n++) {
+    const t = bars[i]?.t
+    if (typeof t !== 'number') continue
+    const m = etMinutesOfUnix(t)
+    if (m >= _VIEW_RTH_OPEN && m < _viewRthClose(t)) return t
+  }
+  return lastT
+}
+
+/** May this cached intraday series be the FIRST VISIBLE FRAME of a (tf, session) view?
+ *  A sound repair base (the raw tail is not gapped) whose DRAWN tail is within one
+ *  expected bucket of the view's frontier. */
+export function isCacheCurrentForView(bars, lastT, tf, { session = 'rth', nowMs = Date.now() } = {}) {
+  if (typeof lastT !== 'number' || !Number.isFinite(lastT)) return false
+  if (classifyIntradayTail(lastT, tf) === 'gapped') return false
+  return isCurrentEnoughForPaint(viewTailT(bars, lastT, { session }), tf, { nowMs, session })
 }
 
 /** The interval currently forming, or null when nothing is. */
