@@ -99,5 +99,30 @@ These are simulated tests: jsdom, a scripted model, and a fake Custom-Period Sor
 ## Files (git diff --stat against the merge base)
 
 ```
-FILES_PLACEHOLDER
+ api/services/uct_agent/turn_v2.py                                    |    1 +
+ app/src/agent/agentPeriodSort.test.jsx                               |  243 +++++
+ app/src/agent/agentRouting.test.jsx                                  |    2 +-
+ app/src/agent/agentScreener.test.jsx                                 |    2 +-
+ app/src/agent/builtins.js                                            |    3 +
+ app/src/agent/capabilities/periodSort.js                             |  242 +++++
+ app/src/agent/contract/manifest.golden.json                          |  123 +++
+ app/src/agent/host.js                                                |    5 +-
+ app/src/agent/qa/capabilityRegression/baseline/baseline.lock.json    |   50 +
+ app/src/agent/qa/capabilityRegression/baseline/corpus.json           |  128 +++
+ app/src/agent/qa/capabilityRegression/coverage/COVERAGE.md           |   24 +-
+ app/src/agent/qa/capabilityRegression/coverage/contract.json         |   26 +
+ app/src/agent/qa/capabilityRegression/coverage/coverage.json         |  160 ++-
+ app/src/agent/qa/capabilityRegression/testing/harness.jsx            |   29 +
+ app/src/agent/qa/capabilityRegression/testing/run.jsx                |    3 +
+ app/src/agent/routing.js                                             |   10 +-
+ app/src/pages/charts/ChartsWorkspace.jsx                             |   67 +-
+ docs/agent/program/PR-exec-period-sort.md                            |  103 ++
+ docs/agent/program/evidence/period-sort/capreg-dir-and-workspace.txt | 1740 ++++++++++++++++++++++++++++++++
+ docs/agent/program/evidence/period-sort/focused-1.txt                |  806 +++++++++++++++
+ docs/agent/program/evidence/period-sort/mutants.txt                  |   30 +
+ docs/agent/program/evidence/period-sort/pytest.txt                   |    3 +
+ docs/agent/program/evidence/period-sort/red-run.txt                  |  222 ++++
+ tests/fixtures/nl1_assemble_parity.json                              |   20 +-
+ tests/test_uct_agent_contract.py                                     |    4 +-
+ 25 files changed, 3986 insertions(+), 60 deletions(-)
 ```
