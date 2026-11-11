@@ -6,6 +6,77 @@
 > - Teaching only: no navigation, no workspace writes, nothing executed for the member.
 > - The widget's anchors are in their own commit.
 
+## Release readiness (2026-11-11, pl-teach): independent PR, on master `381f91acbd`
+> LOCAL / jsdom for the tests below. Tested head `21ccffc6c0`; the commit that adds this section and the two raw logs changes docs only.
+
+### Merge
+- One merge commit of origin/master `381f91acbd` (188 commits since the last base `292983f4bc`): `21ccffc6c0`. **No
+  conflicts.** Master's own guide changes in it (`guide/explain.js`, `guide/slots.js`, `capabilities/guide.js`) merged
+  automatically.
+
+### Overlap with #1028 (teach-chart-menu) and #1024 (teach-givens), from git
+`git merge-tree` of this head with each branch head (#1028 `7cf11ebffb`, #1024 local `c7f85a9d8c`, which contains #1028):
+- **#1028:** 5 shared files (`guide/actions.js`, `guide/words.js`, `teach.mjs`, `cases.inventory.json`,
+  `expected.json`). **Merges clean.**
+- **#1024:** 8 shared files (the 5 above plus `given.mjs`, `agentHarness.jsx`, `agentGuideTargets.test.js`). **One
+  textual conflict, in `given.mjs`, on one line, `queryFor`:** this PR adds `g.lists ? 'watchlists=1' : ''`, #1024
+  adds `...(g.extraQuery || [])`. The resolution is the union of both. No semantic conflict:
+  - #1024's declared givens (`caseGivens.json`) name no watchlist case, and its `givens.mjs` adds no list or community
+    given;
+  - its declared routes go FIRST in `fixturesFor`, and this PR's community routes (`/api/watchlists/public`,
+    `/api/auth/me`) are pushed after them, so neither shadows the other;
+  - `cases.inventory.json` and `expected.json` are generated (`agentGuideInventory`). They auto-merge, but whichever
+    PR lands second re-runs `agentGuideInventory` + `agentGuideTargets` on the merge.
+- **Order:** either order works. Proposed: #1026 → #1020 → #1028 → #1024 → **#1014**. This PR goes last, so the one-line
+  `queryFor` union is made here, on a merge with master, and tested here.
+
+### Files (git-derived: `git diff --name-only origin/master HEAD`: 71 files at `21ccffc6c0`, 73 with the two raw logs below)
+- **Product (6):** `app/src/agent/capabilities/guide.js`, `app/src/agent/guide/actions.js`,
+  `app/src/agent/guide/listRefs.js` (new), `app/src/agent/guide/registry.js`, `app/src/agent/guide/words.js`,
+  `app/src/pages/watchlist/WatchlistSettingsPanel.jsx` (one `data-guide` attribute).
+- **Tests (9):** `agentGuideHeldOutControls`, `agentGuideHeldOutListColumns`, `agentGuideHeldOutListNames`,
+  `agentGuideHeldOutWlTitleMenu`, `agentGuideHeldOutWlWidget`, `agentGuideInventory`, `agentGuideListRefsNoLookbehind`,
+  `agentGuideTargets`, `agentGuideWlWidgetRails` (all `app/src/agent/*.test.js[x]`).
+- **Harness and runner data (15, `app/src/testing/agent/`):** `agentHarness.jsx`, `fixtureWatchlists.js`, and in
+  `guide/`: `cases.inventory.json`, `expected.json`, `given.mjs`, `knownMisses.json`, `notInProduct.json`,
+  `status.mjs`, `teach.mjs`, plus 6 `runs/*.results.json`.
+- **Docs and evidence (41, then 43):** `docs/agent/CHARTS_TEACH_STATUS.md`, this file, and
+  `docs/agent/program/evidence/teach-wl-widget/**` (9 cases × json + 2 png, run log, scoped-suite log, lookbehind
+  before/after).
+
+### Focused tests at `21ccffc6c0` (LOCAL, jsdom, no lock, BelowNormal, node_modules LinkType Junction)
+- Two runs, one after the other, 39 files (all 35 `agentGuide*` files, which include this PR's 9 own tests and the
+  listRefs rail `agentGuideListRefsNoLookbehind`, plus the lookbehind rails `noRegexLookbehind`, `agentNoLookbehindStrings`,
+  `agentNoLookbehindEquivalence`, `agentNoLookbehindOracle`):
+  - run 1 (20 files): `Test Files 20 passed (20)`, `Tests 488 passed | 8 skipped (496)`;
+  - run 2 (19 files): `Test Files 19 passed (19)`, `Tests 667 passed (667)`;
+  - **total 39/39 files, 1155 passed, 8 skipped, 0 failed.** Raw logs: `evidence/teach-wl-widget/after/focused.21ccffc6c0.r1.log`, `.r2.log`.
+- Code since then: docs only.
+
+### Try it in production (Charts, Agent panel, with a Watchlist widget on the board; each step is highlighted and you click)
+1. "how do I make a list using a saved template": rings ‹ Lists, then ＋ New, then Template.
+2. "how do I hide the volume column in my watchlist": highlights the column controls step by step.
+3. "how do I rename my <one of your list names> list": rings the list's name in the widget title (right-click it), then
+   Rename. Also try "how do I export a list to CSV".
+4. "how do I write a note on a ticker in my list": highlights where a row's note is written.
+5. "how do I take TSLA off my watchlist": highlights the remove step. Nothing is removed for you.
+
+### Known limits
+- Teach only: the Agent never changes the widget's mode, never writes a list, a note or the board. The member clicks.
+- 6 rows are NOT IN PRODUCT and are answered as such, not taught: colour-tag lists (C3-066), reorder a ticker by hand
+  (C3-081), column presets (C3-084), expand/collapse a list (C3-089), colour tag from the widget (C3-090), Remove starred
+  (C3-080).
+- List names are read from the member's own watchlist store at run time; a name the member has never saved is not
+  recognised as a list.
+- Publish to Prebuilt shows for admins only. Save to My Lists… shows only with a community list open in the widget and
+  the copy-or-link switch on for that member. Version history shows only while the version store is on.
+- The browser evidence (9/9 title-menu cases, 314 VERIFIED of 338) is LOCAL headless Chrome on the harness with a
+  scripted model, not production.
+- **Notebook first-open bytes:** `app/src/agent/guide/*` changed, so CI's gating `notebook bytes` workflow
+  (`.github/workflows/notebook-bytes.yml`, budget in `docs/notebook/perf-budgets.json`) checks this PR. Last local
+  reading +9 B, then 0 B on master `388dee7fce`; not rebuilt on this merge.
+
+
 ## Scope
 The 29 watchlist rows of `TEACH-WATCHLISTS-WIDGET-DESIGN.md`, taught inside the Charts widget. The Watchlists-page
 approach was dropped. #1011 reverts its page-walk code, and the page-host branch was never merged.

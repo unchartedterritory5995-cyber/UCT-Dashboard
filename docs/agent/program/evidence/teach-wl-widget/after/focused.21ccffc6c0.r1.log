@@ -1,0 +1,153 @@
+﻿# NO LOCK (<=25 files), BelowNormal | cmd: npx vitest run src/agent/agentGuide.test.jsx src/agent/agentGuideAbsentRow.test.jsx src/agent/agentGuideControls.test.js src/agent/agentGuideDesktopSelection.test.jsx src/agent/agentGuideFamilies.test.js src/agent/agentGuideHeldOut.test.js src/agent/agentGuideHeldOutControls.test.js src/agent/agentGuideHeldOutControls2.test.js src/agent/agentGuideHeldOutCov1.test.js src/agent/agentGuideHeldOutCov2.test.js src/agent/agentGuideHeldOutCov3.test.js src/agent/agentGuideHeldOutCov4.test.js src/agent/agentGuideHeldOutCov4b.test.js src/agent/agentGuideHeldOutCov5.test.js src/agent/agentGuideHeldOutFlow.test.js src/agent/agentGuideHeldOutListColumns.test.js src/agent/agentGuideHeldOutListNames.test.js src/agent/agentGuideHeldOutPriceScale.test.js src/agent/agentGuideHeldOutRowColumn.test.js src/agent/agentGuideHeldOutWlTitleMenu.test.js | head=21ccffc6c0 | start 00:29:12
+# node_modules LinkType=Junction Target=C:\w\pl-teach-wl\app\node_modules
+
+ RUN  v4.0.18 C:/w/pl-teach-wl2/app
+
+stderr | src/agent/agentGuideAbsentRow.test.jsx > a menu row that is not offered here > a step without `absent` keeps waiting when its menu opens without the row
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuideAbsentRow.test.jsx > a menu row that is not offered here > a step without `absent` keeps waiting when its menu opens without the row
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/agent/agentGuideAbsentRow.test.jsx (4 tests) 4006ms
+     ✓ menu open, row absent: said and ended (no ring, no waiting)  1836ms
+     ✓ a step without `absent` keeps waiting when its menu opens without the row  1997ms
+ ✓ src/agent/agentGuideHeldOutListNames.test.js (11 tests) 71ms
+ ✓ src/agent/agentGuideFamilies.test.js (54 tests) 91ms
+ ✓ src/agent/agentGuideHeldOut.test.js (40 tests) 75ms
+ ✓ src/agent/agentGuideHeldOutCov3.test.js (21 tests) 76ms
+ ✓ src/agent/agentGuideHeldOutControls.test.js (59 tests) 102ms
+stderr | src/agent/agentGuideDesktopSelection.test.jsx > a drawing selected on desktop owns Escape > selected: Escape leaves the walkthrough on screen, and the chart still deselects
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/agent/agentGuideHeldOutCov5.test.js (18 tests) 69ms
+ ✓ src/agent/agentGuideHeldOutCov1.test.js (27 tests) 58ms
+ ✓ src/agent/agentGuideHeldOutCov4.test.js (12 tests) 59ms
+ ✓ src/agent/agentGuideHeldOutWlTitleMenu.test.js (13 tests) 61ms
+ ✓ src/agent/agentGuideHeldOutCov2.test.js (26 tests) 83ms
+ ✓ src/agent/agentGuideDesktopSelection.test.jsx (3 tests) 2769ms
+     ✓ selected: Escape leaves the walkthrough on screen, and the chart still deselects  1397ms
+     ✓ nothing selected (the bin disabled): Escape ends the walkthrough  1364ms
+ ✓ src/agent/agentGuideControls.test.js (112 tests) 5368ms
+     ✓ note.edit: every target and result is rendered by the product, under that name  348ms
+     ✓ surge.add: every target and result is rendered by the product, under that name  313ms
+     ✓ list.colResize: every target and result is rendered by the product, under that name  443ms
+ ✓ src/agent/agentGuideHeldOutListColumns.test.js (8 tests) 62ms
+ ✓ src/agent/agentGuideHeldOutPriceScale.test.js (5 tests) 41ms
+ ✓ src/agent/agentGuideHeldOutFlow.test.js (8 tests) 23ms
+ ✓ src/agent/agentGuideHeldOutControls2.test.js (15 tests) 164ms
+ ✓ src/agent/agentGuideHeldOutRowColumn.test.js (9 tests | 8 skipped) 25ms
+ ✓ src/agent/agentGuideHeldOutCov4b.test.js (9 tests) 253ms
+stderr | src/agent/agentGuide.test.jsx > S · Show me highlights the real control and changes nothing > S6b Escape is one press, one action > a sheet owns the press, whether or not it stays open
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuide.test.jsx > S · Show me highlights the real control and changes nothing > S6b Escape is one press, one action > the palette or a dialog owns the press, whether or not it stays open
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentGuide.test.jsx > S · Show me highlights the real control and changes nothing > S6b Escape is one press, one action > a popup that closes on Escape owns the press, whether or not it stays open
+An update to GuideOverlay inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/agent/agentGuide.test.jsx (42 tests) 49450ms
+     ✓ What's the difference between a chart indicator and a condition?  1060ms
+     ✓ what is a layout?  1008ms
+     ✓ what are link colours  982ms
+     ✓ explain the drawing tools  1170ms
+     ✓ What is RSI?  1143ms
+     ✓ Explain RSI  1014ms
+     ✓ What does ADR mean?  968ms
+     ✓ What is MACD?  949ms
+     ✓ What is an EMA?  993ms
+     ✓ rsi vs macd  982ms
+     ✓ more than the catalog says goes to the model, which answers — nothing is invented locally and nothing changes: what is the difference between an ema and an sma  1014ms
+     ✓ more than the catalog says goes to the model, which answers — nothing is invented locally and nothing changes: what does a dead cat bounce mean?  982ms
+     ✓ more than the catalog says goes to the model, which answers — nothing is invented locally and nothing changes: what is rsi telling me about nvda right now  1010ms
+     ✓ more than the catalog says goes to the model, which answers — nothing is invented locally and nothing changes: what's a good setting for rsi on the 5 minute  984ms
+     ✓ the model can ask for UCT's own catalog wording (guide.explain) — a query: an answer, no receipt, no change  1082ms
+     ✓ S1 "Where do I change the timeframe?" — the real timeframe bar, two steps, Next / Done; the board is untouched  1355ms
+     ✓ S2 several charts: the walkthrough is on the chart the member clicked, and says which  999ms
+     ✓ S3 a control that is NOT on screen is never claimed — it says so and explains instead  980ms
+     ✓ S4 a step that needs the member: "open the gear" waits for THEIR click (the settings opening), then moves on by itself  1229ms
+     ✓ S4b context-aware: with Chart settings ALREADY open on the Indicators tab, the walkthrough starts at its search box — never "open the gear"  986ms
+     ✓ S5 the control disappears mid-walkthrough → it pauses and says why, carries on if it returns, and only then gives up (never points at nothing)  5685ms
+     ✓ a new command typed to the Agent mid-walkthrough ends the walkthrough  1132ms
+       ✓ with nothing else open, it ends the guide  1039ms
+       ✓ with focus still in the Agent's message box after asking, it ends the guide  1061ms
+       ✓ Ctrl, Alt, Meta or Shift + Escape is not the guide's  1044ms
+       ✓ a text field's Escape is the field's  1045ms
+       ✓ a field that closes itself on Escape still owned the press, though focus has left it by the bubble phase  1038ms
+       ✓ a sheet owns the press, whether or not it stays open  1072ms
+       ✓ the palette or a dialog owns the press, whether or not it stays open  1082ms
+       ✓ a popup that closes on Escape owns the press, whether or not it stays open  1113ms
+       ✓ a press a board handler stopped or prevented, with nothing of its own to close, still ends the guide  1001ms
+       ✓ an armed drawing tool owns the press: the guide stays  1036ms
+       ✓ a menu the press closed had it: the Widgets menu goes, the guide stays  1061ms
+       ✓ a menu that ignores Escape does not keep the guide from ending  1026ms
+       ✓ after the layer has gone, the next Escape ends the guide  1058ms
+     ✓ S6 Escape and Exit end it; a new walkthrough replaces the old one  1355ms
+     ✓ S7 the card never takes a click away from the board: the ring is pointer-events none, the card is not modal  993ms
+     ✓ D1 "Where do I change the timeframe?" → "Now do it for me" → which timeframe? → Weekly: changed, receipted, undoable  1342ms
+     ✓ D2 a feature whose action needs the member's words says what to say — nothing runs on a guess  1038ms
+     ✓ D3 "do it for me" with no walkthrough shown is NOT a guide action — nothing changes  981ms
+     ✓ D4 a direct command is just done — "Change my chart to the weekly timeframe" (no walkthrough)  1042ms
+     ✓ D5 the indicator walkthrough → do it for me → RSI: added through indicator.add (receipt, Undo)  1311ms
+
+ Test Files  20 passed (20)
+      Tests  488 passed | 8 skipped (496)
+   Start at  00:29:14
+   Duration  62.69s (transform 59.73s, setup 6.30s, import 102.26s, tests 62.91s, environment 19.64s)
+
+# exit=0 end 00:30:17
