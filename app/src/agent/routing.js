@@ -59,7 +59,7 @@ export const GROUPS = [
   // Charts operator P1 (2026-10-27): the rest of a chart's own controls, in their OWN group so the NL-1 core
   // (charts + indicators + screener + agent ≤ 45) keeps its size — templates (save / delete), one chart's
   // look copied onto another, custom-timeframe removal and ★ favourites, comparison display.
-  { id: 'chartSetup', title: 'Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, step the view back or forward by bars, auto-scale the price axis, hide every indicator or moving average at once', domains: ['chartSetup'], fillLast: true,
+  { id: 'chartSetup', title: 'Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once', domains: ['chartSetup'], fillLast: true,
     // W1-B B-06: Replay Mode is a chart control too — here by action name, so the NL-1 core (charts group) keeps its size
     // W2-B3: chart.describeSetup here by action name too (a grounded setup description; the charts group keeps its size),
     // named by "describe / summarise / walk me through … setup"
@@ -80,10 +80,7 @@ export const GROUPS = [
       // temporary reachability; replace with description-driven discovery
       /\b(?:range|show|frame|zoom)\b.*\b(?:3m|6m|ytd|1y|5y|year to date|(?:one|1|last|past|five|5) years?|(?:three|3|six|6) months)\b|\bsince (?:the )?ipo\b/,
       /\breset (?:the |this |my |chart |chart's )*(?:view|zoom)\b|\bdefault view\b/,
-      /\b(?:hide|show|bring back|turn (?:off|on)|unhide)\b.*\b(?:all|every)\b.*\b(?:indicators?|moving averages?|mas|overlays)\b/,
-      // the Time Navigator's ◀ / ▶ ("go back 5 bars", "nudge it forward a bar") and the price axis menu's Auto-scale
-      /\b(?:step|go|move|scroll|nudge|shift|pan)\b.*\b(?:back|backwards?|forwards?|ahead|left|right)\b.*\bbars?\b|\b(?:back|forwards?|ahead)\b.*\b(?:a|one|\d{1,3}|two|three|four|five|ten) (?:more )?bars?\b/,
-      /\bauto[- ]?scal\w*\b|\b(?:re-?)?fit\b.*\bprice (?:scale|axis)\b|\bprice (?:scale|axis)\b.*\b(?:fit|auto)\b/] },
+      /\b(?:hide|show|bring back|turn (?:off|on)|unhide)\b.*\b(?:all|every)\b.*\b(?:indicators?|moving averages?|mas|overlays)\b/] },
   // ⭐ live test 2026-10-28: N tickers as N equal charts (reuse, add, re-tile — one change, one Undo) — its OWN group
   // (one action), so neither the NL-1 core nor the workspace group grows: core + workspace is exactly the budget.
   { id: 'chartGrid', title: 'Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells', domains: ['chartGrid'], fillLast: true,
@@ -95,10 +92,15 @@ export const GROUPS = [
       MULTI_CHARTS, EQUAL_SIZE, GRID_CELLS] },
   // ⭐ PHASE 3: two widgets trading places, a chart duplicated into half its cell — their OWN small group (as chartGrid), so
   // neither the NL-1 core nor the workspace group grows past the per-request budget
-  { id: 'boardEdit', title: 'Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal', domains: ['board'], fillLast: true,
+  { id: 'boardEdit', title: 'Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale', domains: ['board'], fillLast: true,
     // W1-B B-05: widget.setOption here by action name — the workspace group was exactly at the NL-1 reroute budget
-    actions: ['widget.setOption', 'widget.readOptions', 'widget.sendToJournal'],
-    words: [/\b(swap|switch places|trade places|exchange)\b/, /\b(duplicate|clone)\b/, /\b(a |another )?(copy|duplicate) of\b/, /\bmove\b.*\bto the (left|right|top|bottom)\b/, /\bother side\b/] },
+    // pl-exec4 (C1-025/C1-032): a chart's ◀ / ▶ step and Auto-scale here by action name too — chartSetup at 18 would pack
+    // after the lists group and be cut beside indicators + workspace; a new group would change every unmatched routing
+    actions: ['widget.setOption', 'widget.readOptions', 'widget.sendToJournal', 'chartSetup.stepBars', 'chartSetup.autoScale'],
+    words: [/\b(swap|switch places|trade places|exchange)\b/, /\b(duplicate|clone)\b/, /\b(a |another )?(copy|duplicate) of\b/, /\bmove\b.*\bto the (left|right|top|bottom)\b/, /\bother side\b/,
+      // "go back 5 bars", "nudge it forward a bar", "auto scale", "fit the price axis"
+      /\b(?:step|go|move|scroll|nudge|shift|pan)\b.*\b(?:back|backwards?|forwards?|ahead|left|right)\b.*\bbars?\b|\b(?:back|forwards?|ahead)\b.*\b(?:a|one|\d{1,3}|two|three|four|five|ten) (?:more )?bars?\b/,
+      /\bauto[- ]?scal\w*\b|\b(?:re-?)?fit\b.*\bprice (?:scale|axis)\b|\bprice (?:scale|axis)\b.*\b(?:fit|auto)\b/] },
   { id: 'workspace', title: 'Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)', domains: ['widget'],
     // CG-14 / CG-16 (corpus #769): "get rid of the AMD chart", "give me new charts for AAPL and MSFT" (widget.addCharts — the
     // existing charts stay; chartGrid.set only with a count, grid or equal-size words, or a replace)

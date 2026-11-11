@@ -321,7 +321,7 @@ export function registerChartSetupCapabilities() {
       const f = st.view.frame
       return { ...st, viewDo: { op: 'stepBar', arg: n, want: { fromRight: f.fromRight - n, toRight: f.toRight - n } } }
     },
-    describe: (b, a, { direction, bars }) => (a.viewDo ? `Stepped this chart ${bars} bar${bars === 1 ? '' : 's'} ${direction} (view only; nothing on the chart changed)` : null),
+    describe: (b, a, { direction, bars }) => (a.viewDo ? `Moved this chart ${bars} bar${bars === 1 ? '' : 's'} ${direction} (view only; nothing on the chart changed)` : null),
   })
 
   registerCapability({

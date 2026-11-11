@@ -62,7 +62,7 @@ describe('chartSetup.stepBars: the Time Navigator\'s ◀ / ▶', () => {
     const { say, h } = p.mount(...ONE('NVDA'))
     const v = withViews(h)('c')
     p.st.envelopes.push(op('chartSetup.stepBars', { direction: 'forward', bars: 1 }))
-    expect(await say('step the chart forward one bar')).toMatch(/Stepped this chart 1 bar forward/)
+    expect(await say('step the chart forward one bar')).toMatch(/Moved this chart 1 bar forward/)
     expect(v.calls).toEqual([['stepBar', 1]])
     expect([v.fromRight, v.toRight]).toEqual([149, -10])
   }, 40000)
@@ -71,7 +71,7 @@ describe('chartSetup.stepBars: the Time Navigator\'s ◀ / ▶', () => {
     const { say, h } = p.mount(...ONE('NVDA'))
     const v = withViews(h)('c')
     p.st.envelopes.push(op('chartSetup.stepBars', { direction: 'back', bars: 5 }))
-    expect(await say('go back 5 bars')).toMatch(/Stepped this chart 5 bars back/)
+    expect(await say('go back 5 bars')).toMatch(/Moved this chart 5 bars back/)
     expect(v.calls).toEqual([['stepBar', -5]])
     expect([v.fromRight, v.toRight]).toEqual([155, -4])
   }, 40000)
@@ -106,7 +106,7 @@ describe('chartSetup.stepBars: the Time Navigator\'s ◀ / ▶', () => {
     const v = withViews(h, { land: false })('c')
     fastClock()
     p.st.envelopes.push(op('chartSetup.stepBars', { direction: 'forward', bars: 1 }))
-    expect(await say('step forward a bar')).not.toMatch(/Stepped this chart/)
+    expect(await say('step forward a bar')).not.toMatch(/Moved this chart/)
     expect(v.calls).toEqual([['stepBar', 1]])
   }, 40000)
 
@@ -118,7 +118,7 @@ describe('chartSetup.stepBars: the Time Navigator\'s ◀ / ▶', () => {
     h.charts.viewDo = (ref, o, arg) => real(ref, o, o === 'stepBar' ? arg * 2 : arg)   // a chart that stepped twice as far
     fastClock()
     p.st.envelopes.push(op('chartSetup.stepBars', { direction: 'back', bars: 4 }))
-    expect(await say('back four bars')).not.toMatch(/Stepped this chart/)
+    expect(await say('back four bars')).not.toMatch(/Moved this chart/)
     expect(v.fromRight).toBe(158)
   }, 40000)
 
