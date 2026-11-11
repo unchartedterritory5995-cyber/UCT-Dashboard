@@ -101,12 +101,21 @@ function asideOf(member, raw, syms) {
   }
   return out
 }
-const asideWhy = (w) => `You asked me to leave the ${label(w.type)} alone, so I didn’t touch it. Nothing changed.`
+// The refusal names the widget left alone AND any widget of another type the words name, and says why it won't guess (AUDIT #1027,
+// u18-refresh-06): the planned change was for the widget left alone, and it is never moved onto another type on a guess.
+const asideWhy = (w, member, raw, aside) => {
+  const said = WORDS(member)
+  const others = [...new Set((raw || []).filter(x => x.type !== w.type && !aside?.has(String(x.id)) && typeNames(x.type).some(t => said.includes(` ${t} `))).map(x => label(x.type)))]
+  const elsewhere = others.length
+    ? ` I won’t guess that it was meant for the ${others.join(' or the ')} instead. Ask again naming the ${others[0]}.`
+    : ' I won’t guess another widget to make it on.'
+  return `You asked me to leave the ${label(w.type)} alone, so I didn’t touch it. The change I had planned was for the ${label(w.type)}.${elsewhere} Nothing changed.`
+}
 /** The op's widget is set aside, or another of its type is: the rest are the candidates (named one → it; none left → refused). */
 function amongRest(args, w, raw, aside, member, s) {
   const all = raw.filter(x => x.type === w.type)
   const rest = all.filter(x => !aside.has(String(x.id)))
-  if (!rest.length) return { refuse: asideWhy(w) }
+  if (!rest.length) return { refuse: asideWhy(w, member, raw, aside) }
   const said = WORDS(member)
   const named = rest.filter(x => callNames(x, all, s?.groupSyms, raw).some(n => said.includes(n)))
   if (named.length === 1) return String(named[0].id) === String(w.id) ? null : { args: { ...args, widget: named[0].id } }
