@@ -6925,6 +6925,7 @@
        "customIndicator",
        "indicators",
        "drawings",
+       "drawingExtras",
        "chartSettings",
        "charts",
        "savedScreens",
