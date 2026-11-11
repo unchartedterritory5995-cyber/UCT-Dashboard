@@ -110,23 +110,51 @@ Measured with a private probe on `8f775b6ce4` and on this change. v3+ is the sam
 | control bare `x = x + 1` | all pine:undefined | unchanged | all pine:undefined | unchanged |
 | control built-in name `hl2 = nz(hl2[1]) + 1` | pine:state / OK / OK / OK | unchanged | same | unchanged |
 
-Every v3+ "after" refusal carries the one sentence above in the screen, pane and runtime lanes (the
-rail compares the message, not just the guard); the member door shows guard `pine:cycle`.
+For every row of this table, each v3+ "after" refusal carries the one sentence above in the screen,
+pane and runtime lanes (the rail compares the message, not just the guard), and the member door shows
+guard `pine:cycle`. That holds for a binding the plot's VALUE reads; it is not true of every shape (next
+section).
+
+## Where the doors disagree (review ENG49-1122 notes 1-3)
+The host lane refuses a marked declaration only when its `Resolver` resolves the binding; the runtime
+lane asks at the statement. So in these three v3+ shapes the runtime lane refuses `pine:cycle` (the v3+
+sentence) while the screen translation, the pane translation and the member door still draw the
+script, exactly as they did at engine 48:
+
+| shape (v4, v5, v6) | screen / pane / runtime / door | engine 48 |
+|---|---|---|
+| a binding read only through `color=`: `col = close > open ? color.green : nz(col[1], color.red)`, `plot(close, color=col)` | OK / OK / pine:cycle / OK | OK x4 |
+| an unread marked declaration: `x = nz(x[1]) + 1`, `plot(close)` (and the same as a function local) | OK / OK / pine:cycle / OK | OK x4 |
+| a name an earlier user function holds: `x(a) => a * 2`, `x = nz(x[1]) + 1`, `plot(x)` (the host env holds the function under `x`, so the declaration is not marked) | pine:state / OK / pine:cycle / OK | pine:state / OK / OK / OK |
+
+TradingView compiles none of them: each reads its own name before it is declared (functions and
+variables are separate namespaces in Pine, which is why `atr = atr(14)` is legal in v4; the third shape
+has no capture). So none of these is an over-refusal: the split is the host lane's pre-existing
+leniency beside a true refusal. The census found none of the three in any source. Not changed here
+(no one-line fix is obviously safe; the host would have to refuse at the declaration site, or mark past
+a function binding); recorded under Open.
 
 ENG48 N2: the generalised check runs before the runtime lane's `runtime:conditional-history` wall
 (it sits before the initialiser is lowered), so in v3+ every door now agrees on `pine:cycle` for a
-warm-up update, stated seed or `na` seed. In v1/v2 the stated-seed warm-up keeps its runtime
+warm-up update the plot reads, stated seed or `na` seed. In v1/v2 the stated-seed warm-up keeps its runtime
 `runtime:conditional-history` (the spelling compiles there; its host path is unchanged).
 
 ## Rails and mutation proof
-`ast/v3SelfDeclaration.test.js` (164 tests):
+`ast/v3SelfDeclaration.test.js` (222 tests):
 - 11 spellings x pragmas 3, 4, 5, 6 x doors (screen, pane `strict`, `buildRuntimeIr`,
   `memberPaneDefinition`): guard `pine:cycle` and one identical message;
 - the v3+ wording pinned in full;
 - the same 11 spellings at no pragma and v2: each door's guard equals its engine-48 value, and no
   message carries the v3+ sentence;
 - 16 controls x 6 pragmas (none, 2-6): each door's guard equals its engine-48 value;
-- the detector asked directly (history read, declared before, bare read, another name, a built-in).
+- the detector asked directly (history read, declared before, bare read, another name, a built-in);
+- review note 2: EVERY name of `PINE_BUILTIN_VARIABLE_NAMES` (57 names, the set imported from
+  `pine.js`, not copied): the detector does not ask `<n> = nz(<n>[1]) + 1`, and at v5 its four-door
+  guards equal its v2 guards with no `pine:cycle`. Measured on `8f775b6ce4` with a private probe, every
+  one of the 57 names had v5 == v2 at all four doors, and engine 49 equals engine 48 for all of them at
+  v2 and v5; so the rail pins the engine-48 path. Iterating the set cannot see a name removed from it,
+  so a second test requires a floor of the 26 built-in variables the set exists for (the set may grow,
+  not shrink) and a non-empty set.
 
 Mutations (private script: copy the file, exact-string edit, run `v3SelfDeclaration` + `b0NaSeed` +
 `listingSeed` (245 tests), restore from the copy, never `git checkout`; after each restore the file
@@ -152,6 +180,18 @@ equalled the copy and `git hash-object` equalled `HEAD`'s blob; `git status` cle
 R5 is held by the `shadowSlot` control alone (a global `var` the runtime lane keeps as a slot, shadowed
 by a function local); R3 by `shadowSlotTop`, `paramMut`, `param` and `loopShadow`; M6 by `builtinName`
 and the direct detector test; M4 by the function-local spellings.
+
+After the review (ENG49-1122 note 2), same method, now over 303 tests (the three files with the new
+rail):
+
+| mutant | edit | result |
+|---|---|---|
+| C0 control | no-op comment on the host check | GREEN 303/303 |
+| X4 (the reviewer's) | `'vwap'` removed from the set | KILLED (1 failed: the floor); survived 245/245 before |
+| X6 | `'obv'` removed from the set | KILLED (1 failed: the floor) |
+| X7 | `'time_tradingday'` removed from the set | KILLED (1 failed: the floor) |
+| X5 | the set emptied | KILLED (6 failed) |
+| M6 (re-run) | the exclusion check removed from the detector | KILLED (62 failed: the 57 per-name rows among them) |
 
 ## Runs
 Node 20.20.2 unless stated; every heavy run under `heavy_lock`, vitest `--maxWorkers=1`; free RAM
@@ -189,6 +229,10 @@ Node 20.20.2 unless stated; every heavy run under `heavy_lock`, vitest `--maxWor
   `test_pine_runtime_engine_identity`, `test_pine_runtime_composition`,
   `test_pine_runtime_service_smoke`, `test_pine_runtime_deploy_gate`, `test_pine_runtime_dockerfile`:
   176 passed.
+- After the review fixes (rail and comment changes only: the only code change is `export` on
+  `PINE_BUILTIN_VARIABLE_NAMES`): `v3SelfDeclaration`, `b0NaSeed`, `listingSeed`, `pine.convergence`,
+  `thinkscript.selfref`, `w34I4SelfReference`: 6 files, 371/371. The whole engine folder and the
+  harness were not re-run for these changes.
 - Vendor harness, runtime ON (`VENDOR_HARNESS_RUNTIME_ON=1`), default directory `tests/fixtures/vendor`
   (369 captures; lane measured runtime-on, runtime lane reached 106, drew 38, declined 68):
   before (engine 48: `pine.js`, `pineRuntimeFrontend.js` and `scriptEngineVersion.js` swapped to their
@@ -209,14 +253,21 @@ changes for those scripts. None of the 1605 census sources moves.
   `pine:state` or a translation).
 - A declaration named after a built-in variable (`close = close[1] + 1`) is not asked, for the same
   reason.
-- A block-valued declaration (`x = if … nz(x[1]) …` / `x = switch …`) is not covered: its binding is
-  built by the if/switch fold, not the two marked sites. The census found none in v3+.
-- A marked declaration whose value nothing reads is never resolved, so the host does not refuse it
-  (nothing is drawn from it either). The runtime lane refuses at the statement regardless.
+- The three shapes where only the runtime lane refuses ("Where the doors disagree"): a binding read
+  only through `color=`, an unread marked declaration, a name an earlier user function holds. None
+  compiles in TradingView; the host and the door still draw them (pre-existing).
+- Review note 5: the honest v3+ spelling of the SuperSmoother keystone, `ss = 0.0` then
+  `ss := c1*… + c2*nz(ss[1], close) + c3*nz(ss[2], close)`, refuses `pine:state` at the screen, the
+  pane and the door (the runtime lane draws it). This predates engine 49 (the `x = 0.0` + `x := …`
+  control row shows the same); moving the keystone fixture to v2 only makes it visible.
+- Review note 6: a block-valued declaration is not covered, because its binding is built by the
+  if/switch fold, not the two marked sites. `x = if close > open` / `nz(x[1]) + 1` / `else` / `0.0`,
+  `plot(x)` is still DRAWN in v3+ (OK at all four doors, v4-6) though TradingView does not compile it;
+  `x = switch …` is `pine:block` in the host and OK in the runtime lane. The census found none in v3+.
 - The engine-48 open items not about this rule (MUTABLE binding coverage in the runtime twin for
   v1/v2, LANE2-r1r3 N2 and N4's v2 PLAIN asymmetry) are untouched.
 
 ## Logs
 `C:/Users/Patrick/uct-worktrees/_resume-2026-11-01/runs/eng49/` (census-*.json/log, probe-*.json,
-mut-*.log, mut-results-*.json, suite-engine.log, service-*.log, hp-*.log, smoke-*.log,
+mut-*.log, mut-results-*.json, names-*.json (the built-in name probe), suite-engine*.log, service-*.log, hp-*.log, smoke-*.log,
 pytest.log, harness-base/tip).
