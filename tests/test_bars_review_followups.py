@@ -174,3 +174,74 @@ def test_N2_a_key_queued_while_the_last_runner_exits_is_still_healed(monkeypatch
     assert _until(lambda: not bars_fetch._tail_gapfill_pending)
     assert _until(lambda: sem.acquire(blocking=False))      # the slot came back
     sem.release()
+
+
+# ── #1051: covered-5m live proof lags each 5m boundary ──────────────────────
+
+TUE = (2026, 11, 10)
+THIN_TAIL = et(*TUE, 9, 40)
+BOUNDARY = et(*TUE, 10, 5)                     # the 10:00 bucket just closed
+
+
+def _freeze(monkeypatch, now_ts):
+    fake = types.SimpleNamespace(**{k: getattr(_real_time, k) for k in dir(_real_time)
+                                    if not k.startswith("__")})
+    fake.time = lambda: float(now_ts)
+    monkeypatch.setattr(bars_fetch, "_time", fake)
+
+    class _DT(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime.fromtimestamp(now_ts, tz)
+
+        @classmethod
+        def utcnow(cls):
+            return datetime.utcfromtimestamp(now_ts)
+    monkeypatch.setattr(bars_fetch, "datetime", _DT)
+
+
+@pytest.fixture
+def live(monkeypatch):
+    from api.services import bars_live_store as bls
+    monkeypatch.setenv("BARS_LIVE_COVERAGE_ENABLED", "1")
+    bls._reset_for_tests()
+    bls._covered5.add("THIN")
+    bls._state["last_push_mono"] = bls._now_mono()          # stream alive
+    yield bls
+    bls._reset_for_tests()
+
+
+def _watermark(bls, minute_start_ts):
+    bls._state["watermark_ms"] = minute_start_ts * 1000
+
+
+def test_1051_boundary_lag_skips_the_request_path_heal(live, monkeypatch):
+    # 10:05:03 — the stream has delivered through 10:03 (proof 10:04:00); the 10:04
+    # minute is landing now. Before: unverified -> provider heal on the request path.
+    _watermark(live, et(*TUE, 10, 3))
+    _freeze(monkeypatch, BOUNDARY + 3)
+    bars_fetch.set_request_interactive(True)
+    assert bars_fetch.intraday_tail_status("THIN", "5", THIN_TAIL)["tail_status"] == "unverified", \
+        "no currentness is claimed on the wire"
+    assert bars_fetch._needs_fresh(THIN_TAIL, "5", "THIN") is False
+
+
+def test_1051_CONTROL_proof_still_trailing_after_the_grace_falls_through(live, monkeypatch):
+    _watermark(live, et(*TUE, 10, 3))
+    _freeze(monkeypatch, BOUNDARY + bars_fetch._LIVE_PROOF_BOUNDARY_GRACE_S + 1)
+    bars_fetch.set_request_interactive(True)
+    assert bars_fetch._needs_fresh(THIN_TAIL, "5", "THIN") is True
+
+
+def test_1051_CONTROL_proof_two_minutes_short_falls_through(live, monkeypatch):
+    _watermark(live, et(*TUE, 10, 2))
+    _freeze(monkeypatch, BOUNDARY + 3)
+    bars_fetch.set_request_interactive(True)
+    assert bars_fetch._needs_fresh(THIN_TAIL, "5", "THIN") is True
+
+
+def test_1051_CONTROL_no_minute_yet_this_epoch_falls_through(live, monkeypatch):
+    live._state["watermark_ms"] = None
+    _freeze(monkeypatch, BOUNDARY + 3)
+    bars_fetch.set_request_interactive(True)
+    assert bars_fetch._needs_fresh(THIN_TAIL, "5", "THIN") is True

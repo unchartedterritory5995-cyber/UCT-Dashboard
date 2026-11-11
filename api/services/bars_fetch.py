@@ -925,6 +925,44 @@ def _ext_session_verified(ticker: str, tf: str, last_ts) -> bool:
     return vt is not None and end is not None and vt >= end
 
 
+#: Seconds after a 5m boundary during which the live stream's proof may trail the new
+#: frontier by its final minute without a request-path provider heal (#1051 note).
+_LIVE_PROOF_BOUNDARY_GRACE_S = 60
+
+
+def _live_proof_in_boundary_grace(ticker: str, tf: str, now: float | None = None) -> bool:
+    """True when a covered 5m series' stream proof trails the newest closed bucket ONLY
+    by that bucket's final minute, and that minute closed less than
+    `_LIVE_PROOF_BOUNDARY_GRACE_S` ago.
+
+    ⭐ WHY THIS IS SAFE. `proven_through_s` is the end of the newest minute the alive
+    stream has delivered for the WHOLE market. Its minute aggregates land 2-5 s after
+    the minute closes, so for those seconds after every 5m boundary the proof reads one
+    minute short of the new bucket's end and a thin covered name fell through to a
+    provider heal on the request path — hundreds of them at once, every 5 minutes.
+    In that window everything up to the final minute IS proven, and the final minute is
+    the one the stream is delivering right now (the provider, asked at the same instant,
+    has no newer data for it). After the grace, a proof that still trails means the
+    stream really is lagging, and the fall-through repairs as before. This only skips
+    the heal: the wire still reports `unverified` (no currentness is claimed), so the
+    client's catch-up poll re-asks and reads the minute the stream has by then written."""
+    if tf != "5":
+        return False
+    try:
+        from api.services import bars_live_store as _bls
+        proven = _bls.proven_through_s(ticker)
+        if proven is None:
+            return False
+        now_ts = float(now if now is not None else _time.time())
+        frontier = expected_completed_ext_bucket(tf, now_ts)
+        if frontier is None:
+            return False
+        end = int(frontier) + 300
+        return proven >= end - 60 and now_ts < end + _LIVE_PROOF_BOUNDARY_GRACE_S
+    except Exception:                      # noqa: BLE001 — abstain: the normal rules run
+        return False
+
+
 def _needs_fresh(last_ts: int | None, tf: str, ticker: str | None = None) -> bool:
     """True if SQLite data is stale enough to warrant a delta fetch.
 
@@ -947,6 +985,8 @@ def _needs_fresh(last_ts: int | None, tf: str, ticker: str | None = None) -> boo
                 # fall through so the normal rules (incl. the extended re-ask, which
                 # marks verified) can repair it — e.g. a new epoch with no minute yet.
                 if tf == "D" or intraday_tail_status(ticker, tf, last_ts)["tail_status"] != "unverified":
+                    return False
+                if _live_proof_in_boundary_grace(ticker, tf):
                     return False
         except Exception:
             pass
