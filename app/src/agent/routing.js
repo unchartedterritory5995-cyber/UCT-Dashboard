@@ -76,8 +76,10 @@ export const GROUPS = [
       /\btemplates?\b/, /\b(?:make|making|made)\b.*\blooks? (just )?like\b|\blooks? (just )?like (?:the|that|my|this) (?:\w+ )?(?:chart|one)\b/,/\b(describe|summari[sz]e|walk me through)\b.*\bset-?ups?\b/, /\bwhat(?:'s|’s|s| is) (?:the |this |my )?(?:chart'?s? )?set-?up\b/,/\bsame (look|style|colou?rs|settings|setup) as\b/, /\bcopy (the |its |this |that )?(look|style|colou?rs|settings|setup)\b/,
       /\b(custom|favou?rite|starred?|star) (time ?frames?|intervals?)\b|\b(remove|delete|drop|un-?star|star)\b.*\b(time ?frames?|intervals?)\b/,
       /\b(same|new|own) (%|percent|price) scale\b|\bgroup only\b|\bhide (the )?base\b/,
-      // C1-035 / C1-037 / C1-040: a whole group compared, removed or re-scaled ("compare against the semis group", "remove the semis overlay")
-      /\b(?:compar\w*|overlay\w*|versus|vs|against|remove|drop|take off|clear)\b.*\b(?:groups?|sectors?|industr(?:y|ies)|themes?)\b|\b(?:groups?|sectors?|industr(?:y|ies)|themes?|semis)\b.*\b(?:overlays?|scale|comparisons?)\b/,
+      // C1-035 / C1-037 / C1-040: a whole group compared, removed or re-scaled ("compare against the semis group", "remove the semis overlay").
+      // The verb (compare… / overlay / remove / drop / take off / clear) must govern the group noun within six words: a bare
+      // "vs … themes" or a plural "overlays … group" (indicator talk) never reaches chartSetup.
+      /\b(?:compar\w*|overlay|remove|drop|take off|clear)\s+(?:[\w’'-]+\s+){0,6}?(?:groups?|sectors?|industr(?:y|ies)|themes?)\b|\b(?:groups?|sectors?|industr(?:y|ies)|themes?|semis)\b.*\b(?:overlays?|scale|comparisons?)\b/,
       // chart range bar, Reset view, hide-all: chartSetup's own capabilities, by the words a member uses for the buttons
       // temporary reachability; replace with description-driven discovery
       /\b(?:range|show|frame|zoom)\b.*\b(?:3m|6m|ytd|1y|5y|year to date|(?:one|1|last|past|five|5) years?|(?:three|3|six|6) months)\b|\bsince (?:the )?ipo\b/,

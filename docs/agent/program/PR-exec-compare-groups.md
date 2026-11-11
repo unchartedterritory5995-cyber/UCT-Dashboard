@@ -107,3 +107,5 @@ C1-035, C1-037, C1-040: MISSING → VERIFIED (simulated). Test: `agentCompareGro
 - Group names come from `/api/compare/groups`, so the words must match those names ("semis" works only when exactly one name starts with "semi").
 - No fast path: group requests go through the model, which passes the member's words. UCT then matches them.
 - "Group only" (hide the base chart) and the per-symbol scale remain `chartSetup.compareDisplay`.
+
+- Tightened routing word rule (chartSetup, C1-035/037/040): the compare-group verb (compar… / overlay / remove / drop / take off / clear) must directly govern the group noun (group / sector / industry / theme) within six words; `vs` / `versus` / `against` / plural `overlays` no longer fire it. Restores agentNoLookbehindEquivalence corpus rows 176 ("served vs dark … stock.themes") and 191 ("… overlays / lines … route the indicators group") to their frozen master routing.
