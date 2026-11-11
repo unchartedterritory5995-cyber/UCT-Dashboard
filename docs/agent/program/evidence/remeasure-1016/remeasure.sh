@@ -15,7 +15,7 @@
 # Model: scripted, jsdom. Nothing here is a real model or a real browser. No network, no backend.
 set -u
 WT=${WT:-/c/w/pl-auto-remeasure}                 # the run tree: origin/master + this evidence folder only
-MEASURED=${MEASURED:-69ab78db82dec1ebeb242e3ecf7edfaf63b978a4}   # origin/master at measurement time
+MEASURED=${MEASURED:-75421184a33c10f42201c43f6bd2d6391594f4c1}   # origin/master at measurement time (attempt-1: 69ab78db82; attempt-2: 75421184a3)
 HB=${HB:-6f9abd8515}                             # harness commit (agent/pl/autotest-2) that recount.mjs is taken from
 WHO=${WHO:-pl-auto}
 E=$WT/docs/agent/program/evidence/remeasure-1016
@@ -56,7 +56,7 @@ for f in $FILES; do
   { hdr; echo "# cmd: vitest run src/$f --reporter=default --reporter=json"; } > $OUT/packet/$n.log 2>&1
   lockrun node node_modules/vitest/vitest.mjs run src/$f --reporter=default --reporter=json "--outputFile=$(W $OUT/packet/$n.json)" >> $OUT/packet/$n.log 2>&1
   echo "# exit=$? end $(date -u +%H:%M:%SZ)" >> $OUT/packet/$n.log
-  echo "$n: $(grep -E '^ *Test Files' $OUT/packet/$n.log | tail -1 | sed 's/\x1b\[[0-9;]*m//g') /$(grep -E '^ *Tests ' $OUT/packet/$n.log | tail -1 | sed 's/\x1b\[[0-9;]*m//g') $(tail -1 $OUT/packet/$n.log)"
+  echo "$n: $(sed 's/\x1b\[[0-9;]*m//g' $OUT/packet/$n.log | grep -E '^ *Test Files' | tail -1) /$(sed 's/\x1b\[[0-9;]*m//g' $OUT/packet/$n.log | grep -E '^ *Tests ' | tail -1) $(tail -1 $OUT/packet/$n.log)"
 done
 
 # 2. src/agent
