@@ -896,7 +896,7 @@
    "title": "VIK, June 2024: short, shallow, and the trail",
    "steps": [
     "VIK, 2024. Listed in May, it rests only 2.0 weeks under its IPO high, just 9% deep. The shallow end.",
-    "Short and tight is fine for a new issue. Light volume on the pullbacks, heavy on the up days.",
+    "Short and tight is fine for a new issue. IBD wants light volume on the pullbacks, heavy on the way up.",
     "2024-06-28: it clears the IPO high on 2.8x volume. Buy at market, 33.38. Stop a few cents under the day's low, 32.62.",
     "Failure mode: stopped within days. Instead 3R comes in 10 days, then 5R. It rolls over after: the trail matters."
    ],
@@ -1010,7 +1010,7 @@
    "q": "The buy is a market order, placed once price trades through the IPO high in regular hours.",
    "answer": "True",
    "why": "True. Price trades above the IPO high in regular hours, and entries are market orders. No buys outside regular hours.",
-   "lesson_line": "Trade through the IPO high, regular hours, market order. Alert at the pivot.",
+   "lesson_line": "Trade through the IPO high, regular hours, market order.",
    "facts": [
     "c04",
     "h22",
@@ -1104,7 +1104,7 @@
     "No, it must hold the listing-day low": "The listing-day low is a level to watch. The base is the rest under the high, not a bounce off the low."
    },
    "house": true,
-   "story": "A stock listed four months ago. Its highest high came in week two. It has rested under that high for three weeks, with no close above it."
+   "story": "A stock listed six weeks ago. Its highest high came in week two. It has rested under that high for four weeks, 12% deep. Its low holds above the IPO price, and nothing has closed above the high."
   },
   {
    "key": "q09",
@@ -1256,7 +1256,7 @@
     },
     "round": 2
    },
-   "why": "61.53. One R is the fill minus the stop. Add three of those to the fill. KRMN reached it the next day.",
+   "why": "61.53. One R is the fill minus the stop. Add three of those to the fill. This trade reached it the next day.",
    "lesson_line": "Know your 3R before the open. The first third comes off there.",
    "facts": [
     "h05",
@@ -1422,7 +1422,7 @@
    "choices": [
     "Buy now with a wide stop",
     "Wait; no buys in the listing week",
-    "Buy Thursday; momentum is proof"
+    "Buy the close; momentum is proof"
    ],
    "answer": "Wait; no buys in the listing week",
    "why": "Wait. Never buy in the listing week. Wait for the base to emerge; Stockbee says let the flipping phase be over.",
@@ -1434,7 +1434,7 @@
     "c43"
    ],
    "wrong": {
-    "Buy Thursday; momentum is proof": "Buying the first heated days is a named mistake. Momentum has no base and no stop.",
+    "Buy the close; momentum is proof": "Buying the first heated days is a named mistake. Momentum has no base and no stop.",
     "Buy now with a wide stop": "A wide stop does not fix a buy with no base. Wait for the pivot."
    },
    "house": true,
@@ -1623,7 +1623,7 @@
     "Neither; it needs a 200-day": "A young listing has no 200-day yet. That does not cancel the setup."
    },
    "house": true,
-   "story": "A stock listed three months ago rests for 12 sessions, 22% deep, under its post-listing high. It looks like a flat base."
+   "story": "A stock listed three months ago rests for 16 sessions, 18% deep, under its post-listing high. It is the first rest, and it looks like a flat base."
   },
   {
    "key": "q30",
@@ -1663,7 +1663,7 @@
     "Yes, the dip was shallow"
    ],
    "answer": "No, a V into the pivot is off",
-   "why": "No. A V from the base low back to within 5% of the pivot in 5 sessions or fewer, with no pause, ends the base. Kedia: that kind of time compression fails often.",
+   "why": "No. A V ends the base. It runs from the base low to within 5% of the pivot in 5 sessions or fewer, with no pause. Kedia: that kind of time compression fails often.",
    "lesson_line": "A fast V straight into the pivot is not a base. It has no right side.",
    "facts": [
     "c15",
@@ -1942,7 +1942,7 @@
     "Hold everything for the 10-day": "The 10-day trail is the floor. A climax run is a reason to sell a big part."
    },
    "house": true,
-   "story": "Your new-issue long has run 400% in seven weeks. It is now jumping several percent a day on huge volume."
+   "story": "Your new-issue long has run 400% in seven weeks. It was up three days running, and today it gaps up again on huge volume."
   },
   {
    "key": "q43",
@@ -1953,11 +1953,11 @@
    "q": "What is the call?",
    "choices": [
     "Take it at half size",
-    "Pass; the base undercut the IPO open",
+    "Pass; the base undercut the IPO price",
     "Take it; a shakeout is healthy"
    ],
-   "answer": "Pass; the base undercut the IPO open",
-   "why": "Pass. A base that undercuts the IPO price is off. IBD and MarketSmith India want the base to hold above it. SPOT undercut by 18% and the breakout reached 0.0R.",
+   "answer": "Pass; the base undercut the IPO price",
+   "why": "Pass. A base that undercuts the IPO price is off. IBD and MarketSmith India want the base to hold above it. Our SPOT case, a direct listing, undercut its opening price by 18% and its breakout reached 0.0R.",
    "lesson_line": "A base that sinks under the IPO price has a hole in its floor.",
    "facts": [
     "d19",
@@ -1967,11 +1967,11 @@
     "c14"
    ],
    "wrong": {
-    "Take it; a shakeout is healthy": "This is no shakeout. The base sat well under the opening price for the whole rest.",
+    "Take it; a shakeout is healthy": "This is no shakeout. The base sat under the IPO price for two weeks.",
     "Take it at half size": "Size is not the fix. The base failed the floor."
    },
    "house": true,
-   "story": "A direct listing opens at 165.90. Its first base then dips to a low of 135.51 before the stock trades through its high on day 21."
+   "story": "A new issue priced its IPO at 20.00 and opened at 21.00. Its IPO high is 23.50. The first base closes under 20.00 for two weeks, with a low of 19.00, before the stock trades through 23.50."
   },
   {
    "key": "q44",
@@ -2114,14 +2114,14 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "ipo.depth_a_plus",
-   "q": "How do you grade each base on depth?",
+   "q": "Two IPO bases are otherwise similar. Which one grades higher on depth?",
    "choices": [
-    "Both A+; depth does not grade",
-    "12% is B-; 33% leans A+",
-    "12% leans A+; 33% is B-"
+    "The 12% deep base",
+    "The 33% deep base",
+    "Neither; depth does not grade"
    ],
-   "answer": "12% leans A+; 33% is B-",
-   "why": "12% leans A+; 33% is B-. A depth under 20% is the A+ version; 30% to 35% is B-. Grading stays a judgment.",
+   "answer": "The 12% deep base",
+   "why": "The 12% deep base. Shallower bases grade higher: under 20% is the A+ version, and 30% to 35% sits down at B-. Grading stays a judgment call.",
    "lesson_line": "Shallower bases grade higher. Under 20% leans A+, 30% to 35% is B-.",
    "facts": [
     "c11",
@@ -2129,8 +2129,8 @@
     "h35"
    ],
    "wrong": {
-    "Both A+; depth does not grade": "Depth is one of the signs. It helps decide the grade.",
-    "12% is B-; 33% leans A+": "That has it backwards. Shallower bases grade higher."
+    "The 33% deep base": "That has it backwards. Shallower bases grade higher.",
+    "Neither; depth does not grade": "Depth is one of the signs. It helps decide the grade."
    },
    "house": true,
    "story": "Two IPO bases are otherwise similar. One is 12% deep. The other is 33% deep."
@@ -2174,7 +2174,7 @@
     "No; too stretched and past 4%"
    ],
    "answer": "No; too stretched and past 4%",
-   "why": "No. A long more than 10% above its 10-day average is skipped, and a gap this size is also past 4% over the pivot. Skip it and wait for a new setup.",
+   "why": "No. We skip a long more than 10% above its 10-day average. A gap this size is also past 4% over the pivot. Skip it and wait for a new setup.",
    "lesson_line": "A gap-and-go is not a buy. Skip it and let the next setup come.",
    "facts": [
     "h13",
@@ -2186,7 +2186,7 @@
     "Yes, with a tight stop": "The stop stays honest. A bigger stop distance shrinks the shares and does not make a stretched entry fine."
    },
    "house": true,
-   "story": "A new issue gaps through its IPO high and closes up 21%. It is 18% over its 10-day average."
+   "story": "A new issue gaps up and opens 12% above its IPO high. At the open it is 18% over its 10-day average."
   },
   {
    "key": "q52",
@@ -2201,7 +2201,7 @@
     "Yes; it is a winner"
    ],
    "answer": "No; hold only if up 5R",
-   "why": "No. We hold through a report only if the trade is up 5R. At 2R, plan to sell or trim before the report.",
+   "why": "No. We hold through a report only if the trade is up 5R. At 2R, plan to be out before the report.",
    "lesson_line": "Hold through a report only when you are up 5R. Otherwise, be out.",
    "facts": [
     "h08",
@@ -2255,7 +2255,7 @@
     "Hold; wait for it to recover"
    ],
    "answer": "Get out; the loss is already past 2R",
-   "why": "Get out. On a gap through the stop, the first 30-minute low is the new stop, and if the first 30 minutes take the loss past 2R, we get out.",
+   "why": "Get out. On a gap through the stop, the first 30-minute low is the new stop. If the first 30 minutes take the loss past 2R, we get out.",
    "lesson_line": "A gap through the stop gets 30 minutes. Past 2R, get out.",
    "facts": [
     "h06",
@@ -2274,7 +2274,7 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "ipo.fundamentals",
-   "q": "What does it do to the grade?",
+   "q": "What does the earnings dip do to the grade?",
    "choices": [
     "Nothing; fundamentals never matter",
     "It voids the setup",
@@ -2483,7 +2483,7 @@
     "Base B: up days heavier than down days"
    ],
    "answer": "Base B: up days heavier than down days",
-   "why": "Base B. Light volume on the pullbacks and heavy on the up days is the healthy pattern, and the right half's up-day volume should exceed its down-day volume.",
+   "why": "Base B. Light volume on the pullbacks and heavy on the up days is the healthy pattern. On the right half, up-day volume should exceed down-day volume.",
    "lesson_line": "Two bases can look alike. Volume on the right half tells them apart.",
    "facts": [
     "c18",
@@ -2590,7 +2590,423 @@
   "Chart questions (q59 KRMN asof 2025-09-04, q60 SPOT asof 2018-05-01) are written for the importer to resolve from our own history. SPOT listed on 2018-04-03, so fewer than 120 bars exist before the as-of date and the chart will start on the first trading day; if the importer needs a full window, the checker should swap q60 for another near-miss. The keys rest on the dossier's reads (d01, d02, d19, d20), not on reading the picture. The brief's pair (a winner and a near-miss) is kept; the bars were not checked here.",
   "Fills and stops in the walk-throughs and examples: the scan filled at 10 cents over the IPO high (or the open on a gap) and stopped under the lower of the breakout day's and the prior day's lows; a live market order fills a little differently.",
   "IBD's round-trip sell signal (a breakout that gives back a 10% gain, Habit 2014) and O'Neil's 8-week hold are source ideas, not house rules; nothing in this unit teaches them. MarketSmith India's 8% maximum loss (S6) is not quoted because the stop ceiling is pending (D-005). The Lifecycle Trade team's findings (Donnelly's 91% statistic) are not used because the book could not be read.",
-  "Sources: MarketSmith India's blog host no longer resolves, so S6 is cited by its Internet Archive capture of 2021-03-04. IBD's investors.com pages (S37, S38, S39) and TraderLion (S22) are cited by their Internet Archive captures because the live pages do not serve the quoted text to our checker; the quote check found every one on those captures. The sentence 'pass on the first heated days' is on MarketSmith India's 2018 column (S5, a near copy of IBD's), not on the S39 capture."
+  "Sources: MarketSmith India's blog host no longer resolves, so S6 is cited by its Internet Archive capture of 2021-03-04. IBD's investors.com pages (S37, S38, S39) and TraderLion (S22) are cited by their Internet Archive captures because the live pages do not serve the quoted text to our checker; the quote check found every one on those captures. The sentence 'pass on the first heated days' is on MarketSmith India's 2018 column (S5, a near copy of IBD's), not on the S39 capture.",
+  "Cold check 2026-11-10: 58 pass (15 fixed), 1 fix, 10 cut. Look first at: (1) q60 (SPOT chart) cut: only 21 bars exist before 2018-05-01 and a direct listing's 'IPO price' is not its opening price (D-057); the examples also lean on pending numbers, since a 20% depth cap (D-055) would void KRMN (22%), LULU (26%) and BSY (29%), and a 15-session minimum (D-056) would void VIK (2.0 weeks). (2) q46 (MDB) held on D-005: the card files it under the stop-width risk, so 'nothing went wrong' cannot stand until the 8% skip line is ruled; LULU's 7.3% and MDB's 6.7% stops sit far past A13's 3%. (3) Nine duplicates cut (q20, q21, q23, q28, q40, q48, q50, q62, q66); q36 is the only share count (364 shares = 20.9% of the account, inside the 40% cap)."
  ],
- "verify": {}
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "KRMN numbers match the dossier row and the bars (IPO high 57.315 = 57.32, listed 2025-02-13, buy 57.42, stop 56.05 = 2.4%, 2.2x, 3R the next day). Trim a third at 3R is B19.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "VIK numbers match the dossier row (2.0 weeks, 9%, buy 33.38, stop 32.62, 3R in 10 days, 5.1R). Step 2 said VIK itself had light volume on the pullbacks and heavy on the up days: the dossier row says no such thing about VIK, so it now gives IBD's rule. Note 2.0 weeks is 10 sessions: a 15-session minimum (D-056) would void VIK.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "MA numbers match the dossier failure row (6.6 weeks, 17%, 1.6x, buy 10.96, stop 10.41 = 5.0%, low 10.18 on 2007-01-18, best 0.0R). Re-buy only on a new trigger is B21.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "IBD i13 plus the card's structure line; wrong notes are true. Proposed criteria only.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "Card c05 (settled never_listing_week) plus MarketSmith India m01. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "Pivot = left-side high, card c03 and MSI m03. Fill sentence reads 'highest high'; fine.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "Trigger and market order: settled card line, E57, E58. Lesson line ended on 'Alert at the pivot', which no source teaches: removed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "Stop a few cents under the breakout day's low: F62 and the settled card stop. Wrong notes true (c42 for the base-low mistake).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "IBD i11 (new issues pull back hardest in a correction), c44. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "IBD i09/i10 and card c18; key is the IBD wording, which two sources agree on.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "Story said 'listed four months ago' and 'rested for three weeks', which leaves about 14 weeks unaccounted for, and gave no depth or floor: the key (a first rest) depended on facts the story did not give. Story now: listed six weeks ago, high in week two, rested four weeks, 12% deep, low above the IPO price, no close above. Uses no pending number (12% is under every D-055 option; 4 weeks is over every D-056 option).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "IBD i01/i03: usually two to five weeks, rare seven days. Not keyed on the pending 10-session minimum. 'Under a week' wrong note true (shortest rare case is seven days).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "Card ipo.right_side_top_half (proposed gate). Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "Card c19: AVWAP anchored at the listing day. Definitional, true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "IBD i05 verbatim: 10 cents above the left-side high; the card's market-order note c03.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "D46 (Red: mostly cash) and the settled card line inv_market_red. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "B23 and the settled card liquidity line. Right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "Arithmetic: 57.42 + 3 x (57.42 - 56.05) = 61.53. KRMN fills match the dossier and the bars. Not a sizing item. The why named KRMN, the hidden ticker of chart question q59: now anonymous.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "Arithmetic: (54.62 - 38.63) / 54.62 = 29.27 -> 29.3. BSY row matches the dossier. Computes depth only; the 35% cap (D-055) is not asked.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "Arithmetic: (19.53 - 18.10) / 19.53 = 7.32 -> 7.3. LULU row matches. A13 'usually within about 3%' is the settled line used; the 8% skip line (D-005) is not asked.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "Arithmetic: 57.32 x 1.04 = 59.61. C28 settled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "60.10 / 57.32 = 1.0485, so 4.8% past the pivot: over C28's 4%. Key right and settled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "cut",
+   "notes": "Duplicate of q05: both key 'the stop is under the breakout day's low, not the base low' (q05 keeps it, with the base-low mistake as a wrong choice).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "cut",
+   "notes": "Near-duplicate of q07 and q63: all three key 'up-day volume above down-day volume on the right side' (c18/i10). q07 is the recall, q63 the applied case; both kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "Rule: no buys on the listing day or in the listing week (c05, m01). One wrong choice was 'Buy Thursday' in a story already set on Thursday, which is the same as 'Buy now': now 'Buy the close; momentum is proof'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "cut",
+   "notes": "Near-duplicate of q22 (and q02): a freshly listed stock running, the answer 'wait for the base'. q22 keeps the applied case.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "Arithmetic: 1,200,000 x 1.4 = 1,680,000. The 1.4x is the card's proposed breakout-volume line (c06), not pending; D-006 may turn it into a cue and the answer would still be the card's arithmetic.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "Settled card after_entry_stop: the stop is the exit, a pivot breach is a warning (c17, MSI m05). Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "Card c07 (A+ volume: 2x the 10-day or the highest since listing) and IBD i20 (close near the highs). Proposed cue; key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "B22: a report 2 sessions away is inside the 3-session window. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "cut",
+   "notes": "Near-duplicate of q29: both key 'a young stock's rest under its post-listing high is an IPO base, the listing date decides'. q29 keeps the fuller case.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "Story said 12 sessions and 22% deep: both numbers sit on pending-owner options (D-056 minimum 7/10/15; D-055 cap 20/35/50), so a 15-session minimum or a 20% cap would flip the key. Story now 16 sessions, 18% deep, first rest: an IPO base under every option, and still not a flat base. Key rests on c30/c30b (the listing date decides).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "Card c32: a young listing has no 200-day and one rest; tightening is a grade cue. A 4-month-old stock has about 80 sessions, so no 200-day. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "Card c15 (V into the pivot ends it, proposed) with 4 sessions and 3%, inside the card's 5 and 5%; Kedia k01. A 25% drop is not 'shallow', so the wrong choice 'the dip was shallow' is a weak distractor but not a false note. Why had a 24-word sentence: split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "A3/A5: size from the stop, never pull the stop in; 7.3% from q17. No share count asked, so no 40% cap check needed. D-005 (8% skip line) is not keyed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "F63 and B19. 62.00 opens above 3R 61.53 (57.42 + 3 x 1.37). Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "Card c40 (a cue, not a rule), proposed. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "Dossier base rate: 36 of 57 stopped before 3R (63%), 26.3% reached 3R. The question says 'in our scan', which is right; the scan used a fixed stop and no trims.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "Arithmetic: 100,000 x 0.5% = 500; risk per share 1.37; 500 / 1.37 = 364.96 -> 364 shares. Cap check A7: 364 x 57.42 = 20,901 = 20.9% of the account, under 40%.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "E52 settled: 10-day for fast movers, 21-day for steadier ones, sell on a close below. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "C33 settled: under 1R after 10 trading days, sell. 0.4R is under 1R.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "B21 settled plus the dossier's MA failure (stopped one session later, then ran for years). Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "cut",
+   "notes": "Duplicate of q39: both key B21 (re-buy only on a new trigger). q39 keeps the applied case.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "E51 and B19: another third at 5R, trail the last third; breakeven at the first trim is the card default. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "C34 settled ('sell a big part into it, a judgment call'). The story gave only a 400% run and 'jumping several percent a day', not a climax: it now adds three straight up days and a gap up today (Bracco's burst boxes in sizing_rule B26).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "The key leaned on SPOT's opening price as the 'IPO price' (D-057, pending: offer price, IPO open or listing-day close; SPOT's own reference price was lower than its base low, from memory, unverified), and the story used SPOT's numbers. Story now a plain priced IPO (20.00 price, base closing under it two weeks, low 19.00, depth 19%), which fails the floor under every D-057 option (MSI m02, IBD i19). SPOT stays in the why as the dossier's case.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "CAVA is 318 sessions after listing (dossier near-miss 2); past every D-002 option (25 or 252). Right under either.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "NWSA row matches the dossier (spin-off 2013-06-19, 6 weeks, 10%, 0.75x, best 0.82R). Key rests on volume below the base's own average (IBD i20), not on the spin-off question (D-054).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "fix",
+   "notes": "The card files MDB under ipo.stop_width (a stop near the 8% ceiling is the risk the dossier warns about), and 'nothing went wrong, every rule passed' rests on the 8% skip line, which is pending (D-005; D-005's default is one ADR, and A13 says stops usually sit within about 3%). A 6.7% stop may be a skip under one option. Hold for the owner's D-005 ruling; q17 and q32 teach the wide-stop sizing already.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "F65/D46: Yellow = smaller and fewer; Orange = A+ only. APTV rows match the dossier (first base 0.99R, second 2.8x, 2.3% stop). The 'Yellow' reading is the story's hypothetical, not a 2012 fact. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "cut",
+   "notes": "Near-duplicate of q39: a clean breakout on volume that closes near the high and falls through the stop the next session; same lesson (the loss is the system working). q39 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "The old key ('33% is B-') rests on the 35% cap (D-055 pending: a 20% cap would exclude a 33% base, not grade it). Rewritten as a comparison that holds under every option: the 12% base grades higher. Grade lines are proposed; E50 says grading is discretionary, so the why says 'a judgment call'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "cut",
+   "notes": "Near-duplicate of q37: both key E52 (10-day for fast movers, 21-day for steady ones); q37's lesson line already gives both halves.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "C29 settled (skip a long more than 10% above the 10-day). The story gave only the close (up 21%) and the close's stretch, not the stretch at entry, so the 'past 4%' half was not given. Story now: opens 12% above the IPO high and 18% over the 10-day. Why had a 23-word sentence: split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "pass",
+   "notes": "B22 settled: hold through a report only if up 5R. The why said 'sell or trim before the report': a trim leaves a position through the report, so it now says be out.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "B23: 7.40 and 3 million a day fail both floors. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "B20: 1R = 1.37; the first 30-minute low 52.40 is 3.7R down (57.42 - 52.40 = 5.02), past 2R, so out. Why had a 28-word sentence: split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "Card c41 / D40: a miss lowers the grade, the chart comes first. The question 'What does it do' had no 'it': now names the earnings dip.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "E53, D38, E49. Right; no IPO size cut taught.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "Card c21 and Stockbee b01 (two or more 4% days in the last five before the breakout). Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "Card c34 and IBD's CBRE line i15 (weekly ranges under 10%). Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "Chart check on the sandbox bars.db: KRMN has 140 daily bars on or before 2025-09-04 (first 2025-02-13), so the 120-bar window is met. IPO high 57.315 and the 2025-09-05 range 56.10 to 63.30 match d01. Question names no ticker. Flag for the owner: the 22% depth would fail a 20% cap (D-055 option); the card recommends 35%. Note: w1 walks this same trade (KRMN, 2025-09-05), so the question is weaker as a test; flagged.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "cut",
+   "notes": "Chart cannot meet the contract: SPOT has only 21 daily bars on or before 2018-05-01 (first bar 2018-04-03), so the 120-bar window is not available; and the key rests on the first day's open being the 'IPO price' (D-057, pending), while a direct listing has a reference price rather than an offer price. Cannot be fixed with one edit: cut (swap for another near-miss with 120 bars once D-057 is ruled).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "F66 and D39 settled. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "cut",
+   "notes": "Near-duplicate of q13: both key 'Red market, mostly cash, pass on a clean base' (D46, c16). q13 kept as the recall.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "Card c18 / IBD i09-i10. Why had a 26-word sentence: split.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "Card c37 / c22: above the IPO AVWAP and the rising 10- and 21-day is the A+ location (proposed cue). Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "notes": "A12, E53, B19, E51: no IPO-specific exit plan. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q66": {
+   "status": "cut",
+   "notes": "Near-duplicate of q44: both key 'past the first year the IPO card no longer applies, judge it as a regular base'. q44 keeps the concrete CAVA case.",
+   "fixed": false,
+   "by": "checker"
+  }
+ }
 }

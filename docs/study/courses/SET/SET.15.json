@@ -708,7 +708,7 @@
    "steps": [
     "CLS, 2024. A pop on 1.1x volume on 09-19, then a quiet 4-day drift down to the averages.",
     "The hold day undercuts the 20 EMA by 0.6% and closes back over it. That sits inside the zone.",
-    "2024-10-03: it trades over the hold day's high. Buy at market, 50.64. Stop 48.94, 3.4% away. Over 3%: the size shrinks.",
+    "2024-10-03: it trades over the hold day's high. Buy at market, 50.64. Stop 48.94, 3.4% away. A wider stop means fewer shares.",
     "Failure mode: stopped within days. Instead 3R comes in 3 days. Trim a third."
    ],
    "facts": [
@@ -948,7 +948,7 @@
     "The day price first closes under the 20"
    ],
    "answer": "Reaches the zone, closes over the 20",
-   "why": "The first pullback session whose low reaches the 9/20 zone and which closes at or above the 20 EMA in the upper half of its range.",
+   "why": "A hold day reaches the zone. It closes at or above the 20 EMA in the upper half of its range.",
    "lesson_line": "A hold day touches the zone and closes strong.",
    "facts": [
     "x03"
@@ -1082,7 +1082,7 @@
     },
     "round": 1
    },
-   "why": "3.6. The stop sits 3.6% under the fill. That is past about 3%, so the size shrinks.",
+   "why": "3.6. The stop sits 3.6% under the fill. Our stops usually sit within about 3%, so this one is wider.",
    "lesson_line": "Measure the stop in percent before you size the trade.",
    "facts": [
     "h04",
@@ -1287,7 +1287,7 @@
     "Wedge Pop"
    ],
    "answer": "Base n' Break; a later rest",
-   "why": "Base n' Break. The crossback is the first rest after the pop. A later rest is Kell's Base n' Break, graded lower here.",
+   "why": "Base n' Break. The crossback is the first rest after the pop. Kell's name for a later rest is the Base n' Break.",
    "lesson_line": "First rest is the crossback. Later rests are Base n' Breaks.",
    "facts": [
     "e09",
@@ -1368,7 +1368,7 @@
     "A Wedge Pop": "A pop reclaims the averages after weeks under them."
    },
    "house": true,
-   "story": "A stock jumps 22% in 12 sessions. Then it drifts tight for six sessions, well above the 9 and 20 EMA."
+   "story": "A stock jumps 32% in 12 sessions. Then it drifts tight for six sessions, well above the 9 and 20 EMA."
   },
   {
    "key": "q28",
@@ -1651,7 +1651,7 @@
     "Fewer shares; the stop stays honest"
    ],
    "answer": "Fewer shares; the stop stays honest",
-   "why": "Fewer shares. The size comes from the stop, and a stop past about 3% means fewer shares. Never tighten the stop to fit.",
+   "why": "Fewer shares. The size comes from the stop, so a wider stop means fewer shares. Never tighten the stop to fit.",
    "lesson_line": "A wide stop gets a smaller size, never a tighter stop.",
    "facts": [
     "d03",
@@ -1702,7 +1702,7 @@
    "criterion": "xbk.tries",
    "q": "On one stock we take at most 3 tries in a week and 6 in a month.",
    "answer": "True",
-   "why": "True. At most 3 tries in a week and 6 in a month on one stock, and each new try needs a new trigger.",
+   "why": "True. At most 3 tries in a week and 6 in a month on one stock. Each new try needs a new trigger.",
    "lesson_line": "Cap the tries. A new try needs a new trigger.",
    "facts": [
     "h29",
@@ -1825,7 +1825,7 @@
     "Wait for a close over the high"
    ],
    "answer": "Buy at market; stop under the hold low",
-   "why": "Buy at market, 40.82, with the stop a few cents under the hold day's low, 40.17. UAA reached 3R in 5 days.",
+   "why": "Buy at market, 40.82, with the stop a few cents under the hold day's low, 40.17. It reached 3R in 5 days.",
    "lesson_line": "Hold day, then the trade over its high, then the stop under its low.",
    "facts": [
     "d01",
@@ -1838,7 +1838,7 @@
     "Skip it; two sessions is too short": "A quiet two-session pullback was the clean case."
    },
    "house": true,
-   "story": "UAA popped on 1.5x volume. After two quiet sessions of pullback, the hold day closes above the 20 EMA. Next day it trades over the hold day's high."
+   "story": "A leader popped on 1.5x volume. After two quiet sessions of pullback, the hold day closes above the 20 EMA. Next day it trades over the hold day's high."
   },
   {
    "key": "q47",
@@ -1853,7 +1853,7 @@
     "Yes; the undercut closed back over"
    ],
    "answer": "Yes; the undercut closed back over",
-   "why": "Yes. The low undercut the 20 EMA by 0.6%, inside the zone, and the close came back over it. The stop is 3.4% away, so the size shrinks.",
+   "why": "Yes. The low undercut the 20 EMA by 0.6%, inside the zone, and the close came back over it.",
    "lesson_line": "A small undercut that closes back over the 20 EMA still holds.",
    "facts": [
     "d03",
@@ -1862,7 +1862,7 @@
    ],
    "wrong": {
     "No; any low under the 20 EMA fails": "The zone runs down to about 1% under the line.",
-    "No; the stop would be too wide": "A wide stop shrinks the size. It does not void the setup."
+    "No; the stop would be too wide": "A wider stop means fewer shares. It does not void the setup."
    },
    "house": true,
    "story": "CLS drifted four quiet sessions. The hold day's low sat 0.6% under the 20 EMA, and it closed back over the line."
@@ -2041,7 +2041,7 @@
     "Yes; heavy volume confirms it"
    ],
    "answer": "No; more than 4% over the trigger",
-   "why": "No. Skip if the fill is more than 4% above the trigger. Kell: 3-4% above the averages was too much.",
+   "why": "No. Skip if the fill is more than 4% above the trigger. Kell found even 3-4% above the averages was too much.",
    "lesson_line": "Past 4% over the trigger you are chasing. Wait for the next hold day.",
    "facts": [
     "x15",
@@ -2299,9 +2299,9 @@
    "choices": [
     "Buy half and decide later",
     "Buy now before it runs",
-    "Check the base, stop and size first"
+    "Check the hold day, stop and size first"
    ],
-   "answer": "Check the base, stop and size first",
+   "answer": "Check the hold day, stop and size first",
    "why": "Check it yourself. Never take a trade from an alert, a post or a video without your own entry, stop and size.",
    "lesson_line": "Someone else's alert is not a plan. Build your own entry, stop and size.",
    "facts": [
@@ -2434,7 +2434,435 @@
   "The exits: the lab test found the house management earned less per trade than holding to a close under the 21-day EMA; D-019's default is one replay across all setups before any course teaches a change. Nothing here teaches a change. Kell's selling into extensions, TraderLion's scale-in and the curriculum's add-only label are not taught.",
   "The short mirror (Kell's Downside EMA Crossback after a Wedge Drop) is not taught here. The Model Book card's short side is not Kell's downside crossback.",
   "Chart questions (q62 UAA asof 2015-06-15, q63 GE asof 2025-12-31) are written for the importer to resolve from our own history, with the as-of date the hold day itself (the buy or would-be buy is the next session). The keys rest on the dossier's reads (d01, d02, d22, d23), not on reading the picture; the bars were not checked here. GE's later luck (3R) is explained in the why, so the near-miss does not read as a failed rule.",
-  "Sources: TraderLion's live pages refuse automated clients, so every TraderLion quote is cited by its Internet Archive capture. Kell's newsletter and interview are on Substack. Several Study bank items attribute 'If you miss the Wedge Pop, wait for the EMA Crossback' to Kell; no Kell text carries it (TraderLion staff wrote the nearest line), so it is not used (D-010)."
+  "Sources: TraderLion's live pages refuse automated clients, so every TraderLion quote is cited by its Internet Archive capture. Kell's newsletter and interview are on Substack. Several Study bank items attribute 'If you miss the Wedge Pop, wait for the EMA Crossback' to Kell; no Kell text carries it (TraderLion staff wrote the nearest line), so it is not used (D-010).",
+  "Cold check 2026-11-10: 60 pass (9 fixed), 0 fix, 11 cut. Look first at: (1) D-002 decides the whole unit (Kell's definition, the first retest after a pop, against the house text): every item stands on it, though none states a number from it; q22 matches SET.14's crossback-versus-pullback tell, and q24 now uses Kell's name (Base n' Break) for a later rest without grading it. (2) 'Late crossbacks fail most' (q49, q60) is Kell's and the card's, but our own scan found waits of 11 to 20 sessions slightly better (30.0% to 3R against 28.5% for 3 to 10). (3) The pending numbers kept out of the keys were checked: q27 (flag pole 22% -> 32% clear of the 30% option), q16, q39 and q47 (no 'size down past 3%'), q24 (D-026). The charts UAA and GE have far more than 120 bars; q62 repeats walk-through w1's trade. Share count: q17 120 shares = 14.0% of the account. Cut as duplicates: q02, q07, q09, q11, q29, q31, q36, q51, q52, q65, q67."
  ],
- "verify": {}
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "UAA matches the dossier row and the bars: pop 2015-06-05 on 7.25M shares (1.5x), 2-session drift, hold day 06-15 high 40.80 so the fill is 40.82, stop 40.17 under the low 40.20, 3R in 5 days.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "CLS matches the dossier row (pop 09-19 on 1.1x, 4-session drift, 0.6% undercut, buy 50.64, stop 48.94 = 3.4%, 3R in 3 days). Step 3 said 'Over 3%: the size shrinks', which leans on 'size down past 3%' (D-005, pending): now just 'a wider stop means fewer shares'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "MU matches the dossier (pop 08-08 on 1.3x, 3-day drift, hold day 08-18, buy 123.70, stop 120.63, low 113.46 on 08-20; 3R on 09-09 and 5R on 09-10, three weeks later). 'Weeks later' is right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "Kell (e01, e04): the first retest of the averages after a Wedge Pop. The whole unit rests on D-002 (Kell's definition against the house text), which is pending; flagged for the owner, not a number.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "cut",
+   "notes": "Duplicate of q06 and q26: all three key 'the 9 above the 20 is the crossback's context; the 9 under the 20 means no long'. q06 (the recall) and q26 (the applied case) are kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "Settled trigger shape (E57); the 'hold day's high' is the card's trigger, which keeps its shape under every D-003 option. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "Kell e03 (wait for confirmation that buyers are stepping in) and the card's named mistake. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "Settled card stop (F62). Right; wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "Kell k3 (e07): no reason to be long with the fast average under the 20. The 9/20 pair is the house text (D-021: Kell uses 10/20); the why says so. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "cut",
+   "notes": "Duplicate of q01: both key 'the crossback is the first retest after the Wedge Pop' (e05/e06, x01).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "Kell k4 (e08): a Wedge Pop is price bars and volume, not just a cross. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "cut",
+   "notes": "Duplicate of q23: both key 'one close back over the averages is a pop setting up, not a crossback'. q23 keeps the applied case.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "Card x03 (proposed hold day). Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "cut",
+   "notes": "Duplicate of q10 and q18: the fill repeats 'the hold day closes at or above the 20 EMA' from q10's why.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "Card x20 (proposed) and Kell e10. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "Settled above_200 (B26): the crossback gets no exception. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "Settled C31: RS 80 or more in a strong group. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "Arithmetic: 116.55 + 3 x (116.55 - 112.39) = 129.03. HOOD row matches the dossier.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "Arithmetic: (116.55 - 112.39) / 116.55 = 3.57 -> 3.6. The why said 'past about 3%, so the size shrinks', which leans on D-005's 'size down past 3%' (pending): now just 'wider than the usual 3%' (A13, settled).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "Arithmetic: 100,000 x 0.5% = 500; risk per share 4.16; 500 / 4.16 = 120.2 -> 120 shares. Cap A7: 120 x 116.55 = 13,986 = 14.0% of the account, under 40%.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "Arithmetic: (63.40 - 61.00) / (64.00 - 61.00) = 0.80 -> 80%. Upper half per the card's hold day (proposed).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "Arithmetic: (100.00 - 99.20) / 100.00 = 0.8%. Inside the zone to about 1% under the 20 EMA (proposed x04). Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "Monday hold day, no trigger by Thursday's close: three sessions without a trigger, stale (proposed x08, and the 3 is shared by every D-003 option). Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "B22: a report 3 sessions away puts tomorrow's buy inside the window. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "Same tell as the 20 EMA Pullback unit (SET.14 q48): the first test after the stock closed back over the 9 and 20 is the crossback; a tap of a 20 EMA rising for weeks is the pullback. Eight sessions after the pop is inside the card's 3 to 20 under any D-076 option. Consistent with SET.14.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "Card x02 and Kell e08. The story: weeks under the averages, then one close back above both out of a tight range on 1.6x volume: a pop, not yet a crossback. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "Kell e09/x24: a later rest is the Base n' Break. The why said 'graded lower here', which leans on D-026 (a later test is a B grade or another setup, pending): now Kell's name only. SET.14 calls a later orderly test the 20 EMA Pullback; this question offers no pullback choice, so the two do not clash.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "Card x09 (proposed). Right. Kept over q29, its scenario twin.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "Card x26/x10: a crossback holds the rising 9 and 20 with no run of closes under them. The nine closes under the 50-day make the context wrong; the 9 under the 20 settles it. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "Story said 'jumps 22%': the bull flag pole is pending (bf.pole 20, 30 or 0; a 30% option would void it). Now 32% in 12 sessions, a 6-session drift (inside 15/20/40), well above the averages: a flag under every option, not a crossback.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "Card x07 (proposed). Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "cut",
+   "notes": "Duplicate of q25: both key 'a close under the 20 EMA on above-average volume ends the setup before the trigger'. q25 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "A5 / card x17: one price, one stop. Names Kell's adding as his own way, which the dossier records. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "cut",
+   "notes": "Duplicate of q30: both key 'no adding, one price, one stop'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "Card x11 (proposed): after an Exhaustion Extension the next stage is a Wedge Drop. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "Settled B26 (the card: no parabolic exception for a crossback). Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "Card x19/x22 (proposed cue) and AAPL 2022. Right as a grade cue; the why says the stop is still the exit.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "F65 settled: Orange is A+ only. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "cut",
+   "notes": "Duplicate of q63 (the GE weak hold day, lower 3% of its range) and it names GE, the hidden ticker of the chart question q63.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "AMAT near-miss: the low 2.1% under the 20 EMA against the proposed 'about 1%' line (x04). Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "Dossier base rate: 28.9% reached 3R before the stop, so most did not; 82.6% touched the stop at some point in 60 sessions. Right and labelled 'in our scan'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "A3/A5. The why said 'a stop past about 3% means fewer shares', which leans on D-005 (pending): now 'a wider stop means fewer shares'. CLS numbers match.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "B21 settled. MU matches the dossier. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "E56 settled (3 tries a week, 6 a month). Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "E52 settled. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "C33 settled; 0.6R is under 1R at day 10. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "F63 settled. 130.00 opens above 3R = 129.03 (116.55 + 3 x 4.16). Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "B20 settled. 1R = 3.07; a first 30-minute low of 113.46 is 3.3R down, past 2R. Right (the 113.46 is the day's low in the dossier; the story states it as the first 30-minute low as a hypothetical).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "Settled trigger and stop. The story named UAA, the same trade as the hidden-ticker chart q62: now anonymous in the story and the why. Numbers match the dossier and the bars.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "Card x04 (proposed): a 0.6% undercut that closes back over the line is inside the zone. The why said 'the stop is 3.4% away, so the size shrinks' (D-005, pending): removed; the wrong note now says 'fewer shares'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "pass",
+   "notes": "ALGN row and text match the dossier (earnings gap on 3.7x volume, six sessions, low exactly on the 20 EMA, bars show the 02-10 low 95.17 against a high of 97.22). Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "LLY row matches the dossier (16 sessions after the pop, stopped the next day). The 16 sessions sit inside the card's 3 to 20, so 'a warning, not a gate' is right. Note: our own scan found 11 to 20 session waits did slightly better (30.0% to 3R) than 3 to 10 (28.5%), so 'late fails most' is Kell's and the card's, not our data's.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "NFLX row matches the dossier (reaction day five sessions after the entry); B22's window is 3 sessions. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "cut",
+   "notes": "Duplicate of q24: both key 'the second rest after the pop is the Base n' Break, not the crossback'. q24 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "cut",
+   "notes": "Duplicate of q34: both key 'the index cue is a grade cue, a weak index lowers the grade' (x19, x22). q34 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "Card x21 (proposed advanced version). Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "C28 settled: 52.90 / 50.64 = 1.0446, 4.5% over the trigger. The why quoted Kell's '3-4% above the averages', which is about distance from the averages, not from the trigger: reworded to say so.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "Settled E56. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "B23 settled. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "C31 settled. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "F65/D46 settled. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "Card x32 (proposed cue). Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "Card x22 and the pop-quality grading (proposed). Right as a grade call. Note: our own scan found waits of 11 to 20 sessions slightly better (30.0% against 28.5% to 3R), so 'late fails most' is Kell's and the card's, not measured; flagged for the owner.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "Card x33 (proposed grade cue). Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "Chart check on the sandbox bars.db: UAA has 2,407 daily bars on or before 2015-06-15, so the 120-bar window is met. The 06-15 bar (open 40.385, high 40.80, low 40.20, close 40.595) closes in the upper 66% of its range, fill 40.82 and stop 40.17 match d01. Question names no ticker; w1 walks the same trade, so the question is weaker as a test (flagged).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "Chart check: GE has 7,786 daily bars on or before 2025-12-31, so the window is met. The 12-31 bar (high 313.36, low 307.87, close 308.03) closes in the lower 2.9% of its range, as d22 says. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "F66 and D39 settled. The choice said 'Check the base' on a crossback, which has no base: now 'the hold day'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "cut",
+   "notes": "Duplicate of q26: both key 'the 9 under the 20 means no long, even with a good-looking day'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "Card x31/x32 (Bracco's market-wide cue, proposed). Right as a grade cue.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q67": {
+   "status": "cut",
+   "notes": "Duplicate of q39: both key 'keep the honest stop; the size bends to the stop'. Also the story said the stop was 'wider than your risk budget allows', which cannot happen when the size comes from the stop.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q68": {
+   "status": "pass",
+   "notes": "Kell e02 and TraderLion e13/e14: a slow, gentle drift is ideal. Right.",
+   "fixed": false,
+   "by": "checker"
+  }
+ }
 }

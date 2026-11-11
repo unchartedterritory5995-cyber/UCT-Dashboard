@@ -696,7 +696,7 @@
    "title": "ON, August 2017: four contractions, each about half the last",
    "steps": [
     "ON, 2017. A leader in an uptrend pulls back four times: 19.4%, 7.8%, 5.8%, then 3.5%. Each swing is smaller.",
-    "Volume dries into the tight last swing. The pivot is that swing's high, 16.47.",
+    "Volume should dry into the tight last swing. The pivot is that swing's high, 16.47.",
     "2017-08-30: it trades through 16.47 on 1.7x volume. Buy at market. Stop a few cents under the day's low, 15.85.",
     "Failure mode: the day closes back inside the base. Instead 3R comes in 20 days. Trim a third."
    ],
@@ -1053,7 +1053,7 @@
    "rung": 3,
    "format": "numeric",
    "criterion": "vcp.ratio",
-   "q": "The first pullback is 24%. Each next one is about half the last. How deep is the third?",
+   "q": "The first pullback is 24%. Each next one is half the last. How deep is the third?",
    "answer": 6.0,
    "calc": {
     "fn": "arith",
@@ -1295,7 +1295,7 @@
     "A high tight flag": "A high tight flag needs a near-double first. This is a quiet box."
    },
    "house": true,
-   "story": "A leader rests six weeks in a 12% range. The swings inside stay about the same size."
+   "story": "A leader rests six weeks in a 10% range. The swings inside stay about the same size."
   },
   {
    "key": "q25",
@@ -1459,15 +1459,14 @@
    "why": "A high tight flag. The stock doubled first and paused with no run of shrinking pullbacks. A high tight flag follows a run of 90% or more in 8 weeks or less.",
    "lesson_line": "Measure the pole first. A near-double that pauses is a high tight flag.",
    "facts": [
-    "c34",
-    "c32"
+    "c34"
    ],
    "wrong": {
     "A VCP": "A VCP shows pullbacks that shrink one after another. This is one quiet pause after a double.",
     "A flat base": "A flat base follows a smaller run and rests longer."
    },
    "house": true,
-   "story": "A stock doubles in 7 weeks, then pauses for 12 sessions, 8% deep, with no shrinking pullbacks."
+   "story": "A stock doubles in 7 weeks, then pauses for 18 sessions, 8% deep, with no shrinking pullbacks."
   },
   {
    "key": "q32",
@@ -1586,7 +1585,7 @@
    "q": "Light volume on the breakout day is, by itself, a reason to sell a VCP.",
    "answer": "False",
    "why": "False. Light volume raises a red flag, and volume would need to come in soon after, but you maintain your stop regardless.",
-   "lesson_line": "Light volume grades the trade. The stop is the exit.",
+   "lesson_line": "Light volume is a red flag. The stop is still the exit.",
    "facts": [
     "v11",
     "h02"
@@ -1625,14 +1624,14 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "vcp.count_a_plus",
-   "q": "How do you grade the two bases?",
+   "q": "Which base grades higher on its contractions?",
    "choices": [
-    "Base B leads; it is simpler",
-    "Four contractions leads; two is B-",
+    "Base A, four contractions",
+    "Base B, it is simpler",
     "Both A+; both shrink"
    ],
-   "answer": "Four contractions leads; two is B-",
-   "why": "Four contractions leads. Three or four clean contractions, each about half the last, is the A+ picture; two contractions is B-.",
+   "answer": "Base A, four contractions",
+   "why": "Base A. Three or four clean contractions, each about half the last, is the A+ picture. Fewer, looser steps grade lower.",
    "lesson_line": "A staircase of halves is the A+ picture. Fewer steps grade lower.",
    "facts": [
     "c10",
@@ -1640,7 +1639,7 @@
    ],
    "wrong": {
     "Both A+; both shrink": "Both shrink, but the clean run of halves is the A+ picture.",
-    "Base B leads; it is simpler": "Fewer, looser steps are the B- picture."
+    "Base B, it is simpler": "Fewer, looser steps are the lower-grade picture."
    },
    "house": true,
    "story": "Base A has four contractions: 19%, 8%, 6% and 3.5%. Base B has two contractions: 20% and 14%."
@@ -1685,12 +1684,13 @@
     "We should have held through the stop"
    ],
    "answer": "Nothing; the stop did its job",
-   "why": "Nothing went wrong. CMG looked like an A grade on its face and still drifted to the stop. The stop, not an opinion, is the exit.",
+   "why": "Nothing went wrong. CMG looked like an A grade on its face and still drifted to the stop. It never reached 1R, so our 10-day time stop would have sold it a session sooner. The stop, not an opinion, is the exit.",
    "lesson_line": "A clean setup can still lose. The stop is the cost of finding out.",
    "facts": [
     "d12",
     "d13",
-    "d14"
+    "d14",
+    "h15"
    ],
    "wrong": {
     "We should have held through the stop": "The stop is the exit. Holding past it is how small losses grow.",
@@ -1957,23 +1957,23 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "vcp.base_count",
-   "q": "What do you do?",
+   "q": "What does the base count do to the grade?",
    "choices": [
-    "Take it; the base is clean",
-    "Pass; late bases are prone to failure",
-    "Take it at A+ size"
+    "Nothing; a clean shape is clean",
+    "It grades down; late bases fail more",
+    "It grades up; the trend is proven"
    ],
-   "answer": "Pass; late bases are prone to failure",
-   "why": "Pass. A third or fourth base late in a long run is a mistake. Minervini calls a late-stage base obvious to everyone and prone to failure.",
-   "lesson_line": "The fourth base of a long run is a late base. Pass.",
+   "answer": "It grades down; late bases fail more",
+   "why": "It grades down. A first or second base has better odds than a third or fourth. Minervini calls a late-stage base obvious to everyone and prone to failure.",
+   "lesson_line": "A late base grades lower. The first or second base has the better odds.",
    "facts": [
     "c20",
     "v08",
     "cm3"
    ],
    "wrong": {
-    "Take it; the base is clean": "A clean shape does not fix a late stage.",
-    "Take it at A+ size": "Late-stage bases do not earn a bigger size."
+    "Nothing; a clean shape is clean": "A clean shape does not fix a late stage.",
+    "It grades up; the trend is proven": "A long run makes the base obvious to everyone. That is the risk."
    },
    "house": true,
    "story": "A stock is on the fourth base of a two-year run. The pattern looks clean."
@@ -2452,7 +2452,7 @@
     "Pull the stop in to fit": "Pulling the stop in to fit the size is a trap."
    },
    "house": true,
-   "story": "The honest stop is wider than your risk budget allows. A friend says to give it more room."
+   "story": "The honest stop is wider than you like. A friend says to give it even more room."
   }
  ],
  "conflicts": [
@@ -2467,7 +2467,441 @@
   "Chart questions (q62 RNG asof 2019-12-31, q63 AMZN asof 2020-08-05) are written for the importer to resolve from our own history, the day before the buy day (RNG 2020-01-02 after the New Year holiday; AMZN's near-miss is dated 2020-08-06). The keys rest on the dossier's reads (d04, d05, d24, d25), not on reading the picture; the bars were not checked here.",
   "Fills in the walk-throughs and numerics: the scan's fill is the pivot plus a cent (PHM 17.38 over a pivot of 17.37, RNG 170.00 over 169.99) or the open when it gapped; a live market order fills a little differently. The stop is 5 cents under the lower of the buy day's and prior day's lows in the scan.",
   "Minervini's slippage advice ('get out immediately, take whatever the next bid price is') is not used; the house gap rule B20 (first 30-minute low, out past 2R) governs q45. His 'about half of purchases are right' and the unsourced TraderLion statistics (60-70% of breakouts) are not taught.",
-  "Sources: Minervini's blog is gone from the live site, so every Minervini quote is cited by its Internet Archive capture, and his page carries a copyright notice that forbids redistribution (short quotes only). ChartMill's guide is a PDF the quote check can read. Kullamagi's page is his own site and he never uses the word VCP."
+  "Sources: Minervini's blog is gone from the live site, so every Minervini quote is cited by its Internet Archive capture, and his page carries a copyright notice that forbids redistribution (short quotes only). ChartMill's guide is a PDF the quote check can read. Kullamagi's page is his own site and he never uses the word VCP.",
+  "Cold check 2026-11-10: 59 pass (9 fixed), 0 fix, 13 cut. Look first at: (1) q34 cut: 'a base under 10% needs no contraction' is Minervini's exception for the Power Play, not a general flat-base rule, and the pending numbers under q24, q31 and q38 (flat-base depth D-043, high tight flag pause D-049, minimum contractions D-058) were moved clear of every option. (2) The cues the examples contradict: q67's pivot-location cue grades B- all ten winners (each pivot sat under the base high), and q35's one heavy down day (1.5x) is stricter than ChartMill's 'several'. (3) Winners' stops run 2.0% to 4.5% against A13's 3%: no ceiling is keyed (q17 and q18 only compute), but CMG (q40) never reached 1R, so the 10-day time stop would have sold it a session before the stop. Duplicates cut: q03, q09, q13, q33, q34, q47, q48, q50, q52, q53, q65, q66, q68 (q34 aside). Charts: RNG and AMZN have far more than 120 bars before their as-of dates; share counts: q41 632 shares = 11.0% of the account, q61 capped at 40%."
  ],
- "verify": {}
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "ON numbers match the dossier row (19.4%, 7.8%, 5.8%, 3.5%; pivot 16.47; stop 15.85 = 3.8%; 1.7x; 3R in 20 days). Step 2 said volume dries into ON's last swing: the row says nothing about ON's volume, so it now says volume should dry.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "JOYY matches the dossier (146% run, 6.0 weeks, 18.4/10.7/3.7%, base high 56.75, pivot 51.22, stop 49.27 = 3.8%, 1.9x, 3R in 1 day). Breakeven at the first trim is the card default.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "ALGN matches the dossier (27.5% and 7.1%, 59 sessions, pivot 28.64, fill 28.65, stop 27.70 = 3.3%, close 28.14, stopped next day at 27.64). Fine.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "Minervini m1: greater volatility on the left, less on the right. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "Minervini m1 (v01, v03): volatility falls from left to right. Right. Kept as the plain statement of the idea (q03 is cut as its duplicate).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "cut",
+   "notes": "Duplicate of q02: both key 'each pullback is smaller than the one before'. q02 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "Card c01 and ChartMill cm0 (the pivot is the top of the final contraction, not the base's highest price). Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "Card c01/c31: the pivot may sit below the base's high; JOYY (pivot 51.22 under a base high of 56.75) shows it. Kept over q48, which asks the same thing as a scenario.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "E57, E58, settled. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "A3/F62 settled: a few cents under the day's low. D-008 (which low) is pending and not keyed. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "Minervini m2 (v07, v09): long only in an uptrend. Right. Kept over q09, which asks the same.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "cut",
+   "notes": "Duplicate of q08: both key Minervini's 'never against the long-term trend' (v07).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "Settled card line (Red: no VCP buys) plus ChartMill cm4. Kept over q65, its scenario twin.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "Settled vcp.leadership (C31): RS 80 or more in a strong group. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "B26 settled. Right; the stage-free fill needs no pending number.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "cut",
+   "notes": "Duplicate of q23: both key 'pullbacks that stop shrinking are not a VCP'. q23 keeps the applied case.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "B23 settled. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "Arithmetic: 24 / 2 / 2 = 6. The stem said 'about half' but asked for an exact number: now 'half'. Minervini's 'about half' is in the why.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "Arithmetic: (170.00 - 164.05) / 170.00 = 3.5%. ChartMill: under 10%, best 3% to 6% (cm1). Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "Arithmetic: (170.00 - 165.39) / 170.00 = 2.71 -> 2.7. RNG fill and stop match the dossier. A13 'usually within about 3%' is the settled line; no ceiling is keyed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "Arithmetic: 17.38 + 3 x (17.38 - 16.59) = 19.75. PHM fill (17.37 + 0.01), stop 16.59 and 3R in 16 days match the dossier. The 4.5% stop is shown, not judged.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "Arithmetic: 16.47 x 1.04 = 17.13. C28 settled.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "17.40 / 16.47 = 1.0565, so 5.6% past the pivot: over C28's 4%. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "ChartMill cm1: the final contraction has to be tight, 3% to 6% best. With every swing smaller than the last, the final one is the tightest. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "Card c05 (proposed): the final contraction's volume is below the 50-day average and the first contraction's. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "Equal 14% swings are not contracting: c11 (a contraction as deep as the one before ends the idea), no pending ratio needed. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "A 12% range fails the flat-base depth cap under D-043's 10% option (options 15, 12, 10), so 'a flat base' was not safe under every option. Story now a 10% range over six weeks (30 sessions, over the 25 of D-042's default and inside every depth option).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "Card lookalike (c33/c31): one rounded decline plus a handle is a cup; a string of shrinking pullbacks is a VCP. The right choice nearly restates the story, but the test is the cup/VCP split. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "Card vcp.stop_structure_check (proposed): the entry day's low under the final contraction's low is no trade. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "Card vcp.squat (proposed) and A4: a close back inside the base is a warning; the stop is the exit. ALGN numbers match. Kept over q47 and q53, which ask the same.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "B22 settled: a report 2 sessions away is inside the 3-day window. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "Card c17 (proposed): a close under the 20-day soon after is a warning, not an exit; Minervini's 'cut in about half' is in the dossier. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "Card c04 (proposed) and Kullamagi kq1. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "The story's 12-session pause fails D-049's 15-session option for a high tight flag (options 3, 5, 10, 15) and the pole/flag depth options are also pending (D-048, D-050). Story now: a 100% rise in 7 weeks, an 18-session pause 8% deep, which fits every option. Dropped c32 (the 10% 'waiver') from the facts: the dossier says that exception is Minervini's, stated for the Power Play, not for every base.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "BIIB near-miss: a 24% then 12% base; the final swing is over the 10% line (c03, ChartMill 'ideally under 10%'). The 10% line is a proposed gate; wrong notes true. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "cut",
+   "notes": "Duplicate of q63: both key the AMZN near-miss (14% then 4%, final leg at 1.13x the 50-day, no quiet day) as a failed dry-up. q63 keeps the chart version; q33 also hands over the answer in its story.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "cut",
+   "notes": "Key contradicts the dossier: 'a base under 10% deep needs no contraction' is Minervini's exception for the Power Play (his high tight flag), not for every base, so a 9.1% first leg is not 'a flat base by Minervini's waiver'. The story also gives no length or depth to confirm a flat base (D-042, D-043 pending).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "Card c14 (proposed): one heavy-volume down day in the right half ends it. ChartMill (cm2) says 'several', so the card is stricter than the source; house: true and flagged for the owner.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "Minervini m4 (v11): light volume is a red flag, keep the stop regardless. The lesson line said 'light volume grades the trade', which leans on D-006 (pending): now just 'a red flag'. Kept over q50.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "Settled card breakeven line (B19): between 2R and 5R, at the first trim by default; the first trim is a third at 3R. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "The key 'two is B-' leans on D-058 (minimum two or three contractions, pending): under a three-contraction minimum a two-contraction base is no trade, not B-. Rewritten as a comparison that holds under both: the four-contraction run of halves grades higher (c10).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "Settled B19: no breakeven before 2R. META row matches the dossier (best 1.18R, stopped 5 sessions later at 494.23). Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "CMG matches the dossier (0.87R best, stopped 11 sessions later). CMG never reached 1R, so C33's 10-day time stop would have sold it a session before the stop did: added to the why.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "Arithmetic: 100,000 x 0.5% = 500; risk per share 0.79; 500 / 0.79 = 632.9 -> 632. Cap A7: 632 x 17.38 = 10,984 = 11.0% of the account, under 40%.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "Card vcp.one_buy (A5): one full buy, no adding. Kept over q68.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "E52 settled. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "C33 settled; 0.5R is under 1R at day 10. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "B20 settled: AXON's first 30-minute low rule; a 592.76 low is far past 2R from a 694.02 fill. No stop-width ceiling keyed (D-005 pending). Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "Dossier base rate: 36.9% reached 3R with a close above the pivot against 18.9% for a close back inside the base. Right and labelled 'in our scan'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "cut",
+   "notes": "Duplicate of q27: both key 'a close back inside the base is the squat, a warning, the stop decides', both on ALGN.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "cut",
+   "notes": "Duplicate of q05 (the pivot may sit under the base high; JOYY): q05 is kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "Card c09 (proposed shakeout cue). Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "cut",
+   "notes": "Duplicate of q36: both key Minervini's 'light breakout volume is a red flag, keep the stop' (v11).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "The old key 'Pass' contradicts the card's grading (a third or fourth base is B-, not a no-trade line), though the base count is also a named mistake. Rewritten to ask what the count does to the grade: it grades down (ChartMill cm3, Minervini v08).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "cut",
+   "notes": "Duplicate of q40 (a correct VCP stops out, nothing was wrong), and its why said 'a VCP's tight stop sits inside normal noise', a stop-floor claim the owner has not ruled (D-005).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "cut",
+   "notes": "Duplicate of q27 (the squat is a warning); the lesson line 'act on the squat the same day' also contradicts 'a warning, not an exit'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "C29 settled. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "B23 settled: 8 dollars and 5 million a day fail both. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "F65 settled: Orange is A+ only. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "C31 settled: RS 80 or more in a strong group; 72 in a weak group fails. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "Settled card inv_trend / B26: a close under the 200-day ends it before the buy. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "Card c13 (proposed): a close under the final contraction's low restarts the count. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "Card c12 (proposed): a first contraction over 40% ends it. 55% is over. Right; the 40% ceiling is the dossier's proposal.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "A7 settled: 1% risk on a 2% stop asks for 50% of the account, capped at 40%. Arithmetic: 1,000 / 0.02 = 50,000. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "Chart check on the sandbox bars.db: RNG has 1,576 daily bars on or before 2019-12-31, so the 120-bar window is met. Pivot 169.99 (2019-12-23 high), buy 170.00 on 2020-01-02, stop 165.39 = 5 cents under the 12-31 low 165.44: all match d04. Question names no ticker.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "Chart check: AMZN has 5,845 daily bars on or before 2020-08-05, so the window is met. The 2020-08-06 high 162.37 is the first through the 07-31 high 162.34, consistent with the near-miss date. Key per the dossier's volume read (1.13x the 50-day, quietest day 0.81x).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "pass",
+   "notes": "F66 and D39 settled. Right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "cut",
+   "notes": "Duplicate of q10: both key 'Red market, no VCP buys, even a perfect one'. q10 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q66": {
+   "status": "cut",
+   "notes": "Duplicate of q35: both key 'a heavy down day in the right half means supply, pass'. q35 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q67": {
+   "status": "pass",
+   "notes": "Card c08 (proposed cue). Right as written, but note: the dossier says all ten winners had a pivot below the base's left-side high, so the cue grades B- every winner shown; flagged for the owner.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q68": {
+   "status": "cut",
+   "notes": "Duplicate of q42: both key 'one full buy, no pilot buys'. q42 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q69": {
+   "status": "pass",
+   "notes": "A3/A4/F62 settled. The story said the honest stop was 'wider than your risk budget allows', which cannot happen when size comes from the stop; now 'wider than you like'. Right.",
+   "fixed": true,
+   "by": "checker"
+  }
+ }
 }
