@@ -9,7 +9,7 @@
     "candleWrites": 22,
     "liveRefAssign": 23,
     "barCacheImports": 23,
-    "swrCaches": 13,
+    "swrCaches": 12,
     "idbOpen": 1
   },
   "files": {
@@ -19,7 +19,7 @@
       "candleWrites": 22,
       "liveRefAssign": 23,
       "barCacheImports": 5,
-      "swrCaches": 11
+      "swrCaches": 10
     },
     "components/chart/ChartSettingsIndicators.jsx": {
       "setData": 2

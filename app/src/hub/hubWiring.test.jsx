@@ -409,7 +409,7 @@ describe('HubRoot — navigate / run+confirm / home (Phase 2 wiring)', () => {
     act(() => { vi.advanceTimersByTime(HOLD_MS + 50) })
     fireEvent.pointerUp(pad, { clientX: 0, clientY: 0, pointerId: 1 })
 
-    expect(screen.getByTestId('loc').textContent).toBe('/dashboard')
+    expect(screen.getByTestId('loc').textContent).toBe('/charts')
   })
 
   it('an inner-ring kind:"home" fan action also navigates to /dashboard (non-flick push+release)', async () => {
@@ -441,7 +441,7 @@ describe('HubRoot — navigate / run+confirm / home (Phase 2 wiring)', () => {
     fireEvent.pointerMove(pad, { clientX: dx, clientY: dy, pointerId: 1 })
     fireEvent.pointerUp(pad, { clientX: dx, clientY: dy, pointerId: 1 })
 
-    expect(screen.getByTestId('loc').textContent).toBe('/dashboard')
+    expect(screen.getByTestId('loc').textContent).toBe('/charts')
   })
 })
 

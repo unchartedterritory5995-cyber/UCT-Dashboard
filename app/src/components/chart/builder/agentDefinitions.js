@@ -249,7 +249,13 @@ export async function executeDefinitionAction(plan, ctx = {}, deps = {}) {
   // only kept by a save that carries that script (`saveUserDefinition`). Reading the
   // document alone made Undo restore the maths and silently drop both.
   const before = await read(plan.defId, { withSource: true })
-  if (!before.ok || !before.row.definition) return { status: REASONS.UNCONFIRMED, reason: REASONS.UNCONFIRMED, receipt: receiptOf(plan, REASONS.UNCONFIRMED), error: before.error || 'Could not read the definition before deleting it; nothing was deleted.' }
+  // ⛔ F-15 follow-up — a read that fails BEFORE the delete is a REFUSAL: nothing was written.
+  // As `unconfirmed` it reached the member as "UCT could not read it back" plus "some changes
+  // could not be reversed" (`commit` marks `unconfirmed` as `unreverted`), both false here.
+  // A 404 is the one failed read that says what happened: the server no longer holds it (a
+  // delete from another tab, say), which the list this tab drew from has not caught up with.
+  if (before.status === 404) return refuse(REASONS.NOT_FOUND)
+  if (!before.ok || !before.row.definition) return refuse(REASONS.UNSUPPORTED_DEFINITION, { why: DELETE_REFUSALS.unreadBefore })
   const pineSource = scriptOf(before.row)
   const refused = deleteRefusal(before.row, pineSource)
   // ⛔ EXACT OR NOTHING — and said as a REFUSAL (nothing was written), in the sentence that
@@ -286,6 +292,7 @@ const wouldMarkEdited = (def) => isScriptDocument(def) && !editedMark(def)
  *  ⛔ Each is a CAUSE clause, said once: the Agent shows it as "That can’t be done: <why>" and
  *  the runtime then adds "nothing was left changed", so "nothing was deleted" is not repeated. */
 export const DELETE_REFUSALS = Object.freeze({
+  unreadBefore: 'could not read this indicator’s saved definition before deleting it, so a delete could not be undone exactly',
   scriptUnread: 'could not read this indicator’s saved script, so a delete could not be undone exactly',
   sharedCopy: 'this indicator is a copy shared with you, and a shared copy never carries the author’s Pine script, so a delete could not be undone exactly',
   stampWithoutScript: 'this indicator is marked as translated from a Pine script that is not stored with it, so a delete could not be undone exactly',
@@ -329,8 +336,18 @@ function restoreDifferences(back, undo, pineSource) {
   if (stamp !== engineStampOf(undo.definition)) out.push(stamp === null ? 'without its engine version' : 'with a different engine version')
   const marked = editedMark(back.row.definition)
   if (marked !== editedMark(undo.definition)) out.push(marked ? 'marked as hand-edited' : 'no longer marked as hand-edited')
+  // ⛔ F-15 N4 — and the same share provenance (`origin`). An unstamped, non-script-shaped
+  // shared copy deletes, and its Undo re-PUTs a document carrying `origin`. The store keeps
+  // the document's keys as sent (`json.dumps(..., sort_keys=True)`), so an exact restore reads
+  // `origin` back unchanged; compared with `canon` (key order is not a difference).
+  const origin = originOf(back.row.definition)
+  const was = originOf(undo.definition)
+  if (origin !== was) out.push(origin === null ? 'without the details of the share it was copied from' : (was === null ? 'with share details it did not have' : 'with different details of the share it was copied from'))
   return out
 }
+
+/** A document's share provenance (`origin`), canonical, or null when it has none. */
+const originOf = (def) => (isObj(def) && def.origin != null ? canon(def.origin) : null)
 
 /**
  * UNDO — exact or refused.
@@ -346,11 +363,23 @@ export async function undoDefinitionAction(undo, ctx = {}, deps = {}) {
   if (undo.op === 'delete') {
     const now = await read(undo.defId)
     if (now.ok) return refuse(REASONS.RESTORE_CONFLICT, { why: 'the definition is live again' })
-    if (now.status !== 404) return { status: REASONS.UNCONFIRMED, reason: REASONS.UNCONFIRMED, receipt: { ...base, status: REASONS.UNCONFIRMED }, error: now.error }
+    // ⛔ F-15 follow-up — only a 404 says the id is free. Any other answer (no answer, a 5xx, a
+    // 403, or a 200 whose body has no `def_id` or does not parse: `readUserDefinition` returns
+    // that as not ok)
+    // leaves it unknown, and nothing has been written yet, so this is a REFUSAL. As `unconfirmed`
+    // the member read "UCT could not read it back", which named a read-back that never happened.
+    if (now.status !== 404) return refuse(REASONS.RESTORE_CONFLICT, { why: 'UCT could not check whether that indicator already exists' })
     // ⭐ F-15 — a stamped document is only restored WITH its script: the save door drops a
     // stamp it cannot check against one. An undo record without the script (made before
     // this fix, or edited) cannot be exact, so it is refused before anything is written.
     const pineSource = typeof undo.pineSource === 'string' && undo.pineSource.trim() ? undo.pineSource : null
+    // ⚠️ N3 — "was not kept" is true only of a record whose row HELD a script. It would be false
+    // for a stamped row that never held one (a shared copy, or a stamp with no script beside
+    // it), and the record cannot tell those apart (it carries no `has_pine_source`). No such
+    // record reaches this line: the delete above refuses every stamped row it cannot read a
+    // script for, so a stamped record always carries `pineSource`; and Undo records live only
+    // in the tab's memory (`useAgent` `undoRef`), so a record made by pre-F-15 code is undone
+    // by pre-F-15 code. Only a hand-edited record can arrive here (the tests make one).
     if (engineStampOf(undo.definition) !== null && !pineSource) {
       return refuse(REASONS.RESTORE_CONFLICT, { why: 'the indicator’s saved script was not kept' })
     }
@@ -371,7 +400,8 @@ export async function undoDefinitionAction(undo, ctx = {}, deps = {}) {
     const back = await read(undo.defId, { withSource: true })
     if (!back.ok) return { status: REASONS.UNCONFIRMED, reason: REASONS.UNCONFIRMED, receipt: { ...base, status: REASONS.UNCONFIRMED } }
     // ⛔ CONFIRMED MEANS EXACT. The read-back must hold the same script, the same engine
-    // stamp and the same hand-edited mark (`meta.scriptEdited`, N2) the deleted row held;
+    // stamp, the same hand-edited mark (`meta.scriptEdited`, N2) and the same share
+    // provenance (`origin`, N4) the deleted row held;
     // anything else is reported, in words that name what differs, never called confirmed.
     const differs = restoreDifferences(back, undo, pineSource)
     if (differs.length) {

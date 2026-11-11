@@ -274,6 +274,23 @@ export function registerTargetKind(kind) {
   return () => KINDS.delete(kind.name)
 }
 
+// OPTIONAL host-source words (fix-nothing-on-workspace): a kind whose targets come from a HOST SOURCE names it, so an
+// empty list is told apart from a page that does not offer the kind at all.
+//   kind.source       -> 'hostKey' | (host) => boolean    the host field the kind reads (or a test that it is there)
+//   kind.unavailable  -> string   member words for a host WITHOUT that source ("Layouts aren't available on this page …")
+//   kind.empty        -> string   member words for a source that is there with nothing in it ("There are no charts …")
+/**
+ * Why a single-kind request found no target here, in member words — never "the workspace is empty" unless it is.
+ * → { missing: true, text } when this host does not provide the kind's source; else { missing: false, text } (empty list).
+ */
+export function noTargetSentence(kind, host) {
+  const src = kind?.source
+  const has = !src ? true : typeof src === 'function' ? (() => { try { return !!src(host) } catch { return false } })() : host?.[src] != null
+  if (!has) return { missing: true, text: kind.unavailable || "That isn't available on this page." }
+  const noun = kind?.noun
+  return { missing: false, text: kind?.empty || (noun ? `There is no ${noun} here for that to change.` : 'There is nothing here for that to change.') }
+}
+
 // OPTIONAL hooks for compound CREATION (a plan that makes new targets and then
 // configures them in the same request):
 //   capability.creates(args) -> null | { kind, alias, spec }

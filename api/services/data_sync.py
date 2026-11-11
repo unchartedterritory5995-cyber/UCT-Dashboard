@@ -650,6 +650,11 @@ def adopt_clustered_store(data_dir: Optional[str] = None) -> str:
             bars_sqlite._drop_local_conn()
             os.replace(new, p)
             bars_sqlite.bump_db_epoch()
+            # ⭐ Bar contract: a swapped-in store is a NEW store. Its series_meta came from
+            # the snapshot producer (proofs about ITS rows, before the old store's tails
+            # were merged in), so every proof / seal is voided and every served rev moves
+            # past what clients hold — the provably safe choice over carrying meta across.
+            bars_sqlite.bump_store_floor("adopted clustered store")
         _write_marker_at(data_dir, _ADOPTED_MARKER, ts)
         _write_marker_at(data_dir, _LAST_SYNC_MARKER, ts)
         try:
@@ -978,6 +983,7 @@ def download_snapshot(ts: str) -> bool:
             # at call-time keeps each module independently importable.
             from api.services import bars_sqlite
             bars_sqlite.bump_db_epoch()
+            bars_sqlite.bump_store_floor("snapshot installed")   # wholesale: revs + proofs
             # A restored snapshot may predate the weekly Friday re-keying —
             # purge any Monday-keyed weekly rows it carried so the duplicate
             # candle bug can't be resurrected by a snapshot pull (the
@@ -1189,6 +1195,7 @@ def force_resync() -> bool:
         try:
             from api.services import bars_sqlite
             bars_sqlite.bump_db_epoch()
+            bars_sqlite.bump_store_floor("empty schema recreated")
             bars_sqlite.init_db()
         except Exception as e:
             logger.error(f"[data_sync] force_resync: init_db after failed pull errored: {e}")
@@ -1383,12 +1390,25 @@ def _merge_pair(conn, ticker: str, tf: str) -> tuple[int, int]:
     before = conn.total_changes
     if mx is None:
         conn.execute(_MERGE_ADD_SQL, (ticker, tf, -(1 << 62)))
-        return conn.total_changes - before, 0
+        added = conn.total_changes - before
+        if added:
+            _bump_merged_rev(conn, ticker, tf)
+        return added, 0
     window_floor = mx - _MERGE_HEAL_WINDOW_S
     interior = (tf in _MERGE_INTRADAY_TFS
                 and not _merge_split_near(ticker, window_floor)
                 and _merge_basis_agrees(conn, ticker, tf, mx, window_floor))
     floor = window_floor if interior else mx
+    # Bar contract `history_rev`: THE store rule (`bars_sqlite._history_keys`) judges the
+    # rows this merge is about to write below the local tail (hole fills + corrections) —
+    # older than the mutable window or sealed => history; inside the window => a delta.
+    # A forward add (or the tail itself) never is.
+    history = False
+    if interior:
+        from api.services.bars_sqlite import _history_keys
+        cand = conn.execute(_MERGE_HISTORY_SQL,
+                            (ticker, tf, floor, mx, ticker, tf, floor, mx)).fetchall()
+        history = bool(cand and _history_keys(conn, tf, cand))
     conn.execute(_MERGE_ADD_SQL, (ticker, tf, floor))
     added = conn.total_changes - before
     corrected = 0
@@ -1396,7 +1416,29 @@ def _merge_pair(conn, ticker: str, tf: str) -> tuple[int, int]:
         before = conn.total_changes
         conn.execute(_MERGE_CORRECT_SQL, (ticker, tf, floor))
         corrected = conn.total_changes - before
+    if added or corrected:
+        _bump_merged_rev(conn, ticker, tf, history=history)
     return added, corrected
+
+
+#: The rows this pair's merge writes strictly BELOW the local tail (holes + corrections),
+#: as (ticker, tf, ts, o, h, l, c, v) — bounded by the rows the merge itself writes.
+_MERGE_HISTORY_SQL = (
+    "SELECT s.ticker,s.tf,s.ts,s.o,s.h,s.l,s.c,s.v FROM snap.ohlcv s WHERE s.ticker=? "
+    "AND s.tf=? AND s.ts > ? AND s.ts < ? AND NOT EXISTS (SELECT 1 FROM main.ohlcv m "
+    "WHERE m.ticker=s.ticker AND m.tf=s.tf AND m.ts=s.ts) AND " + _MERGE_VALID_SQL
+    + _MERGE_GRID_SQL + " UNION ALL "
+    "SELECT s.ticker,s.tf,s.ts,s.o,s.h,s.l,s.c,s.v FROM snap.ohlcv s JOIN main.ohlcv m "
+    "ON m.ticker=s.ticker AND m.tf=s.tf AND m.ts=s.ts WHERE s.ticker=? AND s.tf=? "
+    "AND s.ts > ? AND s.ts < ? AND COALESCE(s.v,0) > COALESCE(m.v,0) AND "
+    + _MERGE_VALID_SQL + _MERGE_GRID_SQL
+)
+
+
+def _bump_merged_rev(conn, ticker: str, tf: str, history: bool = False) -> None:
+    """series_rev for a pair the merge changed, in the merge's own transaction."""
+    from api.services.bars_sqlite import bump_series_revs
+    bump_series_revs(conn, [(ticker, tf)], history=[(ticker, tf)] if history else ())
 
 
 def _merge_ohlcv_from(src_db: str, local_db: Optional[str] = None, *,

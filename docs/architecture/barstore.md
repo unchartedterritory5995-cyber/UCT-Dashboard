@@ -64,7 +64,7 @@ A late answer from before a correction / delete can therefore never resurrect a 
 
 | type | rule |
 |---|---|
-| `seed-from-pack` / `idb-hit` / `mem-hit` | before any server answer: seed (last row is `developing` if its bucket has not ended). After one: only rows OLDER than the server-covered region are prepended. Another cache_key / older history_rev ⇒ discarded. Local rows are never sealed; a server row always replaces a local one. |
+| `seed-from-pack` / `idb-hit` / `mem-hit` | before any server answer: seed (last row is `developing` if its bucket has not ended). After one: only rows OLDER than the server-covered region are prepended. Another cache_key / older history_rev ⇒ discarded. Local rows are never sealed — except a persisted copy's verified seals (`sealed_spans`, P2b §Persist), restored only before any server answer; a server row always replaces a non-sealed local one. |
 | `rest-full` | rows ingested once (`foldOffGridBars`, sort, dedupe); P1 `developing` removed from rows and merged into the developing bar; seal = `complete_through`. NULL (before a series' first tail repair; D/W/M, bar-contract.md §8) seals NOTHING: those rows stay ordered by rev, so a revision with the same `history_rev` still lands. Only a LEGACY answer (no contract fields) uses I8 (the answer holds a LATER bucket); absences inside its sealed span remove non-server rows. A risen `history_rev` or changed `cache_key` resets the entry first. |
 | `rest-delta` | as `rest-full` over `[since, …]`; a risen `history_rev` / changed `cache_key` ⇒ bars kept, `needsFull`, `pendingHistoryRev`, `gen`+1 (rows not applied, later deltas refused until the full read). |
 | `rest-error` | `no_data` is terminal (`unavailable`); other errors are recorded, data kept. |
@@ -108,7 +108,7 @@ state may go to `empty` (invalidate); `unavailable` is left only by data.
   extreme; never touch a closed row; a server frame replaces a provisional open.
 - S7 foreign key / symbol / series never touches an entry.
 - S10 frozen, identity-stable, idempotent (re-applying an action is a no-op), legal transitions.
-- S8 (persist) and S9 (network) belong to P2b.
+- S8 (persist) and S9 (network): `persist.test.js`, `network.test.js` (P2b, below).
 
 Coverage: 7 dates (both 2026 DST edges, both half-days, plain days) × RTH/ETH × 1/5/15/30/60m
 (+ a daily series suite). Mutating the seal protection, the sealed-span insertion block, the
@@ -121,5 +121,40 @@ absence rule, the rev gate, the stream-live tick gate or the foreign check each 
   `series_rev` change (`series_rev` rises on every write, including tail growth).
 - Seals are per span carried, not a single threshold: a delta's claim never seals rows it did
   not re-read (`deltaFrom` tells network.js where to start).
-- Hydrated (local) rows are never sealed; the first server answer re-proves them.
+- Hydrated (local) rows are unsealed unless the persisted envelope proves them (P2b §Persist); everything else is re-proved by the first server answer.
 - A delta with a new history keeps the chart and waits for a full read (no blank frame).
+
+## P2b — persist / network / live feed / API
+
+| File | Owns |
+|---|---|
+| `persist.js` | the ONLY cache reader/writer of the store: hydrate (mem, then IDB → `mem-hit` / `idb-hit` with the read's `gen`), writes through the existing `memPutMonotonic` / `idbPutMonotonic` (barsMerge one write rule, `_entryReadable`), pack import facade |
+| `network.js` | per-key loop, ≤1 request in flight per key, AbortController, `gen` on every action, delta vs full, cadence, scroll-back, `barsUrl` (the store's one /api/bars URL builder) |
+| `liveFeed.js` | push frames → `push-bar` / `push-final`; tick fallback (one source, only while push is not delivering); D/W/M fold of the 1m stream |
+| `index.js` / `useBarSnapshot.js` | public API (subscribe / getSnapshot / peek / ensure / prefetch / invalidate / scrollBack / applyLive) and the React binding |
+
+### Persist
+- Writes on a `baseRev` change only, only for a server-backed snapshot (`restSeen` — a copy read FROM the cache is never written back, which would re-stamp its `savedAt`), debounced 1 s then at idle, ≤1 write per key in flight. Rows in the cache's legacy shape (`{t,o,h,l,c,v}`, D/W/M `t` = 'YYYY-MM-DD'); the developing bar is not persisted. Windowed keys never.
+- Provenance envelope `meta` next to the rows: cache_key, grid, history_rev, series_rev, complete_through, verified_through, sealed spans, gen, and a value fingerprint of every SEALED row.
+- Invalidation: any other writer's put replaces the record WITHOUT `meta`; on hydrate a span survives only if the stored rows inside it (clipped to the stored depth) are exactly the sealed rows, same fingerprints; the reducer then refuses another key / cache_key / older history_rev / stale gen. Restored seals clear `needsFull`, so the first request after a reload is a `since=` delta — and they must be RE-PROVEN by the first server answer: a legacy answer, a null or different history_rev / cache_key voids them (rows drop to local; a delta is refused, a full read follows). Two local copies: one of a newer history replaces the other; one with an older series_rev only adds deeper rows.
+
+### Network
+- Delta (`since = deltaFrom - 1`; the delta's span starts at `deltaFrom`) when a seal is held, no full read is needed and the delta is no bigger than the full read (`deltaWithinBudget`); otherwise full. D/W/M always full, every 5 min.
+- Cadence = `intradayTailPoll.nextTailPollMs` (catch-up burst honoring `retry_after`, then 30 s) with `intradayDedupMs` as floor; errors back off 1.5 s → 30 s honoring Retry-After; paused while hidden. Budget per key per hour ≤ 3600/30 + TAIL_CATCHUP_MAX_TRIES (railed for current / unverified / shedding servers).
+- Gate: `prefetchBars.barsLaneRequest` — joins an in-flight chart-lane / warm request of the URL, non-visible requests share the warm queue's `_MAX_CONCURRENT` and 503 backoff (background also the pack-ingest hold). visible (never queued) > urgent > grid > warm queue > background.
+- Scroll-back (intraday): #1116's `historyWindowUrl` / `barsBeforeUrl` / `HISTORY_WINDOW_BARS`, gated by its `prependOlder` seam rule (a window on another basis is refused whole); serialized behind the key's tail request.
+- No seal held (prod: `complete_through` null on 5m live-store, 60m, D/W/M): intraday polls are `since = serverTail − MUTABLE_WINDOW_S` (the newest row a REST answer supplied — never a push-fed bar ahead of it, #1125) (8 h = bars_fetch `_DELTA_HEAL_WINDOW_SECONDS`) deltas that replace the window; older history changes only with `history_rev` → full read. FULL reads only on first load, `needsFull` (cache_key / history_rev change, voided restored seal), an over-budget delta, D/W/M and windowed keys (as the legacy client). A null / different `history_rev` voids only RESTORED seals, once.
+
+### Live feed
+- D/W/M: base = the server's developing period bar (authoritative); RTH 1m frames fold in (open kept, H/L union, close = newest minute). Volume adds only minutes starting after the base's ARRIVAL minute + 1 min skew margin (`developing.rev` is a write time, not a read time) — so v ≤ the true sum, railed over random interleavings. Rebased on every REST answer.
+- Lane aborts: a lane request runs on its own controller, ref-counted over lane callers; one caller's abort only detaches it. Lane requests are never joinable by legacy callers; a visible request never joins a `&warm=1` twin.
+
+## P2c — prefetch facade (`prefetch.js`)
+- `ensure(key, {until, depth, priority, signal})`: a held / hydrated snapshot already in `until` costs nothing; else ONE `store.ensure` (joins any request of the key). `prefetch(keys, {priority})` = ensure to DISPLAYABLE (context | current). `peek` = `store.peek`.
+- Facade: the same export names and arities as every `utils/prefetchBars` import in the app (derived by AST in `prefetch.facade.test.js`). Priorities: `prefetchBarsToIDB({immediate})`, urgent `prefetchBars`, `prefetchBarOnIntent`, prepares → urgent; visible list rows and `prefetchGridWarm` → grid; the rest → background. No queue of its own: the lane is the gate (`_MAX_CONCURRENT`, 503 backoff, pack hold for background).
+- Re-ask cooldown: a key the server ANSWERED that is still not displayable is re-asked ≤ once per bucket (≥ 60 s; D/W/M 5 min), keyed by store key + `gen` (invalidate resets); an aborted / shed / failed request gives the slot back.
+- Handoff: `peekDisplayable` = peek()?.status ∈ {context, current} (non-intraday / custom → true; an unseen key is hydrated, its mem half synchronously). `prepareForDisplay(sym, tf, {signal})` = ensure(until context | current | unavailable) → current | authoritative (answered, still behind: a halt) | nodata | error. `prepareDailyForDisplay`: any held set is prepared without a request. A prepare owns its key: facade warms of that key do not add a waiter, so aborting the prepare (symbol switch) cancels the request — `network.fetchOnce(…, {signal})` ref-counts one-shot waiters and aborts only when the last one leaves and no subscriber holds the key.
+- Persisted: an `ensure` answer that changed the base is written through `persist.writeOnce` (mem synchronously, then IDB; same monotonic writers and server-backed-only rule) when no subscriber watches the key; a hydrate promotes an IDB copy into mem with its own savedAt. So legacy `memPeek` readers (handoff daily fast path, useDayFacts) see facade fetches, and list warms survive the registry LRU. The cooldown holds only while the answer is held (store, or re-hydrated from what persist wrote); entries are pruned by age and size (≤ 400).
+- Wire shape = legacy: `&warm=1` on non-urgent prefetchBars, prefetchBar, durable / grid / deep / replay warms and prepareForDisplay; never on urgent rows, intent, typed or daily-prepare. `priority: true` → `front` (head of its lane rank). A one-shot ask of a subscribed key rides the chart's rank, never warm; a chart joining a warm still waiting in the lane promotes it (`promoteLaneRequest`).
+- prepareForDisplay: a LOCAL copy is `current` only by the legacy paint rule (`isCacheCurrentForView`, view session); else the server is asked. Daily: S1 reads the store key `keyOf({sym, tf})` (useBarSnapshot) — there is no SWR preload. Typed warm: legacy `_typedCachePaints` with the hydrated savedAt; S1 ADAPTER ITEM: never returns `stale-answer` (pinned by test).
+- A forming row restored from the caches is `DEV_SRC.LOCAL` (closes as a `local` row), so `serverTailOf` never mistakes it for the server tail. A `fetchOnce` aborted while queued behind a scroll-back is dropped from the queue.
