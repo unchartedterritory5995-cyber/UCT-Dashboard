@@ -161,9 +161,9 @@ jobs:
       - name: Prove the partition, then emit it
         id: p
         run: |
-          python tools/pytest_shards.py --self-check
-          python tools/pytest_shards.py --plan
-          echo "shards=$(python tools/pytest_shards.py --list)" >> "$GITHUB_OUTPUT"
+          python tools/pytest_shards.py --timings tools/pytest_shard_timings.json --self-check
+          python tools/pytest_shards.py --timings tools/pytest_shard_timings.json --plan
+          echo "shards=$(python tools/pytest_shards.py --timings tools/pytest_shard_timings.json --list)" >> "$GITHUB_OUTPUT"
           echo "profile_dirs=$(python tools/collect_profile_dirs.py)" >> "$GITHUB_OUTPUT"
       # ⛔⛔ THE VITEST PARTITION IS PROVED HERE TOO, BEFORE FOUR JOBS RUN IT. Same rule as the
       # pytest one above: a file in two shards runs twice, a file in none is never tested and
@@ -304,7 +304,13 @@ jobs:
     # ⛔ E CP6: 20, not 45. Run #4 ran the WHOLE tree for 2,671 s against a 45-minute cap
     # and never printed a totals line. A job that cannot print totals within its cap is
     # SPLIT, not extended — caps come down as shards prove their duration, never up.
-    timeout-minutes: 20
+    # ⚰️ 2026-11-10 — 20 → 30, AS HEADROOM, NOT AS THE FIX. Every nightly since ≥10-31 was
+    # cancelled because count-balanced buckets put 5,393 tests in `tests-10`. The fix is
+    # `tools/pytest_shards.py` cutting the root buckets by MEASURED time with a 720 s
+    # recorded-time rail; wall/recorded measured 1.11–1.45 on runs 42667161827/42846929317,
+    # so a rail-sized shard is ~17 min + setup. A shard that needs the extra ten minutes is a
+    # stale timing file (refresh it), not a reason to raise this again.
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       max-parallel: 6
@@ -362,7 +368,7 @@ jobs:
         # result, not just the hung test. ⭐ `signal` raises inside the test instead: the
         # test fails by name, the run continues, and the totals line is printed.
         run: |
-          python tools/pytest_shards.py --files "${{ matrix.shard }}" > shard_files.txt
+          python tools/pytest_shards.py --timings tools/pytest_shard_timings.json --files "${{ matrix.shard }}" > shard_files.txt
           wc -l < shard_files.txt | xargs echo "files in this shard:"
           xargs -a shard_files.txt python -m pytest -q -p no:cacheprovider \
             --timeout=120 --timeout-method=signal \
