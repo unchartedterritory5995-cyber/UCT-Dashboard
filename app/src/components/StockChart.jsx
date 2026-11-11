@@ -1558,7 +1558,8 @@ import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, idbDelete, mergeDelta, _closeMismatch, _findRecentBarByT } from '../utils/barsIDB'
 import { memPeek, memPut, memPeekSavedAt } from '../utils/barsMemCache'
 import { timingStart, timingMark, timingMarkPaint, timingMarkEmpty } from '../utils/intradayTiming'
-import { etMinutesOfUnix, classifyIntradayTail, isCurrentEnoughForPaint, expectedFormingBar, isDailyTodayCloseProvisionalForPaint, isDailyTodayBarStaleForPaint, dailyMissingSessionsForPaint, dailyCachePaintVerdict, DAILY_PAINT_MAX_GAP, isTradingSessionTodayET, isHolidayISO, intradayBarCurrentness, isCurrentnessSettled } from '../utils/marketSession'
+import { isSaneLivePriceFor } from './chart/liveTickBaseline'
+import { etMinutesOfUnix, classifyIntradayTail, isCurrentEnoughForPaint, expectedFormingBar, isDailyTodayBarStaleForPaint, dailyMissingSessionsForPaint, dailyCachePaintVerdict, DAILY_PAINT_MAX_GAP, isTradingSessionTodayET, isHolidayISO, intradayBarCurrentness, isCurrentnessSettled } from '../utils/marketSession'
 import { createTailPollState, nextTailPollMs, tailRetriesExhausted, watchdogGapMs, intradayDedupMs, liveBadgeState } from '../utils/intradayTailPoll'
 import { resample, resampleForSpec } from '../utils/resampleBars'
 import { isNativeTf, fetchTf, resampleSpec, parseTf } from './chart/timeframes'
@@ -2702,17 +2703,11 @@ function isOhlcType(chartType) {
 }
 
 // ─── Live-tick sanity (SINGLE source of truth) ───────────────────────────────
-// Every developing-bar update path MUST gate through this. Divergent
-// inline guards are exactly how the DDOG 20798 (=100x) phantom slipped a
-// path. Rejects non-finite / non-positive, and any value deviating >50%
-// from EITHER the last painted bar OR the poison-proof last *server*
-// close (lastBarRef can itself get baked bad; the server close cannot).
-function isSaneLivePrice(p, lastClose, serverClose) {
-  if (!Number.isFinite(p) || p <= 0) return false
-  if (lastClose && lastClose > 0 && Math.abs(p - lastClose) / lastClose > 0.5) return false
-  if (serverClose && serverClose > 0 && Math.abs(p - serverClose) / serverClose > 0.5) return false
-  return true
-}
+// Every developing-bar update path MUST gate through `_liveSane` (below, in the component),
+// which is `chart/liveTickBaseline.isSaneLivePriceFor`: the 50% phantom rule (DDOG 20798 =
+// 100x) judged ONLY against baselines that belong to the symbol being judged. Divergent
+// inline guards are how the phantom slipped a path; a baseline from the previous symbol is
+// how a new symbol's first prices were dropped (2026-11-11).
 
 // The price to paint the developing candle with. During an extended session
 // (pre/post-market) the snapshot's `price`/`day_close` FREEZES at the 4pm
@@ -5253,6 +5248,17 @@ export default function StockChart({
   const _switchSrcRef = useRef(null)     // the outgoing tf's series captured at a tf switch (see _switchSourceFor)
   const lastServerCloseRef = useRef(null)  // Last close from CLEAN server bars — poison-proof live-tick baseline
   const lastServerCloseSymRef = useRef(null)  // the symbol lastServerCloseRef belongs to
+  // ⭐ THE ONE LIVE-TICK SANITY CALL. A price for `forSym` is judged only against baselines
+  // stamped with `forSym` (chart/liveTickBaseline.js); `lastClose` passes a close the caller
+  // KNOWS is forSym's, `ownClose` this symbol's cached close for the frames before it paints.
+  // Reads the refs at CALL time, so a callback created several renders ago is still correct.
+  const _liveSane = (forSym, p, { lastClose, ownClose = null } = {}) => isSaneLivePriceFor(forSym, p, {
+    lastBar: lastClose !== undefined ? (lastClose == null ? null : { close: lastClose }) : lastBarRef.current,
+    lastBarSym: lastClose !== undefined ? forSym : lastBarSymRef.current,
+    serverClose: lastServerCloseRef.current,
+    serverCloseSym: lastServerCloseSymRef.current,
+    ownClose,
+  })
   // ── colorByNetChange (TC2000/StockCharts coloring) ── Track the closes needed to
   // color the DEVELOPING bar on live ticks: netPrevCloseRef = close of the bar BEFORE
   // the current last bar (the developing bar's reference); lastNetCloseRef/lastNetTimeRef
@@ -5865,11 +5871,11 @@ export default function StockChart({
     )
     if (_rthLock) {
       // keep c / h / l from the frozen RTH bar
-    } else if (_legendSymOk && fastFresh && isSaneLivePrice(ft.price, c, lastServerCloseRef.current)) {
+    } else if (_legendSymOk && fastFresh && _liveSane(symRef.current, ft.price, { lastClose: c })) {
       c = ft.price
       if (Number.isFinite(h)) h = Math.max(h, ft.price)
       if (Number.isFinite(l)) l = Math.min(l, ft.price)
-    } else if (_legendSymOk && lp?.price && isSaneLivePrice(lp.price, c, lastServerCloseRef.current)) {
+    } else if (_legendSymOk && lp?.price && _liveSane(symRef.current, lp.price, { lastClose: c })) {
       c = lp.price
     }
     let vol = last.v
@@ -8555,15 +8561,13 @@ export default function StockChart({
     const _ownCached = (idbBars?.length && idbReadyForRef.current === `${sym}_${_barsTf}`)
       ? idbBars : memPeek(sym, _barsTf)
     const _ownClose = _ownCached?.length ? +(_ownCached[_ownCached.length - 1]?.c) : null
-    const _seedLastClose = lastBarSymRef.current === sym ? lastBarRef.current?.close : null
-    const _seedSrvClose = lastServerCloseSymRef.current === sym ? lastServerCloseRef.current : _ownClose
     // 1) Live-price store — the same `day.h`/`day.l` aggregate, at the freshest cadence
     //    UCT has (15s server TTL behind a 2s client poll), and it carries the vendor's
     //    own `observed_at` so the age we report is not a guess.
     try {
       const _snap = (typeof getLivePriceStoreSnapshot === 'function') ? getLivePriceStoreSnapshot()[sym] : null
       const _px = _snap ? _effLivePrice(_snap) : null
-      if (_px && !_snap.ext_session && isSaneLivePrice(_px, _seedLastClose, _seedSrvClose)
+      if (_px && !_snap.ext_session && _liveSane(sym, _px, { ownClose: _ownClose })
           && _snap.day_open > 0 && _snap.day_high > 0 && _snap.day_low > 0) {
         const _obs = Number(_snap.observed_at)
         return {
@@ -8582,7 +8586,7 @@ export default function StockChart({
     try {
       if (todayPackUsable()) {
         const _tb = getTodayBar(sym)
-        if (_tb && isSaneLivePrice(_tb.c, _seedLastClose, _seedSrvClose)) {
+        if (_tb && _liveSane(sym, _tb.c, { ownClose: _ownClose })) {
           return { t: _dev, o: _tb.o, h: _tb.h, l: _tb.l, c: _tb.c, src: 'today-pack', ageMs: null }
         }
       }
@@ -11193,7 +11197,7 @@ export default function StockChart({
               const _px = _snap ? _effLivePrice(_snap) : null
               // ⛔ REGULAR SESSION ONLY. Outside 09:30-16:00 ET `_effLivePrice` returns the
               // EXTENDED-hours price, but the period candle is settled at the 4pm close.
-              if (_px && !_snap.ext_session && isSaneLivePrice(_px, lastBarRef.current?.close, lastServerCloseRef.current)) {
+              if (_px && !_snap.ext_session && _liveSane(sym, _px)) {
                 const _o = (_snap.day_open && _snap.day_open > 0) ? _snap.day_open : _px
                 const _h = Math.max((_snap.day_high && _snap.day_high > 0) ? _snap.day_high : _px, _px)
                 const _l = Math.min((_snap.day_low && _snap.day_low > 0) ? _snap.day_low : _px, _px)
@@ -11940,7 +11944,7 @@ export default function StockChart({
     // Single sanity chokepoint (see isSaneLivePrice): non-finite/<=0, or
     // >50% deviation from the last painted bar OR the poison-proof clean
     // server close. Mirror of the WS-bar path so they cannot diverge.
-    if (!isSaneLivePrice(_p, lastBarRef.current?.close, lastServerCloseRef.current)) return
+    if (!_liveSane(sym, _p)) return
     // ── GHOST-WICK GUARD (intraday, pre/post window) ──
     // It IS pre/post market by the ET clock, yet this snapshot carries no
     // extended session. That never means "the extended session ended" — it's a
@@ -12273,7 +12277,7 @@ export default function StockChart({
     // Single sanity chokepoint (see isSaneLivePrice) — same gate as the
     // snapshot-tick path so the two can never diverge (divergent inline
     // guards are exactly how the 100x phantom slipped through).
-    if (!isSaneLivePrice(c, lastBarRef.current?.close, lastServerCloseRef.current)) {
+    if (!_liveSane(sym, c)) {
       return
     }
 
@@ -13698,7 +13702,7 @@ export default function StockChart({
       // (watchlist / movers / themes), synchronously → seed from it as a fallback.
       const _cached = livePrices[sym] || getLivePriceStoreSnapshot()[sym]
       const _cachedPx = _effLivePrice(_cached)
-      if (_cachedPx && isSaneLivePrice(_cachedPx, lastBarRef.current?.close, lastServerCloseRef.current)) {
+      if (_cachedPx && _liveSane(sym, _cachedPx)) {
         _retopLive = {
           sym, price: _cachedPx, updated_at: _cached.updated_at,
           day_open: _cached.day_open, day_high: _cached.day_high,
@@ -17799,7 +17803,7 @@ export default function StockChart({
         // current session. computeBarTime returns the ET day (D) / Friday (W) /
         // 1st-of-month (M) key, directly comparable to last.time.
         if (computeBarTime(tf, Math.floor(Date.now() / 1000)) !== last.time) return
-        if (!isSaneLivePrice(c, last.close, lastServerCloseRef.current)) return
+        if (!_liveSane(sym, c)) return
         const updated = {
           time: last.time,
           open: last.open,
@@ -20385,9 +20389,9 @@ export default function StockChart({
         const _m = etMinutes(candle.t)
         if (_m < 570 || _m >= 960) return
       }
-      // Sanity bound vs last known close — protects against bad ticks.
-      const lastClose = lastBarRef.current?.close
-      if (lastClose && lastClose > 0 && Math.abs(price - lastClose) / lastClose > 0.5) return
+      // Sanity bound vs THIS symbol's closes — the shared chokepoint (it was an inline copy
+      // that read whatever close the previous symbol left behind).
+      if (!_liveSane(sym, price)) return
 
       try {
         if (resolvedTf === '1') {
