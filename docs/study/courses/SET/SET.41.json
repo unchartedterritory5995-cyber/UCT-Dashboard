@@ -755,6 +755,12 @@
    "source": "d1",
    "quote": "valid by every gate, stopped by the rules",
    "claim": "Dossier: four valid breaks stopped by the rules."
+  },
+  {
+   "id": "h40",
+   "source": "h1",
+   "quote": "Max position 40% of the account",
+   "claim": "A7: a position is at most 40% of the account."
   }
  ],
  "walkthroughs": [
@@ -762,7 +768,7 @@
    "key": "w1",
    "title": "NUE, October 2006: eight touches, a tight drift",
    "steps": [
-    "NUE, 2006. A leader pulls back 26% from a 60.30 high. Eight touches over five months build the line.",
+    "NUE, 2006. A stock above its 200-day pulls back 26% from a 60.30 high. Eight touches over five months build the line.",
     "Price drifts tight under the 106-session line. The break comes off a higher low above the 200-day.",
     "2006-10-05: it trades through 50.47 on 1.8x volume. Buy at market, 50.48. Stop a few cents under the low, 49.20.",
     "Failure mode: a thin break closes back under the line, stop taken. Instead 3R came in 6 sessions. Trim a third."
@@ -803,7 +809,7 @@
    "key": "w3",
    "title": "SCHW, February 2020: the planned loss",
    "steps": [
-    "SCHW, 2020. A leader breaks a 46-session line on 1.81x volume, closing 0.98% over it.",
+    "SCHW, 2020. A clean break of a 46-session line comes on 1.81x volume, closing 0.98% over it.",
     "2020-02-20: buy at market, 48.12. Stop a few cents under the day's low, 47.25, 1.80% away.",
     "Failure mode: the next session was day one of the February 2020 market break. The low was 45.93; the stop traded.",
     "A planned loss of 1.80%. The stock fell to 34.45 within 10 sessions. Another buy needs a new trigger."
@@ -978,7 +984,7 @@
     "The 50-day crossing the 200-day"
    ],
    "answer": "Trades through the line and prior high",
-   "why": "It trades through the line and the prior day's high, during regular hours, bought at market. No close is needed.",
+   "why": "It trades through the line and the prior day's high, during regular hours, bought at market. That is our default trigger.",
    "lesson_line": "Through the line and the prior high, in hours, at market.",
    "facts": [
     "c12",
@@ -988,7 +994,7 @@
    ],
    "wrong": {
     "Price touches the line from below": "Touching the line is not a break. Price has to trade through it.",
-    "A close 3% past the line": "We do not wait for a close 3% past the line. That filter is for long-term lines.",
+    "A close 3% past the line": "Our default does not wait for a close 3% past the line. That filter is for long-term lines.",
     "The 50-day crossing the 200-day": "A crossing of averages is a different signal. The trigger is the line and the prior high."
    },
    "house": true
@@ -1022,7 +1028,7 @@
     "At least 3 sessions"
    ],
    "answer": "At least 5 sessions",
-   "why": "At least 5 sessions. Touches too close together may be nothing more than noise.",
+   "why": "At least 5 sessions. Touches too close together may be nothing more than noise, so our working rule is anchors at least 5 sessions apart.",
    "lesson_line": "Space the anchors out. Two highs a few days apart prove nothing.",
    "facts": [
     "c03",
@@ -1030,8 +1036,8 @@
    ],
    "wrong": {
     "Any two days": "Points too close together make noise, not a line.",
-    "At least 1 session": "One session apart is far too close. The anchors need at least 5.",
-    "At least 3 sessions": "Three is still too close. The anchors need at least 5."
+    "At least 1 session": "One session apart is far too close. Our rule needs at least 5.",
+    "At least 3 sessions": "Three is still too close for our rule, which needs at least 5."
    },
    "house": true
   },
@@ -1170,20 +1176,21 @@
    "rung": 3,
    "format": "numeric",
    "criterion": "tl.no_chase",
-   "q": "The line's value is 50.00 and the ATR is 1.00. What is the most we pay?",
-   "answer": 51.5,
+   "q": "The line's value is 50.00. What is the most we pay?",
+   "answer": 52.0,
    "calc": {
     "fn": "arith",
     "args": {
-     "expr": "a + 1.5 * c",
-     "a": 50.0,
-     "c": 1.0
+     "expr": "a * 1.04",
+     "a": 50.0
     },
     "round": 2
    },
-   "why": "51.50. We never pay more than 4% over the line or more than 1.5 ATR over it, whichever is smaller. Here 1.5 ATR is the smaller.",
-   "lesson_line": "Two caps, take the smaller. The ATR cap is often the tighter one.",
+   "why": "52.00. We never buy more than 4% above the buy point, and here the buy point is the line.",
+   "lesson_line": "Four percent over the line is the limit. Chasing costs size.",
    "facts": [
+    "h11",
+    "h12",
     "c13"
    ],
    "prefix": "$",
@@ -1591,7 +1598,7 @@
     "A flat-top break"
    ],
    "answer": "A wedge pop; it reclaimed the averages",
-   "why": "A wedge pop. It follows a decline with at least 8 of the last 15 closes under the 20 EMA and reclaims the 10 and 20 EMAs. A trendline break already holds the fast averages.",
+   "why": "A wedge pop. It follows a decline with at least 8 of the last 15 closes under the 20 EMA. Then it reclaims the 10 and 20 EMAs. A trendline break already holds the fast averages.",
    "lesson_line": "Lost the averages, then reclaimed them: that is the pop.",
    "facts": [
     "c40",
@@ -1617,7 +1624,7 @@
     "Yes, at half size"
    ],
    "answer": "No; a B- is a pass in Orange",
-   "why": "No. In Orange only A+ setups are taken, so a B- is a pass. A stop wider than 5% is a B-, and so is a key level just above.",
+   "why": "No. Orange takes A+ setups only. A 6% stop and a key level just above grade this one B- or lower, so it is a pass.",
    "lesson_line": "In an Orange market, only the best setups get through.",
    "facts": [
     "c27",
@@ -1672,7 +1679,7 @@
     "Nothing; breaks just fail"
    ],
    "answer": "A thin break barely clearing the line",
-   "why": "A thin break that barely cleared the line. A break with volume matters more than one without, and this kind closes back under.",
+   "why": "A thin break that barely cleared the line. A break with volume matters more than one without, and this kind often closes back under.",
    "lesson_line": "A barely-there break on thin volume is a weak break.",
    "facts": [
     "c33",
@@ -1680,7 +1687,7 @@
    ],
    "wrong": {
     "The stop was too tight": "The stop followed the rule. The weakness was the break itself.",
-    "Nothing; breaks just fail": "Some do, but this one showed its weakness before the buy: thin volume and a close barely over the line."
+    "Nothing; breaks just fail": "Some do, but this one showed its weakness on the day: thin volume and a close barely over the line."
    },
    "house": true
   },
@@ -1770,24 +1777,25 @@
    "rung": 6,
    "format": "numeric",
    "criterion": "tl.stop",
-   "q": "Account 50,000. Risk 1%. Buy 109.23, stop 106.79. How many shares?",
-   "answer": 204,
+   "q": "Account 50,000. Risk 0.5%. Buy 109.23, stop 106.79. How many shares?",
+   "answer": 102,
    "calc": {
     "fn": "shares_from_risk",
     "args": {
      "account": 50000,
-     "risk_pct": 1,
+     "risk_pct": 0.5,
      "entry": 109.23,
      "stop": 106.79
     },
     "round": 0
    },
-   "why": "204. Account times risk percent, divided by the buy minus the stop, rounded down. The stop sets the size.",
+   "why": "102. Account times risk percent, divided by the buy minus the stop, rounded down. The stop sets the size, and the position stays under the 40% cap.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h03",
     "h01",
-    "d05"
+    "d05",
+    "h40"
    ],
    "suffix": " shares",
    "house": true
@@ -1854,7 +1862,7 @@
    "criterion": "tl.retry_limit",
    "q": "On one stock we take at most 3 tries a week and 6 a month.",
    "answer": "True",
-   "why": "True. After a stop-out, only a new trigger buys it again, and the cap is 3 tries a week and 6 a month on one stock.",
+   "why": "True. After a stop-out, only a new trigger buys it again. The cap is 3 tries a week and 6 a month on one stock.",
    "lesson_line": "Three tries a week, six a month. Then leave it alone.",
    "facts": [
     "c30",
@@ -1902,7 +1910,7 @@
     "Hold it all; the trail will handle it"
    ],
    "answer": "Sell a big part into the burst",
-   "why": "Sell a big part into it. A climax run on your own long is a judgment call, and selling a big part is the rule.",
+   "why": "Sell a big part into it. A climax run on your own long is for selling into; how much is a judgment call.",
    "lesson_line": "A vertical burst is for selling into.",
    "facts": [
     "c25",
@@ -2112,14 +2120,14 @@
    "format": "scenario",
    "criterion": "tl.stop_broker",
    "q": "The stop traded. Did the rules fail?",
-   "story": "A leader breaks a line you bought at 48.12 with the stop at 47.25. The next session is the first day of a market break, and the stop trades.",
+   "story": "You buy a clean break at 48.12 with the stop at 47.25. The next session is the first day of a market break, and the stop trades.",
    "choices": [
     "No; a planned loss, rules followed",
     "Yes; we should have waited",
     "Yes; the stop was too wide"
    ],
    "answer": "No; a planned loss, rules followed",
-   "why": "No. The break was valid by every gate and the stop did its job. The next session was the first day of the February 2020 market break.",
+   "why": "No. The stop is the exit and it did its job. The next session was the first day of the February 2020 market break, so the loss was the planned 1.80%.",
    "lesson_line": "A valid break can lose. The stop makes it small.",
    "facts": [
     "d10",
@@ -2128,7 +2136,7 @@
     "c26"
    ],
    "wrong": {
-    "Yes; we should have waited": "A later buy is a different trade with a wider stop. The loss here was the planned 1.80%.",
+    "Yes; we should have waited": "Waiting would have been a different trade. The loss here was the planned 1.80%.",
     "Yes; the stop was too wide": "The stop was 1.80% away, inside the 3% a stop usually sits within."
    },
    "house": true
@@ -2139,14 +2147,14 @@
    "rung": 7,
    "format": "mcq",
    "criterion": "tl.trim_2",
-   "q": "With a fixed stop and no trims, 78.8% of this scan's triggers were eventually stopped. What does that show?",
+   "q": "In our test with a fixed stop and no trims, 78.8% of triggers were eventually stopped. What does that show?",
    "choices": [
     "Trims and a trail bank the gains",
     "The line is a bad signal",
     "Wider stops would win more"
    ],
    "answer": "Trims and a trail bank the gains",
-   "why": "Trims and a trail bank the gains. A fixed stop without trims gives winners back, though 54.2% reached 3R first.",
+   "why": "Trims and a trail bank the gains. A fixed stop without trims gives winners back: 78.8% were eventually stopped. We sell a third at 3R and 5R and trail the rest.",
    "lesson_line": "Bank a third at 3R and 5R. Trail the rest.",
    "facts": [
     "d22",
@@ -2156,7 +2164,7 @@
     "h21"
    ],
    "wrong": {
-    "The line is a bad signal": "Over half reached 3R. The exits, not the entry, gave it back.",
+    "The line is a bad signal": "Many reached 3R first. The exits, not the entry, gave the gains back.",
     "Wider stops would win more": "A wider stop means fewer shares, not more winners."
    },
    "house": true
@@ -2186,7 +2194,7 @@
    ],
    "wrong": {
     "Buy 26.97, stop 25.00, hold it all": "The stop belongs a few cents under the day's low, 26.73. And a third comes off at 3R.",
-    "Wait for a close 3% past the line": "We do not wait for a close 3% past the line. The trigger is the trade through it."
+    "Wait for a close 3% past the line": "Our default trigger is the trade through the line, not a close 3% past it."
    },
    "house": true
   },
@@ -2204,7 +2212,7 @@
     "Equal; the line is the same"
    ],
    "answer": "A; every cue lines up",
-   "why": "A. Tight under the line on drying volume, room to the first anchor high and a Green market is the A+ end. A Yellow market, a stop 3% to 5% away and a key level just above grade B.",
+   "why": "A. Tight under the line on drying volume, room to the first anchor high and a Green market is the A+ end. A Yellow market, a 4% stop and a key level just above grade it lower.",
    "lesson_line": "Same line, different grade. The spot and the market set the size.",
    "facts": [
     "g2",
@@ -2334,7 +2342,7 @@
     "Take it; the volume is fine"
    ],
    "answer": "Pass; it is under the 200-day",
-   "why": "Pass. The close was 4.9% under the 200-day, so the line does not matter. A good-looking line under a flat 200-day is not our break.",
+   "why": "Pass. On the trigger day the close was 4.9% under the 200-day, so the line does not matter. A good-looking line under a flat 200-day is not our break.",
    "lesson_line": "A fine line under the 200-day is still a pass.",
    "facts": [
     "c07",
@@ -2394,7 +2402,7 @@
   "q48 (LBTYA): the break closed 0.39% over the line on 1.25x volume, which passes the dossier's 1.2x gate, so the dossier files it as valid and stopped by the rules. If D-069 makes the volume gate 1.5x or a cue, this case is a B or a B- rather than a clean loss; the item keys only 'a planned loss', true under every option.",
   "q54 (SCHW): the card files the failure under tl.market_reading, but the scan did not test the market reading or RS, so the story says only that the next session was the first day of the market break and the stop traded. It does not say the reading was Green.",
   "Leadership: the card's gate is RS 80 or more (settled); its grading rows quote RS 90 or more for A+ and 'RS under 80' for B-. q05 and q60 key the gate; the 90 is never keyed.",
-  "Stop width: the card's settled tl.stop_width (about 3%; smaller size or skip; never tighten) is keyed in q36. The grading rows call a 3% to 5% stop a B and wider a B-; q35 uses 'wider than 5% is a B-' as a grade cue inside an Orange market, where the card says a B- is a pass.",
+  "Stop width: the card's settled tl.stop_width (about 3%; smaller size or skip; never tighten) is keyed in q36. The grading rows call a 3% to 5% stop a B and wider a B-; q35 says only that a 6% stop and a key level just above grade B- or lower inside an Orange market, where the card says a B- is a pass; E50 says no fixed grading checklist is taught as ours.",
   "Bulkowski's pages carry a notice against AI use; they are cited with a link and short quotes only, as the pilot did. His statistics (the 77% to the start of the line, used in q32 and q59 as context only) are from bull markets and best-case exits. Brandt's page is futures-first and an experience figure, not a study.",
   "The support rule: ChartSchool and the Insider are both StockCharts but different publications; CMT, Bulkowski, Brandt and TraderLion are separate publishers. Every rule key carries house: true on the card, the rulebook or the dossier, with the web quotes agreeing. The TraderLion capture is an Internet Archive copy because the live site refused the dossier's reader.",
   "The dossier's example numbers (d1) were read off our own daily bars by the research scan (dossier sections 12 and 13), not from a public page; the owner has not picked his ten. The walk-throughs (NUE, MSFT, SCHW) and the real cases (BHC, MCK, CAT, EL, DHR, LBTYA, GOOGL, DIS) depend on them. The fills are the scan's: the higher of the line and the prior day's high, or the open on a gap, with the stop five cents under the trigger day's low; a live market order fills a little differently. Prices are split-adjusted, and HLF passes the $10 rule only in adjusted prices (not used here).",
@@ -2403,7 +2411,405 @@
   "Hypothetical stories (q17, q25, q26, q27, q28, q31, q33, q34, q35, q36, q38, q39, q43, q45, q46, q47) use round numbers on purpose. Where a numeric question borrows a real name's prices (q16, q24, q29, q41, q56) the key is arithmetic only.",
   "Climax (q21, q46): rulebook C34 is 'a judgment call'; the items key selling a big part, which the card states as its settled tl.climax line.",
   "The short mirror (dossier 8.6, graded no higher than B) is not taught here (D-001).",
-  "Sources that may read unreachable to the quote checker: the Internet Archive capture of the TraderLion page, Bulkowski's two pages (406 to plain requests) and the CMT page sometimes refuse scripts; the checker should confirm those quotes in a browser."
+  "Sources that may read unreachable to the quote checker: the Internet Archive capture of the TraderLion page, Bulkowski's two pages (406 to plain requests) and the CMT page sometimes refuse scripts; the checker should confirm those quotes in a browser.",
+  "Cold check 2026-11-10: 56 pass (16 fixed), 0 fix, 10 cut. Look first at: (1) the entry timing (D-003) behind q08, q56 and the walk-throughs, now phrased as our default, and the card's unsourced 3% close filter and 1.5 ATR chase cap (q09 cut, q17 re-keyed on the 4% alone); (2) q41's sizing, which breached the 40% cap at 1% risk and now uses 0.5%; (3) the dossier's 54.2% to 3R headline, which counts only days that also closed above the line (q55 no longer quotes it), and the first-break rule in q58 that the scanner would loosen."
  ],
- "verify": {}
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "d01/d02 verbatim. Bars: NUE 2006-10-05 high 52.55, low 49.25 (stop 49.20), line 50.47, 3R 54.32 first traded 2006-10-13 (6 sessions), 50-day 49.90 over 200-day 48.37. 'A leader' became 'a stock above its 200-day': the scan never tested RS, so calling NUE a leader was unchecked.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "d03/d04 verbatim. Bars: MSFT 2012-01-04 high 27.47, low 26.78 (stop 26.73), buy 26.97, 3R 27.69 hit 2012-01-05 (high 27.73). Stop 0.9% ((26.97-26.73)/26.97 = 0.89%) true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "d09/d10 verbatim. Bars: SCHW 2020-02-20 low 47.30 (stop 47.25), next session low 45.93 (open 48.09, so the stop traded intraday). Stop 1.80% = 0.87 / 48.12. 'A leader' dropped from step 1 because the scan never tested RS (and a 200-day figure would need its own quote).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "c01 is a proposed line; x01 (ChartSchool) and x09 (Bulkowski) verbatim, two publishers agree a down-sloping line is drawn over the highs. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "pass",
+   "notes": "x03 (ChartSchool) and x06 (The Insider) verbatim, c34 on the card; four sources agree. Keyed only on the warning line, not on D-002's standalone-or-trigger question. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "Settled tl.stop (A3, F62); c15/h24 verbatim. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "B26 (h10) and c07 verbatim; settled. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "cut",
+   "notes": "Same fact as q60 (RS 80 or more in a strong group, applied to a case). q60 kept; this TF cut as a duplicate.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "tl.no_add is settled (A5, no adding); c29 verbatim. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "pass",
+   "notes": "D41 (h18), A4 (h02) and c17 verbatim; settled. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "tl.trigger is pending (D-003). The original why ended 'No close is needed', which rules the close out as if settled; now 'our default trigger'. E57 (market order) and E58 (regular hours) are settled. The 3% wrong choice rests on the card's proposed tl.no_3pct_filter and says 'our default'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "cut",
+   "notes": "The 3% filter rests only on the card's proposed tl.no_3pct_filter ('my proposal', no source cited), the entry timing is pending (D-003), and the same fact is already in q08's and q56's wrong choices. Cut as a duplicate and as keyed on an unsourced proposal.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "The 5 sessions is the card's proposed tl.spacing ('my proposal'; Edwards and Magee say less than a week apart is subject to error, the scanner accepts 3). x05 supports only 'too close is noise'. Reworded so the number reads as our working rule, not as the Insider's.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "cut",
+   "notes": "Same rule as q58 (a first break means no close above the line before the trigger; a wick is allowed). q58 kept as the applied case; this TF cut.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "B23 (h09) and c09 verbatim; settled. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "C29 (h13) verbatim; settled. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "cut",
+   "notes": "Same fact as q31 (the index breaking its own downtrend line is a cue). q31 kept as the applied case; this TF cut.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "F65 (h26) and c27 verbatim; settled. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "26.97 + 3 x (26.97 - 26.73) = 27.69, recomputed. Bars: MSFT 2012-01-05 high 27.73, so 3R traded the next session. d03/d04 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "The original keyed 'the smaller of 4% or 1.5 ATR'. The rulebook (C28) has only the 4%; the card's own evidence says the 1.5 ATR cap is the scanner's addition, though the criterion is marked settled. Re-keyed on 4% alone: 50.00 x 1.04 = 52.00. Overlaps q25 (the same limit as a gap case); kept because it asks the arithmetic of the cap.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "pass",
+   "notes": "tl.close_back_under_line is settled (A4); c26/h02 verbatim. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "c04/c05 are proposed (tl.tight_under, tl.not_wedging_up); g2 verbatim on the card; x02 supports the steep-line wrong note. No number keyed. The card notes EHC (model example 9) wedged up for eight weeks and still broke cleanly, so this is a grade matter, but the question asks for the best lead-in, which stays right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "E52 (h21) and c23 verbatim; settled. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "cut",
+   "notes": "Same fact as q46 (sell a big part into a climax burst, C34). q46 kept as the applied case; this TF cut. Its why also called selling a big part 'the rule' and 'a judgment call' in one breath.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "c32 (proposed tl.inv_falling_mas) and x12 (Kell) verbatim. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "x04 (ChartSchool) and x08 (CMT) verbatim, two publishers agree. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "(109.23 - 106.79) / 109.23 = 2.2338%, rounds to 2.23, recomputed. Bars: BHC 2013-12-16 low 106.84, stop 106.79. d05 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "(52.40 - 50.00) / 50.00 = 4.8%. Gap open more than 4% over the line is no trade (C28 settled). Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "cut",
+   "notes": "The story is muddled: a stock that 'makes a new high' after the stop-out has already closed through the old line, and a line redrawn through the new high is a new line, not the same one. Same fact as q51 (after a stop-out only a new trigger). q51 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "cut",
+   "notes": "Same fact as q62 (a chart of a break under the 200-day) asked as a story, and q04 asks the rule. The chart version is the one the owner wants; q62 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "c37/c38 verbatim (the card's lookalike for the flat base). Keys only 'no slope is a horizontal break', never the 0.15 ATR slope (D-069 pending). Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "pass",
+   "notes": "(28.17 - 26.97) / (26.97 - 26.73) = 1.20 / 0.24 = 5.0, recomputed. Bars: MSFT 2012-01-06 high 28.19, so 28.17 traded. E51 (h20) says the 5R trim is adjustable.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "pass",
+   "notes": "B19 (h05), c19 and c19b verbatim. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "pass",
+   "notes": "c28 (proposed tl.index_break) and x13 (Kell) verbatim. Kept over q14.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "pass",
+   "notes": "c31 (proposed tl.overhead_supply, basis measured) and x10 (Bulkowski, bull markets, best-case exits) verbatim. Key right; the 77% is context, never a target (q40 says so).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "c39 is the card's lookalike tell for the bull flag; the story (25% pole, 8 sessions of drift) fits the flag's 20% pole and 3 to 15 sessions. Does not lean on D-002's standalone-or-trigger ruling. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "c40/c41 verbatim (the card's lookalike for the wedge pop). Story: 12 of 15 closes under the 20 EMA, then a bar reclaims both fast averages. why split to sentences of 22 words or fewer.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "F65 (h26) verbatim; the grade cues g1/g4 are on the card. E50 says grading is discretionary and no fixed checklist is taught as ours, so the why no longer states 'a stop wider than 5% is a B-' as a threshold.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "tl.stop_width is settled (A3, A5, A13); c16 verbatim. No share count asked. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "c33 (the card's failure mode) and x07 (The Insider) verbatim. Keyed only on 'volume matters more', true whether D-069 makes volume a gate or a cue. The wrong note said the weakness showed 'before the buy', but the close and the day's volume are known only after an intraday buy; fixed. 'This kind closes back under' softened to 'often'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "C33 (h15) and c24 verbatim; settled. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "c05 is proposed (tl.not_wedging_up, gate true); the card notes that EHC (model example 9) wedged up under the line for eight weeks and still broke, so the gate may soften. The story pairs rising lows with fading volume as the card does. Key right as the card stands.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "x11 (Brandt, futures-first, supports a view and never a key alone) is only the premise; the key (trims at 3R and 5R, then a trail) is settled house (B19, E51, E52). c42 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "A5 caps the size at the smaller of the risk-based size and the 40% position cap (A7). The original (1% risk) gave 204 shares = 22,283 dollars = 44.6% of the account, over the cap (183 shares). Changed to 0.5% risk: 250 / 2.44 = 102.46, rounded down to 102 shares = 11,141 dollars = 22.3% of the account. New fact h40 quotes A7.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "pass",
+   "notes": "E52 (h21) and c23 verbatim; A4 (h02) for the wrong note. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "R = 1.00 (40.00 - 39.00); the first 30-minute low 37.80 is a 2.2R loss, past the 2R ceiling, so out (B20, h06/h07). Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "pass",
+   "notes": "E56 (h29) and c30 verbatim; settled. why split to sentences of 22 words or fewer.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "B22 (h08) and c11 verbatim; the report is inside 3 days. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "C34 (h30) and c25 verbatim: 'sell a big part into it, a judgment call'. The why said selling a big part is 'the rule' and also 'a judgment call'; reworded.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "R = 1.00; 33.00 is 3R. A third at 3R and the stop to breakeven at the first trim (B19 default). Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "cut",
+   "notes": "Same lesson as q54 (the stop did its job, a planned loss). SET.08's checker cut the same pair. q54 kept. Also 'you followed every rule' cannot be checked here: the volume gate (D-069) is pending and LBTYA's 1.25x passes only the dossier's 1.2x.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "Bars: EL 2018-12-03 entry 145.75, stop 144.17 (low 144.22 minus 0.05), 1R = 1.58, 3R = 150.49; 2018-12-04 open 152.00, low 144.06, close 144.09. F63 (h25) verbatim. Key right; the outcome in the why is real.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "c43 is the card's mistake line (Bulkowski's high-tight-flag statement is the card's, not quoted from his page). Story: a stock that doubled, then a tight, shallow flag. Key right as the card stands.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "pass",
+   "notes": "Bars: DHR 2021-01-05 high 203.34, low 197.46 (stop 197.41), 2021-01-06 low 197.22 (19 cents under), close 209.53. h28 (B21) verbatim. Keys only 'a new trigger buys it again', not that a structural stop would have held (D-008 pending).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "cut",
+   "notes": "Same fact as q37 (a break with volume matters more; a quiet break is weak). q37 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "x02 (ChartSchool) and x05 (The Insider) verbatim plus the card's steep-line mistake. No slope number keyed (D-069 pending), so 'steep' is by feel as the story says. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "pass",
+   "notes": "Bars: SCHW 2020-02-20 buy 48.12, stop 47.25 (1.80%), 2020-02-21 low 45.93. d09/d10 verbatim. The why said 'valid by every gate', but the scan never tested RS or the market reading; now 'the stop did its job'. The old wrong note ('a different trade with a wider stop') had no source. Kept over q48.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "d22/d25 verbatim. The original cited 54.2% reaching 3R as a headline; the dossier says that base rate counts only days that also closed above the line (the real intraday trigger adds false starts) and that 44.4% is the more honest figure for stops of 1% or more. The 54.2% is out of the why and wrong note. 'This scan' became 'our test'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "Bars: MSFT 2012-01-04, buy 26.97, stop 26.73, 3R hit the next session. d03/d04 verbatim. The 3% wrong note said 'We do not wait...'; now 'our default trigger' (D-003 pending).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "Grade cues g1 to g5 verbatim on the card. E50: grading is discretionary, so the why no longer says a stop of 3% to 5% 'grades B'. Key right.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "pass",
+   "notes": "c02 is the dossier's strict zero ('my proposal'; the scanner would allow a close 11 or more sessions earlier). The story's close is about 10 sessions back, inside that scanner allowance, so the key holds only on the card's strict rule. Left as pass; the owner may want a clearer gap in the story.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "cut",
+   "notes": "Same fact as q40 (no price target from the pattern; the R-based trims replace it), with q32 covering the 77%. q40 kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "C31 (h14) and c08 verbatim; settled. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "pass",
+   "notes": "Chart: MCK 2025-02-24 has 7,572 daily bars up to the date and 431 after; close 605.76, 50-day 589.01, 200-day 567.79 (above both). Trigger day 2025-02-25 high 627.92, low 601.45 (stop 601.40). The falling line is not drawn on the chart, so the key rests on the 200-day. d06/d07/d08 verbatim.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "notes": "Chart: CAT 2021-10-27 has 6,739 daily bars up to the date and 1,263 after; the last bar closes 196.13 against a 200-day of 214.50 (8.6% under). The trigger day 2021-10-28 closed 204.09 against 214.54 (4.9% under, d17). The old why said 'the close was 4.9% under', which does not match the last bar the member sees; now it names the trigger day.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "notes": "Each of A, B and D fails a settled gate (B26, B22, C28); C is the leader tight under the line. c07/c11/c13/g2/c08 verbatim. Key right.",
+   "fixed": false,
+   "by": "checker"
+  }
+ }
 }
