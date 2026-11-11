@@ -177,22 +177,37 @@ def nl1_stable_names(routing: Any, capabilities: Any) -> set[str]:
         return set()
     return {str(c.get("name")) for c in capabilities[:n] if isinstance(c, dict) and c.get("name")}
 
-def _closed_schema(node: Any, depth: int = 0) -> bool:
-    """Only the structured-output-safe subset, every object closed and fully required."""
-    if depth > 6 or not isinstance(node, dict) or set(node) - _SCHEMA_KEYS:
-        return False
+def schema_problems(node: Any, path: str = "args", depth: int = 0) -> list[str]:
+    """Why a capability's args schema is outside the structured-output-safe subset (every object closed and fully
+    required; only the _SCHEMA_KEYS keywords). Empty = accepted. Each problem names the path and the keyword, so a
+    capability the server leaves out is never a silent mystery (2026-11-11: #1076's `minItems`/`maxItems` would
+    have dropped its action with no log). Bounds the subset can't express (minItems, maxItems, minimum, pattern…)
+    are enforced in the capability's own code, never in the schema."""
+    if depth > 6:
+        return [f"{path}: nested deeper than 6"]
+    if not isinstance(node, dict):
+        return [f"{path}: not an object"]
+    extra = sorted(set(node) - _SCHEMA_KEYS)
+    if extra:
+        return [f"{path}: unsupported keyword(s) {', '.join(extra)}"]
+    out: list[str] = []
     if node.get("type") == "object" or "properties" in node:
         props = node.get("properties")
-        if not isinstance(props, dict) or node.get("additionalProperties") is not False:
-            return False
+        if not isinstance(props, dict):
+            return [f"{path}: object without properties"]
+        if node.get("additionalProperties") is not False:
+            out.append(f"{path}: additionalProperties is not false")
         if sorted(node.get("required") or []) != sorted(props):
-            return False
-        return all(_closed_schema(v, depth + 1) for v in props.values())
-    if "items" in node and not _closed_schema(node["items"], depth + 1):
-        return False
-    if "anyOf" in node and not all(_closed_schema(v, depth + 1) for v in node["anyOf"]):
-        return False
-    return True
+            out.append(f"{path}: required is not every property")
+        for k, v in props.items():
+            out += schema_problems(v, f"{path}.{k}", depth + 1)
+        return out
+    if "items" in node:
+        out += schema_problems(node["items"], f"{path}[]", depth + 1)
+    if "anyOf" in node:
+        for i, v in enumerate(node["anyOf"] if isinstance(node["anyOf"], list) else [None]):
+            out += schema_problems(v, f"{path}.anyOf[{i}]", depth + 1)
+    return out
 
 
 def nl1_enabled() -> bool:
@@ -223,7 +238,13 @@ def validate_manifest(caps: Any, limit: int = MAX_CAPABILITIES) -> list[dict]:
         if not _CAP_NAME.match(name) or name in seen:
             continue
         args = c.get("args")
-        if not (isinstance(args, dict) and args.get("type") == "object" and _closed_schema(args)):
+        problems = (["args: not an object schema"] if not (isinstance(args, dict) and args.get("type") == "object")
+                    else schema_problems(args))
+        if problems:
+            # ⛔ NEVER A SILENT DROP: the action is left out (the model can't call it), so say which and why. The
+            # contract rail (tests/test_uct_agent_contract.py) fails CI before a shipped manifest can get here.
+            log.error("[uct-agent] capability %s left out: args schema outside the server's subset: %s",
+                      name, "; ".join(problems[:5]))
             continue
         if len(json.dumps(c)) > MAX_CAP_BYTES:
             log.warning("[uct-agent] capability %s is over %d bytes and was left out", name, MAX_CAP_BYTES)
