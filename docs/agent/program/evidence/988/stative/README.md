@@ -43,3 +43,10 @@ Every guard is load-bearing on the rail; the probe-2 case itself is held by more
 
 Raw logs, TSVs and the measurement scripts are kept out of the repo (they quote held-out probe sentences):
 C:/Users/blake/uct-backups/988-whole-tree/stative-341f5eb788/ with SHA256SUMS beside them.
+
+## Scoped suite (PC stability mode: no whole-repo run)
+
+61583d7823, under the suite lock, BelowNormal, node_modules Junction: src/agent (zzAudit excluded) + 7 tests outside it that import
+the agent: Test Files 342 passed | 5 skipped (347), Tests 13431 passed | 6 skipped | 24 todo (13461), EXIT 0, 855.6 s.
+(`vitest related` on the two changed files could not be used: it aborts resolving @picovoice/web-voice-processor.)
+Log: scoped-61583d7823.log in the backup folder above (sha256 291e53fd071f9552…).
