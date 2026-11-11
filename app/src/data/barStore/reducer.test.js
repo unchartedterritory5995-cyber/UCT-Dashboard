@@ -63,6 +63,15 @@ describe('BarStore reducer', () => {
     expect(s2.invalidatedFor).toBe('history_rev')
   })
 
+  it('contract answer with complete_through null (pre-first-repair, D/W/M) falls back to I8', () => {
+    const rows = [bar(T(595)), bar(T(600)), bar(T(605)), bar(T(610))]
+    const s = reduce(initialState(K5, ctx), { type: 'rest-full', payload: contract(rows, {
+      complete_through: null, developing: { ...bar(T(610)), rev: 1000 },
+    }) }, ctx)
+    expect(s.completeThrough).toBe(bucketEnd(T(605), s))
+    expect(s.developing.t).toBe(T(610))
+  })
+
   it('a seal is claimed only over rows the answer carries (an empty answer claims nothing)', () => {
     const s = reduce(initialState(K5, ctx), { type: 'rest-full', payload: contract([], { complete_through: T(605) }) }, ctx)
     expect(s.completeThrough).toBeNull()

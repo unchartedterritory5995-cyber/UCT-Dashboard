@@ -52,7 +52,7 @@ source, restSeen, needsFull, error, invalidatedFor}`
 | type | rule |
 |---|---|
 | `seed-from-pack` / `idb-hit` / `mem-hit` | before any server answer: seed (last row is `developing` if its bucket has not ended). After one: only rows OLDER than the server-covered region are prepended. Another cache_key / older history_rev ⇒ discarded. Local rows are never sealed; a server row always replaces a local one. |
-| `rest-full` | rows ingested once (`foldOffGridBars`, sort, dedupe); P1 `developing` removed from rows and merged into the developing bar; seal = `complete_through` (legacy: I8, the answer holds a LATER bucket); absences inside its sealed span remove non-server rows. A risen `history_rev` or changed `cache_key` resets the entry first. |
+| `rest-full` | rows ingested once (`foldOffGridBars`, sort, dedupe); P1 `developing` removed from rows and merged into the developing bar; seal = `complete_through` (absent or null — legacy, pre-first-repair, D/W/M: I8, the answer holds a LATER bucket); absences inside its sealed span remove non-server rows. A risen `history_rev` or changed `cache_key` resets the entry first. |
 | `rest-delta` | as `rest-full` over `[since, …]`; a risen `history_rev` / changed `cache_key` ⇒ invalidate + `needsFull` (rows not applied). |
 | `rest-error` | `no_data` is terminal (`unavailable`); other errors are recorded, data kept. |
 | `push-bar` | `t` must be on the grid and its `trade_ts` inside the bucket (I4). Same bucket as `developing`: `liveBarMerge.mergePushBar` (I1–I3, I6, I7) gated by `rev` (≤ held ⇒ ignored). Later bucket: the developing bar closes into `bars`. Earlier bucket: competes as a closed row (never inside a sealed span). |

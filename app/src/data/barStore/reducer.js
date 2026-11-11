@@ -401,10 +401,11 @@ function applyRest(state, action, ctx, kind) {
   }
 
   // What this answer seals.
-  let sealedIn
-  if (contract) sealedIn = numOrNull(p.complete_through)
-  else {
-    // liveBarMerge I8: a row is proven complete when the answer holds a LATER bucket.
+  // P1 `complete_through` when the answer carries one; when it is absent (legacy) or null
+  // (a series before its first tail repair; D/W/M — bar-contract.md §8) the legacy proof,
+  // liveBarMerge I8: a row is complete when the answer holds a LATER bucket.
+  let sealedIn = contract ? numOrNull(p.complete_through) : null
+  if (sealedIn == null) {
     const all = devIn ? [...rows, devIn] : rows
     sealedIn = all.length >= 2 ? bucketEnd(all[all.length - 2].t, working) : null
   }
