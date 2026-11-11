@@ -99,6 +99,17 @@ from every process on that store.
   stream covers it also includes the stream's proof (`bars_live_store.proven_through_s`).
   It says "nothing NEWER existed"; it does not say the stored rows are final — that is
   `sealed_through`.
+- **A claim never outruns the rows it is attached to.** The value on the wire is read
+  ONCE, before the answer's rows are (re)read from the store (full intraday answers
+  are reconciled to the store over the heal window; `since=` deltas are re-read), and
+  is stated as `min(proof, now) - SEAL_LAG_S`: a check at X only proves buckets whose
+  final aggregate had landed. `tail_status` judges that same number. So a cached payload
+  never carries a newer claim than its rows: every stored row whose bucket ended by
+  `verified_through` is in the payload with the store's values (railed: I4 in the
+  property test, and a router-level stale-cache test).
+- It is NOT capped at the payload's newest row: for a thin name with no prints after
+  15:55 the proof legitimately says "nothing newer up to X" (the client's
+  `intradayBarCurrentness` relies on exactly that beyond the one-bucket tolerance).
 
 ### sealed_through
 Unix seconds: every bucket of the series that ENDED at or before it is final in this

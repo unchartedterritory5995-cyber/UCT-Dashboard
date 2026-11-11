@@ -253,11 +253,15 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 222
+          "line": 229
         },
         {
           "function": "get_bars_since",
-          "line": 300
+          "line": 246
+        },
+        {
+          "function": "get_bars_since",
+          "line": 319
         }
       ],
       "evidence": {
@@ -287,79 +291,79 @@
         },
         {
           "function": "get_bars",
-          "line": 1702
+          "line": 1707
         },
         {
           "function": "get_bars",
-          "line": 2241
+          "line": 2246
         },
         {
           "function": "get_bars_since",
-          "line": 2535
+          "line": 2540
         },
         {
           "function": "get_bars_since",
-          "line": 2548
+          "line": 2553
         },
         {
           "function": "get_bars_since",
-          "line": 2691
+          "line": 2696
         },
         {
           "function": "get_bars",
-          "line": 3187
+          "line": 3192
         },
         {
           "function": "get_bars_before",
-          "line": 3321
+          "line": 3326
         },
         {
           "function": "get_bars_before",
-          "line": 3348
+          "line": 3353
         },
         {
           "function": "get_bars_before",
-          "line": 3431
+          "line": 3436
         },
         {
           "function": "get_bars_before",
-          "line": 3512
+          "line": 3517
         },
         {
           "function": "get_bars_since",
-          "line": 3644
+          "line": 3649
         },
         {
           "function": "get_bars",
-          "line": 3648
+          "line": 3653
         },
         {
           "function": "get_bars",
-          "line": 4473
+          "line": 4478
         },
         {
           "function": "get_bars",
-          "line": 4527
+          "line": 4532
         },
         {
           "function": "get_bars",
-          "line": 4537
+          "line": 4542
         },
         {
           "function": "get_bars",
-          "line": 4659
+          "line": 4664
         },
         {
           "function": "get_bars",
-          "line": 4746
+          "line": 4751
         },
         {
           "function": "get_bars",
-          "line": 4857
+          "line": 4862
         },
         {
           "function": "get_bars",
-          "line": 4991
+          "line": 4996
         }
       ],
       "evidence": {

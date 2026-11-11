@@ -327,6 +327,7 @@ def test_property_complete_through_is_bounded_monotonic_and_final(store, monkeyp
     last_ct = None
     h0 = None
     cached = None
+    last_check = 0.0
 
     def true_bar(b):
         return truth.setdefault(b, (round(rng.uniform(5, 50), 4), rng.randint(1, 10_000)))
@@ -354,6 +355,7 @@ def test_property_complete_through_is_bounded_monotonic_and_final(store, monkeyp
         last = bs.get_last_ts("AAA", tf)
         if op < 0.35 or last is None:
             bf._heal_intraday_tail("AAA", tf, int(last or 0))
+            last_check = clock.now
         elif op < 0.6 and last >= cur - step:                  # live tail write
             bs.put_bars("AAA", tf, [published(cur)])
         elif op < 0.7:
@@ -378,6 +380,17 @@ def test_property_complete_through_is_bounded_monotonic_and_final(store, monkeyp
                     claimed.setdefault(r["t"], (r["c"], r["v"]))
         if c["developing"] is not None:
             assert c["developing"]["t"] <= clock.now < c["developing"]["t"] + step
+        # I4 (integrator rule): a claim never outruns the rows it is attached to. Every
+        # stored row inside the claimed-verified region is IN this payload with the
+        # store's values — even when the payload began as an older cache snapshot — and
+        # the claim is net of the provider settle lag.
+        vt = c["verified_through"]
+        if vt is not None:
+            assert vt <= last_check - bc.SEAL_LAG_S + 1e-6
+            by_t = {r["t"]: (r["c"], r["v"]) for r in served}
+            for r in stored:
+                if r[0] + step <= vt:
+                    assert by_t.get(r[0]) is not None and by_t[r[0]][1] == r[5], (r[0], vt)
     final_rows = {r[0]: (r[4], r[5]) for r in _store_rows("AAA", tf)}
     assert claimed, "the simulation never reached a sealed bucket — vacuous"
     assert bs.series_meta("AAA", tf)["history_rev"] == h0
@@ -443,6 +456,25 @@ def test_every_serve_branch_answers_with_the_contract(store, monkeypatch, label,
         else:
             assert isinstance(body["series_rev"], int) and body["series_rev"] > 0
         assert body["bars"] == rows or kw.get("since")
+
+
+def test_a_cached_payload_never_carries_a_newer_claim_than_its_rows(store, monkeypatch):
+    """Router level: the rows come from a stale memory-cache payload, a repair has since
+    landed newer rows AND a proof. The answer either carries those rows or does not
+    claim them: here it carries them (reconciled to the store after the proof read),
+    and tail_status judges the same lagged proof that is on the wire."""
+    from api.routers import bars as br
+    t = [et(*WED, 10, m) for m in (0, 5, 10, 15)]
+    bs.put_bars("AAA", "5", [bar(x) for x in t[:2]])
+    cached = bf._fmt_sqlite_bars(_store_rows("AAA", "5"), "5")
+    bs.put_bars("AAA", "5", [bar(x, c=12) for x in t[1:]])     # the repair
+    bf._mark_tail_verified("AAA", "5", time.time())
+    monkeypatch.setattr(br, "_get_bars_inner", lambda *a, **k: br.JSONResponse(
+        content={"ticker": "AAA", "tf": "5", "bars": cached}))
+    body = _body(br._serve_bars_impl("AAA", "5", 200))
+    assert [b["t"] for b in body["bars"]] == t and body["bars"][1]["c"] == 12
+    assert body["verified_through"] <= time.time() - bc.SEAL_LAG_S
+    assert body["tail_status"] in ("current", "verified", "unverified")
 
 
 def test_session_eth_60_is_restated_on_the_clock_hour_grid(store, monkeypatch):

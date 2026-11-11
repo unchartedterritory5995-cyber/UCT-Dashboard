@@ -174,7 +174,7 @@ def _row_from_store(tf: str, r: tuple) -> dict:
 def compute(ticker: str, tf: str, session, rows: list, *, delta: bool = False,
             to: bool = False, store_backed: bool = True, now: float | None = None,
             store_rows: list | None = None, meta: dict | None = None,
-            reconcile: bool = True) -> dict:
+            reconcile: bool = True, since_key: int | None = None) -> dict:
     """The contract fields for one answer. `rows` = the answer's `bars` (dicts, in the
     wire format). `store_rows` / `meta` override the store reads (tests; derived grids).
     `meta` should be read BEFORE the answer's rows were (`snapshot_meta`), so the rows
@@ -211,12 +211,19 @@ def compute(ticker: str, tf: str, session, rows: list, *, delta: bool = False,
     rev = int(meta.get("rev") or 0)
     out["series_rev"] = rev
     out["history_rev"] = int(meta.get("history_rev") or 0)
-    # `verified_through` on the wire = the tail-status proof (store + live stream);
-    # complete_through rests on the STORE's own persisted proof only, the one the
-    # store's history accounting (`bars_sqlite._history_keys`) also reads.
-    vt = meta.get("verified_through")
-    out["verified_through"] = (_bf.tail_verified_through(tkr, src)
-                               if src in INTRADAY_TFS else vt)
+    # ⛔ A CLAIM NEVER OUTRUNS THE ROWS IT IS ATTACHED TO (integrator rule, 2026-11-11).
+    # `verified_through` (store proof + live-stream watermark for covered 5m) is read
+    # ONCE, HERE, before the rows the answer will carry are (re)read from the store
+    # below — so every row the proof covers is in this payload as the store held it
+    # after the proof (a memory-cache payload, or rows read before a repair landed, are
+    # reconciled to the store first). And it is stated minus the provider settle lag:
+    # a check at X proves only buckets whose final aggregate had landed, i.e. that
+    # ended by X - SEAL_LAG_S. The router's `tail_status` judges THIS value (it never
+    # re-reads a newer one), so the status and the number agree with the payload.
+    raw_vt = (_bf.tail_verified_through(tkr, src) if src in INTRADAY_TFS
+              else meta.get("verified_through"))
+    out["verified_through"] = (None if raw_vt is None
+                               else float(min(float(raw_vt), now)) - SEAL_LAG_S)
     if store_rows is None:
         try:
             store_rows = _bs.get_bars(tkr, src, 2)
@@ -231,6 +238,18 @@ def compute(ticker: str, tf: str, session, rows: list, *, delta: bool = False,
         if spliced is not rows:
             rows = spliced
             out["_bars"] = spliced
+    elif (delta and tf in INTRADAY_TFS and src == tf and since_key and store_rows
+          and reconcile):
+        # A delta's rows were read before the proof: re-read them after it.
+        try:
+            from api.services.bars_fetch import _fmt_sqlite_bars
+            fresh = _fmt_sqlite_bars(_bs.get_bars_since(tkr, tf, int(since_key)), tf, tkr)
+        except Exception:                  # noqa: BLE001
+            fresh = None
+        if fresh is not None and [(f.get("t"), f.get("c"), f.get("v")) for f in fresh] != \
+                [(x.get("t"), x.get("c"), x.get("v")) for x in rows]:
+            rows = fresh
+            out["_bars"] = fresh
     considered = [_row_from_store(tf, r) for r in store_rows] if delta else rows
     dev_rows = considered
     if delta and rows and (not considered or (_store_key(tf, rows[-1].get("t")) or 0)

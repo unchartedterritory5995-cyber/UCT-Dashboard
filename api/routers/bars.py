@@ -758,9 +758,11 @@ def _augment_with_tail_status(response, ticker: str, tf: str, session: str | Non
     return out
 
 
-def _apply_tail_status(payload: dict, ticker: str, tf: str, session: str | None = None):
+def _apply_tail_status(payload: dict, ticker: str, tf: str, session: str | None = None,
+                       contract_vt=_bars_fetch._VT_UNSET):
     """`tail_status` (+ `retry_after`) onto an intraday payload in place. Returns the
-    headers to add, or None when there is no tail to judge (an empty full answer)."""
+    headers to add, or None when there is no tail to judge (an empty full answer).
+    `contract_vt`: the proof the bar contract attached to THIS payload (judged as is)."""
     rows = payload.get("bars")
     if payload.get("delta"):
         from api.services import bars_sqlite as _bs
@@ -774,8 +776,12 @@ def _apply_tail_status(payload: dict, ticker: str, tf: str, session: str | None 
         if not rows:
             return None
         tail = rows[-1].get("t") if isinstance(rows[-1], dict) else None
-    st = (_bars_fetch.intraday_tail_status(ticker, tf, tail, session=session) if session
-          else _bars_fetch.intraday_tail_status(ticker, tf, tail))
+    if contract_vt is not _bars_fetch._VT_UNSET:
+        st = _bars_fetch.intraday_tail_status(ticker, tf, tail, session=session,
+                                              verified_through=contract_vt)
+    else:
+        st = (_bars_fetch.intraday_tail_status(ticker, tf, tail, session=session) if session
+              else _bars_fetch.intraday_tail_status(ticker, tf, tail))
     payload["tail_status"] = st["tail_status"]
     payload["verified_through"] = st["verified_through"]
     headers = {}
@@ -785,9 +791,20 @@ def _apply_tail_status(payload: dict, ticker: str, tf: str, session: str | None 
     return headers
 
 
+def _since_key(since, tf: str):
+    """The `since=` param as the store's intraday key (unix s), else None."""
+    if not since or tf not in _INTRADAY_TFS:
+        return None
+    try:
+        s = int(since)
+    except (TypeError, ValueError):
+        return None
+    return s // 1000 if s > 10_000_000_000 else s
+
+
 def _augment_with_contract(response, ticker: str, tf: str, session: str | None, *,
                            store_backed: bool, tail_status: bool, to: bool = False,
-                           meta: dict | None = None):
+                           meta: dict | None = None, since_key: int | None = None):
     """THE BAR CONTRACT (docs/architecture/bar-contract.md) onto EVERY 200 bars answer
     — every tf, every serve branch, full / `since=` / `to=` alike — in ONE parse that
     also carries `tail_status` where it always applied (`tail_status=True`: live equity
@@ -808,7 +825,8 @@ def _augment_with_contract(response, ticker: str, tf: str, session: str | None, 
         from api.services import bar_contract
         fields = bar_contract.compute(ticker, tf, session, rows,
                                       delta=bool(payload.get("delta")), to=to,
-                                      store_backed=store_backed, meta=meta)
+                                      store_backed=store_backed, meta=meta,
+                                      since_key=since_key)
         spliced = fields.pop("_bars", None)
         if spliced is not None:
             payload["bars"] = spliced      # the store's current tail (see compute)
@@ -818,7 +836,11 @@ def _augment_with_contract(response, ticker: str, tf: str, session: str | None, 
                           type(e).__name__)
     if tail_status and tf in _INTRADAY_TFS:
         try:
-            headers = _apply_tail_status(payload, ticker, tf, session) or {}
+            if "contract" in payload and store_backed:
+                headers = _apply_tail_status(payload, ticker, tf, session,
+                                             contract_vt=payload.get("verified_through")) or {}
+            else:
+                headers = _apply_tail_status(payload, ticker, tf, session) or {}
         except Exception:
             headers = {}
     out = JSONResponse(content=payload, status_code=getattr(response, "status_code", 200))
@@ -1300,7 +1322,8 @@ def _serve_bars_impl(
                 response = _augment_with_contract(
                     response, ticker, tf, session,
                     store_backed=_live_equity and get_serve_layer() != "yf-only",
-                    tail_status=(_live_equity and not to), to=bool(to), meta=_meta_pre)
+                    tail_status=(_live_equity and not to), to=bool(to), meta=_meta_pre,
+                    since_key=_since_key(since, tf))
             except Exception:
                 pass
 

@@ -1042,8 +1042,11 @@ def normalize_session(session) -> str | None:
     return None
 
 
+_VT_UNSET = object()
+
+
 def intraday_tail_status(ticker: str, tf: str, tail_ts, now: float | None = None,
-                         session: str | None = None) -> dict:
+                         session: str | None = None, verified_through=_VT_UNSET) -> dict:
     """Machine-readable currentness for an intraday response.
 
     Returns {"tail_status": "current" | "verified" | "unverified",
@@ -1054,7 +1057,9 @@ def intraday_tail_status(ticker: str, tf: str, tail_ts, now: float | None = None
                    bucket closed and had nothing newer (`verified_through` says when).
       unverified — outside the tolerance and nobody has proven there is nothing newer:
                    the repair was shed, failed, or is still running. NOT current."""
-    vt = tail_verified_through(ticker, tf)
+    # `verified_through` given = judge THAT proof (the bar contract passes the one it
+    # attached to the payload, read before the payload's rows — never a newer one).
+    vt = tail_verified_through(ticker, tf) if verified_through is _VT_UNSET else verified_through
     out = {"tail_status": "unverified", "verified_through": vt}
     try:
         tail = int(tail_ts) if tail_ts is not None else None
