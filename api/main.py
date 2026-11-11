@@ -10781,6 +10781,44 @@ def _bundle_build_id() -> str:
     return result
 
 
+_EARLY_HINTS_CACHE = None  # None = not read yet; "" = read, nothing usable
+
+
+def early_hint_link_header() -> str:
+    """The `Link` header for index.html (desktop speed plan 10.3), read once from the build manifest.
+
+    Cloudflare has Early Hints ON (zone setting `early_hints`): it remembers the Link
+    preloads on a page's response and sends them as a 103 before the next request's page
+    arrives, so the browser starts the entry script, its two vendor chunks and the CSS while
+    the HTML is still on its way (about one round trip sooner on a first visit; repeat visits
+    already have these immutable files cached). Every hint carries `crossorigin` because
+    index.html loads each of them with `crossorigin`: a hint whose mode differs is fetched
+    TWICE. Returns "" on any failure; the page is served the same either way.
+    """
+    global _EARLY_HINTS_CACHE
+    cached = _EARLY_HINTS_CACHE
+    if cached is not None:
+        return cached
+    result = ""
+    try:
+        import json as _json
+
+        with open(os.path.join(DIST, ".vite", "manifest.json"), encoding="utf-8") as f:
+            manifest = _json.load(f)
+        entry = manifest.get("index.html")
+        if isinstance(entry, dict) and entry.get("isEntry") and isinstance(entry.get("file"), str):
+            scripts = [entry["file"]] + [manifest[k]["file"] for k in entry.get("imports", [])
+                                         if isinstance(manifest.get(k), dict) and isinstance(manifest[k].get("file"), str)]
+            styles = [c for c in entry.get("css", []) if isinstance(c, str)]
+            parts = [f"</{f.lstrip('/')}>; rel=preload; as=script; crossorigin" for f in scripts]
+            parts += [f"</{c.lstrip('/')}>; rel=preload; as=style; crossorigin" for c in styles]
+            result = ", ".join(parts)
+    except Exception:
+        result = ""
+    _EARLY_HINTS_CACHE = result
+    return result
+
+
 @app.get("/api/health")
 def health():
     from api.services.cache import cache
@@ -13647,6 +13685,9 @@ def spa_index_response(full_path: str):
     it from a temp DIST; `spa_fallback` below is exactly `return spa_index_response(...)`
     (tests/test_public_note_headers.py pins that by AST)."""
     headers = {"Cache-Control": "no-cache, no-store, must-revalidate"}
+    hints = early_hint_link_header()
+    if hints:
+        headers["Link"] = hints
     if is_public_note_path(full_path):
         headers.update(PUBLIC_NOTE_HEADERS)
     return FileResponse(os.path.join(DIST, "index.html"), headers=headers)
