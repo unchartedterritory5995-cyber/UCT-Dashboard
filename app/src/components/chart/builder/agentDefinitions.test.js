@@ -157,12 +157,25 @@ describe('delete — safe by default', () => {
     expect(srv.calls).toEqual([])
     expect((await executeDefinitionAction(p.plan, ctx({ charts: [a] }), srv)).status).toBe('confirmed')
   })
-  it('nothing is deleted when the stored document cannot be read first', async () => {
+  // ⛔ F-15 follow-up — nothing was written, so this is a REFUSAL in a true sentence, never
+  // `unconfirmed` (which the member read as "could not read it back" + "some changes could not
+  // be reversed")
+  it('nothing is deleted when the stored document cannot be read first — refused, in its own words', async () => {
     const srv = { ...fakeServer(), read: async () => ({ ok: false, status: null, error: 'offline' }) }
     let deleted = false
     srv.remove = async () => { deleted = true; return { ok: true } }
     const p = planDefinitionAction({ op: 'delete', defId: MINE }, ctx({ charts: [] }))
-    expect(await executeDefinitionAction(p.plan, ctx({ charts: [] }), srv)).toMatchObject({ status: 'unconfirmed' })
+    const res = await executeDefinitionAction(p.plan, ctx({ charts: [] }), srv)
+    expect(res).toEqual({ ok: false, reason: 'unsupported-definition', detail: { why: DELETE_REFUSALS.unreadBefore } })
+    expect(res.detail.why).toBe('could not read this indicator’s saved definition before deleting it, so a delete could not be undone exactly')
+    expect(deleted).toBe(false)
+  })
+  it('a read that answers but carries no document is refused the same way; nothing is deleted', async () => {
+    const srv = { ...fakeServer(), read: async () => ({ ok: true, row: { def_id: MINE, version: 2, definition: null } }) }
+    let deleted = false
+    srv.remove = async () => { deleted = true; return { ok: true } }
+    const p = planDefinitionAction({ op: 'delete', defId: MINE }, ctx({ charts: [] }))
+    expect(await executeDefinitionAction(p.plan, ctx({ charts: [] }), srv)).toEqual({ ok: false, reason: 'unsupported-definition', detail: { why: DELETE_REFUSALS.unreadBefore } })
     expect(deleted).toBe(false)
   })
   it('a token from another contract, or a stale definition version, is refused', async () => {
@@ -204,7 +217,7 @@ describe('I-13 — a colour input takes only a colour the chart can draw', () =>
 const SCRIPT = '//@version=5\nindicator("x")\nplot(ta.sma(close, 20))'
 const SHARE_ORIGIN = { author_id: 'author-1', def_id: 'u_dddddddddddd', version: 3, ast_hash: 'h', table_version: 1 }
 function pineServer({ hasScript = true, stamp = true, dropScriptOnSave = false, scriptShaped = false, scriptEdited = false,
-  origin = false, stampOnSave = null, markAnyOnSave = false, storeScriptOnSave = null, unmarkOnSave = false } = {}) {
+  origin = false, stampOnSave = null, markAnyOnSave = false, storeScriptOnSave = null, unmarkOnSave = false, originOnSave } = {}) {
   const meta = { ...(FIX.styled_markers.meta || {}), name: 'My Breakout Dots', ...(stamp ? { engineVersion: 1 } : {}),
     ...(scriptShaped ? { recurrenceOrigin: registry.PINE_RECURRENCE_ORIGIN } : {}), ...(scriptEdited ? { scriptEdited: true } : {}) }
   // `origin` is what `install_share` writes on a copy installed from someone else's share
@@ -229,6 +242,8 @@ function pineServer({ hasScript = true, stamp = true, dropScriptOnSave = false, 
       if (script && stampOnSave !== null) stored = { ...stored, meta: { ...stored.meta, engineVersion: stampOnSave } }
       // `unmarkOnSave`: a door that drops the hand-edited mark (review #1087 mutation O)
       if (unmarkOnSave) { const { scriptEdited: _m, ...rest } = stored.meta; stored = { ...stored, meta: rest } }
+      // `originOnSave`: a store that drops (null) or rewrites (an object) the share provenance (N4)
+      if (originOnSave === null) { const { origin: _o, ...rest } = stored; stored = rest } else if (originOnSave !== undefined) stored = { ...stored, origin: originOnSave }
       const r = rows.get(id)
       // `storeScriptOnSave`: a door that stores a script other than the one it was sent (mutation H)
       const keptScript = storeScriptOnSave !== null ? storeScriptOnSave : (dropScriptOnSave ? null : script)
@@ -464,6 +479,43 @@ describe('F-15 N2 — "confirmed" also means the hand-edited mark (`meta.scriptE
     const { done } = await deleteThenUndo(srv)
     expect(done).toMatchObject({ ok: false, reason: 'unsupported-definition', detail: { why: DELETE_REFUSALS.legacyImport } })
     expect(srv.calls.some((c) => c[0] === 'delete')).toBe(false)
+  })
+})
+
+// review #1087 N4: `origin` is part of "exact". The real store keeps the document's keys as sent
+// (`user_definitions.save` stores `json.dumps(stored, sort_keys=True)`; `get` returns it parsed),
+// so an exact restore reads the same `origin` back; anything else is named, never "confirmed".
+describe('F-15 N4 — "confirmed" also means the share provenance (`origin`) came back the same', () => {
+  const MOVED = { ...SHARE_ORIGIN, version: 4 }
+  it('a read-back that LOST `origin` is reported, never "confirmed"', async () => {
+    const srv = pineServer({ hasScript: false, stamp: false, origin: true, originOnSave: null })
+    const { done, undone } = await deleteThenUndo(srv)
+    expect(done.status).toBe('confirmed')
+    expect(srv.rows.get(MINE).definition.origin).toBe(undefined)
+    expect(undone.status).toBe('did-not-land')
+    expect(undone.error).toBe('The indicator came back, but without the details of the share it was copied from, so it is not exactly as it was.')
+  })
+  it('a read-back with a DIFFERENT `origin` is reported, never "confirmed"', async () => {
+    const srv = pineServer({ hasScript: false, stamp: false, origin: true, originOnSave: MOVED })
+    const { done, undone } = await deleteThenUndo(srv)
+    expect(done.status).toBe('confirmed')
+    expect(undone.status).toBe('did-not-land')
+    expect(undone.error).toBe('The indicator came back, but with different details of the share it was copied from, so it is not exactly as it was.')
+  })
+  it('a read-back that GAINED an `origin` the deleted row did not have is reported, never "confirmed"', async () => {
+    const srv = pineServer({ hasScript: false, stamp: false, originOnSave: SHARE_ORIGIN })
+    const { done, undone } = await deleteThenUndo(srv)
+    expect(done.status).toBe('confirmed')
+    expect(done.undo.definition.origin).toBe(undefined)
+    expect(undone.status).toBe('did-not-land')
+    expect(undone.error).toBe('The indicator came back, but with share details it did not have, so it is not exactly as it was.')
+  })
+  it('control: the same `origin` with its keys in another order (the store sorts them) still confirms', async () => {
+    const reordered = Object.fromEntries(Object.entries(SHARE_ORIGIN).reverse())
+    expect(JSON.stringify(reordered)).not.toBe(JSON.stringify(SHARE_ORIGIN))
+    const srv = pineServer({ hasScript: false, stamp: false, origin: true, originOnSave: reordered })
+    const { undone } = await deleteThenUndo(srv)
+    expect(undone.status).toBe('confirmed')
   })
 })
 

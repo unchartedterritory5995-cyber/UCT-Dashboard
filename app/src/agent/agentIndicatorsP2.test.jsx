@@ -252,6 +252,25 @@ describe('definition.* — uct.indicators.definitions/1', () => {
     expect(`${res.failed[0].label} ${res.failed[0].reason}`).toBe('Your indicators failed (That can’t be done: this indicator is a copy shared with you, and a shared copy never carries the author’s Pine script, so a delete could not be undone exactly) — nothing was left changed')
     expect(srv.rows.get(MINE).live).toBe(true)
   })
+  // ⛔ F-15 follow-up — the read BEFORE the delete failed, so nothing was written. As `unconfirmed`
+  // the member read "UCT could not read it back, so I am not reporting it as done" and "and some
+  // changes could not be reversed" — both false. Now a refusal, in a sentence true of it.
+  it('F-15: a delete whose first read fails is refused in its own words, and nothing is left changed', async () => {
+    const srv = server()
+    srv.read = async () => ({ ok: false, status: null, error: 'offline' })
+    let deleted = false
+    srv.remove = async () => { deleted = true; return { ok: true } }
+    setDefinitionDeps(srv)
+    const b = board()
+    const { p, env } = await plan(b.host, [{ action: 'definition.delete', target: 'definitions', args: { defId: MINE } }], lib)
+    expect(p.ok, JSON.stringify(p.refusals)).toBe(true)
+    const res = await commitPlan(b.host, p, { env, ctx: CTX })
+    expect(res.ok).toBe(false)
+    expect(`${res.failed[0].label} ${res.failed[0].reason}`).toBe('Your indicators failed (That can’t be done: could not read this indicator’s saved definition before deleting it, so a delete could not be undone exactly) — nothing was left changed')
+    expect(res.compensated).toBe(true)
+    expect(deleted).toBe(false)
+    expect(srv.rows.get(MINE).live).toBe(true)
+  })
   it('F-15: an Undo that cannot be exact says WHY, each fact once (the exact text the member reads)', async () => {
     const srv = server()
     const row = srv.rows.get(MINE)
