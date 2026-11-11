@@ -550,7 +550,13 @@ _WRITE_SQL = re.compile(r"(INTO\s+(main\.)?ohlcv\b|DELETE\s+FROM\s+(main\.)?ohlc
                         re.I)
 _ACCOUNTS = ("bump_series_revs", "bump_store_floor", "_bump_merged_rev")
 #: Writers that never touch the LIVE store (they build a separate export database).
-_EXEMPT = {("api/services/data_sync.py", "_export_delta_db")}
+_EXEMPT = {
+    ("api/services/data_sync.py", "_export_delta_db"),
+    # #1102: builds a PRIVATE clustered copy whose rows are verified identical to the
+    # source and which carries series_meta / store_meta verbatim (so the copy's revs and
+    # proofs describe exactly its rows); any install of it bumps the store floor.
+    ("api/services/bars_cluster.py", "cluster_copy"),
+}
 
 
 def _writer_sites():
@@ -771,3 +777,55 @@ def test_a_full_fetch_or_gap_fill_clears_the_delete_point(store):
     bs.flush_meta()
     bs.reset_meta_state_for_tests()
     assert bs.series_meta("AAA", "5")["sealed_through"] == float(t[5])
+
+
+# ── #1102 composition: clustered store, adoption, write tracking ─────────────
+
+def test_cluster_copy_carries_series_meta_and_store_meta(tmp_path):
+    """The offline clustered copy keeps the meta tables (same rows, same WITHOUT ROWID
+    layout), so a clustered snapshot states the same revs / proofs as its source."""
+    import sqlite3
+    from api.services import bars_cluster
+    src, dst = tmp_path / "src.db", tmp_path / "dst.db"
+    c = sqlite3.connect(str(src))
+    c.execute("CREATE TABLE ohlcv (ticker TEXT NOT NULL, tf TEXT NOT NULL, ts INTEGER NOT NULL, "
+              "o REAL, h REAL, l REAL, c REAL, v INTEGER, PRIMARY KEY (ticker, tf, ts))")
+    c.executemany("INSERT INTO ohlcv VALUES (?,?,?,?,?,?,?,?)",
+                  [("AAA", "5", 1_700_000_100 + k * 300, 1, 2, 0.5, 1.5, 10) for k in range(20)])
+    bs._create_meta_tables(c)
+    c.execute("INSERT INTO series_meta(ticker, tf, rev, history_rev, verified_through, "
+              "sealed_through, sealed_checked_at, unsealed_from, covered_at, proof_floor) "
+              "VALUES ('AAA', '5', 123, 100, 1.5, 2.5, 3.5, 7, 4.5, 0.5)")
+    c.execute("INSERT INTO store_meta(k, v) VALUES ('rev_floor_ms', 99.0)")
+    c.commit(); c.close()
+    bars_cluster.cluster_copy(str(src), str(dst))
+    d = sqlite3.connect(str(dst))
+    try:
+        assert d.execute("SELECT ticker, tf, rev, history_rev, verified_through, sealed_through, "
+                         "sealed_checked_at, unsealed_from, covered_at, proof_floor "
+                         "FROM series_meta").fetchall() == [
+            ("AAA", "5", 123, 100, 1.5, 2.5, 3.5, 7, 4.5, 0.5)]
+        assert d.execute("SELECT k, v FROM store_meta").fetchall() == [("rev_floor_ms", 99.0)]
+        ddl = d.execute("SELECT sql FROM sqlite_master WHERE name='series_meta'").fetchone()[0]
+        assert "WITHOUT ROWID" in ddl.upper()
+        assert bs.ohlcv_layout(d) == "clustered"
+    finally:
+        d.close()
+
+
+def test_every_write_is_both_tracked_and_revved(store):
+    """#1102 adoption's write tracking and the contract's series_rev both happen on every
+    put_bars / put_bars_many write (and a fully-refused stale write is neither)."""
+    bs.start_write_tracking()
+    try:
+        r0 = bs.series_meta("AAA", "5")["rev"]
+        bs.put_bars("AAA", "5", [bar(et(*WED, 10, 0))])
+        bs.put_bars_many("5", {"BBB": [bar(et(*WED, 10, 0))]})
+        assert bs.series_meta("AAA", "5")["rev"] > r0 and bs.series_meta("BBB", "5")["rev"] > 0
+        bs.record_sealed("AAA", "5", float(et(*WED, 10, 5)), float(et(*WED, 10, 0)), 2e9)
+        r1 = bs.series_meta("AAA", "5")["rev"]
+        assert bs.put_bars("AAA", "5", [bar(et(*WED, 10, 0), v=1)], checked_at=1e9) == 0
+        assert bs.series_meta("AAA", "5")["rev"] == r1
+    finally:
+        tracked = bs.stop_write_tracking()
+    assert {("AAA", "5"), ("BBB", "5")} <= tracked
