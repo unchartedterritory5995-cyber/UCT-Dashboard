@@ -2315,7 +2315,8 @@
   "Trims and trail: with stops near 10%, 3R is a 30% move (the card says so), so the unit's trim and trail items (q17, q20, q42) teach the rules and q42 shows how far 3R sits for a wide stop. The parabolic-short 9 EMA target (nf.parabolic_target, settled) is not taught; no item is a parabolic short.",
   "Cold check, read vs setup: the dossier's finding is 'no stand-alone edge' (section 8.0, 4.4) and its recommendation (nf.read_not_setup, D-002, pending) is to teach the News Failure as a read that confirms another setup. The unit still teaches the stand-alone trade the card describes; q56 now states the finding plainly, and nothing in the unit says the trade has an edge. The owner should rule D-002 before this unit goes live.",
   "Traded shorts (q09, q38, q50, q52, q54, w3) rest on the card's proposed short entry and the settled F65 and B26; D-001's default is to show most short mirrors as recognition only. The keys are right either way, but the owner may want fewer of them.",
-  "Cold check 2026-11-10: 53 pass (11 fixed), 1 fix, 13 cut. Look first at: (1) D-002, whether the News Failure is a setup at all: the dossier found no stand-alone edge, q56 now says so and the three walk-throughs are hand-picked winners; (2) q45 held, the card's B- cue 'closing on the news side' contradicts its own failure test (D-087); (3) q27 and q38/q50/q52/q54 and w3 lean on D-032 (what counts as news) and D-001 (traded shorts). 13 items cut as duplicates (q25, q26, q28, q29, q32, q36, q37, q43, q46, q48, q53, q62, q64)."
+  "Cold check 2026-11-10: 53 pass (11 fixed), 1 fix, 13 cut. Look first at: (1) D-002, whether the News Failure is a setup at all: the dossier found no stand-alone edge, q56 now says so and the three walk-throughs are hand-picked winners; (2) q45 held, the card's B- cue 'closing on the news side' contradicts its own failure test (D-087); (3) q27 and q38/q50/q52/q54 and w3 lean on D-032 (what counts as news) and D-001 (traded shorts). 13 items cut as duplicates (q25, q26, q28, q29, q32, q36, q37, q43, q46, q48, q53, q62, q64).",
+  "q45 cut 2026-11-10: the card's B- cue g3 ('a partial fade ... still closing on the news side') contradicts its own failure test (the close is on the failure side of the prior close, D-087), so the cue is left out of the unit; the card needs the cue reworded or removed."
  ],
  "verify": {
   "q01": {
@@ -2583,10 +2584,10 @@
    "by": "checker"
   },
   "q45": {
-   "status": "fix",
-   "notes": "the card's B- cue g3 ('a partial fade, off the high but still closing on the news side', MSFT 2025-07-31 closed up 3.9%) conflicts with its own failure test: nf.failure_close (pending D-087) and the lookalike tell say a News Failure CLOSES on the failure side of the prior close, so a close on the news side is not a News Failure at all and 'grades B- or lower' is not a coherent key. Needs the owner's D-087 ruling and a card fix before it is graded.",
+   "status": "cut",
+   "notes": "The failure test holds and the B- cue does not: the card and the passing items q02 and q07 define a News Failure as closing on the failure side of the prior close, and MSFT 2025-07-31 (gap up, faded, still closed up 3.9%) is therefore not a News Failure at all, so 'grades B- or lower' has no coherent key under either D-087 option. A rewrite onto the failure test would duplicate q02 and q07. The card's g3 B- cue needs a fix on the owner's side.",
    "fixed": false,
-   "by": "checker"
+   "by": "resolver"
   },
   "q46": {
    "status": "cut",

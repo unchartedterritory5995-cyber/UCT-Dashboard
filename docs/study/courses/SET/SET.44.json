@@ -2504,14 +2504,14 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "hg.above_200",
-   "q": "Hidden ticker, the day it trades over the prior day's high after touching the 20 EMA. Is the touch above the 200-day? Take it or pass.",
+   "q": "Hidden ticker, the day it touches the 20 EMA and holds. Is the touch above the 200-day? Take it or pass.",
    "choices": [
     "Pass; the touch is under the 200-day",
     "Take it; the 20 EMA held",
     "Take it; the ADX is strong"
    ],
    "answer": "Pass; the touch is under the 200-day",
-   "why": "Pass. The touch closed at 51.44 under the 200-day at 52.79: a bear-market rally under a falling 200-day. It ran to 5.4R and the rule still says no; location is a rule, not a prediction.",
+   "why": "Pass. The touch closed at 51.44 under the 200-day at 52.79, and the whole day's range sat under that line. The trade that followed ran to 5.4R and the rule still says no; location is a rule, not a prediction.",
    "lesson_line": "A setup that works is not always our setup. The 200-day decides before the line does.",
    "facts": [
     "h10",
@@ -2524,7 +2524,7 @@
    },
    "chart": {
     "sym": "RIG",
-    "asof": "2012-03-07",
+    "asof": "2012-03-06",
     "window": 120,
     "forward": 20
    },
@@ -2601,7 +2601,7 @@
   "Volume: no source requires it; only the scanner gates on it. Our scan found a quiet pullback did not help (27.6% against 26.7% to 3R). q05 and q54 key 'not a gate, a grade plus' (hg.pullback_volume, proposed).",
   "The trail: E52 allows the 10-day for fast movers and the 21-day for steadier ones; picking the 10-day as this setup's default is the dossier's proposal (hg.trail). q31 keys it on the card and names E52's reason.",
   "The stop: Raschke's newly formed swing low and the house day's low usually coincide; the touch-to-trigger window for the swing is the dossier's. The scanner's pullback low minus 1 ATR is neither (q39).",
-  "The chart questions (q61 CI asof 2000-10-25, the touch day; q62 RIG asof 2012-03-07, the buy day) show the member's own chart with their averages. The ADX is not drawn on the member's chart, so neither key rests on reading it: q61 keys the touch holding above the 50-day and the 200-day (c10, c04, d02), q62 the touch under the 200-day (h10, d40, d41). If the member's chart does not draw the 20 EMA, the 50-day or the 200-day, the question still reads; the importer resolves the bars from our own history.",
+  "The chart questions (q61 CI asof 2000-10-25, the touch day; q62 RIG asof 2012-03-06, the touch day) show the member's own chart with their averages. The ADX is not drawn on the member's chart, so neither key rests on reading it: q61 keys the touch holding above the 50-day and the 200-day (c10, c04, d02), q62 the touch under the 200-day (h10, d40, d41). If the member's chart does not draw the 20 EMA, the 50-day or the 200-day, the question still reads; the importer resolves the bars from our own history.",
   "The dossier's example numbers (d1) are cited as a Tier 3 repo source: they were read off our own daily bars by the research scan (dossier sections 12 and 13), not from a public page or an owner ruling; the scan has no delisted names and the owner has not yet reviewed the examples. The walk-throughs and the example stories depend on it; the checker and the owner should confirm the ten names before the unit goes live.",
   "The criteria card (c1) is cited as a Tier 3 repo source for its proposed criteria (the 150-session ADX history, direction from price, the momentum-high test, the 2 to 10 session length, the 50-day floor under the touch, the setup-void rule, the failed-Grail re-arm, the 10-day trail, the lookalike tells). Those statements are the dossier's proposals built on the sources it names, not owner rulings; every question keyed on them carries house: true and the owner's review is the gate.",
   "Walk-through fills: the scan filled a market order 2 cents over the high of the most recent completed session (CI 36.72, EXPD 38.93, LITE 91.78) and stopped 5 cents under the lowest low from the touch through the trigger; a live market order fills a little differently.",
@@ -2994,10 +2994,10 @@
    "by": "checker"
   },
   "q62": {
-   "status": "fix",
-   "notes": "RIG 2012-03-07 is the BUY day; the touch close 51.44 sat only 2.6% under the 200-day 52.79 (d40), and in the near-miss chart sheet the candles straddle the 200-day line. The touch day is not in the dossier, so asof cannot be moved to it. The key is right by the card and B26; the visual margin is too thin to read on a phone. Owner to look at the real chart; if it reads clearly, mark pass.",
-   "fixed": false,
-   "by": "checker"
+   "status": "pass",
+   "notes": "Moved the chart as-of from the buy day (2012-03-07, where the bar closes at 53.02 over the 200-day at 52.71) to the touch day 2012-03-06, read on our bars: open 51.13, high 51.74, low 50.45, close 51.44 against a 200-day SMA of 52.79 (matches d40), so the whole bar sits under the line; the 20 EMA is 50.93 and the low pierced it. The stem now asks about the touch day, not the buy day. The 5.4R run is d41's number for the trade that followed.",
+   "fixed": true,
+   "by": "resolver"
   },
   "q63": {
    "status": "pass",

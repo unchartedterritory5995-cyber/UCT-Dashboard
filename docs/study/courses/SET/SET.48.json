@@ -609,6 +609,18 @@
    "source": "d1",
    "quote": "the gap is the level, and the bounce, the market and the distance from the top decide the trade.",
    "claim": "The gap is the level; the bounce, the market and the distance from the top decide the trade."
+  },
+  {
+   "id": "c32",
+   "source": "c1",
+   "quote": "The gap zone: for a full window, from the gap day's high up to the prior day's low; for an overnight gap, up to the prior close. The chart draws both edges as one zone.",
+   "claim": "The gap zone runs from the gap day's high up to the prior day's low for a full window, or up to the prior close for an overnight gap, drawn as one zone."
+  },
+  {
+   "id": "c33",
+   "source": "c1",
+   "quote": "The open is under the prior close by at least 1 ATR(14) or 4%, whichever is smaller, and the gap is not filled that day",
+   "claim": "A bear gap needs an open at least 1 ATR (or 4%, whichever is smaller) under the prior close, not filled that day."
   }
  ],
  "walkthroughs": [
@@ -1068,24 +1080,25 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "bg.status",
-   "q": "In today's lesson, which line must a close stay under?",
+   "q": "A bear gap leaves a full window. How does our lesson draw the zone?",
    "choices": [
-    "The gap day's high",
-    "The prior day's high",
-    "The 200-day",
-    "The gap day's close"
+    "One band: gap high to prior day's low",
+    "A single line at the gap day's high",
+    "A single line at the prior day's low",
+    "A single line at the 200-day"
    ],
-   "answer": "The gap day's high",
-   "why": "The gap day's high. The lesson shows that line, and the fall is measured, not traded.",
-   "lesson_line": "Mark the gap day's high. A close above it is the warning.",
+   "answer": "One band: gap high to prior day's low",
+   "why": "One band. By our current default, the zone runs from the gap day's high up to the prior day's low, drawn as one zone. A close above its top edge fills the gap.",
+   "lesson_line": "The gap zone is a band, not a line. A close over its top edge fills the gap.",
    "facts": [
-    "c01"
+    "c32",
+    "c06"
    ],
    "house": true,
    "wrong": {
-    "The prior day's high": "The lesson draws the line at the gap day's high.",
-    "The 200-day": "The 200-day matters for any short, but it is not the gap line.",
-    "The gap day's close": "A close is a result. The line the lesson draws is the high."
+    "A single line at the gap day's high": "That is the bottom edge of the zone, not the whole zone.",
+    "A single line at the prior day's low": "That is the top edge of a full window, not the whole zone.",
+    "A single line at the 200-day": "The 200-day matters for any short, but it is not the gap zone."
    }
   },
   {
@@ -1890,25 +1903,26 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "bg.gap",
-   "q": "Read it or pass?",
+   "q": "By our current default, a bear gap is an open at least 1 ATR under the prior close, not filled that day. Read it or pass?",
    "choices": [
     "Pass; an ordinary down day",
     "Read it; any open under the close counts",
     "Read it; it closed red",
     "Pass; it must gap up"
    ],
-   "story": "A stock opens 2.1% under the prior close, 0.89 ATR, and closes red. The chart shows no real gap.",
+   "story": "A stock opens 2.1% under the prior close, 0.89 ATR, and never trades back up to that close. It closes red.",
    "answer": "Pass; an ordinary down day",
-   "why": "Pass. The open was 2.1%, or 0.89 ATR, under the prior close. That is an ordinary down day with no gap zone to defend.",
-   "lesson_line": "No real gap means no zone to defend.",
+   "why": "Pass. By our current default, a bear gap needs an open of at least 1 ATR. This open was 2.1%, or 0.89 ATR: an ordinary down day with no gap zone to defend.",
+   "lesson_line": "Under 1 ATR is an ordinary down day. No real gap means no zone to defend.",
    "facts": [
+    "c33",
     "d18",
     "d19"
    ],
    "house": true,
    "wrong": {
-    "Read it; any open under the close counts": "A small open under the close leaves no zone worth watching.",
-    "Read it; it closed red": "A red close alone is not a gap day.",
+    "Read it; any open under the close counts": "By our current default, an open under 1 ATR leaves no zone worth watching.",
+    "Read it; it closed red": "A red close alone is not a gap day. The open must be at least 1 ATR under the prior close.",
     "Pass; it must gap up": "A bear gap is a gap down. The problem is the size."
    }
   },
@@ -2324,7 +2338,9 @@
   "The dossier's example numbers (d1) are a Tier 3 repo source: read off our own daily bars by the research scan (dossier sections 12 and 13), survivors only, and not yet reviewed by the owner. The walk-throughs (VRSN, DLTR, CIEN) and the chart questions (q59 DLTR asof 2020-01-02, the last day before the 2020-01-03 study short; q60 CDNS asof 2024-08-09, the rejection day itself) depend on it. In the chart questions the member's chart shows the 20-day and 200-day; the keys rest on the dossier's reads (d03 to d05, d16, d17). CDNS's gap day is not stated in the dossier, so q60 asks only about the last bar.",
   "Walk-through 3 states 'the stock rule passed' for CIEN: the dossier says 'The stock under its own 200-day satisfies B26' in the same passage as the CIEN and CHKP failures (dossier section 12, notable failures); the exact quote is not in d08 and the step restates it in words.",
   "Cold-check notes carried from the pilot: no leading questions that restate their answer, 'we' and never 'the owner' in member text, no pending-owner number in a key or a wrong note, no sentence over 22 words, the stop stays the rule's stop (A4: only up, never wider).",
-  "Cold check 2026-11-10: 50 pass (19 fixed), 3 fix, 16 cut (counts also in verify); the three things the owner should look at first: (1) D-001, whether any short is taught at all (q29, q30, q31, q32, q52, q58 cut or held; the walk-throughs no longer print a study short's entry, stop or R); (2) D-100, which gap line is the zone (q18 conflicts with q03, q11, q35; the dossier's zone tops at the prior close, the card's at the prior low); (3) D-099, the gap size floor (q51). Numbers corrected: q16 (46.86 is LDOS's prior close, not its low), q47 (38% and 58% are cumulative), w2 (5.1% is the prior close, not the 2019-10-22 top). q36 and w3 no longer claim a Red or Orange reading the scan never checked. The publisher strings count ChartSchool (Chip Anderson) and ChartSchool as two publishers; q12 rested on that and now cites the card."
+  "Cold check 2026-11-10: 50 pass (19 fixed), 3 fix, 16 cut (counts also in verify); the three things the owner should look at first: (1) D-001, whether any short is taught at all (q29, q30, q31, q32, q52, q58 cut or held; the walk-throughs no longer print a study short's entry, stop or R); (2) D-100, which gap line is the zone (q18 conflicts with q03, q11, q35; the dossier's zone tops at the prior close, the card's at the prior low); (3) D-099, the gap size floor (q51). Numbers corrected: q16 (46.86 is LDOS's prior close, not its low), q47 (38% and 58% are cumulative), w2 (5.1% is the prior close, not the 2019-10-22 top). q36 and w3 no longer claim a Red or Orange reading the scan never checked. The publisher strings count ChartSchool (Chip Anderson) and ChartSchool as two publishers; q12 rested on that and now cites the card.",
+  "Keyed on the adopted default of D-100 (provisional, 2026-11-10): option a, the gap zone drawn as one band between the gap day's high and the prior day's low (for an overnight gap, up to the prior close), so q18 keys the band and no longer a single line at the gap day's high; q03, q11 and q35 key a close above the zone's top edge, which agrees.",
+  "Keyed on the adopted default of D-099 (provisional, 2026-11-10): option b, any open under the prior close not filled that day, with a 1 ATR minimum (volume a cue), so q51 passes a 0.89 ATR open; the card's 4% alternative changes nothing here because 2.1% is under both."
  ],
  "verify": {
   "w1": {
@@ -2724,22 +2740,22 @@
    "by": "checker"
   },
   "q18": {
-   "status": "fix",
-   "notes": "Keys the line a close must stay under as the gap day's high (c01, settled text), but the zone's top edge is pending D-100 (the card's gap_zone options: the gap day's high only, the prior day's low only, or one band) and q03, q11, q35 key a fill as a close above the top edge. The unit contradicts itself on the line. Needs the owner's D-100 call.",
-   "fixed": false,
-   "by": "checker"
+   "status": "pass",
+   "notes": "Rewrote onto the adopted D-100 default (a, one band) so the unit no longer contradicts itself: the old key (a single line at the gap day's high, c01) clashed with q03, q11 and q35, which key a fill as a close above the zone's top edge. New fact c32 is the card's gap_zone statement verbatim; the wrong notes follow it. The answer is stated by the card's own definition, not reachable by elimination (all three wrong choices are single lines).",
+   "fixed": true,
+   "by": "resolver"
   },
   "q31": {
-   "status": "fix",
-   "notes": "Arithmetic is right (311 / 359 = 86.6%), but the dossier's base rate does not reconcile: 311 stopped plus the 14.2% that reached 5R (about 51) plus 6 timed out is 368 of 359. 'Stopped' is also ambiguous (before 3R, or ever). It rests on D-001 as well. Recount in the scan before asking it.",
+   "status": "cut",
+   "notes": "Base rate does not reconcile: 311 stopped plus the 14.2% that reached 5R (about 51 of 359) plus the sessions that timed out exceeds 359 hits, and 'stopped' is ambiguous (before 3R, or ever). Cut rather than rewritten onto numbers the dossier cannot reconcile; the unit also teaches the short only as a measured read (D-001).",
    "fixed": false,
-   "by": "checker"
+   "by": "resolver"
   },
   "q51": {
-   "status": "fix",
-   "notes": "Keys that a 2.1% open of 0.89 ATR is an ordinary down day, i.e. the 1 ATR / 4% gap size floor, which is pending-owner (bg.gap, D-099). The stem also hands over 'The chart shows no real gap', the answer. Needs D-099.",
-   "fixed": false,
-   "by": "checker"
+   "status": "pass",
+   "notes": "Rewrote onto the adopted D-099 default (b with a 1 ATR minimum). Removed the stem line 'The chart shows no real gap' that gave the answer; the question now states the rule and the story gives the open (2.1%, 0.89 ATR) and that it never traded back to the prior close, so the key is derived, not guessed. New fact c33 is the card's gap criterion verbatim; d18 and d19 are the VZ numbers. 0.89 < 1 ATR, so Pass.",
+   "fixed": true,
+   "by": "resolver"
   }
  }
 }

@@ -2502,7 +2502,7 @@
     "Yes; the close is decisive"
    ],
    "answer": "No; there is no drive to sling from",
-   "why": "No. The drive comes first; Scot1and takes a powerful stock that recently made a strong move. A pullback in a steady climb has nothing to sling from. This one reached 4.1R anyway, which is the climb, not the setup.",
+   "why": "No. By our current default, the drive is a gap or a strong rally, and this climb has neither. The drive comes first; Scot1and takes a powerful stock that recently made a strong move. This one reached 4.1R anyway, which the test cannot credit to the setup.",
    "lesson_line": "The shape without the drive is a pullback, not a Slingshot. The engine comes first.",
    "facts": [
     "c44",
@@ -2517,7 +2517,7 @@
     "Yes; the close is decisive": "A decisive close ends a Slingshot; it does not start one. The drive has to come first."
    },
    "house": true,
-   "story": "A steady climber: no gap, no big volume day, no fast run in the weeks before. Four closes under the 4-day line, then a decisive close over it."
+   "story": "A steady climber: no gap, no 4% volume day, no 20% in five sessions in the 25 sessions before. Four closes under the 4-day line, then a decisive close over it."
   },
   {
    "key": "q65",
@@ -2579,7 +2579,8 @@
   "The short mirror (dossier 8.6, a 4-period EMA of the lows under the 200-day) is not taught here (D-001).",
   "BigGuavaTrading's script page (the three-consecutive-bars default) is forum level and is not cited; the three closes rest on Scot1and's own scan (o01) and the card.",
   "UNITS-method SET.27 says 'Reversals & Reclaims' and names the Model Book card; the sources describe a continuation (D-014). This unit follows the criteria card.",
-  "Cold check 2026-11-10: 64 pass (10 fixed; the 3 walk-throughs are in the pass count), 2 fix, 4 cut. Look first at: (1) q64, the ASO near-miss keys 'no drive' on D-106's numbers, while option c and your own words ('strong stock, or consolidation after a nice uptrend') could admit a steady climber; (2) q44 teaches PSX's loss as the leadership rule with no RS data in the story or the bars; (3) the card lists the same misses as gates and as B- rows (a gap of 2% or more, a weak close, thin, choppy), which made q28 and q62 half-right for a smaller size; both now key the gate."
+  "Cold check 2026-11-10: 64 pass (10 fixed; the 3 walk-throughs are in the pass count), 2 fix, 4 cut. Look first at: (1) q64, the ASO near-miss keys 'no drive' on D-106's numbers, while option c and your own words ('strong stock, or consolidation after a nice uptrend') could admit a steady climber; (2) q44 teaches PSX's loss as the leadership rule with no RS data in the story or the bars; (3) the card lists the same misses as gates and as B- rows (a gap of 2% or more, a weak close, thin, choppy), which made q28 and q62 half-right for a smaller size; both now key the gate.",
+  "Keyed on the adopted default of D-106 (provisional, 2026-11-10): option b, a power earnings gap mostly with a strong rally allowed, so q64's steady climber with no gap, no 4% volume day and no 20% five-session gain has no drive. Option c (any strong stock) would admit it; the owner's own words are the gate."
  ],
  "verify": {
   "w1": {
@@ -2859,10 +2860,10 @@
    "by": "checker"
   },
   "q44": {
-   "status": "fix",
-   "notes": "The story gives nothing about the stock's RS or group, so the key ('buy leaders') can only be reached by elimination; the dossier itself says the bars cannot tell whether PSX was a leader that day (d17). Teaching this loss as a leadership failure needs PSX's RS rating on 2020-12-10 from a real source, or the item should be cut.",
+   "status": "cut",
+   "notes": "The story gives nothing about the stock's RS or group, and the dossier says the bars cannot tell whether PSX was a leader that day (d17). Adding leader facts to a real loss would invent them. The leadership rule is already keyed on a story that states the facts in q07.",
    "fixed": false,
-   "by": "checker"
+   "by": "resolver"
   },
   "q45": {
    "status": "pass",
@@ -2985,10 +2986,10 @@
    "by": "checker"
   },
   "q64": {
-   "status": "fix",
-   "notes": "The key ('no drive to sling from') rests on ss.drive's numbers (no 5% gap, no 4% volume day, no 20% in five sessions), which are pending (D-106). Option c, 'any strong stock, as Scot1and does', and the owner's own words ('a slingshot is supposed to be used for an earnings gapper, strong stock, or consolidation after a nice uptrend', card evidence) could admit a steady climber like ASO. Hold until D-106.",
-   "fixed": false,
-   "by": "checker"
+   "status": "pass",
+   "notes": "Rewrote onto the adopted D-106 default (b): the story now states the three no-drive facts from the dossier's own ASO line (d22) so the key is reachable without elimination; the why says 'By our current default' and no longer asserts the climb has nothing to sling from as a rule. Numbers (4%, 20%, five sessions, 25 sessions, 4.1R) all appear in d22/d23.",
+   "fixed": true,
+   "by": "resolver"
   },
   "q65": {
    "status": "pass",

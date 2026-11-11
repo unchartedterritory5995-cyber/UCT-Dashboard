@@ -1403,7 +1403,7 @@
     "Not a failed top at all"
    ],
    "answer": "Version A, the break never came",
-   "why": "Version A. No close under the neckline; price turns up from the right shoulder. Edwards and Magee: perhaps 20% of tops are saved before the neckline is broken. The form we prefer is B, a real break bought back.",
+   "why": "Version A. No close under the neckline; price turns up from the right shoulder. Edwards and Magee: perhaps 20% of tops are saved before the neckline is broken. By our current default, version A is allowed but graded lower than B, a real break bought back.",
    "lesson_line": "No break, then a turn up: version A. A break bought back: version B, the one we want.",
    "facts": [
     "c06",
@@ -2155,7 +2155,7 @@
     "A cup with handle; the handle high"
    ],
    "answer": "A failed rounded top; the dome high",
-   "why": "A failed rounded top. It is a dome that broke its lower rim, then recovered; the buy over the dome high follows a failure. A flat base holds one range with a flat top and breaks out of a box.",
+   "why": "A failed rounded top. It is a dome that broke its lower rim, then recovered. By our current default, the buy comes as price trades over the dome high. A flat base holds one range with a flat top and breaks out of a box.",
    "lesson_line": "A box that breaks up is a flat base. A dome that lost its rim and came back is ours.",
    "facts": [
     "c18",
@@ -2164,7 +2164,7 @@
    ],
    "wrong": {
     "A flat base; the box top": "A flat base holds one range with a flat top tapped twice. A dome that lost its rim is not a box.",
-    "A cup with handle; the handle high": "No rounded bottom and no handle. A dome up top that failed to break down."
+    "A cup with handle; the handle high": "No rounded bottom and no handle. This is a dome up top whose lower rim broke and then recovered."
    },
    "house": true
   },
@@ -2667,15 +2667,15 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "fh.trigger",
-   "story": "MGM, September 2004: shoulders within 0.3% of each other, a flat neckline at 21.22, a four-week failed breakdown bought back. It trades over 22.70 on 1.9x volume.",
-   "q": "Write the plan: entry, stop, first trim.",
+   "story": "MGM, September 2004: shoulders within 0.3% of each other, a flat neckline at 21.22, a four-week failed breakdown bought back. The right-shoulder high is 22.70. Today it trades over 22.70 on 1.9x volume; the day's low is 22.35.",
+   "q": "Write the plan: entry, stop (a few cents under the day's low), first trim.",
    "choices": [
     "Market 22.71; stop 22.30; third at 3R",
     "Limit 21.22; stop 19.80; out at 2R",
     "Market at close; stop 19.80; hold"
    ],
    "answer": "Market 22.71; stop 22.30; third at 3R",
-   "why": "Market at 22.71, stop 22.30 a few cents under the day's low, a third at 3R. MGM reached 3R in 5 days and ran to 23.7R.",
+   "why": "Market at 22.71, stop 22.30, a few cents under the day's low of 22.35, a third at 3R. By our current default, the entry is a market order as price trades over the right-shoulder high. MGM reached 3R in 5 days and ran to 23.7R.",
    "lesson_line": "Entry, stop, trim, trail. Write it before the open; execute it without a debate.",
    "facts": [
     "h22",
@@ -2686,7 +2686,7 @@
    ],
    "wrong": {
     "Limit 21.22; stop 19.80; out at 2R": "A limit at the neckline never fills on the trigger, and 19.80 is the undercut low, the invalidation line, not the stop.",
-    "Market at close; stop 19.80; hold": "The trigger is the trade through, not the close, and the undercut low is not the stop."
+    "Market at close; stop 19.80; hold": "By our current default, the trigger is the trade through, not the close, and the undercut low is not the stop."
    },
    "house": true
   },
@@ -2799,7 +2799,10 @@
   "Bulkowski's site states it shall not be used to train AI systems and answers HTTP 406 to scripts; the dossier read it through a fetch tool for citation only, with short quotes. check_course_quotes will report s4 to s7 unreachable; the cold checker must confirm b01 to b11 in a browser. The two book sources (s1, s2) are Internet Archive OCR texts of the 11th-edition Edwards and Magee and Murphy's 1999 book; the dossier's cold check matched the quotes word for word.",
   "UCT Substack quotes (u1 to u5) are Bracco's and the owner's PUBLISHED public-edition posts, cited as Tier 3 house sources; nothing member-only is quoted. u06 ('My stops are always LOD') is the owner's own habit from 2025 and the rulebook (A3, F62, B19) now governs; it supports q03, never keys it.",
   "The unit id SET.29 and the title follow the UNITS-method row; D-016 (the name) is pending and does not change any key.",
-  "Cold check 2026-11-10: 60 pass (19 fixed), 4 fix, 4 cut (q29 mis-drawn DDOG example; q49 and q50 duplicates; q65 leading, no source). Held as fix: q13 (D-109), q42 (D-002 and D-003), q44 (D-110), q62 (D-003 and a stop the story does not give). Look first at: (1) D-003, the trigger: q02 was rewritten onto Brandt's own completion line, but the three walk-throughs, q10, q24, q51, q59 and q62 all assume the right-shoulder high; it is the unit's spine. (2) The dossier's 'depth under the neckline' figures (6.1%, 7.1%) are measured against a sloped neckline and do not match the neckline and low printed beside them; the walk-throughs no longer repeat the 7.1%. (3) The dossier's house-run facts (d33 to d47) are cited to the examples section but sit in its section 4; the quotes are right, the anchor is wrong. q53's old key broke the 40% cap and is now 0.25% risk on 100,000."
+  "Cold check 2026-11-10: 60 pass (19 fixed), 4 fix, 4 cut (q29 mis-drawn DDOG example; q49 and q50 duplicates; q65 leading, no source). Held as fix: q13 (D-109), q42 (D-002 and D-003), q44 (D-110), q62 (D-003 and a stop the story does not give). Look first at: (1) D-003, the trigger: q02 was rewritten onto Brandt's own completion line, but the three walk-throughs, q10, q24, q51, q59 and q62 all assume the right-shoulder high; it is the unit's spine. (2) The dossier's 'depth under the neckline' figures (6.1%, 7.1%) are measured against a sloped neckline and do not match the neckline and low printed beside them; the walk-throughs no longer repeat the 7.1%. (3) The dossier's house-run facts (d33 to d47) are cited to the examples section but sit in its section 4; the quotes are right, the anchor is wrong. q53's old key broke the 40% cap and is now 0.25% risk on 100,000.",
+  "Keyed on the adopted default of D-109 (provisional, 2026-11-10): both versions count, version A (the break never comes) graded lower than version B, so q13 keys 'Version A'; if the owner picks option a (only after a neckline break), q13's answer becomes 'Not a failed top at all'.",
+  "Keyed on the adopted defaults of D-002 and D-003 (provisional, 2026-11-10): the rounded top stays inside this lesson with the dome high as its trigger (D-002, 33:5), and the buy is the trade through the level at market (D-003); if the owner drops or splits the rounded top, q42 goes, and a different D-003 pick moves its trigger wording.",
+  "Keyed on the adopted default of D-003 (provisional, 2026-11-10): the entry is a market order as price trades through the right-shoulder high, the stop a few cents under the trigger day's low (q62; the trigger day's low of 22.35 is read from our bars and given in the story)."
  ],
  "verify": {
   "w1": {
@@ -2893,10 +2896,10 @@
    "by": "checker"
   },
   "q13": {
-   "status": "fix",
-   "notes": "the key 'Version A' rests on fh.failure_a / fh.failure_b, pending-owner (D-109). Under option (a), the failure only after a real neckline break, version A is not part of the setup and 'Not a failed top at all' would be the answer. Hold until D-109 is ruled. Facts c06, e03, c29 were verbatim.",
-   "fixed": false,
-   "by": "checker"
+   "status": "pass",
+   "notes": "Keyed on the adopted D-109 default (both versions, A graded lower). The story already gives every fact (the neckline never breaks, price turns up and trades over the right-shoulder high); the why now says 'By our current default' for the grade. Facts c06, e03, c29 verbatim; the 20% is in e03.",
+   "fixed": true,
+   "by": "resolver"
   },
   "q14": {
    "status": "pass",
@@ -3067,10 +3070,10 @@
    "by": "checker"
   },
   "q42": {
-   "status": "fix",
-   "notes": "the key 'a failed rounded top; the dome high' rests on fh.rounded_top (D-002) and fh.trigger (D-003), both pending-owner; if the owner drops or splits the rounded top this question goes. One wrong note says the dome 'failed to break down' while the story says it dipped under the lowest low and recovered. Facts c18, c17, b09 were verbatim; a 25-word why sentence was split.",
-   "fixed": false,
-   "by": "checker"
+   "status": "pass",
+   "notes": "Keyed on the adopted D-002 (33:5 keep the rounded top, dome high as trigger) and D-003 (trade through the level) defaults. The story already says the dome dipped under its lowest low, recovered and now trades over the dome high. Fixed the wrong note that said the dome 'failed to break down', which contradicted the story. Facts c17, c18, b09 verbatim.",
+   "fixed": true,
+   "by": "resolver"
   },
   "q43": {
    "status": "pass",
@@ -3079,10 +3082,10 @@
    "by": "checker"
   },
   "q44": {
-   "status": "fix",
-   "notes": "the key 'uneven shoulders put the trigger high' rests on fh.hs_structure (D-110, pending: shoulders within 10%) and the card's grading rows do not grade uneven shoulders; CAT's shoulders are 8.1% apart, inside the pending 10%. The loss itself was a 35-cent gap under a 355.70 stop (open 355.35 on our bars). d23, d24, b02, sc04 verbatim. Hold for D-110 or rewrite to the gap rule.",
+   "status": "cut",
+   "notes": "Key rests on D-110's shoulder tolerance and cannot be kept: CAT's shoulders are 8.1% apart in the dossier table and 8.8% in its prose, both inside the default 10% limit, and the card has no grade row for uneven shoulders. The other honest lesson (the gap under the stop) is already q27's rule on GILD.",
    "fixed": false,
-   "by": "checker"
+   "by": "resolver"
   },
   "q45": {
    "status": "pass",
@@ -3187,10 +3190,10 @@
    "by": "checker"
   },
   "q62": {
-   "status": "fix",
-   "notes": "the key 'Market 22.71; stop 22.30' rests on the trigger being the right-shoulder high (D-003, pending), and the story never gives the day's low (22.35), so the 22.30 stop cannot be derived; the story also never says 22.70 is the right-shoulder high. Hold for D-003, then add the day's low and say the right-shoulder high. Numbers verified on our bars (buy 22.71, stop 22.30 = 22.35 less five cents, 3R 23.94).",
-   "fixed": false,
-   "by": "checker"
+   "status": "pass",
+   "notes": "Keyed on the adopted D-003 default. Added the right-shoulder high (22.70) and the trigger day's low (22.35, checked on our bars: MGM 2004-09-14 low 22.35) to the story so the 22.30 stop is derivable; the question now says 'a few cents under the day's low' (F62). 3R = 22.71 + 3 x 0.41 = 23.94, reached on 2004-09-21 (high 23.945), day 5 as d03 states.",
+   "fixed": true,
+   "by": "resolver"
   },
   "q63": {
    "status": "pass",
