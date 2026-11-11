@@ -24,8 +24,8 @@
   {
    "id": "s2",
    "tier": 2,
-   "publisher": "StockCharts ChartSchool (Chip Anderson)",
-   "title": "TA 101, Part 15 (2009-11-07)",
+   "publisher": "StockCharts ChartSchool",
+   "title": "TA 101, Part 15 (Chip Anderson, 2009-11-07)",
    "url": "https://chartschool.stockcharts.com/table-of-contents/overview/technical-analysis-101/ta-101-part-15",
    "accessed": "2026-11-10"
   },
@@ -617,9 +617,9 @@
    "title": "VRSN, July 2008: the full window",
    "steps": [
     "VRSN had a top on 2008-06-04. On 2008-07-07 it opened 3.4% lower and closed down 9.5% on 6.1x volume.",
-    "The day's high stayed under the prior low, a full window. The gap zone ran from 35.52 to 36.74.",
+    "A full window: the day's high stayed under the prior low. The zone ran from 35.52 up to the prior close, 36.74.",
     "On 2008-07-11 the bounce was rejected at the zone's bottom edge. That is the read.",
-    "The study short at 35.11 with a stop at 36.24 reached 13.1R. Today we teach the read, not the entry."
+    "A study short from there did well, but our ten examples are chosen winners. We teach the read, not the entry."
    ],
    "facts": [
     "d01",
@@ -632,10 +632,10 @@
    "key": "w2",
    "title": "DLTR, January 2020: the cleanest chart",
    "steps": [
-    "DLTR sat 5.1% off its top on 2019-10-22. On 2019-11-26 it opened 14.8% lower and closed down 15.2% on 15.1x volume.",
-    "A full window with a zone from 98.98 to 112.39. The first gap since the top, and it never fills.",
+    "DLTR topped on 2019-10-22, then sat 5.1% off it. On 2019-11-26 it opened 14.8% lower and closed down 15.2% on 15.1x volume.",
+    "A full window with a zone from 98.98 to 112.39. The first gap since the top, and it is still open.",
     "A flat five-week bounce rose to the 20-day, 94.25, under the 200-day. On 2020-01-02 it was rejected.",
-    "The study short was 93.01 with a stop at 94.71, 1.8% away. It reached 19.3R."
+    "A study short did well, but the tail of the move was the 2020 market's. We teach the read, not the entry."
    ],
    "facts": [
     "d03",
@@ -649,8 +649,8 @@
    "steps": [
     "CIEN opened 8.7% lower on 2017-08-31 and closed down 11.0% on 11.0x volume. A textbook gap day.",
     "Nineteen sessions later it was rejected at the 20-day EMA. The stock sat under its own 200-day, so the stock rule passed.",
-    "QQQ closed 1.0% above its 50-day. There was no Red or Orange reading, so the market gave no help.",
-    "The study short at 21.96 with a stop at 22.25 was stopped the next session. A good gap is not enough."
+    "QQQ closed 1.0% above its 50-day. That is a strong market, so the short had no help from it.",
+    "A study short off that rejection was stopped the next session. A good gap is not enough."
    ],
    "facts": [
     "d07",
@@ -676,7 +676,7 @@
     "A pattern we have dropped"
    ],
    "answer": "A level to read, not a trade",
-   "why": "A level to read, not a trade. Today the lesson marks the line a close must stay under. The fall is measured, not traded.",
+   "why": "A level to read, not a trade. Today the app defines no trade, and the fall is measured, not traded.",
    "lesson_line": "Today the bear gap is a level to read. The fall is measured, not traded.",
    "facts": [
     "c01",
@@ -928,7 +928,8 @@
    "lesson_line": "Under yesterday's close is partial. Under yesterday's low, all day, is a window.",
    "facts": [
     "g05",
-    "g01"
+    "g01",
+    "c05"
    ],
    "house": true
   },
@@ -1015,23 +1016,22 @@
    "rung": 3,
    "format": "numeric",
    "criterion": "bg.full_window",
-   "q": "A full window: the gap day's high is 44.69 and yesterday's low is 46.86. How wide is the window?",
-   "answer": 2.17,
+   "q": "A full window: the gap day's high is 44.00 and yesterday's low is 46.00. How wide is the window?",
+   "answer": 2.0,
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "b - a",
-     "a": 44.69,
-     "b": 46.86
+     "a": 44.0,
+     "b": 46.0
     },
     "round": 2
    },
-   "why": "2.17. Yesterday's low minus the gap day's high. LDOS left a window of that size in 2010.",
+   "why": "2.00. Yesterday's low minus the gap day's high. That is the open space between the two prices.",
    "lesson_line": "A window is the open space between the two prices.",
    "facts": [
     "g01",
-    "c05",
-    "d06"
+    "c05"
    ],
    "house": true,
    "prefix": "$"
@@ -1125,13 +1125,13 @@
    "criterion": "bg.gap_day",
    "q": "What do we call this?",
    "choices": [
-    "A News Failure; a buy, not a short",
+    "A News Failure, not a bear gap",
     "A bear gap off the highs",
     "A Parabolic Short",
     "A partial gap down"
    ],
    "story": "A stock opens down 6% on bad news. By the close it is back above the prior close.",
-   "answer": "A News Failure; a buy, not a short",
+   "answer": "A News Failure, not a bear gap",
    "why": "A News Failure. It opened down on bad news and closed above the prior close. The news failed.",
    "lesson_line": "Check the close. Back above the prior close means the news failed.",
    "facts": [
@@ -1240,7 +1240,7 @@
    "criterion": "bg.fill",
    "q": "A breakaway gap down on good volume will be filled soon.",
    "answer": "False",
-   "why": "False. ChartSchool warns against that trap. In Bulkowski's sample only twenty-two percent closed the gap during the bounce.",
+   "why": "False. ChartSchool warns against that trap: a breakaway gap on good volume often stays open.",
    "lesson_line": "Do not expect a quick fill. Many gaps stay open for months.",
    "facts": [
     "g03",
@@ -1295,7 +1295,6 @@
     "b02",
     "m01"
    ],
-   "house": true,
    "wrong": {
     "5% of the time": "His page says 25%.",
     "75% of the time": "His page says 25%.",
@@ -1308,7 +1307,7 @@
    "rung": 4,
    "format": "mcq",
    "criterion": "bg.p_burst",
-   "q": "Three up days to a high, then a gap UP on day four that closes red. Which card?",
+   "q": "Three up days to a high, then a gap UP on day four that closes red. Which setup?",
    "choices": [
     "Parabolic Short; the climax gaps up",
     "Bear gap off the highs",
@@ -1524,14 +1523,14 @@
    "criterion": "bg.market",
    "q": "Does the market help a short here?",
    "choices": [
-    "No; there is no Red or Orange reading",
+    "No; QQQ above its 50-day is no help",
     "Yes; the stock is under its 200-day",
     "Yes; QQQ is above its 50-day",
     "No; a short never needs the market"
    ],
    "story": "A stock under its own 200-day gapped down off its highs. The bounce was rejected at the 20-day. QQQ is 1.0% above its 50-day.",
-   "answer": "No; there is no Red or Orange reading",
-   "why": "No. The stock met its own 200-day rule, but QQQ was 1.0% above its 50-day. There was no Red or Orange reading.",
+   "answer": "No; QQQ above its 50-day is no help",
+   "why": "No. The stock met its own 200-day rule, but QQQ sat 1.0% above its 50-day, which is not a weak market. A short needs a Red or Orange reading.",
    "lesson_line": "A good stock chart is not enough. The market must help.",
    "facts": [
     "c14",
@@ -1556,7 +1555,7 @@
     "Skip; wait for the bounce",
     "Short now; momentum is down",
     "Short at double size",
-    "Short, but only on Mondays"
+    "Short now, but with a tight stop"
    ],
    "story": "After a gap down the stock sits 20% under its 10-day average, with no bounce yet.",
    "answer": "Skip; wait for the bounce",
@@ -1570,7 +1569,7 @@
    "wrong": {
     "Short now; momentum is down": "Stretched stocks snap back. That is the case for waiting for the bounce.",
     "Short at double size": "Size never goes up on a stretched entry.",
-    "Short, but only on Mondays": "There is no weekday rule that fixes a stretched entry."
+    "Short now, but with a tight stop": "A tight stop on a stretched stock is easy to hit in a snap-back. The rule says skip."
    }
   },
   {
@@ -1737,7 +1736,7 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "bg.not_late",
-   "q": "Why is this a late short?",
+   "q": "What is wrong with shorting this bounce?",
    "choices": [
     "The fall is large and big drops bounce",
     "The volume was too heavy",
@@ -1776,7 +1775,7 @@
    ],
    "answer": "Resumes declining, 30% on average",
    "why": "It resumes declining, averaging 30% from the bounce high to the post-bounce low in 49 days. The bounce comes first.",
-   "lesson_line": "After the bounce the decline resumes. The bounce is the wait.",
+   "lesson_line": "In Bulkowski's sample the decline resumed after the bounce, 30% on average.",
    "facts": [
     "b06",
     "f02"
@@ -1801,7 +1800,7 @@
     "90%"
    ],
    "answer": "22%",
-   "why": "22%. Another 38% closed it within 3 months, and 58% within 6 months, so most gaps stay open for a while.",
+   "why": "22%. By 3 months 38% had closed it, and by 6 months 58%. Most gaps stay open for a while.",
    "lesson_line": "Most gaps stay open through the bounce.",
    "facts": [
     "b05",
@@ -1841,7 +1840,7 @@
     "First gap, down 7%, lower-third close",
     "Third gap, down 5.2%, 40% of range",
     "First gap, down 3%, closed at the high",
-    "Second gap, flat, closed at the open"
+    "Second gap, down 6%, upper-half close"
    ],
    "answer": "First gap, down 7%, lower-third close",
    "why": "The first gap, down 7%, closed in the lower third. It is the first gap since the top and it closes weak.",
@@ -1854,7 +1853,7 @@
    "wrong": {
     "Third gap, down 5.2%, 40% of range": "A third gap off the same top did worse.",
     "First gap, down 3%, closed at the high": "The close must be down 5% or more in the lower half.",
-    "Second gap, flat, closed at the open": "A flat close is no gap day. The close must be down 5% or more."
+    "Second gap, down 6%, upper-half close": "A second gap did worse, and the close must be in the lower half."
    }
   },
   {
@@ -2057,7 +2056,7 @@
     "A buy; the window will fill",
     "Pass; the gap was too small"
    ],
-   "story": "VRSN had a top on 2008-06-04. On 2008-07-07 it opened 3.4% lower, closed 9.5% down on 6.1x volume and left a full window. Four sessions later it was rejected at the zone's bottom edge.",
+   "story": "VRSN had a top on 2008-06-04. On 2008-07-07 it opened 3.4% lower, closed 9.5% down on 6.1x volume and left a full window. It was the first gap since the top. Four sessions later it was rejected at the zone's bottom edge.",
    "answer": "A first gap and a zone to watch",
    "why": "A first gap and a zone to watch. A full window with a weak close, then a rejection at the zone, is the textbook read.",
    "lesson_line": "Full window, weak close, rejection at the zone: the textbook read.",
@@ -2107,14 +2106,14 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "bg.status",
-   "q": "Hidden ticker, the day before the study short. Gap zone overhead, a flat bounce to the 20-day. Read it or pass?",
+   "q": "Hidden ticker. Read the last bar against the gap zone and the 20-day. Read it or pass?",
    "choices": [
-    "Read it; a first gap, a weak bounce",
+    "Read it; the bounce was turned away",
     "Pass; the gap already filled",
     "Pass; the gap day closed high"
    ],
-   "answer": "Read it; a first gap, a weak bounce",
-   "why": "Read it. A 15.2% down day on 15.1x volume, the zone unfilled, a flat five-week bounce to the 20-day under the 200-day. The study short reached 19.3R.",
+   "answer": "Read it; the bounce was turned away",
+   "why": "Read it. A 15.2% down day on 15.1x volume, the zone unfilled, a flat five-week bounce rejected at the 20-day under the 200-day.",
    "lesson_line": "A big gap, an open zone and a weak bounce: a clean read.",
    "facts": [
     "d03",
@@ -2139,7 +2138,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "bg.rejection_candle",
-   "q": "Hidden ticker. The last bar touched the declining 20-day and closed at 82% of its range. Read it or pass?",
+   "q": "Hidden ticker. The last bar touched the declining 20-day. Look at where it closed in its range. Read it or pass?",
    "choices": [
     "Pass; buyers are in control",
     "Read it; it touched the 20-day",
@@ -2274,7 +2273,8 @@
    "lesson_line": "A window needs the whole day under yesterday's low.",
    "facts": [
     "g05",
-    "g01"
+    "g01",
+    "c05"
    ],
    "house": true,
    "wrong": {
@@ -2323,7 +2323,423 @@
   "Sources: the dossier's section 3 quotes (Fleckenstein 2000, ChartSchool, Bulkowski, Schaeffer's, QuantRocket, Kell) are Tier 2 and mostly single-publisher per fact; a question keyed on one fact carries house: true with a card fact, and the few that rest on two publishers (q13, q14, q24, q25, q46, q47) are not marked house. Bulkowski's site (s5, s6, s7) refused plain downloads when the dossier was written; the quote checker reached it on 2026-11-10 and found s5, s6 and s7, and the dossier's fetch-tool reading of 2026-11-09 matched. Kell's TraderLion page (s10) is the Internet Archive capture the dossier read.",
   "The dossier's example numbers (d1) are a Tier 3 repo source: read off our own daily bars by the research scan (dossier sections 12 and 13), survivors only, and not yet reviewed by the owner. The walk-throughs (VRSN, DLTR, CIEN) and the chart questions (q59 DLTR asof 2020-01-02, the last day before the 2020-01-03 study short; q60 CDNS asof 2024-08-09, the rejection day itself) depend on it. In the chart questions the member's chart shows the 20-day and 200-day; the keys rest on the dossier's reads (d03 to d05, d16, d17). CDNS's gap day is not stated in the dossier, so q60 asks only about the last bar.",
   "Walk-through 3 states 'the stock rule passed' for CIEN: the dossier says 'The stock under its own 200-day satisfies B26' in the same passage as the CIEN and CHKP failures (dossier section 12, notable failures); the exact quote is not in d08 and the step restates it in words.",
-  "Cold-check notes carried from the pilot: no leading questions that restate their answer, 'we' and never 'the owner' in member text, no pending-owner number in a key or a wrong note, no sentence over 22 words, the stop stays the rule's stop (A4: only up, never wider)."
+  "Cold-check notes carried from the pilot: no leading questions that restate their answer, 'we' and never 'the owner' in member text, no pending-owner number in a key or a wrong note, no sentence over 22 words, the stop stays the rule's stop (A4: only up, never wider).",
+  "Cold check 2026-11-10: 50 pass (19 fixed), 3 fix, 16 cut (counts also in verify); the three things the owner should look at first: (1) D-001, whether any short is taught at all (q29, q30, q31, q32, q52, q58 cut or held; the walk-throughs no longer print a study short's entry, stop or R); (2) D-100, which gap line is the zone (q18 conflicts with q03, q11, q35; the dossier's zone tops at the prior close, the card's at the prior low); (3) D-099, the gap size floor (q51). Numbers corrected: q16 (46.86 is LDOS's prior close, not its low), q47 (38% and 58% are cumulative), w2 (5.1% is the prior close, not the 2019-10-22 top). q36 and w3 no longer claim a Red or Orange reading the scan never checked. The publisher strings count ChartSchool (Chip Anderson) and ChartSchool as two publishers; q12 rested on that and now cites the card."
  ],
- "verify": {}
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "d01/d02 verbatim in dossier section 12 (VRSN: 22 sessions, open -3.4%, day -9.5%, 6.1x, zone 35.52-36.74); bars confirm the high 35.52 is under the prior low 36.40 and the zone top 36.74 is the prior CLOSE, so step 2 now says 'up to the prior close'. Step 4 quoted the 35.11 / 36.24 short and 13.1R from ten chosen winners next to 'a read, not a trade' (D-001); the numbers are out and the sentence says so.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "d03/d04/d05 verbatim (DLTR: open -14.8%, day -15.2%, 15.1x, zone 98.98-112.39; 20-day 94.25 re-derived from the bars). Step 1 read '5.1% off its top on 2019-10-22', but 2019-10-22 IS the top: the 5.1% is the prior close on 11-25, now said so. 'It never fills' is now 'it is still open' (true at the rejection). The 93.01 / 94.71 short and 19.3R are out (D-001, survivorship).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "d07/d08/d09 verbatim (CIEN 2017-08-31 gap, rejected at the 20-day 19 sessions later, stopped the next session). The dossier says the market reading itself was not checked in the scan (section 12), so step 3 no longer claims 'no Red or Orange reading': it says QQQ closed 1.0% above its 50-day, a strong market. The 21.96 / 22.25 short numbers are out (D-001).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "pass",
+   "notes": "c06 verbatim on the card; proposed line, house. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q04": {
+   "status": "pass",
+   "notes": "c09 (card), m01 (Schaeffer's) and b01 (Bulkowski) verbatim; resistance is the card's and the sources' reading.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q05": {
+   "status": "pass",
+   "notes": "c03 on the card; f01 verbatim on TradingMarkets. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q06": {
+   "status": "pass",
+   "notes": "g01 ChartSchool and c05 card agree: the gap day's high under the prior low. Wrong notes true.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "pass",
+   "notes": "c03: 5% in the lower half is the card's proposed line (not pending-owner). Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q09": {
+   "status": "pass",
+   "notes": "c08 on the card; h02 (A4). Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q10": {
+   "status": "pass",
+   "notes": "c07 on the card. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q11": {
+   "status": "pass",
+   "notes": "c06 on the card; Bulkowski 22% closed during the bounce (b05) supports the wrong note.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q13": {
+   "status": "pass",
+   "notes": "g02 is ChartSchool's sentence verbatim; m03 (Kell, TraderLion) only loosely agrees (one DECK example), so the key rests mainly on ChartSchool plus the card's top reading. Kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "notes": "m02 (QuantRocket) and f03 (Fleckenstein, a severe decline) agree on direction; two publishers. Kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q15": {
+   "status": "pass",
+   "notes": "calc re-derived: (50.00 - 47.00) / 50.00 = 6.0%. The 5% bar is c03.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "notes": "c17 verbatim on the card; proposed. Key and wrong notes right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q19": {
+   "status": "pass",
+   "notes": "c11 on the card, b03 Bulkowski 28% bounce, f02 wait for the bounce. Warns against a reflex short; keys no entry. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q21": {
+   "status": "pass",
+   "notes": "d14/d15 verbatim; re-derived from the bars: CMCSA 2015-08-24 opened -6.0%, closed -4.2% at 70% of its range. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q22": {
+   "status": "pass",
+   "notes": "h10 is B26 (settled). Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q23": {
+   "status": "pass",
+   "notes": "h09/c10 are B23 (settled). $6 and $5 million fail both tests. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q24": {
+   "status": "pass",
+   "notes": "f02 (TradingMarkets) and b04 (Bulkowski) agree: the short comes after the bounce. Source attribution, no entry keyed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q26": {
+   "status": "pass",
+   "notes": "c14 is bg.market (settled, D46); h26/h31 verbatim. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q33": {
+   "status": "pass",
+   "notes": "c26 on the card; g04 ChartSchool: a gap up leaves support, a gap down resistance. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q34": {
+   "status": "pass",
+   "notes": "h10 (B26, settled) and the card's lookalike 36. 'Closer to a reversal buy' is the card's hedge; the reversal buy itself is not keyed.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q35": {
+   "status": "pass",
+   "notes": "The story gives the zone (44.69-46.86, d06); 47.30 closes above either candidate top edge (prior low 46.47 or prior close 46.86), so the fill key holds whatever D-100 rules.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q38": {
+   "status": "pass",
+   "notes": "c13 on the card, bg.earnings settled (B22 mirror). 2 sessions is inside 3. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q39": {
+   "status": "pass",
+   "notes": "c27/h17 verbatim, D48 settled. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q40": {
+   "status": "pass",
+   "notes": "c18 on the card (Bracco quotes); proposed. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q41": {
+   "status": "pass",
+   "notes": "c16 and f04 (Fleckenstein: declining volume) agree. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "pass",
+   "notes": "c04/c19 on the card. Later gaps did worse is the card's measured line. Kept as the one first-gap item (q07 cut).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q50": {
+   "status": "pass",
+   "notes": "c24/c22 are the card's lookalike tells for the Parabolic Long; the story's counts (4 lower closes, 2 gap downs) clear the card's 'three and two'. No Version P burst count is keyed. Kept.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "notes": "d21/d22 verbatim in dossier section 13 (all four losses: textbook gap; the bounce, the market and the distance from the top decided). Key right; a statement about the read, not an entry.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "pass",
+   "notes": "c08/h02/h10: a holder manages by the stop and trail; keys no short. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "notes": "c31 on the card (the gap-day-close short did worse with SPY under its 200-day). Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q66": {
+   "status": "pass",
+   "notes": "h10 (B26) and c13 (bg.earnings): 3% above the 200-day and a report in 2 sessions each say no. Key right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "notes": "c01/c02 on the card (bg.status, settled). The why quoted 'the line a close must stay under', the gap day's high, which conflicts with the zone's top edge (D-100, see q18); now 'the app defines no trade'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "notes": "g05 and g01 are both ChartSchool pages (one publisher counted twice by the publisher string); c05 (card) added so the key stands on the house line plus ChartSchool.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q16": {
+   "status": "pass",
+   "notes": "The question gave 'yesterday's low 46.86' for LDOS, but the bars show 46.86 is LDOS's prior CLOSE (prior low 46.47), so the window is not 2.17. Rewritten with round numbers (44.00, 46.00, 2.00) and the d06 fact dropped; calc recomputed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "pass",
+   "notes": "c20/c21 verbatim. The answer text 'a buy, not a short' keyed a direction for the News Failure, which D-001 (23:1) has not settled; now 'A News Failure, not a bear gap'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q25": {
+   "status": "pass",
+   "notes": "g03 verbatim (ChartSchool). The why leaned on Bulkowski's dead-cat 22%, a different population (15-70% drops) from a breakaway gap on good volume; now rests on ChartSchool's warning.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "notes": "b02 verbatim: 25% of falling-window gaps showed resistance. house: true removed (no house fact cited). Attributed to Bulkowski in the stem, so the single-publisher number is read as 'what the study found'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q28": {
+   "status": "pass",
+   "notes": "c23/c22 lookalike tell: a Parabolic Short gaps UP on its climax day. 'Which card?' was an untaught word; now 'Which setup?'. No burst count keyed beyond the story's three up days (B26's own wording).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q36": {
+   "status": "pass",
+   "notes": "The dossier (section 12) says the scan did not check the market reading; 'no Red or Orange reading' was an inference from QQQ above its 50-day. Choice and why now say QQQ above its 50-day is a strong market and a short needs a Red or Orange reading (c14, settled).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q37": {
+   "status": "pass",
+   "notes": "c12 (C29 mirror, settled). The distractor 'only on Mondays' was silly; replaced with a tight-stop choice and a true note.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q45": {
+   "status": "pass",
+   "notes": "Numbers re-derived: BMRN gap -35.3% on 26.6x, rejected at the 20-day 24 sessions later, 40.9% off the top (dossier 13). The stem 'Why is this a late short?' gave away the answer; now 'What is wrong with shorting this bounce?'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q46": {
+   "status": "pass",
+   "notes": "b06 verbatim (30% in 49 days). The lesson line said the decline resumes as a fact; now attributed to Bulkowski's sample.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q47": {
+   "status": "pass",
+   "notes": "b05/b05b verbatim: 22% during the bounce, 38% in 3 months, 58% in 6 months. The why said 'Another 38%', but the figures are cumulative; fixed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q49": {
+   "status": "pass",
+   "notes": "c03/c04. The fourth choice 'Second gap, flat, closed at the open' is not a gap; replaced with a second gap that closes in the upper half.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "pass",
+   "notes": "d01/d02 verbatim. The key says 'a first gap' but the story never said so; the scan requires the first gap (dossier 12), now stated in the story.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "pass",
+   "notes": "Bars: DLTR has 6,251 daily bars to 2020-01-02 (120 needed); the last bar high 94.69, low 93.30, close 93.78 (35% of range), 20-day EMA 94.25 re-derived; the gap day closed at 41% of its range and the zone top 112.39 is unfilled. The stem 'the day before the study short' and 'flat bounce' gave the answer and the why quoted the 19.3R; reworded, R removed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "notes": "Bars: CDNS has 7,438 daily bars to 2024-08-09; the last bar high 271.09, low 265.66, close 270.13 = 82% of range; 20-day EMA 270.83. The stem gave the 82% (the answer's number); now the member reads where it closed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q02": {
+   "status": "cut",
+   "notes": "Duplicate of q01: the same fact (c01, no trade today), asked as true/false.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q07": {
+   "status": "cut",
+   "notes": "Tautology ('which gap do we read first' answers 'the first gap') and c04 is asked again in q43 and q49. Cut as a duplicate.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "cut",
+   "notes": "Cut: keys the stop width of a study short (1.8% vs the 3% line). A short trade rests on D-001; the 3% skip-or-size-down line is pending D-005.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q30": {
+   "status": "cut",
+   "notes": "Cut: keys where a third of a study short is covered at 3R. A short trade rests on D-001 (the unit teaches a read, not an entry); the arithmetic itself (93.01 - 3 x 1.70 = 87.91) was right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "cut",
+   "notes": "Cut: the 25.3% 3R base rate is for the scan's retest short, whose gates are pending-owner (D-099, D-098) and rests on D-001; unreviewed Tier 3 with a survivor-tilted universe. The 91 of 359 does reconcile with the dossier's slices.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "cut",
+   "notes": "Duplicate of q41: the same fact (c15/c16, a heavy bounce closing near its high means buyers in control).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q44": {
+   "status": "cut",
+   "notes": "Duplicate of q34: the same fact (B26, above the 200-day is not a short), asked as a scenario.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q48": {
+   "status": "cut",
+   "notes": "Cut: one DECK example in a third-person TraderLion page, turned into the rule 'a gap down from highs is a top warning'; needs the untaught term Wedge Drop. Overstated, single source.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "cut",
+   "notes": "Cut: manages a study short loss (the stop 'did its job'); a short trade rests on D-001. The distractors 'double size' and 'quit for good' are silly.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q54": {
+   "status": "cut",
+   "notes": "Cut: the same fact as q01/q02 (c01) for a fourth time, and the stem asks 'what is left open' which no choice answers.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "cut",
+   "notes": "Cut: keys VRSN's 3.2% stop against the skip-or-size-down line. That line is pending D-005 and the item keys a short trade (D-001).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q61": {
+   "status": "cut",
+   "notes": "Cut: trivia about our ten chosen examples, and its lesson ('clean examples were full windows, not partial gaps') runs against the card's bg.gap option (D-099: the owner's named bear gaps were overnight gaps, not full windows).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "cut",
+   "notes": "Duplicate of q24: Fleckenstein and Bulkowski wait for the bounce (f02/b04), asked again as 'all agree'.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "cut",
+   "notes": "Duplicate of q19: the reflex short at the gap-day close runs into a 28% bounce (c11/b03); it also calls the failed bounce 'a different entry', which keys a short entry.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "cut",
+   "notes": "Duplicate of q20: the open does not decide, the close against the prior close names a News Failure or a bear gap.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "cut",
+   "notes": "Duplicate of q12: opens under the close but not under the low is a partial gap, not a full window (ChartSchool counted twice).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q18": {
+   "status": "fix",
+   "notes": "Keys the line a close must stay under as the gap day's high (c01, settled text), but the zone's top edge is pending D-100 (the card's gap_zone options: the gap day's high only, the prior day's low only, or one band) and q03, q11, q35 key a fill as a close above the top edge. The unit contradicts itself on the line. Needs the owner's D-100 call.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q31": {
+   "status": "fix",
+   "notes": "Arithmetic is right (311 / 359 = 86.6%), but the dossier's base rate does not reconcile: 311 stopped plus the 14.2% that reached 5R (about 51) plus 6 timed out is 368 of 359. 'Stopped' is also ambiguous (before 3R, or ever). It rests on D-001 as well. Recount in the scan before asking it.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q51": {
+   "status": "fix",
+   "notes": "Keys that a 2.1% open of 0.89 ATR is an ordinary down day, i.e. the 1 ATR / 4% gap size floor, which is pending-owner (bg.gap, D-099). The stem also hands over 'The chart shows no real gap', the answer. Needs D-099.",
+   "fixed": false,
+   "by": "checker"
+  }
+ }
 }
