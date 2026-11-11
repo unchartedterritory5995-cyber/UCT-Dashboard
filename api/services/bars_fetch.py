@@ -1384,7 +1384,7 @@ def daily_bars_needed_since(lo_iso: str, *, today=None) -> int:
     return max(30, min(need, _DEEP_REQUEST_THRESHOLD - 1))
 
 
-def _mark_history_complete(ticker: str, tf: str) -> None:
+def _mark_history_complete(ticker: str, tf: str, bars: int | None = None) -> None:
     """Record that a full-history (deep) fetch has populated SQLite for this
     (ticker, tf). Without this, a deep backfill whose requested count exceeds
     the stock's actual available bar count (e.g. asking 20000 daily bars for a
@@ -1396,7 +1396,14 @@ def _mark_history_complete(ticker: str, tf: str) -> None:
     ⛔ NEVER ON A FALLBACK INTRADAY ANSWER. yfinance serves 7 days of 1m and FMP a
     shallow RTH-only window; marking either "complete" told the cache gate "this is
     all there is" and locked the truncated depth in for 6h, so the deep Massive pull
-    never re-ran even after Massive recovered."""
+    never re-ran even after Massive recovered.
+
+    ⛔⛔ THE MARKER RECORDS HOW DEEP THE FETCH WAS (2026-11-11). It used to be a bare
+    True: the chart's 3000-bar off-critical-path deep pull (≈75 days of 15m) marked the
+    key "complete", and for the next 6 h every scroll-back ask (`bars=30000`, ≈2 years)
+    was answered from SQLite as if 75 days were the whole history — no fetch ever ran.
+    The value is now the deepest `bars` a successful full fetch was asked for, and
+    `_history_complete(ticker, tf, bars)` only vouches for requests at or under it."""
     if tf in ("1", "5", "15", "30", "60") and _last_intraday_fetch_was_fallback():
         import logging as _log_hc
         _log_hc.getLogger(__name__).info(
@@ -1404,16 +1411,32 @@ def _mark_history_complete(ticker: str, tf: str) -> None:
             ticker, tf, last_intraday_source())
         return
     try:
-        cache.set(f"histfull_{ticker}_{tf}", True, ttl=21600)
+        key = f"histfull_{ticker}_{tf}"
+        depth = int(bars) if bars else _HISTFULL_ANY
+        prev = cache.get(key)
+        if isinstance(prev, int) and not isinstance(prev, bool) and prev > depth:
+            depth = prev
+        cache.set(key, depth, ttl=21600)
     except Exception:
         pass
 
 
-def _history_complete(ticker: str, tf: str) -> bool:
+# A marker set without a depth (a legacy caller) vouches for any request size.
+_HISTFULL_ANY = 1 << 30
+
+
+def _history_complete(ticker: str, tf: str, bars: int | None = None) -> bool:
+    """True when a full fetch at least `bars` deep is recorded (any depth when `bars`
+    is None — the daily seasonality caller)."""
     try:
-        return cache.get(f"histfull_{ticker}_{tf}") is True
+        v = cache.get(f"histfull_{ticker}_{tf}")
     except Exception:
         return False
+    if v is True:                          # pre-depth marker still in a live cache
+        return bars is None
+    if not isinstance(v, int) or isinstance(v, bool):
+        return False
+    return bars is None or v >= int(bars)
 
 
 def _expected_latest_session_yyyymmdd(now=None) -> int:
@@ -2246,6 +2269,37 @@ def _last_known_close(ticker: str, tf: str) -> float | None:
     return None
 
 
+def _prior_close_before(ticker: str, tf: str, payload) -> float | None:
+    """The validation seed for `payload`: the close of the newest STORED bar strictly
+    before the payload's first bar, or None when nothing older is stored.
+
+    ⛔⛔ THE SEED IS "THE BAR BEFORE THIS PAYLOAD", NOT "THE NEWEST BAR WE HOLD". The
+    chained check compares the payload's first bar to its seed and only advances the
+    reference on a VALID bar, so a seed taken from the wrong time poisons the whole
+    payload. A deep (scroll-back) fetch starts months or years back and is sorted
+    ascending; seeded with today's close, its first bar fails the 50% deviation gate
+    whenever the stock has moved more than 50% since then, the reference never
+    advances, every bar until the price comes back within 50% of today fails, and
+    `_payload_passes_validation` rejects the whole Massive answer (< 50% valid). The
+    chain then falls to FMP/yfinance's shallow windows and the deep history is never
+    stored — measured 2026-11-11 on production: `bars=32000` returned the same depth
+    as the first paint on 60m for 14 of 21 names (ONON 30m/60m began 2026-10-15
+    though it listed in 2021). A tail fetch starts a few days back, where the bar
+    before it IS (about) the newest close, so it is checked exactly as before."""
+    try:
+        bars = _extract_bars(payload)
+        first_t = next((int(b["t"]) for b in bars
+                        if isinstance(b, dict) and isinstance(b.get("t"), (int, float))), None)
+        if first_t is None:
+            return _last_known_close(ticker, tf)
+        rows = _sqlite.get_bars_before(ticker.upper(), tf, 1, first_t - 1)
+        if rows:
+            return float(rows[-1][4])
+    except Exception:
+        pass
+    return None
+
+
 def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
     """Fetch intraday bars — routes the Massive → FMP → yfinance source chain
     through ``fetch_with_validation`` so corrupt primary payloads automatically
@@ -2261,6 +2315,9 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
     _logger = _log.getLogger(__name__)
     _set_intraday_source(None)    # never inherit a previous fetch's source on this thread
     prior_close = _last_known_close(ticker, tf)
+
+    def _seed(payload, _t=ticker, _tf=tf):
+        return _prior_close_before(_t, _tf, payload)
     # Latest session that should have bars — drives staleness escalation so a
     # valid-but-lagging Massive payload yields to a fresher FMP/yfinance one.
     expected_session = _expected_latest_session_yyyymmdd()
@@ -2281,7 +2338,8 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
         src = max_bars * 4
         # fetch_with_validation handles the Massive → FMP → yfinance chain for the
         # 15-min source, applying per-bar validation at each hop.
-        bars_src = fetch_with_validation(ticker, "15", src, prior_close=prior_close, expected_session=expected_session)
+        bars_src = fetch_with_validation(ticker, "15", src, prior_close=prior_close, expected_session=expected_session,
+                                         prior_close_for=_seed)
         if bars_src and not _is_intraday_stale(bars_src):
             out = _resample_derived("60", bars_src)[-max_bars:]
             _logger.warning(
@@ -2304,7 +2362,8 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
         # Massive's native 30-min aggregate is intermittently sparse (it drops
         # half-hour bars the 15m feed carries). 30 divides the 09:30 open, so the
         # clock floor IS TradingView's 30m grid on both session views.
-        bars_src = fetch_with_validation(ticker, "15", max_bars * 2, prior_close=prior_close, expected_session=expected_session)
+        bars_src = fetch_with_validation(ticker, "15", max_bars * 2, prior_close=prior_close, expected_session=expected_session,
+                                         prior_close_for=_seed)
         if bars_src and not _is_intraday_stale(bars_src):
             return _resample_derived("30", bars_src)[-max_bars:]
         _logger.warning(
@@ -2313,7 +2372,8 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
         return []
 
     # 1/5/15-min: validating fetch chain
-    validated = fetch_with_validation(ticker, tf, max_bars, prior_close=prior_close, expected_session=expected_session)
+    validated = fetch_with_validation(ticker, tf, max_bars, prior_close=prior_close, expected_session=expected_session,
+                                      prior_close_for=_seed)
     if validated and not _is_intraday_stale(validated):
         return validated
 
@@ -3354,12 +3414,30 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
     # some OTHER (older) window is stored (e.g. replayed 2012 earlier, now asking for 2015: the
     # 2012 rows are ≤ the 2015 key but are the WRONG window and would serve stale). Empty = fetch.
     _intraday_window_missing = False
+    # ⭐⭐ A SHORT WINDOW IS NOT A COVERED ONE (2026-11-11). The chart's scroll-back asks
+    # this path for "the `bars` bars before my oldest bar" (`to=` = that bar's ET date).
+    # A store holding a few rows just before the cutoff used to count as covering it, so
+    # the ask was answered with those few rows and the provider was never asked for the
+    # rest. Now a read SHORTER than asked (`len < bars * 0.9`) fetches the stretch BEFORE
+    # its oldest row, once per (ticker, tf, to) per `_TO_WINDOW_TTL` — a name whose
+    # history genuinely starts there (a recent listing) is asked once, not per scroll.
+    _win_key = f"towin_{ticker_up}_{tf}_{to_str}_{_depth_tier(bars)}"
+    _intraday_window_short = False
+    _fetch_to_str = str(to_str)
     if not date_tf:
         try:
             _intraday_window_missing = (not rows) or (to_key - int(rows[-1][0]) > 7 * 86400)
         except Exception:
             _intraday_window_missing = not rows
-    if _intraday_window_missing:
+        if (not _intraday_window_missing and rows and len(rows) < int(bars) * 0.9
+                and cache.get(_win_key) is None):
+            _intraday_window_short = True
+            try:
+                _fetch_to_str = datetime.fromtimestamp(
+                    int(rows[0][0]), _ZI("America/New_York")).strftime("%Y-%m-%d")
+            except Exception:
+                _intraday_window_short = False
+    if _intraday_window_missing or _intraday_window_short:
         # Cold INTRADAY replay (e.g. AAPL 5-min at a 2008 cutoff — deep intraday this pod has
         # never fetched). The daily branch above is date_tf-only; without this an old intraday
         # cutoff falls to _get_bars_inner (recent-window) → EMPTY after the client's cutoff
@@ -3375,9 +3453,13 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
             bars_per_day = (16 * 60) // max(mult, 1)
             eff_bars = min(int(bars), _REPLAY_INTRADAY_COLD_BARS)
             lookback_days = min(400, max(10, int(eff_bars / max(bars_per_day, 1) * 1.5) + 5))
-            _to_d = datetime.strptime(str(to_str), "%Y-%m-%d")
+            _to_d = datetime.strptime(_fetch_to_str, "%Y-%m-%d")
             from_ymd = (_to_d - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
-            cold_key = f"replayto::{ticker_up}::{tf}::{to_str}"
+            cold_key = f"replayto::{ticker_up}::{tf}::{_fetch_to_str}"
+            # A window with NOTHING stored waits the deep ceiling (there is nothing else
+            # to paint); a short one already has bars to serve, so it waits briefly and
+            # then answers `filling` instead of holding the request.
+            _win_wait = _DEEP_DEADLINE_SECONDS if _intraday_window_missing else _TO_SHORT_WAIT_SECONDS
             with _inflight_lock:
                 ev = _inflight.get(cold_key)
                 do_fetch = ev is None
@@ -3397,13 +3479,17 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
                 if got_slot:
                     def _replay_job(_ev=ev, _key=cold_key):
                         try:
-                            deep = [b for b in _fetch_intraday_range(ticker_up, tf, from_ymd, str(to_str))
+                            deep = [b for b in _fetch_intraday_range(ticker_up, tf, from_ymd, _fetch_to_str)
                                     if int(b.get("t", 0)) <= to_key]
                             if deep:
                                 try:
                                     _sqlite.put_bars(ticker_up, tf, deep, date_tf=False)
                                 except Exception:
                                     pass
+                            # The provider has answered for this window: what is stored
+                            # now is all there is (a failed fetch raises past this line
+                            # and is retried by the next ask).
+                            cache.set(_win_key, 1, ttl=_TO_WINDOW_TTL)
                         except Exception:     # noqa: BLE001 — background
                             pass
                         finally:
@@ -3419,14 +3505,14 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
                         with _inflight_lock:
                             _inflight.pop(cold_key, None)
                         ev.set()
-                    ev.wait(timeout=_bounded_wait(_DEEP_DEADLINE_SECONDS))
+                    ev.wait(timeout=_bounded_wait(_win_wait))
                 else:
                     with _inflight_lock:
                         _inflight.pop(cold_key, None)
                     ev.set()
             else:
                 # another request is fetching this exact window — wait (bounded), then read
-                ev.wait(timeout=_bounded_wait(_DEEP_DEADLINE_SECONDS + 0.5))
+                ev.wait(timeout=_bounded_wait(_win_wait + 0.5))
             rows = _sqlite.get_bars_before(ticker_up, tf, bars, to_key)
             # ⛔ RE-CHECK COVERAGE, not just emptiness (review F1): a store holding an
             # OLDER era (2012 rows for a 2015 cutoff) is non-empty but still does not
@@ -3436,12 +3522,23 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
                 _intraday_window_missing = (not rows) or (to_key - int(rows[-1][0]) > 7 * 86400)
             except Exception:
                 _intraday_window_missing = not rows
+            with _inflight_lock:
+                _replay_running = cold_key in _inflight
             if _intraday_window_missing and not warm:
-                with _inflight_lock:
-                    _replay_running = cold_key in _inflight
                 if _replay_running:
                     # Shed, clearly marked: the window is still landing — re-poll the tier.
                     return _replay_warming_response(resp_ticker, tf)
+            elif _intraday_window_short and _replay_running and rows:
+                # ⛔ NEVER EMPTY-HANDED WHEN OLDER DATA EXISTS. The stored part of the
+                # window is real and in order: serve it now, flagged `filling`, and tell
+                # the client when the rest should be there.
+                _mark_serve("to-filling")
+                r = JSONResponse(
+                    content={"ticker": resp_ticker, "tf": tf,
+                             "bars": _fmt_sqlite_bars(rows, tf, ticker_up), "filling": True},
+                    headers={"Cache-Control": "public, max-age=5"})
+                r.headers["Retry-After"] = "3"
+                return r
         except Exception:
             rows = rows or []
     if not rows:
@@ -3452,6 +3549,12 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
     # an honest best effort, not static history: never pin it for an hour.
     _replay_ttl = 30 if (not date_tf and _intraday_window_missing) else 3600
     return JSONResponse(content=payload, headers={"Cache-Control": f"public, max-age={_replay_ttl}"})
+
+
+# How long a fetched `to=` window vouches that the store holds all the provider has for
+# it (see `_get_bars_to_response`). Long: history before a date does not change.
+_TO_WINDOW_TTL = int(_os.environ.get("BARS_TO_WINDOW_TTL_SECONDS", str(6 * 3600)))
+_TO_SHORT_WAIT_SECONDS = 2.0
 
 
 # Timeframes the snapshot warm serves. Custom intraday tfs (2/45/240/…) are
@@ -3758,7 +3861,7 @@ def _do_cold_fetch(ticker_up: str, tf: str, bars: int, date_tf: bool) -> None:
             else:
                 _put_fetched_intraday(ticker_up, tf, raw)   # fallback = add-only
             if _deep:
-                _mark_history_complete(ticker_up, tf)
+                _mark_history_complete(ticker_up, tf, bars)
         elif not raw and _faults.clean:
             _record_cold_negative(ticker_up, tf)
             _lg.info("[bars] cold bg fetch %s tf=%s: no provider has data — "
@@ -4143,7 +4246,7 @@ def _start_bounded_fetch_intraday(ticker_up: str, tf: str, bars: int):
             raw = _fetch_intraday(ticker_up, tf, bars)
             if raw and not _is_intraday_stale(raw):
                 _put_fetched_intraday(ticker_up, tf, raw)   # fallback = add-only
-                _mark_history_complete(ticker_up, tf)       # refuses a fallback answer
+                _mark_history_complete(ticker_up, tf, bars)  # refuses a fallback answer
         except Exception as _e:           # noqa: BLE001
             import logging as _log_bf
             _log_bf.getLogger(__name__).warning(
@@ -4473,7 +4576,7 @@ def serve_warm_from_cache(ticker: str, tf: str, bars: int):
         # Require a COMPLETE-enough set (mirror the serve path's guard) so a warm never
         # seeds the browser a truncated series that the chart would then have to refill.
         if not stored_rows or not (
-            len(stored_rows) >= bars * 0.9 or _history_complete(ticker_up, tf)
+            len(stored_rows) >= bars * 0.9 or _history_complete(ticker_up, tf, bars)
         ):
             return None
         payload = {"ticker": ticker_up, "tf": tf, "bars": _fmt_sqlite_bars(stored_rows, tf, ticker_up)}
@@ -4553,7 +4656,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     _time_ck("live_cov")
     _fresh_needed = _needs_fresh(last_ts, tf, ticker_up) if stored_rows else True
     if stored_rows and not _fresh_needed and (
-        len(stored_rows) >= bars * 0.9 or _history_complete(ticker_up, tf)
+        len(stored_rows) >= bars * 0.9 or _history_complete(ticker_up, tf, bars)
         or (_live and bars <= _bls.LIVE_HISTORY_MAX_BARS and _bls.history_complete(ticker_up, tf))
     ):
         # SQLite has enough fresh data (or holds the full available history,
@@ -4605,7 +4708,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         # backfill of a stock with fewer bars than requested) — then it's NOT
         # partial; only a delta is needed. Without this guard such a chart would
         # re-run the full yfinance/Massive pull on every poll forever.
-        is_partial = len(stored_rows) < bars * 0.9 and not _history_complete(ticker_up, tf)
+        is_partial = len(stored_rows) < bars * 0.9 and not _history_complete(ticker_up, tf, bars)
 
         # Deep INTRADAY pan-backfill is served SYNCHRONOUSLY (2026-07-02).
         # A deep request (bars >= _DEEP_REQUEST_THRESHOLD) on an intraday TF
@@ -4835,7 +4938,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                                 # than the stock's lifetime doesn't re-fetch every
                                 # poll (the len>=bars*0.9 gate would never pass).
                                 if _deep:
-                                    _mark_history_complete(_sym, _tf)
+                                    _mark_history_complete(_sym, _tf, _bars)
                         else:
                             if _tf == "D":
                                 new = _delta_daily(_sym, _last_ts)
@@ -5023,7 +5126,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                     if date_tf or not _is_intraday_stale(raw):
                         _sqlite.put_bars(ticker_up, tf, raw, date_tf=date_tf)
                         if _deep:
-                            _mark_history_complete(ticker_up, tf)
+                            _mark_history_complete(ticker_up, tf, bars)
                 # Slice to the requested count for the response. We stored ALL
                 # fetched bars in SQLite above (so future larger requests don't
                 # have to refetch), but the caller only needs `bars` count back.
@@ -5194,8 +5297,15 @@ def fetch_with_validation(
     bars: int,
     prior_close: float | None = None,
     expected_session: int | None = None,
+    prior_close_for=None,
 ):
     """Fetch from primary; if it fails validation, fall back through alternates.
+
+    ``prior_close_for`` (optional): ``payload -> float | None``, the chained check's
+    seed computed FROM THE PAYLOAD — the close of the stored bar immediately before
+    the payload's first bar. Wins over ``prior_close`` when given. See
+    `_prior_close_before` for why a single "latest close" seed is wrong for a deep
+    payload.
 
     Order: Massive → FMP (intraday only) → yfinance.  Returns the first
     payload whose every bar passes validation, or ``None`` if every source
@@ -5250,7 +5360,8 @@ def fetch_with_validation(
     if _scb.is_ok("massive"):
         try:
             payload = _fetch_intraday_massive(ticker, tf, bars)
-            valid = _payload_passes_validation(payload, prior_close)
+            valid = _payload_passes_validation(
+                payload, prior_close_for(payload) if prior_close_for else prior_close)
             _scb.record_attempt("massive", success=valid)
             if valid:
                 chosen = _accept(payload)
@@ -5268,7 +5379,8 @@ def fetch_with_validation(
     if tf in ("1", "5", "15", "30", "60") and _scb.is_ok("fmp"):
         try:
             payload = _fetch_intraday_fmp(ticker, tf, bars)
-            valid = _payload_passes_validation(payload, prior_close)
+            valid = _payload_passes_validation(
+                payload, prior_close_for(payload) if prior_close_for else prior_close)
             _scb.record_attempt("fmp", success=valid)
             if valid and not _payload_has_extended_hours(payload):
                 fmp_rth = payload          # RTH-only: yfinance first, this only if it fails
@@ -5288,7 +5400,8 @@ def fetch_with_validation(
     if _scb.is_ok("yfinance"):
         try:
             payload = _fetch_intraday_yfinance(ticker, tf, bars)
-            valid = _payload_passes_validation(payload, prior_close)
+            valid = _payload_passes_validation(
+                payload, prior_close_for(payload) if prior_close_for else prior_close)
             _scb.record_attempt("yfinance", success=valid)
             if valid:
                 chosen = _accept(payload, "yfinance")
