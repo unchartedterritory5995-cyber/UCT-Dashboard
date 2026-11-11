@@ -248,7 +248,7 @@ export const GROUPS = [
   // W2-B2: `history.afterEvent` too ("how has X behaved after …", "what happens after …")
   { id: 'data', title: 'Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)', domains: ['stock', 'news', 'research', 'history'],
     // CG-21 (corpus #774): "news" — not the News WIDGET ("add a news widget")
-    words: [/\bnews\b(?! (?:widget|panel|tab|window)s?\b)/, /\b(headlines?|catalysts?|earnings|profile|fundamentals?|compare|versus|vs\.?|sector|industry|market cap|float|why is|what does .+ do|what'?s driving|what is driving|off (its|the) (52[\s-]?week )?highs?)\b/,
+    words: [/\bnews\b(?! (?:widget|panel|tab|window)s?\b)/, /\b(headlines?|catalysts?|earnings|profile|fundamentals?|compare|versus|vs\.?|sectors?|industry|market cap|float|why is|what does .+ do|what'?s driving|what is driving|off (its|the) (52[\s-]?week )?highs?)\b/,
       /\b(how (has|did|does) \S+ (behaved?|do|done|perform(ed)?|react(ed)?|trade[d]?) after|what (happens|happened) (to|with) \S+ after|after .*\b(gaps?|gapped|cross(es|ed)?)\b)\b/,
       // PKG2: an event study said another way ("in the weeks after gapping up 8%", "after 20-day breakouts", "after new 50-day highs")
       /\b(?:after|following) .*\b(?:gapping|gaps? (?:up|down)|breakouts?|break(?:s|ing)? out|new \d{1,3}[- ]?(?:day|week|session) (?:closing )?highs?)\b/,
