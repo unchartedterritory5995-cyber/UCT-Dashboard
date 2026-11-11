@@ -15,6 +15,9 @@ Arms: COLD (no IDB), BEHIND (IDB 2 h behind the clock), CURRENT (IDB at the cloc
 `jump_min` advances browser + mock-server clocks between the list opening and the scan --
 a list opened long before the member scans it (its prewarm has aged past the paint rule).
 
+LOCAL-ONLY (needs Playwright chromium + a built dist); `tests/test_intraday_watchlist_scan_bench.py`
+wraps it as a local rail that skips in CI.
+
 Usage:
   python tools/intraday_watchlist_scan_bench.py <dist> <label> <COLD|BEHIND|CURRENT> <cadence_ms>
       [rth|eth] ["YYYY-mm-dd HH:MM" ET clock] [jump_min]
