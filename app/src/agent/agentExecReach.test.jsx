@@ -57,7 +57,10 @@ const tally = (rs, k) => rs.filter(r => r[k]).length
 export const REACH = {}
 const PINNED = {
   // round 1 (before: widget held-out action v1 1/24, v2 6/24; list held-out 0/8, 0/8)
-  'widget held-out v1': { model: '23/24', action: '20/24', list: '20/24' }, 'widget held-out v2': { model: '23/24', action: '20/24', list: '20/24' },
+  // #1029 (F-16 widened, owner 2026-11-10): the round-3 FLOW_WIDGET_REFUSAL fast path is gone, so C3-166 "only show sweeps in the
+  // options flow" now reaches the model, widget.setOption and the Options Flow control list (master 0a0737665a: 23/20/20, misses
+  // C3-170, C3-166, C3-151, C3-152; this head: 24/21/21, misses C3-170, C3-151, C3-152; no other row dropped)
+  'widget held-out v1': { model: '24/24', action: '21/24', list: '21/24' }, 'widget held-out v2': { model: '24/24', action: '21/24', list: '21/24' },
   'widget tune v1': { model: '24/24', action: '20/24', list: '21/24' }, 'widget tune v2': { model: '24/24', action: '21/24', list: '21/24' },
   'list held-out v1': { model: '8/8', action: '7/8' }, 'list held-out v2': { model: '8/8', action: '8/8' },
   // round 2 (before the word-based names: name held-out2 list 4/6 both; journal held-out2 action 3/4 both)

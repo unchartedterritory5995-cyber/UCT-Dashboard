@@ -1016,11 +1016,21 @@ _MERGE_VALID_SQL = """
   AND (s.v IS NULL OR s.v >= 0)
 """
 
+# ⛔ AND THE SAME GRID INVARIANT (`intraday_grid`): an intraday row is keyed on its
+# bucket start. A snapshot from a store that still holds off-grid rows (a trade-time
+# stamped yfinance live row, 2026-11-10) must not copy them in; the producing store's
+# own sweep folds them. Plain SQL (no UDF) so the statement stays a PK seek. 60m is
+# prefiltered to :00/:30 — the exact session-grid check is the sweep's.
+_MERGE_GRID_SQL = """
+  AND (CASE s.tf WHEN '1' THEN s.ts % 60 WHEN '5' THEN s.ts % 300 WHEN '15' THEN s.ts % 900
+       WHEN '30' THEN s.ts % 1800 WHEN '60' THEN s.ts % 1800 ELSE 0 END) = 0
+"""
+
 #: Rows local LACKS above `floor` (forward tail, plus holes when floor < MAX).
 _MERGE_ADD_SQL = (
     "INSERT OR IGNORE INTO main.ohlcv (ticker,tf,ts,o,h,l,c,v) "
     "SELECT s.ticker,s.tf,s.ts,s.o,s.h,s.l,s.c,s.v FROM snap.ohlcv s "
-    "WHERE s.ticker=? AND s.tf=? AND s.ts > ? AND " + _MERGE_VALID_SQL
+    "WHERE s.ticker=? AND s.tf=? AND s.ts > ? AND " + _MERGE_VALID_SQL + _MERGE_GRID_SQL
 )
 
 #: Local rows above `floor` whose snapshot twin is MORE COMPLETE (more volume).
@@ -1029,7 +1039,7 @@ _MERGE_CORRECT_SQL = (
     "SELECT s.ticker,s.tf,s.ts,s.o,s.h,s.l,s.c,s.v FROM snap.ohlcv s "
     "JOIN main.ohlcv m ON m.ticker=s.ticker AND m.tf=s.tf AND m.ts=s.ts "
     "WHERE s.ticker=? AND s.tf=? AND s.ts > ? "
-    "AND COALESCE(s.v,0) > COALESCE(m.v,0) AND " + _MERGE_VALID_SQL
+    "AND COALESCE(s.v,0) > COALESCE(m.v,0) AND " + _MERGE_VALID_SQL + _MERGE_GRID_SQL
 )
 
 

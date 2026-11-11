@@ -132,25 +132,54 @@ export function rthCloseMinuteOf(unixSec) {
  *   'clock'   — plain ET clock hours 04:00 ... 19:00 (the 09:00 bar spans the
  *               open) == TradingView's extended-hours (04:00-20:00) chart.
  *
- * The server stores ONE 60m series and /api/bars has no per-session cache key,
- * so both views read the 'session' grid today. Making the extended view
- * 'clock' needs the server's `grid=clock` resample AND a per-session client
- * cache key; flip `extended` here only together with those.
+ * ⭐ (2026-11-10) The extended view is 'clock': `/api/bars?tf=60&session=eth`
+ * serves that grid (derived from 15m server-side), the client caches it under
+ * its own key (`seriesCacheTf` → '60e'), and the live stream is asked for 'eth'
+ * buckets. A request WITHOUT `session=eth` still gets the stored 'session' grid
+ * (`DEFAULT_SIXTY_MIN_GRID`), which is also what every caller that names no
+ * grid/session reads.
  * 5/15/30m are identical on both grids (09:30 is on the half hour).
  */
-export const SIXTY_MIN_GRID_BY_SESSION = Object.freeze({ rth: 'session', extended: 'session' })
+export const SIXTY_MIN_GRID_BY_SESSION = Object.freeze({ rth: 'session', extended: 'clock' })
+/** The grid `/api/bars?tf=60` serves when no `session=eth` is asked for. */
+export const DEFAULT_SIXTY_MIN_GRID = 'session'
 
 export function sixtyMinGridFor(session = 'extended', policy = SIXTY_MIN_GRID_BY_SESSION) {
   return policy[session === 'rth' ? 'rth' : 'extended']
 }
 
-/** The /api/stream/bars `session` (wire name 'rth' | 'eth') whose 60m buckets
- *  match the series this chart view FETCHES. Follows the grid policy, NOT the
- *  view: while the server stores one 'session' grid, an extended-hours chart
- *  must still ask the stream for 'rth' buckets, or live 60m candles land on
- *  clock hours between the fetched 09:30/10:30… bars. */
-export function liveStreamSession(showExtended, policy = SIXTY_MIN_GRID_BY_SESSION) {
-  return sixtyMinGridFor(showExtended ? 'extended' : 'rth', policy) === 'clock' ? 'eth' : 'rth'
+/** The `/api/bars` `session` a chart view asks for: 'eth' with extended hours on,
+ *  else 'rth'. (The server judges the tail against this session on every intraday
+ *  tf, and serves the clock grid for tf=60 & 'eth'.) */
+export function barsSessionFor(showExtended) {
+  return showExtended ? 'eth' : 'rth'
+}
+
+/** The CACHE identity of a chart's series (IDB / mem cache / load keys). Only 60m
+ *  differs between the views, so only 60m on the clock grid gets its own key
+ *  ('60e'); every other tf shares one key across sessions (no halved hit rate). */
+export function seriesCacheTf(tf, showExtended, policy = SIXTY_MIN_GRID_BY_SESSION) {
+  const t = String(tf)
+  if (t === '60' && sixtyMinGridFor(showExtended ? 'extended' : 'rth', policy) === 'clock') return '60e'
+  return t
+}
+
+/** The tf a cache key ('60e') stands for — what bucket/session logic must read. */
+export function logicTfOf(cacheTf) {
+  return cacheTf === '60e' ? '60' : cacheTf
+}
+
+const _NATIVE_INTRADAY = new Set(['1', '5', '15', '30', '60'])
+/** `&session=…` for an `/api/bars` URL of `tf` in this view ('' for D/W/M). */
+export function barsSessionQuery(tf, showExtended) {
+  return _NATIVE_INTRADAY.has(String(tf)) ? `&session=${barsSessionFor(showExtended)}` : ''
+}
+
+/** `&session=eth` ONLY where the bars themselves differ (60m on the clock grid) —
+ *  for secondary series (compare overlays) that must sit on the main series' grid
+ *  but have no tail judgment of their own. */
+export function barsGridQuery(tf, showExtended) {
+  return seriesCacheTf(tf, showExtended) === '60e' ? '&session=eth' : ''
 }
 
 /** True when `unixSec` is a 60m bucket start on the grid this chart view uses
@@ -173,7 +202,7 @@ export function bucketStartUnix(unixSec, tfMin, { grid } = {}) {
     const p = (tf > 0 ? tf : 5) * 60
     return Math.floor(sec / p) * p
   }
-  if (_GRID_ALIAS[grid || sixtyMinGridFor('extended')] === 'clock') return Math.floor(sec / 3600) * 3600
+  if (_GRID_ALIAS[grid || DEFAULT_SIXTY_MIN_GRID] === 'clock') return Math.floor(sec / 3600) * 3600
   const m = etMinuteOfDay(sec)
   const close = rthCloseMinuteOf(sec)
   let anchor
@@ -185,36 +214,8 @@ export function bucketStartUnix(unixSec, tfMin, { grid } = {}) {
 
 // Grid names: this file's 'session'/'clock' == bar_rollup.tv_bucket_bounds'
 // (and the stream wire's) 'rth'/'eth'.
-const _GRID_ALIAS = { session: 'session', clock: 'clock', rth: 'session', eth: 'clock' }
+export const _GRID_ALIAS = { session: 'session', clock: 'clock', rth: 'session', eth: 'clock' }
 
-/**
- * Unix second at which the bucket STARTING at (or containing) `unixSec` ends
- * (exclusive). Client twin of `bar_rollup.tv_bucket_bounds(..)[1]`: on the
- * session grid the 09:00 pre-market stub ends at 09:30 and the last regular bar
- * at the close (16:00, or 13:00 on a half-day).
- * ⭐ Canonical client bucket end — liveBarMerge.bucketEndTime should delegate here
- * (via `bucketEndChartTime`) rather than re-encode the anchors.
- */
-export function bucketEndUnix(unixSec, tfMin, { grid } = {}) {
-  const tf = Number(tfMin)
-  const start = bucketStartUnix(unixSec, tf, { grid })
-  if (tf !== 60) return start + (tf > 0 ? tf : 5) * 60
-  const g = _GRID_ALIAS[grid || sixtyMinGridFor('extended')] || 'session'
-  if (g === 'clock') return start + 3600
-  const m0 = etMinuteOfDay(start)
-  const close = rthCloseMinuteOf(start)
-  let endMin = m0 + 60
-  if (m0 < RTH_OPEN_MIN) endMin = Math.min(endMin, RTH_OPEN_MIN)
-  else if (m0 < close) endMin = Math.min(endMin, close)
-  return start + (endMin - m0) * 60
-}
-
-/** `bucketEndUnix` in chart-time space (what live writers compare `bar.time` to).
- *  `session` is 'rth' | 'eth' | 'extended' (wire names accepted). */
-export function bucketEndChartTime(chartTime, tf, session = 'rth') {
-  const grid = session === 'eth' ? 'clock' : session === 'rth' ? 'session' : sixtyMinGridFor(session)
-  return toChartTime(bucketEndUnix(fromChartTime(chartTime), Number(tf), { grid }))
-}
 
 export const PERIOD_SECONDS = { '1': 60, '5': 300, '15': 900, '30': 1800, '60': 3600 }
 
@@ -250,7 +251,10 @@ export function computeBarTime(tf, tickTimeSec, opts = {}) {
   // Intraday: the bucket start on the shared grid (60m per the session policy),
   // shifted by the ET offset AT THAT BAR -- never a page-load constant.
   if (tf === '60') {
-    const grid = opts.session === 'eth' ? 'clock' : sixtyMinGridFor(opts.session)
+    // No session named → the grid /api/bars serves by default (never the policy's
+    // extended view, which only a caller that knows its view may ask for).
+    const grid = opts.session == null ? DEFAULT_SIXTY_MIN_GRID
+      : opts.session === 'eth' ? 'clock' : opts.session === 'rth' ? 'session' : sixtyMinGridFor(opts.session)
     return toChartTime(bucketStartUnix(tickTimeSec, 60, { grid }))
   }
   const period = PERIOD_SECONDS[tf] || 300

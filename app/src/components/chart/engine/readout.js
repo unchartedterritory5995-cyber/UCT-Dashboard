@@ -105,6 +105,7 @@ import { safeCssColour } from './objectColour'
 // (see `stampReadout`), so this module still imports no server lane.
 import { readoutRows, readoutChipRows } from './readoutSchema'
 import { paneTableFor } from './paneTable'
+import { endLabelChipModel } from './endLabel'
 import { inputsAsRead } from './legacyInputs'
 import { identityTextFor } from './defSchema'
 
@@ -197,6 +198,12 @@ function compactValue(v) {
  *  and four places a new `legend` field has to be remembered in. */
 export function chipValueText(chip) {
   if (!chip) return ''
+  // ⭐ UCT RS split, F3 (2026-11-10) — A PLOT THAT DECLARED `legend.showValue:
+  // false` PRINTS NO NUMBER ANYWHERE (`chipsFrom` stamps `valueHidden`): the chip
+  // names the line (`UCT RS · SPY · 82`) and the number stays on the series. The
+  // declaration wins over a resolved `valueText` too, because the volume strip's
+  // copy would otherwise print what the definition asked to withhold.
+  if (chip.valueHidden === true) return ''
   // ⭐⭐ A TEXT THE PANE ALREADY RESOLVED WINS OVER RE-DERIVING ONE.
   //
   // ⚰️ MEASURED ON PRODUCTION, 2026-09-16: `SMA 50` over the volume pane read
@@ -385,9 +392,15 @@ function stampReadout(chip, def, inputs, opts) {
   // can never print two different numbers for one rank.
   let table = null
   const wantsTable = !!(def.meta && def.meta.paneTable)
+  // ⭐ UCT RS split, U2 — the plot's line-end tag (`plots[].endLabel`), resolved from
+  // the SAME scalars for the same reason as the table: the tag at the line's end
+  // and the Rating card can never print two different ratings.
+  const plot = (Array.isArray(def.plots) ? def.plots : []).find((p) => p && p.key === chip.plotKey) || null
+  const endSpec = plot && plot.endLabel && typeof plot.endLabel === 'object' ? plot.endLabel : null
+  let endLabel = null
   if (reader) {
     rows = []
-    if ((Array.isArray(def.readout) && def.readout.length) || wantsTable) {
+    if ((Array.isArray(def.readout) && def.readout.length) || wantsTable || endSpec) {
       let scalars = null
       try { scalars = reader(def, resolvedInputsOf(def, inputs)) } catch { scalars = null }
       // A plain object or nothing: an array, a string or a number is not a
@@ -395,6 +408,7 @@ function stampReadout(chip, def, inputs, opts) {
       if (scalars && typeof scalars === 'object' && !Array.isArray(scalars)) {
         if (Array.isArray(def.readout) && def.readout.length) rows = readoutRows(def, scalars, { inputs })
         if (wantsTable) table = paneTableFor(def, scalars, { inputs })
+        if (endSpec) endLabel = endLabelChipModel(endSpec, scalars, def, inputs)
       }
     }
   }
@@ -415,6 +429,7 @@ function stampReadout(chip, def, inputs, opts) {
   // Present only when the definition declares a table AND it resolves, so every
   // other chip keeps exactly the fields it had.
   if (table) chip.paneTable = table
+  if (endLabel) chip.endLabel = endLabel
   return chip
 }
 
@@ -561,6 +576,10 @@ export function chipsFrom(entries, seriesData, registry, inputsFor, displayFor, 
     const decimals = Number.isInteger(plot.legend.decimals) ? plot.legend.decimals : DEFAULT_DECIMALS
     // ⭐ THE DECLARATION TRAVELS WITH THE CHIP — see `chipValueText`.
     const compact = plot.legend.compact === true
+    // ⭐ F3 — and so does `showValue: false` (`valueHidden`): the chip keeps its
+    // `value` (the line-end tag and the info-value reader still read the number),
+    // and every surface that prints through `chipValueText` prints nothing.
+    const valueHidden = plot.legend.showValue === false
     // ⭐ By INSTANCE, so an MA of a fundamental reads in the fundamental's unit.
     const format = fundamentalFormatOfInstance(
       (Array.isArray(instances) ? instances : []).find((i) => i && i.instanceId === e.instanceId) || { inputs },
@@ -589,8 +608,9 @@ export function chipsFrom(entries, seriesData, registry, inputsFor, displayFor, 
       compact,
       ...(format ? { format } : {}),
       ...(observation ? { observation } : {}),
+      ...(valueHidden ? { valueHidden: true } : {}),
       value,
-      text: `${label} ${chipValueText({ value, decimals, compact, format, observation })}`,
+      text: valueHidden ? label : `${label} ${chipValueText({ value, decimals, compact, format, observation })}`,
       ...(frameSuffix ? { frameSuffix } : {}),
     })
     inputsByChip.set(out.length - 1, inputs)
@@ -899,7 +919,8 @@ function disambiguateSiblings(chips, inputsByChip, registry, instances, displayB
       // place this grammar is spelled.
       chips[chipIdx].suffix = suffixes[n]
       chips[chipIdx].label = label
-      chips[chipIdx].text = `${label} ${chipValueText(chips[chipIdx])}`
+      // F3: a `showValue: false` chip's text is its label alone (no trailing space).
+      chips[chipIdx].text = chips[chipIdx].valueHidden === true ? label : `${label} ${chipValueText(chips[chipIdx])}`
     })
   }
   return chips
@@ -1257,6 +1278,13 @@ export function declaresReadout(def) {
   return !!(def && Array.isArray(def.readout) && def.readout.length)
 }
 
+/** Whether `plotKey` of `def` declared `legend.showValue: false` (F3): its chip
+ *  names the line and prints no number. False for every other plot. */
+export function legendHidesValue(def, plotKey) {
+  const plot = (def && Array.isArray(def.plots) ? def.plots : []).find((p) => p && p.key === plotKey)
+  return !!(plot && plot.legend && plot.legend.showValue === false)
+}
+
 /**
  * ⭐ A9 — THE SHORT NAME, IN THE ONE GRAMMAR: `UCT RS · SPY`.
  *
@@ -1314,13 +1342,22 @@ export function readoutDateText(asOf) {
  * muted, marked `note: true`. A pane whose every plot came back empty then tells
  * the member why on screen instead of only inside the chip menu.
  *
+ * ⭐ UCT RS split, F3 (2026-11-10) — A PLOT THAT WITHHOLDS ITS NUMBER
+ * (`legend.showValue: false`, `legendHidesValue`) withholds the dated last one
+ * too: `opts.plotKey` names the chip's plot, and for such a plot the numeric
+ * branch below answers `null` (the name alone is the label), while a declared
+ * `legendFallback` entry and the server's note still print: neither is the number.
+ *
  * @param {object|null} def
  * @param {object|null} scalars the envelope payload (`scalarsFor`), or null
  * @param {number} [decimals] the plot's legend decimals (the chip's)
+ * @param {object} [inputs] the instance's stored inputs
+ * @param {{plotKey?: string}} [opts] the chip's plot, for the `showValue` rule
  * @returns {{text: string, muted: true, note?: true}|null} null for a definition without a readout
  */
-export function readoutFallbackValue(def, scalars, decimals, inputs) {
+export function readoutFallbackValue(def, scalars, decimals, inputs, opts) {
   if (!declaresReadout(def)) return null
+  const valueHidden = !!(opts && typeof opts.plotKey === 'string' && legendHidesValue(def, opts.plotKey))
   // ⭐ A DECLARED ALTERNATIVE FIRST (2026-11-07): `meta.legendFallback` is a list
   // of readout-grammar entries ({source, format, when?}). The first that
   // resolves is the pane label's value, LIVE (not muted, no date): a view that
@@ -1340,13 +1377,14 @@ export function readoutFallbackValue(def, scalars, decimals, inputs) {
   }
   const legend = scalars && typeof scalars === 'object' && scalars.legend && typeof scalars.legend === 'object'
     ? scalars.legend : null
-  const v = legend ? legend.lastValue : null
+  const v = valueHidden ? null : (legend ? legend.lastValue : null)
   if (typeof v !== 'number' || !Number.isFinite(v)) {
     if (scalars && typeof scalars === 'object') {
       const noted = readoutRows(def, scalars, { inputs: inputs || {} }).find((r) => typeof r.note === 'string' && r.note)
       if (noted) return { text: noted.note, muted: true, note: true }
     }
-    return { text: '—', muted: true }
+    // F3: no number is withheld as nothing, not as a dash — the name is the label.
+    return valueHidden ? null : { text: '—', muted: true }
   }
   const dp = Number.isInteger(decimals) ? decimals : 4
   const date = readoutDateText(legend.asOf)

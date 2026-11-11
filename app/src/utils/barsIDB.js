@@ -5,12 +5,13 @@
  * After the server responds with fresh/delta bars, we update IDB and the
  * chart reflects the latest data — identical to how TradingView works.
  *
- * Key format:  "{SYM}_{tf}"  (e.g. "AAPL_D", "NVDA_5")
+ * Key format:  "{SYM}_{tf}"  (e.g. "AAPL_D", "NVDA_5"; "NVDA_60e" = the extended-
+ *               hours 60m series on the clock grid — barTime.seriesCacheTf)
  * Value shape: { bars: [...], lastT: <last bar's t value>, savedAt: <ms> }
  */
 
 import { classifyIntradayTail } from './marketSession'
-import { isOnSixtyMinGrid } from '../components/chart/barTime'
+import { isOnSixtyMinGrid, logicTfOf } from '../components/chart/barTime'
 
 const DB_NAME    = 'uct_bars_v1'
 // Stay at v2. The v3 bump caused a deadlock: existing v2 connections held by
@@ -140,14 +141,18 @@ function _key(sym, tf) {
  * the first time it is read).
  */
 export function _hasOldSixtyMinGrid(bars, tf) {
-  if (String(tf) !== '60' || !Array.isArray(bars) || !bars.length) return false
+  const _t = String(tf)
+  if ((_t !== '60' && _t !== '60e') || !Array.isArray(bars) || !bars.length) return false
+  // '60' holds the session grid, '60e' the clock grid: an entry on the OTHER grid
+  // (or a mixed one) is absent, never merged into.
+  const _ext = _t === '60e'
   const n = bars.length
   const idx = []
   for (let i = Math.max(0, n - 120); i < n; i++) idx.push(i)
   for (let i = 0; i < Math.min(40, n); i++) idx.push(i)
   for (const i of idx) {
     const t = bars[i]?.t
-    if (typeof t === 'number' && !isOnSixtyMinGrid(t, false)) return true
+    if (typeof t === 'number' && !isOnSixtyMinGrid(t, _ext)) return true
   }
   return false
 }
@@ -174,6 +179,7 @@ export function _hasOldSixtyMinGrid(bars, tf) {
 // ⭐ (2026-11-10) RETURNS WHERE THE HOLE STARTS (unix sec of the bar before it), or null.
 // The caller no longer discards the cache on a hole — see idbGet.
 export function _intradayGapStart(bars, tf) {
+  tf = logicTfOf(tf)
   if (!['1','5','15','30','60'].includes(tf)) return null
   if (!bars || bars.length < 2) return null
 
@@ -217,7 +223,7 @@ export { INTRADAY_MAX_BARS }
 /** The bars idbPut persists: intraday capped to the newest INTRADAY_MAX_BARS (what
  *  idbGet reads back); D/W/M untouched. */
 export function _capForWrite(tf, bars) {
-  if (Array.isArray(bars) && ['1','5','15','30','60'].includes(String(tf)) && bars.length > INTRADAY_MAX_BARS) {
+  if (Array.isArray(bars) && ['1','5','15','30','60'].includes(logicTfOf(String(tf))) && bars.length > INTRADAY_MAX_BARS) {
     return bars.slice(bars.length - INTRADAY_MAX_BARS)
   }
   return bars
@@ -235,7 +241,7 @@ export async function idbGet(sym, tf) {
         // Logic-version invalidation: a stale schema/logic record is
         // treated as absent so the caller refetches fresh.
         if (entry.v !== CACHE_LOGIC_VERSION) return resolve(null)
-        const isIntraday = ['1','5','15','30','60'].includes(tf)
+        const isIntraday = ['1','5','15','30','60'].includes(logicTfOf(tf))
         if (isIntraday) {
           // Bar-data freshness vs the last CLOSED session (weekend/holiday-aware). A
           // pre-seeded pack ending at the prior session is FRESH (today's bars fill via
@@ -250,7 +256,7 @@ export async function idbGet(sym, tf) {
           // (tools/intraday_tail_harness.py): FRESH sent `since=`, BEHIND did not.
           // A BEHIND entry is structurally SOUND; handing it back is what lets the
           // chart paint history instantly and ask only for the gap.
-          if (classifyIntradayTail(entry.lastT, tf) === 'gapped') return resolve(null)
+          if (classifyIntradayTail(entry.lastT, logicTfOf(tf)) === 'gapped') return resolve(null)
         } else if ((Date.now() - (entry.savedAt || 0)) > DAILY_MAX_AGE_MS) {
           // D/W/M: save-time bound catches corrupted historical bars delta can't heal
           // (wrong company / pre-split); refetched within DAILY_MAX_AGE_MS.
@@ -305,7 +311,7 @@ export async function idbDeleteIntraday() {
     const req = store.getAllKeys()
     req.onsuccess = () => {
       for (const k of req.result || []) {
-        if (/_(1|5|15|30|60)$/.test(String(k))) { try { store.delete(k) } catch { /* ignore */ } }
+        if (/_(1|5|15|30|60|60e)$/.test(String(k))) { try { store.delete(k) } catch { /* ignore */ } }
       }
     }
     tx.oncomplete = () => resolve()

@@ -130,7 +130,7 @@ def test_note_served_schedules_once_per_split_and_only_near_a_declared_split(mon
 def test_fmt_sqlite_bars_calls_the_split_hook_for_intraday_only(monkeypatch):
     seen = []
     monkeypatch.setattr(ish, "note_served", lambda tk, tf, b: seen.append((tk, tf, len(b))))
-    rows = [(1_760_000_000 + i * 300, 1.0, 2.0, 0.5, 1.5, 10) for i in range(3)]
+    rows = [(1_760_000_100 + i * 300, 1.0, 2.0, 0.5, 1.5, 10) for i in range(3)]
     bars_fetch._fmt_sqlite_bars(rows, "5", "HOOK")
     bars_fetch._fmt_sqlite_bars(rows, "5")                  # no ticker: never
     assert seen == [("HOOK", "5", 3)]
@@ -156,7 +156,7 @@ def _all(path, tk="AAA", tf="5"):
         c.close()
 
 
-T0 = 1_760_000_000
+T0 = 1_760_000_100   # a 5m bucket start (the store keys intraday rows on the grid)
 
 
 def _r(tk, tf, ts, c=10.0, v=100):

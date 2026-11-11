@@ -2430,7 +2430,7 @@
     ]
    },
    "source": "relative_strength.compute_phase1_columns#tap-rs-high#CRM#2009-09-25",
-   "system": "UCT Relative Strength, Classic (21 EMA, 52-week new highs)",
+   "system": "UCT RS Line (21 EMA, 52-week new highs)",
    "teaches": {
     "card": "tour-3",
     "line": "When the line tops its old high before price does, the stock is leading before the chart shows it.",
@@ -4882,7 +4882,7 @@
     ]
    },
    "source": "relative_strength.compute_phase1_columns#tap-rs-high#COP#2010-09-03",
-   "system": "UCT Relative Strength, Classic (21 EMA, 52-week new highs)",
+   "system": "UCT RS Line (21 EMA, 52-week new highs)",
    "teaches": {
     "card": "tour-3",
     "line": "When the line tops its old high before price does, the stock is leading before the chart shows it.",
@@ -7334,7 +7334,7 @@
     ]
    },
    "source": "relative_strength.compute_phase1_columns#tap-rs-high#CI#2020-03-23",
-   "system": "UCT Relative Strength, Classic (21 EMA, 52-week new highs)",
+   "system": "UCT RS Line (21 EMA, 52-week new highs)",
    "teaches": {
     "card": "tour-3",
     "line": "When the line tops its old high before price does, the stock is leading before the chart shows it.",
@@ -9786,7 +9786,7 @@
     ]
    },
    "source": "relative_strength.compute_phase1_columns#tap-rs-high#FCX#2009-10-30",
-   "system": "UCT Relative Strength, Classic (21 EMA, 52-week new highs)",
+   "system": "UCT RS Line (21 EMA, 52-week new highs)",
    "teaches": {
     "card": "tour-3",
     "line": "When the line tops its old high before price does, the stock is leading before the chart shows it.",
@@ -12238,7 +12238,7 @@
     ]
    },
    "source": "relative_strength.compute_phase1_columns#tap-rs-high#SHW#2010-06-07",
-   "system": "UCT Relative Strength, Classic (21 EMA, 52-week new highs)",
+   "system": "UCT RS Line (21 EMA, 52-week new highs)",
    "teaches": {
     "card": "tour-3",
     "line": "When the line tops its old high before price does, the stock is leading before the chart shows it.",
@@ -14690,7 +14690,7 @@
     ]
    },
    "source": "relative_strength.compute_phase1_columns#tap-rs-high#JPM#2023-05-04",
-   "system": "UCT Relative Strength, Classic (21 EMA, 52-week new highs)",
+   "system": "UCT RS Line (21 EMA, 52-week new highs)",
    "teaches": {
     "card": "tour-3",
     "line": "When the line tops its old high before price does, the stock is leading before the chart shows it.",
@@ -17142,7 +17142,7 @@
     ]
    },
    "source": "relative_strength.compute_phase1_columns#tap-rs-high#CSCO#1998-03-17",
-   "system": "UCT Relative Strength, Classic (21 EMA, 52-week new highs)",
+   "system": "UCT RS Line (21 EMA, 52-week new highs)",
    "teaches": {
     "card": "tour-3",
     "line": "When the line tops its old high before price does, the stock is leading before the chart shows it.",
@@ -19594,7 +19594,7 @@
     ]
    },
    "source": "relative_strength.compute_phase1_columns#tap-rs-high#PAYX#2000-02-23",
-   "system": "UCT Relative Strength, Classic (21 EMA, 52-week new highs)",
+   "system": "UCT RS Line (21 EMA, 52-week new highs)",
    "teaches": {
     "card": "tour-3",
     "line": "When the line tops its old high before price does, the stock is leading before the chart shows it.",
@@ -22046,7 +22046,7 @@
     ]
    },
    "source": "relative_strength.compute_phase1_columns#tap-rs-high#CMCSA#2005-04-08",
-   "system": "UCT Relative Strength, Classic (21 EMA, 52-week new highs)",
+   "system": "UCT RS Line (21 EMA, 52-week new highs)",
    "teaches": {
     "card": "tour-3",
     "line": "When the line tops its old high before price does, the stock is leading before the chart shows it.",
@@ -24498,7 +24498,7 @@
     ]
    },
    "source": "relative_strength.compute_phase1_columns#tap-rs-high#MMM#2010-01-06",
-   "system": "UCT Relative Strength, Classic (21 EMA, 52-week new highs)",
+   "system": "UCT RS Line (21 EMA, 52-week new highs)",
    "teaches": {
     "card": "tour-3",
     "line": "When the line tops its old high before price does, the stock is leading before the chart shows it.",
@@ -26950,7 +26950,7 @@
     ]
    },
    "source": "relative_strength.compute_phase1_columns#tap-rs-high#EMR#2018-06-21",
-   "system": "UCT Relative Strength, Classic (21 EMA, 52-week new highs)",
+   "system": "UCT RS Line (21 EMA, 52-week new highs)",
    "teaches": {
     "card": "tour-3",
     "line": "When the line tops its old high before price does, the stock is leading before the chart shows it.",
@@ -29402,7 +29402,7 @@
     ]
    },
    "source": "relative_strength.compute_phase1_columns#tap-rs-high#ADP#2025-04-02",
-   "system": "UCT Relative Strength, Classic (21 EMA, 52-week new highs)",
+   "system": "UCT RS Line (21 EMA, 52-week new highs)",
    "teaches": {
     "card": "tour-3",
     "line": "When the line tops its old high before price does, the stock is leading before the chart shows it.",
@@ -33094,7 +33094,7 @@
     }
    },
    "source": "relative_strength.compute_phase1_columns#leader#BMY-vs-AMGN#1997-06-30",
-   "system": "UCT Relative Strength, Classic, two stocks against SPY",
+   "system": "UCT RS Line, two stocks against SPY",
    "teaches": {
     "card": "tour-1",
     "line": "A stock can go up and still lose the race.",
@@ -36789,7 +36789,7 @@
     }
    },
    "source": "relative_strength.compute_phase1_columns#leader#MCK-vs-FDX#1998-09-30",
-   "system": "UCT Relative Strength, Classic, two stocks against SPY",
+   "system": "UCT RS Line, two stocks against SPY",
    "teaches": {
     "card": "tour-1",
     "line": "A stock can go up and still lose the race.",
@@ -40484,7 +40484,7 @@
     }
    },
    "source": "relative_strength.compute_phase1_columns#leader#MSFT-vs-CSCO#2001-06-29",
-   "system": "UCT Relative Strength, Classic, two stocks against SPY",
+   "system": "UCT RS Line, two stocks against SPY",
    "teaches": {
     "card": "tour-1",
     "line": "A stock can go up and still lose the race.",
@@ -44179,7 +44179,7 @@
     }
    },
    "source": "relative_strength.compute_phase1_columns#leader#NFLX-vs-BAC#2009-03-31",
-   "system": "UCT Relative Strength, Classic, two stocks against SPY",
+   "system": "UCT RS Line, two stocks against SPY",
    "teaches": {
     "card": "tour-1",
     "line": "A stock can go up and still lose the race.",
@@ -47874,7 +47874,7 @@
     }
    },
    "source": "relative_strength.compute_phase1_columns#leader#MU-vs-LLY#2009-09-30",
-   "system": "UCT Relative Strength, Classic, two stocks against SPY",
+   "system": "UCT RS Line, two stocks against SPY",
    "teaches": {
     "card": "tour-1",
     "line": "A stock can go up and still lose the race.",
@@ -51569,7 +51569,7 @@
     }
    },
    "source": "relative_strength.compute_phase1_columns#leader#LOW-vs-VRTX#2012-03-30",
-   "system": "UCT Relative Strength, Classic, two stocks against SPY",
+   "system": "UCT RS Line, two stocks against SPY",
    "teaches": {
     "card": "tour-1",
     "line": "A stock can go up and still lose the race.",
@@ -55264,7 +55264,7 @@
     }
    },
    "source": "relative_strength.compute_phase1_columns#leader#EOG-vs-TJX#2014-06-30",
-   "system": "UCT Relative Strength, Classic, two stocks against SPY",
+   "system": "UCT RS Line, two stocks against SPY",
    "teaches": {
     "card": "tour-1",
     "line": "A stock can go up and still lose the race.",
@@ -58959,7 +58959,7 @@
     }
    },
    "source": "relative_strength.compute_phase1_columns#leader#AMZN-vs-FCX#2015-12-31",
-   "system": "UCT Relative Strength, Classic, two stocks against SPY",
+   "system": "UCT RS Line, two stocks against SPY",
    "teaches": {
     "card": "tour-1",
     "line": "A stock can go up and still lose the race.",
@@ -62654,7 +62654,7 @@
     }
    },
    "source": "relative_strength.compute_phase1_columns#leader#MA-vs-INTC#2019-06-28",
-   "system": "UCT Relative Strength, Classic, two stocks against SPY",
+   "system": "UCT RS Line, two stocks against SPY",
    "teaches": {
     "card": "tour-1",
     "line": "A stock can go up and still lose the race.",
@@ -66349,7 +66349,7 @@
     }
    },
    "source": "relative_strength.compute_phase1_columns#leader#AMD-vs-CI#2026-09-30",
-   "system": "UCT Relative Strength, Classic, two stocks against SPY",
+   "system": "UCT RS Line, two stocks against SPY",
    "teaches": {
     "card": "tour-1",
     "line": "A stock can go up and still lose the race.",
@@ -68801,7 +68801,7 @@
     ]
    },
    "source": "relative_strength.compute_phase1_columns#red-day#MMM#1999-04-14",
-   "system": "UCT Relative Strength, green on a red market day (gor)",
+   "system": "UCT RS Line, green on a red market day (gor)",
    "teaches": {
     "card": "tour-4",
     "line": "Stocks that close green, or barely dip, while the market sells off are showing real demand.",
@@ -71250,7 +71250,7 @@
     ]
    },
    "source": "relative_strength.compute_phase1_columns#red-day#MRK#2000-10-06",
-   "system": "UCT Relative Strength, green on a red market day (gor)",
+   "system": "UCT RS Line, green on a red market day (gor)",
    "teaches": {
     "card": "tour-4",
     "line": "Stocks that close green, or barely dip, while the market sells off are showing real demand.",
@@ -73699,7 +73699,7 @@
     ]
    },
    "source": "relative_strength.compute_phase1_columns#red-day#CSCO#2007-12-11",
-   "system": "UCT Relative Strength, green on a red market day (gor)",
+   "system": "UCT RS Line, green on a red market day (gor)",
    "teaches": {
     "card": "tour-4",
     "line": "Stocks that close green, or barely dip, while the market sells off are showing real demand.",
@@ -76148,7 +76148,7 @@
     ]
    },
    "source": "relative_strength.compute_phase1_columns#red-day#NEM#2011-08-25",
-   "system": "UCT Relative Strength, green on a red market day (gor)",
+   "system": "UCT RS Line, green on a red market day (gor)",
    "teaches": {
     "card": "tour-4",
     "line": "Stocks that close green, or barely dip, while the market sells off are showing real demand.",
@@ -78597,7 +78597,7 @@
     ]
    },
    "source": "relative_strength.compute_phase1_columns#red-day#MS#2018-11-19",
-   "system": "UCT Relative Strength, green on a red market day (gor)",
+   "system": "UCT RS Line, green on a red market day (gor)",
    "teaches": {
     "card": "tour-4",
     "line": "Stocks that close green, or barely dip, while the market sells off are showing real demand.",
@@ -81046,7 +81046,7 @@
     ]
    },
    "source": "relative_strength.compute_phase1_columns#red-day#AMD#1997-10-27",
-   "system": "UCT Relative Strength, green on a red market day (gor)",
+   "system": "UCT RS Line, green on a red market day (gor)",
    "teaches": {
     "card": "tour-4",
     "line": "Stocks that close green, or barely dip, while the market sells off are showing real demand.",
@@ -83495,7 +83495,7 @@
     ]
    },
    "source": "relative_strength.compute_phase1_columns#red-day#BSX#2002-07-19",
-   "system": "UCT Relative Strength, green on a red market day (gor)",
+   "system": "UCT RS Line, green on a red market day (gor)",
    "teaches": {
     "card": "tour-4",
     "line": "Stocks that close green, or barely dip, while the market sells off are showing real demand.",
@@ -85944,7 +85944,7 @@
     ]
    },
    "source": "relative_strength.compute_phase1_columns#red-day#CAT#2006-07-13",
-   "system": "UCT Relative Strength, green on a red market day (gor)",
+   "system": "UCT RS Line, green on a red market day (gor)",
    "teaches": {
     "card": "tour-4",
     "line": "Stocks that close green, or barely dip, while the market sells off are showing real demand.",
@@ -88393,7 +88393,7 @@
     ]
    },
    "source": "relative_strength.compute_phase1_columns#red-day#VRTX#2011-03-16",
-   "system": "UCT Relative Strength, green on a red market day (gor)",
+   "system": "UCT RS Line, green on a red market day (gor)",
    "teaches": {
     "card": "tour-4",
     "line": "Stocks that close green, or barely dip, while the market sells off are showing real demand.",
@@ -90842,7 +90842,7 @@
     ]
    },
    "source": "relative_strength.compute_phase1_columns#red-day#ABT#2018-11-12",
-   "system": "UCT Relative Strength, green on a red market day (gor)",
+   "system": "UCT RS Line, green on a red market day (gor)",
    "teaches": {
     "card": "tour-4",
     "line": "Stocks that close green, or barely dip, while the market sells off are showing real demand.",
@@ -91135,19 +91135,19 @@
  },
  {
   "answer_json": {
-   "answer": "UCT Relative Strength"
+   "answer": "UCT RS Line"
   },
   "difficulty": 1,
   "id": "si_a242e5d9e530",
   "lesson_origin": "session",
-  "lesson_text": "UCT Relative Strength. RSI sits right next to it in the search and answers a different question.",
+  "lesson_text": "UCT RS Line. RSI sits right next to it in the search and answers a different question.",
   "module": "F2",
   "prompt_json": {
    "choices": [
     "RSI",
     "Stochastic RSI",
     "MACD",
-    "UCT Relative Strength"
+    "UCT RS Line"
    ],
    "q": "You want strength against the market on your chart. Which indicator do you add?",
    "subject": "rs-vs-rsi search"

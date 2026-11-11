@@ -267,10 +267,15 @@ def _today_map(syms: list) -> dict:
 
 
 def _rs_map() -> dict:
-    """{ticker(hyphen upper): rs item}. Cache-only; {} when cold."""
+    """{ticker(hyphen upper): rs item}. Cache-only; {} when cold.
+
+    Through ``unified_rankings`` (RS split unit U5a): under ``RS_RANK_IBD_ENABLED``
+    the swing gate's ``rs_rank`` is the nightly rating the chart and the badge
+    show, not a third number; flag off, the list is untouched."""
     try:
-        from api.services.rs_ranking import compute_rs_scores
-        return {normalize_sym(it["ticker"]): it for it in (compute_rs_scores() or [])}
+        from api.services.rs_ranking import compute_rs_scores, unified_rankings
+        return {normalize_sym(it["ticker"]): it
+                for it in (unified_rankings(compute_rs_scores()) or [])}
     except Exception:
         return {}
 

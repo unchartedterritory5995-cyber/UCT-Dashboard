@@ -306,6 +306,9 @@ describe('the chip declarations cannot silently lose — or gain — a chip', ()
    */
   const NOT_IN_THE_SHIPPED_LEGEND = [
     'rsLine::rsLine',
+    // ⭐ UCT RS split, unit U6 (2026-11-09): the three server definitions cut out of
+    // `rsLine` postdate the shipped legend for the same reason it does.
+    'rsRating::ratingLine', 'rsPhases::divergence', 'rsVsEma::dist',
     // ⭐ `dataSeries` POSTDATES THE SHIPPED LEGEND ENTIRELY — it is registry-native
     // and there is no pre-B4 `legChips` entry for it to have dropped. Excluded
     // here for exactly the reason the ten below are: this list is the membership
@@ -788,7 +791,8 @@ describe('⭐⭐ `opts.scalarsOf` — the readout rows ride the chip; the label 
     legend: { pctFromMa: 1.84, maSlope: 1, above: true },
     rating: { ibd: 94, fast: 91, asof: '2026-11-05' },
   }
-  const strip = (c) => { const o = { ...c }; delete o.readout; delete o.suffix; delete o.paneTable; return o }
+  // UCT RS split, U2: the RS line plot declares `endLabel`, so a reader also stamps `endLabel`.
+  const strip = (c) => { const o = { ...c }; delete o.readout; delete o.suffix; delete o.paneTable; delete o.endLabel; return o }
 
   it('⛔ the label and the text are BYTE-IDENTICAL with and without a reader — only readout and suffix (and the declared pane table) are added', () => {
     const without = legendChips([rsBinding()], null, registry, [rsInst({ benchmark: 'SECTOR' })])
@@ -801,8 +805,10 @@ describe('⭐⭐ `opts.scalarsOf` — the readout rows ride the chip; the label 
       const extra = Object.keys(c).filter((k) => !(k in without[0]))
       // `suffix` was already there (` · SECTOR`). Design round (2026-11-08): the RS
       // definition declares `meta.paneTable` and this payload carries a rating row,
-      // so the chip also carries `paneTable`, from the same scalars, and nothing else
-      expect(extra.sort()).toEqual(['paneTable', 'readout'])
+      // so the chip also carries `paneTable`, from the same scalars, and nothing else.
+      // UCT RS split, U2: the `rsLine` plot declares `endLabel` (`RS 94` at the line's
+      // end), stamped from the same scalars — the third and last reader-added field.
+      expect(extra.sort()).toEqual(['endLabel', 'paneTable', 'readout'])
     }
     // …and the same holds through `chipsFrom` directly, with a crosshair value
     const e = { defId: 'rsLine', plotKey: 'rsLine', series: { __id: 'x' }, instanceId: 'inst:rsLine:1' }

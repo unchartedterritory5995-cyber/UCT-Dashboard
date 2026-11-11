@@ -33,6 +33,10 @@
 // be created — that is the whole point of `capability`. See its block below.
 
 import { catalogRows, userCatalogRows, BUILT_IN_ROWS } from './indicatorCatalog'
+// ⭐ RS split U1 — a `meta.requiresServer` definition is offered only once the
+// live server lists it. Subtracted HERE, at the consumer, like `LIBRARY_HIDDEN_IDS`:
+// `catalogRows()` stays the shipped manifest the registry rails read.
+import { isCatalogRowOffered } from './engine/serverCompute'
 // ⭐ "Is there an average to restore?" is `maAdoption`'s question now: every
 // adopted slot carries `removed: true`, so the bare flag no longer means "gone".
 import { revivableSlotIndex } from './maAdoption'
@@ -329,6 +333,7 @@ export function technicalResults(registry) {
   const out = []
   for (const row of catalogRows(registry)) {
     if (row.id === DIRECT_SERIES_DEF_ID) continue
+    if (!isCatalogRowOffered(row, registry)) continue   // U1: the server has not listed it yet
     out.push(result({
       id: row.id,
       kind: 'technical',
@@ -1361,6 +1366,7 @@ export function libraryRows(registry) {
   }
   for (const row of catalogRows(registry)) {
     if (LIBRARY_HIDDEN_IDS.includes(row.id)) continue
+    if (!isCatalogRowOffered(row, registry)) continue   // U1: the server has not listed it yet
     out.push({ ...row, key: `technical:${row.id}`, kind: 'technical',
       capability: CAPABILITY.CHARTABLE, capabilityReason: null,
       // A carved-out row has no definition to instantiate either.
