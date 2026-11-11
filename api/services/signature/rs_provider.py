@@ -788,11 +788,12 @@ def _rs_data_generation(now: float | None = None) -> str:
 
 #: The rating's component ranks as `rs_history` stores them, and the label each
 #: prints under in the Components row (plan §6.6: ``1M 91 · 3M 97 · 6M 95 · 12M 96``).
-#: Each is the 1 to 99 percentile of the plain 21 / 63 / 126 / 252-bar return
-#: (`rs_history.COMPONENTS`), ranked like the rating: a RANK, never a return.
+#: Each is a 1 to 99 percentile, ranked like the rating: a RANK, never a return. 1M and
+#: 3M are of the plain 21- and 63-bar return; 6M, 9M and 12M are of the recency-weighted
+#: blend (newest quarter double, `rs_weighted_return.IBD_STYLE_COMPONENT_TERMS`).
 _RS_COMPONENTS: tuple[tuple[str, str], ...] = (("m1", "1M"), ("m3", "3M"), ("m6", "6M"), ("m12", "12M"))
 #: The v4 envelope's five (Deepvue round 2, 2026-11-08): the 9-month rank (the
-#: plain 189-bar return, `rs_history.STORED_COMPONENTS`) between 6M and 12M, so
+#: recency-weighted 63/126/189-bar blend, `rs_history.component_values`) between 6M and 12M, so
 #: the Components row reads ``1M 91 · 3M 97 · 6M 95 · 9M 96 · 12M 96`` and the RS
 #: pane's ranks strip carries its 9M column. The v3 payload keeps the four.
 _RS_COMPONENTS_V4: tuple[tuple[str, str], ...] = (
