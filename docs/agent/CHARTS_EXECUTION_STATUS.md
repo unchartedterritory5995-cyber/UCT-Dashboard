@@ -1,5 +1,7 @@
 # Charts execution status
 
+> **Authoritative: the "All actions" table at the end of this file (ID first column).** Recounted 2026-11-11 on master `8660b43615`: VERIFIED 247 (51.0%), PARTIAL 12, IMPLEMENTED / UNVERIFIED 71, MISSING 99, BLOCKED 43, UNMAPPED 12; 484 in scope, 19 excluded (NOT ON /CHARTS). Before the recount: VERIFIED 243, PARTIAL 11, IMPLEMENTED / UNVERIFIED 68, MISSING 107. Every summary table and count above "All actions" (The number, Counts by area, Raised / dropped lists) is historical and is not kept in step. Changed rows: `docs/agent/program/evidence/charts-status-recount-2026-11-11.md`.
+
 Companion to `docs/agent/CHARTS_COVERAGE_MATRIX.md`, and it supersedes that file's execution counts. Generated 2026-11-05 against agent/pl/integration-1 by running the cited tests. VERIFIED means a real panel test with a scripted model passed and asserts state. It does not prove the real model chooses that plan, and these features are not all in production yet.
 
 # Charts execution status
@@ -381,6 +383,8 @@ Every file:line citation in the control column was checked against this tree: 33
 
 ## All actions
 
+Totals (recount 2026-11-11, master `8660b43615`): VERIFIED 247 (51.0%), PARTIAL 12, IMPLEMENTED / UNVERIFIED 71, MISSING 99, BLOCKED 43, UNMAPPED 12; 484 in scope, 19 excluded (NOT ON /CHARTS).
+
 | ID | Area | Action | Status | Test | Result | Evidence level |
 |---|---|---|---|---|---|---|
 | C1-001 | Symbol | Change ticker by search pick | VERIFIED | c:symbol.switch; g:GW-01 | pass 8/8 | production (E-01) and panel |
@@ -407,22 +411,22 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-022 | Scale | Arithmetic/log/percent from menu | PARTIAL (SIMULATED) — covered: percent scale (chart.setScale, settings.percentScale read back, Undo back to arithmetic); not covered: log scale, and asking for arithmetic by name, are not driven by this test | boardArrangement.outcome.test.jsx: C1-022 (held-out phrasing) "the chart goes to the percent scale; Undo goes back"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 13/13 | panel, scripted model |
 | C1-023 | Scale | Toggle log (Shift+L) | VERIFIED | c:scale.log; g:GW-01 | pass 7/7 | production (E-01) and panel |
 | C1-024 | Scale | Invert scale (Alt+I) | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-024 "flip the price scale upside down" | pass 33/33 (7 todo) | panel, scripted model |
-| C1-025 | Scale | Auto-scale | MISSING | none | n/a | none |
+| C1-025 | Scale | Auto-scale | VERIFIED † | agentChartViewNudges.test.jsx: chartSetup.autoScale — a hand-set price scale goes back to auto, read back from the price scale; already-auto no-op; unreadable scale and a scale that stayed hand-set get no success; wrong-target control; the menu and the Agent share doAutoScale (recount 2026-11-11, #1077) | pass 15/15 | panel, scripted model |
 | C1-026 | Scale | Drag price axis to compress | BLOCKED | none | n/a | none |
 | C1-027 | View | Reset view | VERIFIED † | c:chartSetup.resetView; agentChartViewControls: reaches the chart's reset and is read back | pass 5/5 | panel, scripted model |
 | C1-028 | View | Zoom in/out (+/-) | BLOCKED | none | n/a | none |
 | C1-029 | View | Range buttons (3M/6M/YTD/1Y/5Y) | VERIFIED † | c:chartSetup.setRange; agentChartViewControls: offers exactly the buttons the bar has | pass 6/6 | panel, scripted model |
 | C1-030 | Go to date | Type a date in Time Navigator | VERIFIED † | c:chart.goToDate | pass 4/4 | panel, scripted model |
 | C1-031 | Go to date | Pick date or year in calendar | IMPLEMENTED / UNVERIFIED | none named | n/a | source only |
-| C1-032 | Go to date | Step one bar back/forward | MISSING | none | n/a | none |
+| C1-032 | Go to date | Step one bar back/forward | VERIFIED † | agentChartViewNudges.test.jsx: chartSetup.stepBars — +1 and −5 reach the chart's own stepBar and are read back from the window; Undo exact, stale after a member pan; no move or a wrong count gets no success; out of range refuses; wrong-target control (recount 2026-11-11, #1077) | pass 15/15 | panel, scripted model |
 | C1-033 | Go to date | Open date box (Alt+G) | VERIFIED † | c:chart.goToDate | pass 4/4 | panel, scripted model |
 | C1-034 | Compare | Add a symbol | VERIFIED | c:compare.amd | pass 5/5 | panel, scripted model |
-| C1-035 | Compare | Add a whole group | MISSING | none | n/a | none |
+| C1-035 | Compare | Add a whole group | IMPLEMENTED / UNVERIFIED | agentCompareGroups.test.jsx: chartSetup.compareGroup add — the list written equals what the real CompareSymbolsPanel hands setComparison for the same click; read back; Undo exact; other chart untouched. commitPlan, no AgentPanel mount, so not VERIFIED under the rules (recount 2026-11-11, #1073) | pass 11/11 | runtime, no panel |
 | C1-036 | Compare | Remove one symbol | IMPLEMENTED / UNVERIFIED | agentBatch6.test.jsx | pass 11/11 | runtime, no panel |
-| C1-037 | Compare | Remove a group | MISSING | none | n/a | none |
+| C1-037 | Compare | Remove a group | IMPLEMENTED / UNVERIFIED | agentCompareGroups.test.jsx: chartSetup.compareGroup remove — parity with the group row's ×, only that group goes; Undo exact. commitPlan, no AgentPanel mount (recount 2026-11-11, #1073) | pass 11/11 | runtime, no panel |
 | C1-038 | Compare | Clear all comparisons | IMPLEMENTED / UNVERIFIED | agentBatch6.test.jsx | pass 11/11 | runtime, no panel |
 | C1-039 | Compare | Same/new scale per symbol | IMPLEMENTED / UNVERIFIED | agentChartsOperatorP1.test.jsx | pass 48/48 | runtime, no panel |
-| C1-040 | Compare | Same/new scale for a group | MISSING | none | n/a | none |
+| C1-040 | Compare | Same/new scale for a group | IMPLEMENTED / UNVERIFIED | agentCompareGroups.test.jsx: chartSetup.compareGroup scale — parity with the group's Same % scale button, only that group moves. commitPlan, no AgentPanel mount (recount 2026-11-11, #1073) | pass 11/11 | runtime, no panel |
 | C1-041 | Compare | Group only (hide base) | IMPLEMENTED / UNVERIFIED | agentChartsOperatorP1.test.jsx | pass 48/48 | runtime, no panel |
 | C1-042 | Replay | Start from a date | VERIFIED | c:chart.replay; agentChartReplay: replay from Oct 15 | pass 5/5 | panel, scripted model |
 | C1-043 | Replay | Choose replay timeframe | MISSING | none | n/a | none |
@@ -447,8 +451,8 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-062 | Settings | Title shows ticker/company/both | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-062 "show the ticker and the company name in the title" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-063 | Settings | Day change beside title | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-063 "hide the day change next to the title" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-064 | Settings | Legend mode | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-064 "only show the legend when I hold the crosshair" | pass 33/33 (7 todo) | panel, scripted model |
-| C1-065 | Settings | Legend bar-info fields | MISSING | none; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | n/a | none |
-| C1-066 | Settings | Info-row fields | MISSING | none; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | n/a | none |
+| C1-065 | Settings | Legend bar-info fields | VERIFIED | agentExecFamilies.test.jsx: family L, chart.setSetting header.barInfo through the REAL panel — field removed/added, read back through barInfoFieldsOf, nothing else moved, Undo exact; canonical order kept; NEGATIVE unknown/ambiguous field. Tuning phrasings (agentExecTune LIST_TUNE), not held-out (recount 2026-11-11) | pass 21/21 | panel, scripted model |
+| C1-066 | Settings | Info-row fields | VERIFIED | agentExecFamilies.test.jsx: family L, chart.setSetting header.fields through the REAL panel — field added/removed, read back through headerFieldKeys, nothing else moved, Undo exact; display-name match ("Dollar Volume"); already-shown no-op; NEGATIVE unknown field. Tuning phrasings (agentExecTune LIST_TUNE), not held-out (recount 2026-11-11) | pass 21/21 | panel, scripted model |
 | C1-067 | Settings | Header colours | MISSING | none; gap: docs/agent/program/EXEC-CHART-SETTINGS.md (gap list) | n/a | none |
 | C1-068 | Settings | Swing labels on/off and sensitivity | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-068 "turn on swing labels with high sensitivity" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-069 | Settings | Swing label background, tint, colours | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-069 "swing labels on, tinted by high and low, green highs, red lows, dark grey background" | pass 33/33 (7 todo) | panel, scripted model |
@@ -509,7 +513,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-124 | Right-click | Open indicator settings | NOT ON /CHARTS | none named | n/a | n/a |
 | C1-125 | Right-click | Clear all drawings | VERIFIED | c:drawing.clear; drawings.outcome: a hidden drawing and "clear everything" | pass 5/5 | production (I-03) and panel |
 | C1-126 | Right-click | Hide all drawings | IMPLEMENTED / UNVERIFIED | c:drawing.hideAll | pass 4/4 | panel, partial |
-| C1-127 | Settings door | Open chart settings (Alt+,, gear) | MISSING | none; gap: docs/agent/program/EXEC-CHART-SETTINGS.md (gap list) | n/a | none |
+| C1-127 | Settings door | Open chart settings (Alt+,, gear) | PARTIAL (SIMULATED) — covered: chartSetup.openSettings through the REAL panel opens the named/clicked/positioned chart's own dialog and reads it back open; asks on two charts; refuses a Multi Chart cell; no success if the dialog did not open; already-open no-op; widget half in ChartWidget.openSettings.test.jsx (4/4); not covered: "open chart settings, not the NVDA chart" (shared qualifier negation, it.todo) | agentOpenChartSettings.test.jsx + ChartWidget.openSettings.test.jsx (recount 2026-11-11) | pass 25/25 (1 todo) + 4/4 | panel, scripted model |
 | C1-128 | Drawing | Trendline | VERIFIED | c:drawing.trendline | pass 5/5 | production (B-01b) and panel |
 | C1-129 | Drawing | Ray | NOT ON /CHARTS | c:drawing.ray | pass 5/5 | n/a |
 | C1-130 | Drawing | Extended line | VERIFIED | drawingFamily: extended: the right symbol | pass 1/1 | panel, scripted model |
