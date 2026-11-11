@@ -245,6 +245,37 @@ def test_short_to_window_fetches_before_its_oldest_row_then_stops_asking(store, 
     cache.delete_prefix("towin_SHRT_")
 
 
+def test_a_window_whose_write_failed_is_not_marked_covered_and_is_retried(store, monkeypatch, caplog):
+    """Coverage is vouched for only by a STORED answer: a put_bars failure leaves the window
+    un-marked (and logged), so the next ask fetches it again instead of reading as covered
+    for _TO_WINDOW_TTL."""
+    import logging
+    days = _days(_dt.date(2026, 6, 1), 40)
+    bars_sqlite.put_bars("WFAIL", "15", [b for d in days[-3:] for b in _rth_day(d.year, d.month, d.day)])
+    calls = []
+
+    def fake_range(t, tf, f, to, raise_errors=False):
+        calls.append(to)
+        return [b for d in days[:-3] if f <= d.isoformat() <= to for b in _rth_day(d.year, d.month, d.day)]
+    monkeypatch.setattr(bars_fetch, "_fetch_intraday_range", fake_range)
+    real_put = bars_sqlite.put_bars
+
+    def failing_put(*a, **k):
+        raise RuntimeError("disk I/O error")
+    monkeypatch.setattr(bars_fetch._sqlite, "put_bars", failing_put)
+    to = days[-1].isoformat()
+    cache.delete_prefix("towin_WFAIL_")
+    with caplog.at_level(logging.WARNING):
+        bars_fetch._get_bars_to_response("WFAIL", "15", 1000, to)
+    assert len(calls) == 1 and "to= window write failed" in caplog.text
+    assert cache.get(f"towin_WFAIL_15_{to}_{bars_fetch._depth_tier(1000)}") is None
+    monkeypatch.setattr(bars_fetch._sqlite, "put_bars", real_put)
+    body = _body(bars_fetch._get_bars_to_response("WFAIL", "15", 1000, to))
+    assert len(calls) == 2 and len(body["bars"]) > 3 * 26                 # retried, and now stored
+    assert cache.get(f"towin_WFAIL_15_{to}_{bars_fetch._depth_tier(1000)}") == 1
+    cache.delete_prefix("towin_WFAIL_")
+
+
 def test_a_short_window_still_landing_serves_what_is_stored_never_empty(store, monkeypatch):
     days = _days(_dt.date(2026, 6, 1), 30)
     bars_sqlite.put_bars("FILL", "15", [b for d in days[-2:] for b in _rth_day(d.year, d.month, d.day)])

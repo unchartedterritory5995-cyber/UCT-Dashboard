@@ -3627,16 +3627,22 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
                             _t0 = _time.time()    # this fetch's provider check instant
                             deep = [b for b in _fetch_intraday_range(ticker_up, tf, from_ymd, _fetch_to_str)
                                     if int(b.get("t", 0)) <= to_key]
+                            _stored_ok = True
                             if deep:
                                 try:
                                     with _provider_write(_t0):
                                         _sqlite.put_bars(ticker_up, tf, deep, date_tf=False)
-                                except Exception:
-                                    pass
-                            # The provider has answered for this window: what is stored
-                            # now is all there is (a failed fetch raises past this line
-                            # and is retried by the next ask).
-                            cache.set(_win_key, 1, ttl=_TO_WINDOW_TTL)
+                                except Exception as _we:   # noqa: BLE001
+                                    _stored_ok = False
+                                    import logging as _log_tw
+                                    _log_tw.getLogger(__name__).warning(
+                                        "[bars] to= window write failed %s tf=%s to=%s: %s: %s",
+                                        ticker_up, tf, _fetch_to_str, type(_we).__name__, _we)
+                            # The provider has answered AND the answer is stored: what is
+                            # stored now is all there is. A failed fetch or a failed write
+                            # leaves the window un-marked, so the next ask retries it.
+                            if _stored_ok:
+                                cache.set(_win_key, 1, ttl=_TO_WINDOW_TTL)
                         except Exception:     # noqa: BLE001 — background
                             pass
                         finally:
