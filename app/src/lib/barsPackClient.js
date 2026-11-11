@@ -98,9 +98,10 @@ export function initBarsPack() {
   // Under its own lock, like the full packs (see _oneWindowAtATime): it reads its stamp first, so a
   // window that waited finds the hot set already ingested and skips.
   Promise.resolve(_oneWindowAtATime('uct-barspack:hot', () => _ingestHotPack(PACK_DAILY))).catch(() => {})
-  // Each pack under its own lock: one window at a time (see _oneWindowAtATime).
-  _whenIdle(() => { Promise.resolve(_oneWindowAtATime(packLock(PACK_DAILY), () => _run(PACK_DAILY))).catch(() => {}) })
-  _whenIdle(() => { Promise.resolve(_oneWindowAtATime(packLock(PACK_BREADTH), () => _run(PACK_BREADTH))).catch(() => {}) })
+  // Each pack under its own lock (one window at a time, see _oneWindowAtATime), and only after the
+  // page's first chart has drawn (see afterFirstChartPaint).
+  afterFirstChartPaint(() => _whenIdle(() => { Promise.resolve(_oneWindowAtATime(packLock(PACK_DAILY), () => _run(PACK_DAILY))).catch(() => {}) }))
+  afterFirstChartPaint(() => _whenIdle(() => { Promise.resolve(_oneWindowAtATime(packLock(PACK_BREADTH), () => _run(PACK_BREADTH))).catch(() => {}) }))
   // Intraday pack RE-ENABLED (2026-08-19). An offline Playwright harness
   // (tools/intraday_repro.py) proved the client path is sound: the prior-session pack
   // paints in ~200ms (render cap slices any bloat to 3k), the since-fetch fills today,
@@ -108,7 +109,7 @@ export function initBarsPack() {
   // — it was the server 5m serve hanging under Massive saturation from over-aggressive
   // prewarming (PREWARM_5M_CAP), now dialed back so 5m serves ~0.15s. The non-blocking
   // ingest below keeps a fresh full ingest from write-locking the store.
-  _whenIdle(() => { Promise.resolve(_oneWindowAtATime(packLock(PACK_INTRADAY), () => _run(PACK_INTRADAY))).catch(() => {}) })
+  afterFirstChartPaint(() => _whenIdle(() => { Promise.resolve(_oneWindowAtATime(packLock(PACK_INTRADAY), () => _run(PACK_INTRADAY))).catch(() => {}) }))
 }
 
 // Eagerly ingest the server HOT SHARD — one small edge-cached gzipped file
@@ -147,6 +148,44 @@ export async function _ingestHotPack(cfg) {
     }
   } catch { /* best-effort; the full pack + serve path remain the fallback */ }
 }
+
+// ⛔ THE FULL PACK INGESTS WAIT FOR THE PAGE'S FIRST CHART (2026-11-10, measured). Idle-deferral
+// alone was not enough: in 20 timed loads of /charts in the desktop app, the 5 loads that downloaded
+// and ingested pack shards drew their first candles in 1.6-3.0 s; the 15 that did not, in 0.43-0.9 s.
+// The shard decode and the bulk IndexedDB writes hold the main thread and the store the chart is
+// reading from. They also restarted on every quick reload, because a page left before an ingest
+// completes never stamps it. So: start after StockChart reports its first chart (markFirstChartPaint)
+// or after PACK_START_MAX_WAIT_MS, whichever is first, then still wait for idle. Pages without a
+// chart start at the time limit.
+export const PACK_START_MAX_WAIT_MS = 15000
+export const FIRST_CHART_PAINT_EVENT = 'uct:first-chart-paint'
+let _firstChartPainted = false
+
+/** Called by StockChart when a page's first chart has been created (its bars are in). Once. */
+export function markFirstChartPaint() {
+  if (_firstChartPainted) return
+  _firstChartPainted = true
+  try { window.dispatchEvent(new Event(FIRST_CHART_PAINT_EVENT)) } catch { /* no window */ }
+}
+
+/** Runs `fn` after the first chart paint, or after `maxWaitMs`, whichever comes first. Once. */
+export function afterFirstChartPaint(fn, { maxWaitMs = PACK_START_MAX_WAIT_MS } = {}) {
+  if (_firstChartPainted) { fn(); return }
+  let done = false
+  let timer = null
+  const go = () => {
+    if (done) return
+    done = true
+    if (timer) clearTimeout(timer)
+    try { window.removeEventListener(FIRST_CHART_PAINT_EVENT, go) } catch { /* no window */ }
+    fn()
+  }
+  timer = setTimeout(go, maxWaitMs)
+  try { window.addEventListener(FIRST_CHART_PAINT_EVENT, go) } catch { /* no window: the timer runs it */ }
+}
+
+/** Test seam: forget that a chart painted. */
+export function __resetFirstChartPaint() { _firstChartPainted = false }
 
 function _whenIdle(fn) {
   try {

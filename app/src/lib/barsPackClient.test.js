@@ -7,7 +7,7 @@ const { idbImportPack, idbApplyDelta, idbCountKeys } = vi.hoisted(() => ({
 }))
 vi.mock('../utils/barsIDB', () => ({ idbImportPack, idbApplyDelta, idbCountKeys }))
 
-import { decodeShardPayload, _shardIdx, _ingestHotPack, _ingestFull, _packDataPresent, _oneWindowAtATime, _run, packLock } from './barsPackClient'
+import { decodeShardPayload, _shardIdx, _ingestHotPack, _ingestFull, _packDataPresent, _oneWindowAtATime, _run, packLock, afterFirstChartPaint, markFirstChartPaint, __resetFirstChartPaint, FIRST_CHART_PAINT_EVENT } from './barsPackClient'
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -288,5 +288,68 @@ describe('one window at a time per pack (2026-11-10)', () => {
       expect(body, `${r} must be wrapped in _oneWindowAtATime(packLock(${pack}), ...)`).toContain(`_oneWindowAtATime(packLock(${pack}), () => ${r})`)
     }
     expect(body).toContain("_oneWindowAtATime('uct-barspack:hot', () => _ingestHotPack(PACK_DAILY))")
+  })
+})
+
+describe('the full pack ingests wait for the first chart (2026-11-10)', () => {
+  // Measured: in 20 timed /charts loads, the 5 that ingested pack shards drew first candles in
+  // 1.6-3.0 s and the 15 that did not in 0.43-0.9 s. The ingest now starts after the page's first
+  // chart, or after a time limit for pages without one.
+  beforeEach(() => { __resetFirstChartPaint(); vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers(); __resetFirstChartPaint() })
+
+  it('holds until the first chart paints', () => {
+    const fn = vi.fn()
+    afterFirstChartPaint(fn, { maxWaitMs: 15000 })
+    vi.advanceTimersByTime(5000)
+    expect(fn).not.toHaveBeenCalled()
+    markFirstChartPaint()
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
+
+  it('starts at the time limit on a page with no chart', () => {
+    const fn = vi.fn()
+    afterFirstChartPaint(fn, { maxWaitMs: 15000 })
+    vi.advanceTimersByTime(14999)
+    expect(fn).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(1)
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
+
+  it('runs once even when both the paint and the time limit happen', () => {
+    const fn = vi.fn()
+    afterFirstChartPaint(fn, { maxWaitMs: 1000 })
+    markFirstChartPaint()
+    vi.advanceTimersByTime(5000)
+    window.dispatchEvent(new Event(FIRST_CHART_PAINT_EVENT))
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
+
+  it('runs at once when a chart has already painted on this page', () => {
+    markFirstChartPaint()
+    const fn = vi.fn()
+    afterFirstChartPaint(fn)
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
+
+  it('marks the first paint only once per page', () => {
+    const seen = vi.fn()
+    window.addEventListener(FIRST_CHART_PAINT_EVENT, seen)
+    markFirstChartPaint()
+    markFirstChartPaint()
+    window.removeEventListener(FIRST_CHART_PAINT_EVENT, seen)
+    expect(seen).toHaveBeenCalledTimes(1)
+  })
+
+  it('every full pack ingest in initBarsPack waits for the first chart, and StockChart reports it', () => {
+    vi.useRealTimers()
+    const src = fs.readFileSync(path.resolve(globalThis.process.cwd(), 'src/lib/barsPackClient.js'), 'utf8')
+    const body = src.slice(src.indexOf('export function initBarsPack'), src.indexOf('export async function _ingestHotPack'))
+    for (const pack of ['PACK_DAILY', 'PACK_BREADTH', 'PACK_INTRADAY']) {
+      expect(body).toContain(`afterFirstChartPaint(() => _whenIdle(() => { Promise.resolve(_oneWindowAtATime(packLock(${pack}), () => _run(${pack})))`)
+    }
+    const chart = fs.readFileSync(path.resolve(globalThis.process.cwd(), 'src/components/StockChart.jsx'), 'utf8')
+    // setChartReady(true), then (after any comment lines) markFirstChartPaint().
+    expect(chart).toMatch(/setChartReady\(true\)\s*(\/\/[^\n]*\s*)*markFirstChartPaint\(\)/)
   })
 })
