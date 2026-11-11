@@ -46,3 +46,30 @@ describe('look-alikes never reach the AI Search walkthroughs', () => {
     expect(JSON.stringify(guideSteps(matchFeature(q, null, 'charts'), q).steps.map(s => s.target))).toMatch(/aisearch/)
   })
 })
+
+// AUDIT #1024 GO item 1: "response" with no "AI" in the request never opens the AI-answer walkthrough; with "AI" it does
+describe('"response" without AI stays out of the AI-answer walkthrough (AUDIT #1024)', () => {
+  registerBuiltins()
+  const aiTargets = (q) => {
+    const f = matchFeature(q, null, 'charts')
+    return JSON.stringify((f ? guideSteps(f, q).steps : []).map(s => s.target))
+  }
+  it.each(['show me the response time', 'response from support', 'show me the response from support',
+    'show me how to copy the response time', 'how do I save the response from support', 'show me how to copy the response from support'])('"%s" carries no answer and walks nowhere near AI Search', (q) => {
+    expect(conceptsOf(q).has('answer')).toBe(false)
+    expect(aiTargets(q)).not.toMatch(/aisearch/)
+  })
+  // positive control: the same word WITH "AI" opens the AI-answer walkthrough (an answer action: copy / save / reopen)
+  it.each([
+    ['show me how to copy the AI response', 'Copy answer text'],
+    ['show me how to save the AI response', 'Save this answer (reopen it later)'],
+    ['how do I reopen a saved AI response', 'Saved answers'],
+  ])('POSITIVE CONTROL: "%s" carries the answer and walks to AI Search (%s)', (q, control) => {
+    expect(conceptsOf(q).has('answer')).toBe(true)
+    expect(aiTargets(q)).toMatch(/aisearch/)
+    expect(aiTargets(q)).toContain(control)
+  })
+  // "show me the AI response" with no answer action opens NO walkthrough (on this branch and before it): there is no
+  // "where is the answer" walkthrough to open. Not a widening; recorded, not built.
+  it.todo('"show me the AI response" (no copy/save/reopen) opens no walkthrough today: no "show the answer" walkthrough exists')
+})

@@ -28,7 +28,7 @@ Evidence is under `evidence/teach-givens/`. Raw runner output was committed befo
   - The givens pass on every held-out case that reaches its walkthrough.
   - Routing misses that are not about givens: HG-12 ("which line my alert watches" routes to the drawing menu), HG-14, HG-15 and HG-17 (why-questions about an alert reach no walkthrough).
 - **Routing family fix** (`words.js` `answer`): an AI answer named indirectly ("the response", "what the AI said / wrote / told me") went from 0/5 to 5/5 (HG-03 and HG-18 to HG-21). C3-198 to C3-200 still pass after it.
-  - Known widening: "response" now carries the answer concept, so a request like "response time" does too. It routes nowhere new in the 30 guide rail files.
+  - "response" carries the answer concept ONLY when "AI" is in the request (`words.js` `answer`). Railed for AUDIT in `agentGuideAnswerWords.test.js`: "show me the response time", "response from support" (and copy/save forms) carry no answer and reach no AI Search walkthrough; positive control: "show me how to copy / save the AI response" and "how do I reopen a saved AI response" do. Mutant (plain `respons\w*`): 9 of 30 fail. Not built: bare "show me the AI response" (no copy/save/reopen) opens no walkthrough, on this branch and before it (it.todo).
 
 ## Walkthrough-gap families (after the first doc, 2026-11-10)
 Held-out first (`4001ec8cd0`), BEFORE raw (`ea3689276a`), fixes in `c5586a7b1c` and `4111ddec2a`, AFTER raw with attempts 1-4 kept.
