@@ -152,7 +152,9 @@ def test_no_order_asked_means_market_cap_desc_never_the_composite():
 # everywhere). Every Screener commit since 1a26d4ea00 is that PR; pinned at its merge so master's deploy gate goes green.
 # Re-pinned 2026-11-10 (live overlay write): 823eef1ed9 changes snapshot_db.py and live_tier.py on purpose (multi-row
 # statements instead of executemany, the GIL convoy, and two timing fields). Re-pinned in the same PR; it contains the RS split above.
-SCREENER_PIN = "823eef1ed92ba1c9fdf4efdc02283ac8b73ccecf"
+# Re-pinned 2026-11-11 (live sweep cadence): 4b6891784e changes live_tier.py on purpose (30 s default cadence and the
+# rest that keeps a slow sweep from running back to back). Re-pinned in the same PR.
+SCREENER_PIN = "4b6891784ef5e6a42b2a5afc354715c64530d977"
 SCREENER_PATHS = ("api/services/screener", "api/routers/screener.py", "api/routers/scan_results.py")
 # The F16 change set is immutable: #1029's own PR head (merged as 4dacc81529). The rail compares the pin against THIS commit,
 # never HEAD, so a later Screener change by another team (e.g. #1021, the RS split) can no longer turn master's deploy gate
@@ -244,7 +246,7 @@ def test_the_guard_can_say_no():
         pytest.skip("the pinned commit %s is not in this checkout" % SCREENER_PIN)
     r = _screener_diff(SCREENER_PIN + "~1", SCREENER_PIN)
     assert r.returncode == 0, r.stderr
-    assert "api/services/screener/snapshot_db.py" in r.stdout.split()  # a file the pinned commit changed (the overlay write)
+    assert "api/services/screener/live_tier.py" in r.stdout.split()  # a file the pinned commit changed (the sweep cadence)
 
 
 def test_no_UCT_weight_or_formula_is_named_in_the_models_instructions():

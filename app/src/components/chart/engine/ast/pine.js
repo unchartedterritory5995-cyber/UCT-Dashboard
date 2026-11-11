@@ -24722,6 +24722,27 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   // that reduces nothing is byte-identical to before.
   if (windowAmbiguity && windowAmbiguity.size) {
     let withheldSteps = 0
+    /** A sub-tree reads a registered reduction (or cannot be printed: assumed to). */
+    const astAmbiguous = (ast) => {
+      let f = null
+      try { f = printFormula(ast) } catch { f = null }
+      if (f === null) return true
+      for (const key of windowAmbiguity.keys()) if (f.includes(key)) return true
+      return false
+    }
+    /** The `&&` conjuncts of a guard that read no registered reduction, ANDed, or
+     *  null. Only a plain tree guard is split; anything else (a latch, an object
+     *  state read) answers null and the step keeps today's withholding. */
+    const measuredConjuncts = (when) => {
+      if (!when || when.v !== 'tree' || !Number.isInteger(when.tree)) return null
+      const parts = []
+      const split = (t) => { if (t && t.type === 'op' && t.name === '&&') { split(t.args[0]); split(t.args[1]) } else parts.push(t) }
+      split(trees[when.tree])
+      if (parts.length < 2) return null
+      const free = parts.filter((t) => !astAmbiguous(t))
+      if (!free.length || free.length === parts.length) return null
+      return free.reduce((acc, t) => (acc ? cOp('&&', [acc, t]) : t), null)
+    }
     const attach = (list) => list.map((o) => {
       let out = o
       if (o.k === 'loop' && Array.isArray(o.body)) {
@@ -24762,7 +24783,18 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         }
       }
       withheldSteps += 1
-      return { ...out, withhold: internTree(orOf(amb)) }
+      // ⭐⭐ W-C22-DEL — THE PART OF THE GUARD THAT IS STILL MEASURED. A guard that
+      // reads an unmeasured reduction is usually `a && b && …` where only some
+      // conjuncts read it (vdubus: `not na(ph) and array.size(zzP) >= 5 and …`). On
+      // a bar one of the OTHER conjuncts is false, Pine did not run the step, and
+      // that is certain (C17's known-false rule): `withholdRuns` is the AND of the
+      // conjuncts that read no registered reduction (the SAME containment test
+      // `ambiguityOfTree` makes, so it can only under-claim), and the runtime skips
+      // the step there instead of withholding it. Without it every such bar counted
+      // as a create Pine MAY have made, which is what the collector rule below
+      // (`objectRuntime.js::noteUnknownCreate`) now counts.
+      const runs = measuredConjuncts(out.when)
+      return { ...out, withhold: internTree(orOf(amb)), ...(runs ? { withholdRuns: internTree(runs) } : {}) }
     })
     const attached = attach(keptOps)
     keptOps.splice(0, keptOps.length, ...attached)

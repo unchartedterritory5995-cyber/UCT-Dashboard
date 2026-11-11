@@ -2,10 +2,11 @@
 // scanner/watchlist table (PeriodSortResults) for the [start, end] range stored in
 // opts.{start,end}, so it has every watchlist feature. Standard widget chrome (header,
 // drag, color, pop-out, close) comes from WidgetHost/WidgetHeader.
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import PeriodSortResults from './PeriodSortResults'
 import usePreferences, { parsePref } from '../../../hooks/usePreferences'
 import { WATCHLIST_SETTINGS_KEY } from '../../watchlist/watchlistSettings'
+import { useWidgetDoor } from '../widgetDoors'
 
 const ymdOf = (d) => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate()
 
@@ -28,6 +29,9 @@ export default function PeriodSortWidget({ color, opts = {}, onOptsChange }) {
   const globalTemplate = parsePref(prefs?.[WATCHLIST_SETTINGS_KEY], null)
   const settingsOverride = opts?.settings || globalTemplate || null
   const persistSettings = (next) => onOptsChange?.({ ...opts, settings: next })
+  // the Agent's door (pages/charts/widgetDoors.js): the footer's own Refresh, done once it resolves (C3-208)
+  const refreshRef = useRef(null)
+  useWidgetDoor(() => ({ act: (key) => (key === 'refresh' && refreshRef.current ? refreshRef.current() : null) }))
 
   return (
     <PeriodSortResults
@@ -37,6 +41,7 @@ export default function PeriodSortWidget({ color, opts = {}, onOptsChange }) {
       group={opts.group || null}
       settingsOverride={settingsOverride}
       onSettingsPersist={persistSettings}
+      refreshRef={refreshRef}
     />
   )
 }

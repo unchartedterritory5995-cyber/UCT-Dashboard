@@ -12,11 +12,11 @@ Built on `agent/pl/bar-time-coverage` from `agent/pl/integration-1` `b07a97d526`
 
 > **Since the re-measure:** it confirmed **225/484** on master `75421184a3`. #1029 (merged as `4dacc81529`) then verified C3-166, giving the **226** below; that one row rests on #1029's own evidence, not on the re-measure run.
 
-**226 of 484 actions, 46.7%, are VERIFIED at panel level with a scripted model** (158 in the 2026-11-05 run, plus 68 on 2026-11-10: 29 from the chart-settings outcome test, 3 from the Multi Chart outcome test, 35 from the cited-test re-run, 1 from the Options Flow chips). A further 9 are PARTIAL (SIMULATED): part of the action passes, part is not covered. See "Update 2026-11-10: combined execution packets (PR #1016)" below. That proves the Agent is given what it needs and that a correct plan reaches the right state. It does not prove the real model picks that plan, and it does not prove the real chart redraws.
+**243 of 484 actions, 50.2%, are VERIFIED at panel level with a scripted model** (158 in the 2026-11-05 run, plus 85 on 2026-11-10: 29 from the chart-settings outcome test, 3 from the Multi Chart outcome test, 35 from the cited-test re-run, 1 from the Options Flow chips, 17 from the data-widget actions and watchlist groups A–D). A further 11 are PARTIAL (SIMULATED): part of the action passes, part is not covered. See "Update 2026-11-10: combined execution packets (PR #1016)" below. That proves the Agent is given what it needs and that a correct plan reaches the right state. It does not prove the real model picks that plan, and it does not prove the real chart redraws.
 
 - Production evidence with the real planner covers 13 of those 158 rows, from the 2026-11-03 live run on the older build `463a4bcba5`, read by receipt and some server reads.
 - Real component in a browser, Agent executing: 0 rows. The browser runs in teach-status.md prove walkthroughs, where a person clicks. They never ran an Agent plan.
-- A further 29 rows have a passing runtime test (capability and writer, no panel). They are IMPLEMENTED / UNVERIFIED and are not in the 226. (It was 43 on 2026-11-05; 14 of them were raised on 2026-11-10.)
+- A further 28 rows have a passing runtime test (capability and writer, no panel). They are IMPLEMENTED / UNVERIFIED and are not in the 243. (It was 43 on 2026-11-05; 14 of them were raised on 2026-11-10.)
 - P0 actions: 58 of 74 VERIFIED (as of 2026-11-05; this doc carries no per-row P0 tag, so the 2026-11-10 update did not recount it).
 
 ## Re-measurement 2026-11-11 (owner decision 4, 2026-11-10)
@@ -44,6 +44,15 @@ The Agent switches, creates, renames and deletes Drawing Boards through the Boar
 
 - VERIFIED (4): C1-167, C1-168, C1-169, C1-170; was MISSING (4): C1-167, C1-168, C1-169, C1-170.
 - Counts are not changed here: the summary numbers and tables are recounted at merge (rows C1-167..170 above are the only change).
+
+## Update 2026-11-10 (3): data-widget actions and watchlist groups A–D (agent/pl/exec-widget-actions)
+
+One widget-action layer: every row is data in `widgets/widgetControls.js` / `agent/widgetNames.js`, run by `widget.setOption` through the widget's own door (`pages/charts/widgetDoors.js`). New row types: `action` (a widget's own button, `act(key)`; done only once it resolves, nothing to undo) and `color` (#rrggbb). New capability: `watchlist.arrangeColumns` (the header drag's and the gridline's own results, now shared with the drag). Tests: real Agent panel beside the REAL widgets (Alerts, News, Market Context, AI Search, Fundamentals, Scanner, Period Sort, Watchlist), scripted model, jsdom, SIMULATED. Held-out phrasings were committed before each change and failed before it (48 of 48). PR doc: `docs/agent/program/PR-exec-widget-actions.md`.
+
+- VERIFIED (17): C3-132, C3-137, C3-186, C3-200, C3-112, C3-208, C3-108, C3-104, C3-074, C3-085, C3-086, C3-063, C3-064, C3-065, C3-067, C3-094, C3-095; was IMPLEMENTED / UNVERIFIED (1): C3-063; was MISSING (16): C3-064, C3-065, C3-067, C3-074, C3-085, C3-086, C3-094, C3-095, C3-104, C3-108, C3-112, C3-132, C3-137, C3-186, C3-200, C3-208.
+- PARTIAL (SIMULATED) (2): C3-180, C3-103; was MISSING (2): C3-103, C3-180. C3-103: no gradient, fonts, grid or tint colours. C3-180: the Journal half only.
+- Known gap, pinned both ways: "narrow the price column to 50" (C3-086) is answered by the quote fast path before the model. Not this PR: C3-166 (the Options Flow chips, F-16 widened) is #1029's row, VERIFIED there. Deferred: C3-071, C3-072, C3-097 (see the PR doc).
+- Recounted from the "All actions" table by `recount-widget-actions.mjs` (it first reproduces the previous "Counts by area" exactly from the previous rows).
 
 ## Update 2026-11-10 (4): the Options Flow widget's chips, F-16 widened (agent/pl/exec-flow-filters)
 
@@ -91,6 +100,7 @@ The 10 non-held-out test files named by 40 NOT VERIFIED rows (ledger `docs/agent
 | 2026-11-05 | 158 | 0 | 112 | 154 | 47 | 13 | 484 | 19 |
 | after chart settings + multichart + cited re-run | 225 | 9 | 69 | 126 | 43 | 12 | 484 | 19 |
 | after the Options Flow chips (agent/pl/exec-flow-filters) | 226 | 9 | 69 | 125 | 43 | 12 | 484 | 19 |
+| after the data-widget actions + watchlist A–D (agent/pl/exec-widget-actions) | 243 | 11 | 68 | 107 | 43 | 12 | 484 | 19 |
 
 - VERIFIED 225 of 484, 46.5%. PARTIAL is in scope but never VERIFIED (the PARTIAL column PR #1016 introduced).
 - Re-run on the combined branch (after both merges): all 12 test files of the three packets were run once each, single-file, under the suite lock, and all passed (chartSettings.outcome 40 passed + 5 known-gap (pinned) + 7 todo; multiChart.outcome 8 passed + 17 todo; the 10 cited files as in EXEC-CITED-RERUN.md). Totals lines: `docs/agent/program/PR-exec-chart-settings.md`.
@@ -223,34 +233,34 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3 | Chart tabs | 4 | 0 | 1 | 0 | 0 | 0 | 5 | 0 |
 | C3 | Layout Dock | 8 | 0 | 2 | 5 | 2 | 0 | 17 | 0 |
 | C3 | Multi Chart | 3 | 1 | 0 | 2 | 15 | 0 | 21 | 0 |
-| C3 | Watchlist | 15 | 0 | 4 | 15 | 5 | 1 | 40 | 4 |
-| C3 | Scanner | 8 | 0 | 0 | 4 | 2 | 0 | 14 | 0 |
+| C3 | Watchlist | 25 | 1 | 3 | 5 | 5 | 1 | 40 | 4 |
+| C3 | Scanner | 10 | 0 | 0 | 2 | 2 | 0 | 14 | 0 |
 | C3 | Volume Surge | 1 | 0 | 2 | 3 | 0 | 0 | 6 | 0 |
-| C3 | Alerts | 4 | 0 | 0 | 2 | 0 | 0 | 6 | 0 |
-| C3 | News | 1 | 0 | 1 | 3 | 0 | 0 | 5 | 0 |
+| C3 | Alerts | 5 | 0 | 0 | 1 | 0 | 0 | 6 | 0 |
+| C3 | News | 2 | 0 | 1 | 2 | 0 | 0 | 5 | 0 |
 | C3 | TE News | 1 | 1 | 2 | 6 | 0 | 0 | 10 | 0 |
 | C3 | Calendar | 5 | 0 | 1 | 3 | 0 | 0 | 9 | 0 |
 | C3 | Breadth | 3 | 0 | 0 | 4 | 0 | 0 | 7 | 0 |
 | C3 | Options Flow | 2 | 0 | 2 | 1 | 0 | 0 | 5 | 0 |
 | C3 | Themes | 5 | 1 | 0 | 3 | 0 | 0 | 9 | 0 |
-| C3 | Fundamentals | 2 | 0 | 0 | 1 | 0 | 0 | 3 | 0 |
+| C3 | Fundamentals | 2 | 1 | 0 | 0 | 0 | 0 | 3 | 0 |
 | C3 | Profile | 2 | 0 | 0 | 0 | 0 | 0 | 2 | 0 |
 | C3 | Indexes | 2 | 0 | 0 | 0 | 0 | 0 | 2 | 0 |
-| C3 | Market Context | 0 | 0 | 0 | 1 | 0 | 1 | 2 | 0 |
+| C3 | Market Context | 1 | 0 | 0 | 0 | 0 | 1 | 2 | 0 |
 | C3 | NH/NL | 3 | 0 | 0 | 1 | 0 | 0 | 4 | 0 |
 | C3 | H/L Pulse | 0 | 0 | 0 | 1 | 0 | 0 | 1 | 0 |
 | C3 | Market Map | 1 | 1 | 0 | 2 | 0 | 0 | 4 | 0 |
-| C3 | AI Search | 0 | 0 | 1 | 4 | 0 | 0 | 5 | 0 |
+| C3 | AI Search | 1 | 0 | 1 | 3 | 0 | 0 | 5 | 0 |
 | C3 | Notebook | 1 | 1 | 0 | 1 | 1 | 0 | 4 | 0 |
-| C3 | Period Sort | 0 | 0 | 0 | 4 | 0 | 0 | 4 | 0 |
+| C3 | Period Sort | 1 | 0 | 0 | 3 | 0 | 0 | 4 | 0 |
 | C3 | Replay | 2 | 0 | 1 | 1 | 0 | 0 | 4 | 0 |
 | C3 | Review | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 3 |
 | C3 | Company dock | 3 | 0 | 2 | 0 | 0 | 0 | 5 | 0 |
 | C3 | Workspace | 0 | 0 | 0 | 1 | 1 | 1 | 3 | 0 |
 | C1 | **all** | 103 | 4 | 17 | 28 | 11 | 5 | 168 | 11 |
 | C2 | **all** | 39 | 0 | 32 | 20 | 5 | 4 | 100 | 1 |
-| C3 | **all** | 84 | 5 | 20 | 77 | 27 | 3 | 216 | 7 |
-| | **Total** | 226 | 9 | 69 | 125 | 43 | 12 | 484 | 19 |
+| C3 | **all** | 101 | 7 | 19 | 59 | 27 | 3 | 216 | 7 |
+| | **Total** | 243 | 11 | 68 | 107 | 43 | 12 | 484 | 19 |
 
 ## Raised to VERIFIED (47)
 
@@ -718,18 +728,18 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-060 | Multi Chart | Maximize or restore a cell | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
 | C3-061 | Multi Chart | Open shared grid settings | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
 | C3-062 | Multi Chart | Set an alert from a cell | VERIFIED (SIMULATED outcome test, scripted model, jsdom) — note: the alert is on the NAMED cell's symbol, at the asked level (250) and direction (above), exactly one added and none on another cell's symbol, and Undo leaves the book byte-identical; a CONTROL case (the member clicked a cell holding a different symbol) and a negative control (a plan alerting the active cell is rejected by the same check): the controls prove the request context and the outcome check; the cell-to-symbol choice is made by the scripted model. The cell's right-click "Set alert @ price" entry point (GridChartCell.jsx:353-360) is NOT exercised: this is the Agent's route to the same outcome. The alert book is a stateful /api/watchlist-alerts stub with the real routes (GET/POST/DELETE) | multiChart.outcome.test.jsx: C3-062 "alert me when the top-right chart goes above 250"; C3-062 CONTROL (clicked top-left NVDA, named top-right AMD); C3-062 CONTROL (the check has teeth: an active-cell plan fails it) | pass 8/8 (17 todo) | panel, scripted model |
-| C3-063 | Watchlist | Open a list in a widget (own) | IMPLEMENTED / UNVERIFIED | agentBoard.test.jsx:158 | pass 1/1 | runtime, no panel |
-| C3-064 | Watchlist | Open a prebuilt or community list | MISSING | none | n/a | none |
-| C3-065 | Watchlist | Open the Flagged list | MISSING | none | n/a | none |
+| C3-063 | Watchlist | Open a list in a widget (own) | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | agentWatchlistShow.test.jsx: C3-063 held-out x6 (own lists, as the picker writes them; Undo restores the previous watchKey exactly) | pass 35/35 | panel, scripted model |
+| C3-064 | Watchlist | Open a prebuilt or community list | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | agentWatchlistShow.test.jsx: C3-064 held-out x12 (prebuilt and community); NEGATIVE near names | pass 35/35 | panel, scripted model |
+| C3-065 | Watchlist | Open the Flagged list | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | agentWatchlistShow.test.jsx: C3-065 held-out x3 (Flagged) | pass 35/35 | panel, scripted model |
 | C3-066 | Watchlist | Open a colour-tag list | MISSING | none | n/a | none |
-| C3-067 | Watchlist | Go back to the list picker | MISSING | none | n/a | none |
+| C3-067 | Watchlist | Go back to the list picker | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | agentWatchlistShow.test.jsx: C3-067 held-out x3 (back to the picker) | pass 35/35 | panel, scripted model |
 | C3-068 | Watchlist | Click a row to load the symbol | VERIFIED | c:symbol.switch | pass 7/7 | panel, scripted model |
 | C3-069 | Watchlist | Walk the list with arrow keys or space | VERIFIED | c:watchlist.step; listControl: previous, and both ends wrap | pass 5/5 | panel, scripted model |
 | C3-070 | Watchlist | Create a list | VERIFIED | c:watchlist.create; watchlists.outcome: nothing exists until Apply | pass 5/5 | production (C-05b) and panel |
 | C3-071 | Watchlist | Create a list from a template | MISSING | none | n/a | none |
 | C3-072 | Watchlist | Save a community list to My Lists | MISSING | none | n/a | none |
 | C3-073 | Watchlist | Rename a list | NOT ON /CHARTS | agentWatchlists.test.jsx:222 | pass 1/1 | n/a |
-| C3-074 | Watchlist | Rename the Flagged list | MISSING | none | n/a | none |
+| C3-074 | Watchlist | Rename the Flagged list | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | watchlistLook.outcome.test.jsx: C3-074 "rename my flagged list to Hot Hands", "call the flagged watchlist A-List" (the title menu's renameFlagged; Undo renames back); NEGATIVE not showing Flagged | pass 18/18 | panel, scripted model |
 | C3-075 | Watchlist | Delete a list | VERIFIED | c:watchlist.delete; watchlists.outcome: the proposal names the list and its size | pass 5/5 | production (I-01) and panel |
 | C3-076 | Watchlist | Add a symbol | VERIFIED | c:watchlist.add | pass 5/5 | production (C-05b) and panel |
 | C3-077 | Watchlist | Add to Flagged | VERIFIED | c:watchlist.setFlag; listControl: "flag NVDA" | pass 5/5 | panel, scripted model |
@@ -740,8 +750,8 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-082 | Watchlist | Sort by a column | VERIFIED | c:watchlist.sortColumn; listControl: "sort my watchlist by RVOL" | pass 6/6 | panel, scripted model |
 | C3-083 | Watchlist | Show or hide a column | VERIFIED | c:watchlist.setColumns; listControl: "add the market cap column"; listControl: hide a default column and an added one | pass 6/6 | panel, scripted model |
 | C3-084 | Watchlist | Apply a column preset | NOT ON /CHARTS | none | n/a | n/a |
-| C3-085 | Watchlist | Reorder columns by drag | MISSING | none | n/a | none |
-| C3-086 | Watchlist | Resize a column | MISSING | none | n/a | none |
+| C3-085 | Watchlist | Reorder columns by drag | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | listControl.outcome.test.jsx: C3-085 x4 held-out (move a column before / after another, as the header drop does: the stored order and the header follow; Undo exact); NEGATIVE a hidden or unknown column | pass 114/114 (1 known gap pinned both ways) | panel, scripted model |
+| C3-086 | Watchlist | Resize a column | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | listControl.outcome.test.jsx: C3-086 2 of 3 held-out (a width as the gridline sets it; Undo exact); NEGATIVE under the minimum, over 600; KNOWN GAP "narrow the price column to 50" answered by the quote fast path before the model (pinned it.fails + today's output) | pass 114/114 (1 known gap pinned both ways) | panel, scripted model |
 | C3-087 | Watchlist | Reset columns | VERIFIED | listControl: reset goes to the defaults | pass 1/1 | panel, scripted model |
 | C3-088 | Watchlist | Write or edit a ticker note | VERIFIED | c:watchlist.setNote | pass 4/4 | panel, scripted model |
 | C3-089 | Watchlist | Expand or collapse a list | MISSING | none | n/a | none |
@@ -749,8 +759,8 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-091 | Watchlist | Share a tag colour or Flagged | BLOCKED | none | n/a | none |
 | C3-092 | Watchlist | Make a list public | BLOCKED | none | n/a | none |
 | C3-093 | Watchlist | Mark a list prebuilt (admin) | BLOCKED | none | n/a | none |
-| C3-094 | Watchlist | Copy a list to the clipboard | MISSING | none | n/a | none |
-| C3-095 | Watchlist | Export a list as CSV or Excel | MISSING | none | n/a | none |
+| C3-094 | Watchlist | Copy a list to the clipboard | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | agentWatchlistOut.test.jsx + Watchlists.listout.test.jsx: C3-094 copied only once the clipboard write resolved (a refused write says so); the door reaches exactly the list menu's Copy (real Watchlists) | pass 29/29 + 7/7 | panel, scripted model |
+| C3-095 | Watchlist | Export a list as CSV or Excel | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | agentWatchlistOut.test.jsx + Watchlists.listout.test.jsx: C3-095 CSV at once, Excel always proposed first (a quota); own lists only; the door reaches exactly the menu's Export CSV / Excel (real Watchlists) | pass 29/29 + 7/7 | panel, scripted model |
 | C3-096 | Watchlist | Import tickers | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
 | C3-097 | Watchlist | View or restore list version history | MISSING | none | n/a | none |
 | C3-098 | Watchlist | Set a price alert from a row | VERIFIED | c:alert.price-above | pass 6/6 | panel, scripted model |
@@ -758,16 +768,16 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-100 | Watchlist | Open Full Research or AI from a row | IMPLEMENTED / UNVERIFIED | agentBatch1.test.jsx; agentBatch4.test.jsx | pass 39/39 | runtime, no panel |
 | C3-101 | Watchlist | Compare from a row | VERIFIED | c:compare.amd | pass 5/5 | panel, scripted model |
 | C3-102 | Watchlist | Open a row's attention facts | UNMAPPED | none | n/a | none |
-| C3-103 | Watchlist | Change list appearance (canvas, text, tint) | MISSING | none | n/a | none |
-| C3-104 | Watchlist | Save or load a watchlist look | MISSING | none | n/a | none |
+| C3-103 | Watchlist | Change list appearance (canvas, text, tint) | PARTIAL (SIMULATED) — covered: logos, tick-flash tint, solid canvas, text, gain and loss colours through the ⚙ panel's own writer (this widget's opts.settings), the other widget untouched, Undo exact; not covered: gradient canvas, fonts, grid colour, tint colours | watchlistLook.outcome.test.jsx: C3-103 x6 held-out; NEGATIVE "sort of bluish" (#rrggbb) | pass 18/18 | panel, scripted model |
+| C3-104 | Watchlist | Save or load a watchlist look | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | watchlistLook.outcome.test.jsx: C3-104 x5 held-out: save the look under a name (shown first; the look the widget had), apply a saved look (Undo exact), delete one (shown first); NEGATIVE unknown look, no name | pass 18/18 | panel, scripted model |
 | C3-105 | Watchlist | Track or freeze a linked scan or theme | BLOCKED | none | n/a | none |
 | C3-106 | Watchlist | Use a saved screen as a list | BLOCKED | none | n/a | none |
 | C3-107 | Scanner | Pick a preset scan | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | boardArrangement.outcome.test.jsx: C3-107 (held-out phrasing) "the Scanner widget shows that preset; Undo goes back"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 13/13 | panel, scripted model |
-| C3-108 | Scanner | Leave a scan, back to the picker | MISSING | none | n/a | none |
+| C3-108 | Scanner | Leave a scan, back to the picker | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetActions.outcome.test.jsx: C3-108 x4 held-out ("leave this scan in the scanner", "take the scanner back to its picker", …): scanKey / scanName cleared as its own "change scan" does, Undo exact; NEGATIVE already on the picker | pass 24/24 | panel, scripted model |
 | C3-109 | Scanner | Search the preset list | MISSING | none | n/a | none |
 | C3-110 | Scanner | Read a scan's conditions | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetDoorRows.outcome.test.jsx: C3-110 "what are the conditions on my scanner"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
 | C3-111 | Scanner | Read a scan's results | VERIFIED | listControl: a Scanner: sorts and reads the same way | pass 1/1 | panel, scripted model |
-| C3-112 | Scanner | Refresh a scan | MISSING | none | n/a | none |
+| C3-112 | Scanner | Refresh a scan | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetActions.outcome.test.jsx: C3-112 x8 held-out ("refresh the scanner", "rerun the scanner now", …): the widget's own SWR mutate runs once, the receipt only after it resolves, a failed re-read claims nothing, two scanners told apart by position | pass 24/24 | panel, scripted model |
 | C3-113 | Scanner | Sort a scan | VERIFIED | listControl: a Scanner: sorts and reads the same way | pass 1/1 | panel, scripted model |
 | C3-114 | Scanner | Change scan columns | VERIFIED | listControl: a Scanner: sorts and reads the same way | pass 1/1 | panel, scripted model |
 | C3-115 | Scanner | Create a scanner in the workspace | BLOCKED | none | n/a | none |
@@ -787,12 +797,12 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-129 | Alerts | Delete an alert | VERIFIED | c:alert.delete; alerts.outcome: the proposal says what goes and that it is permanent | pass 5/5 | panel, scripted model |
 | C3-130 | Alerts | Click an alert to load the symbol | VERIFIED | c:symbol.switch | pass 7/7 | panel, scripted model |
 | C3-131 | Alerts | Change Alerts widget appearance | MISSING | none | n/a | none |
-| C3-132 | Alerts | Send alerts to Journal | MISSING | none | n/a | none |
+| C3-132 | Alerts | Send alerts to Journal | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetJournal.outcome.test.jsx: C3-132 "drop my alerts into the journal" (the real Alerts widget's capture door; shown first; the other widget untouched) | pass 7/7 | panel, scripted model |
 | C3-133 | News | Filter catalysts up, down or all | IMPLEMENTED / UNVERIFIED | agentWidgetOptions.test.jsx:49; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | pass 1/1 | runtime, no panel |
 | C3-134 | News | Read stored headlines for a symbol | VERIFIED | c:news.latest; c:news.catalysts | pass 9/9 | panel, scripted model |
 | C3-135 | News | Place a headline on the chart | MISSING | none | n/a | none |
 | C3-136 | News | Change News widget appearance | MISSING | none | n/a | none |
-| C3-137 | News | Send the feed to Journal | MISSING | none | n/a | none |
+| C3-137 | News | Send the feed to Journal | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetJournal.outcome.test.jsx: C3-137 "put the news and catalysts feed in a fresh journal note" | pass 7/7 | panel, scripted model |
 | C3-138 | TE News | Search headlines | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | teNewsWatchlist.outcome.test.jsx: "C3-138: search the News widget through its own search box" (held-out phrasings, clear, NEGATIVE); agentExecReach.test.jsx: search held-out7 (routing reach only); see docs/agent/program/EXEC-CITED-RERUN.md | pass 9/9 | panel, scripted model |
 | C3-139 | TE News | Filter by category, linked symbol or watchlist | PARTIAL (SIMULATED) — covered: the watchlist filter (watchlistId and the shown headlines read back, Undo, NEGATIVE); not covered: the category filter and the linked-symbol filter | teNewsWatchlist.outcome.test.jsx: "C3-139: the News widget filtered to one of the member's watchlists, through its own select"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 9/9 | panel, scripted model |
 | C3-140 | TE News | Apply, rename or delete a filter preset | MISSING | none | n/a | none |
@@ -835,13 +845,13 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-177 | Themes | Send the ranking to Journal | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetDoorRows.outcome.test.jsx: "Send to Journal over the real widgets' own capture doors", case C3-177; see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
 | C3-178 | Fundamentals | Switch view | VERIFIED | agentWidgetOptions: "show annual on the fundamentals" | pass 1/1 | panel, scripted model |
 | C3-179 | Fundamentals | Read the numbers | VERIFIED | c:stock.profile; c:earnings.date | pass 10/10 | panel, scripted model |
-| C3-180 | Fundamentals | Change appearance or send to Journal | MISSING | none | n/a | none |
+| C3-180 | Fundamentals | Change appearance or send to Journal | PARTIAL (SIMULATED) — covered: send the fundamentals to the Journal (the real widget's capture door); not covered: its appearance (a global pref, no door row) | widgetJournal.outcome.test.jsx: C3-180 "send the fundamentals table to a new journal note" | pass 7/7 | panel, scripted model |
 | C3-181 | Profile | Read profile and earnings table | VERIFIED | c:stock.profile; c:earnings.date | pass 10/10 | panel, scripted model |
 | C3-182 | Profile | Click a peer ticker | VERIFIED | c:symbol.switch | pass 7/7 | panel, scripted model |
 | C3-183 | Indexes | Hide or restore an index | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetControls.outcome.test.jsx: "Indexes (C3-183): hide or restore an index" (hide + Undo, restore by name, NEGATIVE); see docs/agent/program/EXEC-CITED-RERUN.md | pass 7/7 | panel, scripted model |
 | C3-184 | Indexes | Send levels to Journal | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetDoorRows.outcome.test.jsx: "Send to Journal over the real widgets' own capture doors", case C3-184 (+ NEGATIVE Dismiss); see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
 | C3-185 | Market Context | Read market context | UNMAPPED | none | n/a | none |
-| C3-186 | Market Context | Send to Journal | MISSING | none | n/a | none |
+| C3-186 | Market Context | Send to Journal | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetJournal.outcome.test.jsx: C3-186 "save the market context panel to my notebook inbox"; NEGATIVE Dismiss | pass 7/7 | panel, scripted model |
 | C3-187 | NH/NL | Add or remove a universe | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetControls.outcome.test.jsx: "New Highs / Lows (C3-187, C3-188)": add, switch, remove; see docs/agent/program/EXEC-CITED-RERUN.md | pass 7/7 | panel, scripted model |
 | C3-188 | NH/NL | Switch universe tab | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetControls.outcome.test.jsx: "New Highs / Lows (C3-187, C3-188)": add, switch, remove; see docs/agent/program/EXEC-CITED-RERUN.md | pass 7/7 | panel, scripted model |
 | C3-189 | NH/NL | Expand a row or pick a symbol | VERIFIED | c:symbol.switch | pass 7/7 | panel, scripted model |
@@ -855,7 +865,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-197 | AI Search | Change ask mode, stop or retry | MISSING | none | n/a | none |
 | C3-198 | AI Search | Save, reopen or remove an answer | MISSING | none | n/a | none |
 | C3-199 | AI Search | Copy or speak an answer | MISSING | none | n/a | none |
-| C3-200 | AI Search | Send the conversation to Journal | MISSING | none | n/a | none |
+| C3-200 | AI Search | Send the conversation to Journal | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetJournal.outcome.test.jsx: C3-200 "journal this ai search conversation" (the conversation is seeded through the widget's own initialThread prop: fixture data, no paid stream); NEGATIVE no conversation → refused | pass 7/7 | panel, scripted model |
 | C3-201 | Notebook | Open or search a note | PARTIAL (SIMULATED) — covered: opening a note by its name (noteId read back, Undo; an ambiguous or unknown name is refused); not covered: the widget's own note search | widgetDoorRows.outcome.test.jsx: "the Notebook widget (C3-201 open a note by its name)" + NEGATIVE; see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
 | C3-202 | Notebook | Create a note | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetDoorRows.outcome.test.jsx: "the Notebook widget: create a note through its own New control (C3-202)" (held-out phrasings); see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
 | C3-203 | Notebook | Edit a note's title or body | BLOCKED | none | n/a | none |
@@ -863,7 +873,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-205 | Period Sort | Start a custom-period sort | MISSING | none | n/a | none |
 | C3-206 | Period Sort | Choose grouping, replay and start mark | MISSING | none; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | n/a | none |
 | C3-207 | Period Sort | Dock the panel or add it as a tab | MISSING | none | n/a | none |
-| C3-208 | Period Sort | Refresh results | MISSING | none | n/a | none |
+| C3-208 | Period Sort | Refresh results | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetActions.outcome.test.jsx: C3-208 x6 held-out ("refresh the period sort", "reload the period sort ranking", …) | pass 24/24 | panel, scripted model |
 | C3-209 | Replay | Start replay at a date | VERIFIED | c:chart.replay; agentChartReplay: replay from Oct 15 | pass 5/5 | panel, scripted model |
 | C3-210 | Replay | Exit replay | VERIFIED | c:chart.replay.exit | pass 4/4 | panel, scripted model |
 | C3-211 | Replay | Pick the cutoff by clicking the chart | MISSING | none | n/a | none |
