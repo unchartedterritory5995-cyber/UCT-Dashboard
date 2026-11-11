@@ -140,11 +140,16 @@ _SCHEMA_KEYS = {"type", "properties", "required", "additionalProperties", "enum"
 # The model is told which groups exist but were not given; if it needs one it sets
 # `need_groups` and plans nothing, and the browser asks once more with those groups.
 _GROUP_ID = re.compile(r"^[a-z][a-zA-Z]{1,23}$")
-# MAX_GROUPS bounds an untrusted browser payload (each title cut to 160 chars below), not the catalog: groups past it
-# are dropped SILENTLY from the "other action groups" list and the `need_groups` enum. Master reached exactly 24 on
-# 2026-11-11 (the 25th group would have dropped `guide`), so 32 gives every family headroom and stays bounded
-# (32 × 160 chars). Rail: app/src/agent/routingMaxGroups.test.js fails when routing.js GROUPS outgrows this.
+# MAX_GROUPS bounds an untrusted browser payload: validate_routing's {id, title} list (each title cut to 160 chars
+# below), i.e. the "OTHER ACTION GROUPS" lines of the request's LAST system block (the per-request part, after the
+# cached core) and the `need_groups` enum. It never bounds actions: the browser's action budget (NL-1: 55) and
+# MAX_CAPABILITIES do. Groups past it are still cut, but never silently: the first cut in a process is logged
+# (a WARNING naming the dropped ids). Master reached exactly 24 on 2026-11-11 (a 25th group dropped `guide`), so 32
+# gives every family headroom and stays bounded (32 × 160 chars). Rail: app/src/agent/routingMaxGroups.test.js
+# fails when routing.js GROUPS outgrows this.
 MAX_GROUPS = 32
+#: set once the first over-limit routing.groups has been logged (validate_routing runs on every turn)
+_GROUPS_DROP_LOGGED = False
 
 
 def validate_routing(routing: Any) -> dict | None:
@@ -155,6 +160,14 @@ def validate_routing(routing: Any) -> dict | None:
     selected = routing.get("selected")
     if not isinstance(groups, list) or not isinstance(selected, list):
         return None
+    global _GROUPS_DROP_LOGGED
+    if len(groups) > MAX_GROUPS and not _GROUPS_DROP_LOGGED:
+        # ⛔ NEVER A SILENT DROP (like the args-schema drop): the cut groups can't be offered to the model or asked for
+        # in need_groups. Behaviour is unchanged (still cut); say which, ONCE per process.
+        _GROUPS_DROP_LOGGED = True
+        dropped = [str(g.get("id") or "?") if isinstance(g, dict) else "?" for g in groups[MAX_GROUPS:]]
+        log.warning("[uct-agent] routing sent %d groups; the server keeps only MAX_GROUPS=%d, dropped: %s",
+                    len(groups), MAX_GROUPS, ", ".join(dropped[:20]))
     seen, out = set(), []
     for g in groups[:MAX_GROUPS]:
         if not isinstance(g, dict):
