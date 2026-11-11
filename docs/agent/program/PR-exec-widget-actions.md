@@ -543,3 +543,81 @@ Master moved from `70dd3a375c` to `7cd14dca6f`: #1080 (routing v2's tie rule, `r
 Together with run A, all 16 files of the capreg directory ran. **#1029's 8 rail files are byte-identical to master** (empty `git diff origin/master HEAD`), as are agentExcludedApproved, agentNoLookbehindEquivalence.test.js, noRegexLookbehind and routeReachability.test.js.
 
 **Server tests (real pytest, pl-grid venv, no lock):** the same 23 files as the post-#988 run (every reader of the golden, the parity fixture, the capreg lock / corpus and `section_b_requests.json`): **`980 passed, 1 warning`** (978 before). Master added no `tests/*.py` between `70dd3a375c` and `7cd14dca6f`; the +2 are most likely cases parametrized over the regenerated fixtures (e.g. the capreg lock now has 168 intents, from #1072). Not itemised.
+
+### AUDIT HOLD (two blockers) on `7cf7422b26`: fixed
+
+Evidence class: LOCAL, vitest (jsdom / node) and real pytest, scripted plans, invented fixture data. Not a real browser and not the real model. Logs: `evidence/exec-widget-actions/postaudit-runA.txt`, `postaudit-runB.txt`, `pytest-postaudit.txt`.
+
+#### Blocker 1: NL-1 first-call coverage (`agentNl1SelectionCoverage`, corpus.json 0.9286 < 0.95)
+
+Measured with the test's own capture (`captureCase`, budget 55) on every open set, merged head `7cf7422b26` vs plain master `7cd14dca6f` (a scratch worktree, deleted after):
+
+| set | master `7cd14dca6f` | head `7cf7422b26` (HOLD) | after the fix |
+|---|---:|---:|---:|
+| corpus.json | 174/182 (95.6%) | 169/182 (92.9%) | **174/182 (95.6%)** |
+| dev-nl1.json | 43/43 | 43/43 | 43/43 |
+| heldout-v1.json | 164/165 | 164/165 | 164/165 |
+
+The five requests that lost first-call coverage (what the first call selected; core = charts, indicators, screener, agent = 37 actions):
+
+| id | request | master | HOLD head | missing on HOLD | cause |
+|---|---|---|---|---|---|
+| alt-21 | "show me my Swing watchlist" | core + lists (54) | core + boardEdit (42) | watchlist.open / watchlist.show | (a) |
+| ws-13 | "show my momentum watchlist" | core + lists (54) | core + boardEdit (42) | watchlist.open / watchlist.show | (a) |
+| multi-07 | "make a watchlist of my strongest semis and show it" | core + lists (54) | core + boardEdit (42) | watchlist.create, add, open | (a) |
+| ws-07 | "put tsla on my watchlist" | core + lists (54) | core + watchlistShow (39) | watchlist.add | (b) |
+| multi-02 | "find stocks with ADR over 5 and put the top 10 in a new list called ADR Ten" | core + lists (54) | core + workspace (55) | watchlist.create, add | (c) |
+
+Not #1080's tie rule (that is routing v2, `nlm1/routingV2.js`; NL-1 packs with v1's `routeManifest`) and not #1072 (chartSetup is not selected in any of the five). All three causes are #1027's own:
+
+- **(a)** the Watchlist control row `showLogos` (C3-103). `controlVocab` splits a row's KEY into words, so "show" became Watchlist control vocabulary and every "show … watchlist" routed `boardEdit` (5). boardEdit packs before lists (smallest first), and 37 + 5 + 18 > 55, so lists was cut.
+- **(b)** watchlistShow's words matched "on my watchlist", which is the ADD idiom. watchlistShow packed first, and 37 + 2 + 18 > 55.
+- **(c)** `watchlist.arrangeColumns` rode `lists` by its `watchlist` domain, so lists grew 17 → 18 and tied workspace (18); workspace came first. `nl1/selection.js` sizes NL-1 on core 37 + lists 17 = 54.
+
+**The fix** (`2274617220`, routing / group design only; the 0.95 bar is untouched):
+
+- `widgetNames.js`: a word taken from a control's KEY that is a generic request verb (`KEY_GENERIC = ['show']`) is dropped from that widget's routing vocabulary. `CONTROL_WORDS` already leaves "show" out on purpose ('hide' is in). No master control key contains "show", so no other widget's vocabulary moves. 'logo' (a CONTROL_WORD) still names the row.
+- `routing.js` watchlistShow: `watchlist.arrangeColumns` moves into this words-only group. It is a one-widget view op, like showList, and this restores the group's own rule ("the lists group and every request keep their size"): lists is 17 again. The group gains column move / width words ("move/drag … column", "column … to the left / before / after", "wider / narrower / width … column", "column … N px"), and its title adds "move a column or set its width in that widget". "on (my|the|this) watchlist" names the widget only with a position (left / right / top / bottom / other) or the word "widget"; "in / into my watchlist" is unchanged.
+
+**After:** corpus.json 174/182 (95.6%). All five above are recovered: alt-21, ws-13 and multi-07 by (a); ws-07 and multi-02 by (b) + (c). On every dev / exposed request, the groups selected are **identical to master's** (0 differences over 390 requests).
+
+**Trade-off, stated:** arrangeColumns now reaches the first call through watchlistShow's words, not through `lists`. Over the 11 column held-out phrasings (frozen, not tuned to), `selectGroups` gives arrangeColumns a group on 6 before and 6 after:
+- gained: "put the volume column right after the symbol", "make the symbol column wider, 140 pixels"
+- lost: "move % change before price on my watchlist", "set % change to 90px wide on the watchlist"
+
+The lost ones reach it with one reroute: `need_groups` names watchlistShow, and its title says columns. The plans themselves are scripted in the outcome tests, which all pass.
+
+#### Blocker 2: SAT-1 captured requests (`agentScanSat1Requests`)
+
+`UPDATE_SAT1_REQUESTS=1` re-record, in its own commit `91a1e6b2fe`. The diff against the stored file is 30 hunks of 1 line each, and **every one** is the `watchlistShow` group entry's title:
+
+- before: "What one Watchlist widget shows: one of your lists, …" (as recorded at group A `b812facdd8`)
+- after: "… ; copy that list or download it as CSV / Excel; move a column or set its width in that widget"
+
+Attribution: "copy … CSV / Excel" is #1027 group D (`59c6383b0a`), which changed the title without re-recording, so the stored file was already stale. "move a column …" is fix 1. No group list, capability list or manifest moved. Nothing comes from #1080 or #1072. `git diff origin/master -- api/services/uct_agent/scan/eval` is **empty**.
+
+#### Other re-records (each in its own commit, every hunk attributed to fix 1)
+
+- `tests/fixtures/nl1_assemble_parity.json` (`b5d51a0950`, `UPDATE_NL1_PARITY=1`, agentNl1Selection 13/13):
+  - groupOf arrangeColumns `lists` → `watchlistShow`.
+  - the watchlistShow title (6 lines).
+  - case 2 (core + lists + alerts) drops arrangeColumns, 59 → 58 actions, which is master's count.
+- capreg coverage (`70cfea8a62`, `UPDATE_CAPREG=1` inventory 685/685): 3 lines, each arrangeColumns' group `lists` → `watchlistShow`. `baseline.lock.json` is unchanged (`test_uct_agent_capreg_baseline.py` passes without `--update`).
+- `agentNoLookbehindEquivalence` (`864c3b1988`): only `digests.routing` is re-recorded (`routingRecordedOn` cd66cf1f27 → 2274617220).
+  - Exactly 1 of 2745 inputs moved: [146] "only one of them, then put NVDA on my watchlist, draw a level and set an alert", `…,agent,watchlistShow` → `charts,drawings,lists,alerts,agent`. That is master's own output for it.
+  - Against master's baseline only [69] (the "Flagged widget" input) still differs, as before.
+  - The corpus, `recordedOn`, `deixisRecordedOn`, the other four digest sets and the test file are byte-identical.
+- `manifest.golden.json`: no change (agentContracts passes).
+
+#### Non-blocker: column-drag parity rail on a CRLF checkout (`4b002ee0e4`)
+
+`Watchlists.columnDrag.parity.test.js` now normalises `\r\n` → `\n` before its COL_META block regex. Checked: the old regex on a CRLF copy of Watchlists.jsx matches nothing; after normalising it matches. Test-only.
+
+#### Tests (focused runs of ≤25 files each, no lock; NOT a full run)
+
+| run | files | result |
+|---|---:|---|
+| A: agentNl1SelectionCoverage, agentNl1Selection, agentScanSat1Requests (62/62), routeReachability, agentNoLookbehindEquivalence (6/6), noRegexLookbehind, agentNoLookbehind988 / Oracle / Strings, agentRouting (pin 161), agentScreener (pin 155), agentExcludedApproved, agentContracts, capreg inventory, corpus.routing, corpus.routingV2, routingCollision, routingCollisionV2, agentIndicatorsM2, agentOpenChartSettings | 20 | 20 passed, 2296 passed + 1 todo |
+| B: the 116 set (watchlistTarget.rail 10, widgetActionKeys 5, agentWatchlistShow 35, agentWatchlistOut 29, widgetActions.outcome 24, settingsLiveness 13 = **116/116**), the which-widget rails (agentWhichWidget.rail, whichWidget.rules.rail, agentWhichWidget), whichWatchlist / listColsUndo / listControl / watchlistLook / widgetJournal outcomes, agentWidgetOptions, agentWidgetControls, agentExecReach, agentNotDoneExport.rail, Watchlists.columnDrag.parity (4/4), columnDrag, listout, the 4 held-out files | 25 | 25 passed, 468/468 |
+
+`[routing] 43/43 routed; mean 23.5 of 161 capabilities; 0 full`. Real pytest (pl-grid venv, no lock), the same 23 reader files as the post-#1080 run (golden, parity fixture, capreg lock / corpus, `section_b_requests.json`, including `test_uct_agent_scan_sat_section_b.py` and `test_uct_agent_capreg_baseline.py`): **`980 passed, 1 warning`**.
