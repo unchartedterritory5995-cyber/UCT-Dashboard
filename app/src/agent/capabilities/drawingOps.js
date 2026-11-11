@@ -35,7 +35,7 @@ export function registerDrawingOps(common, { registerCapability, byId, notFound,
   registerCapability({
     ...common,
     name: 'drawing.duplicate',
-    summary: 'Duplicate ONE drawing (its menu\'s Duplicate): an unlocked copy just below the original on the same symbol — every chart on that symbol shows it. The copy is the drawing "it" means next. Undo removes the copy only.',
+    summary: 'Duplicate ONE drawing (its menu\'s Duplicate): an unlocked duplicate drawing just below the original on the same symbol — every chart on that symbol shows it. The duplicate is the drawing "it" means next. Undo removes the duplicate only.',
     hints: 'target = the drawings entry; drawing = its id (the one marked recent for "duplicate it"). Not offered for a hidden drawing (show it first) or a retired tool. To copy a drawing to a DIFFERENT symbol there is no capability — say so.',
     args: { type: 'object', properties: { drawing: { type: 'string' } }, required: ['drawing'], additionalProperties: false },
     check(st, { drawing }) {

@@ -808,6 +808,19 @@
    ],
    "fast": false
   },
+  "drawing.duplicate": {
+   "domain": "drawing",
+   "group": "drawings",
+   "target": "drawing",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
   "drawing.list": {
    "domain": "drawing",
    "group": "drawings",
@@ -904,6 +917,19 @@
    "group": "drawings",
    "target": "drawing",
    "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "drawing.setPositionAlerts": {
+   "domain": "drawing",
+   "group": "alerts",
+   "target": "drawing",
+   "risk": "confirm",
    "reversible": true,
    "undo": "exact",
    "query": false,

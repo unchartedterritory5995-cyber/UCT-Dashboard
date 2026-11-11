@@ -88,3 +88,10 @@ A	docs/agent/program/PR-exec-drawing-ops.md           this file
 
 - Conflicts expected only on shared lines: `manifest.golden.json` and `nl1_assemble_parity.json` (regenerate), the guarded lists in `agentOperatorLive.test.jsx` / `test_uct_agent_autoapply.py` (#1070 adds `drawing.deleteBoard` on the same line; keep both, sorted), and the action count in `agentRouting.test.jsx` (sum the additions).
 - No product files changed, so nothing for the web build beyond the agent bundle.
+
+## Routing fix and capreg corpus (follow-up)
+
+- Reachability regression fixed: under routing v2, "create a custom copy of the rsi indicator" lost the `definitions` group (definition.duplicate unreachable). Cause: `drawing.duplicate`'s summary used the generic word "copy", so v2's BM25 index counted "copy" in the drawings document too and weighted it lower for definitions (6.14 → 5.91, under STRONG 6.0). The summary now says "duplicate drawing" and "the duplicate"; a drawing copy is named by drawing words, an indicator copy keeps routing to indicators / definitions (definitions back to 6.15). No routing regex changed, so there are no lookbehinds and the frozen baselines are unchanged.
+- New rail `qa/capabilityRegression/duplicateRouting.test.js` (v1 and v2): "duplicate my RSI" and "copy that indicator" reach indicators/definitions, never drawings; "duplicate this trendline", "duplicate the drawing" and "copy this trendline" carry drawing.duplicate; under v2, "create a custom copy of the rsi indicator" carries definition.duplicate. Mutation: with the old summary, that last test goes red.
+- Capreg intents `drawing.duplicate` (TIMED: draw a trendline, duplicate it, Undo removes only the copy) and `drawing.setPositionAlerts` (DRAW + a seeded long position: proposal first, nothing written; Apply writes the stop alert below and the target alert above). The harness takes `seed.drawings` for a drawing the Agent cannot draw itself.
+- Regenerated: `manifest.golden.json` (one summary), capreg `coverage/*` (UPDATE_CAPREG=1), `baseline.lock.json` (additive). Parity was regenerated in its own run and did not change.

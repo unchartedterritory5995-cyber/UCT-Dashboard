@@ -400,6 +400,8 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
   if (extra.drawings) {
     for (const c of mounted.h.charts.list()) drawingsStore.clearAll(c.symbol)      // the store is module-level: start empty
     mounted.h.drawings = buildDrawingSource({ list: () => mounted.h.charts.list().map(c => ({ ...c, drawSym: c.symbol })) })      // (a TIMED board's charts carry their view: the loaded history)
+    // a case may SEED drawings the Agent cannot draw itself (seed.drawings: { SYM: [drawing] }, e.g. a position for its alerts)
+    for (const [sym, list] of Object.entries(seed.drawings || {})) for (const d of list) drawingsStore.addDrawing(sym, d)
   }
   return { p, st, srv, ...mounted }
 }

@@ -10128,6 +10128,156 @@
       ]
     },
     {
+      "id": "drawing.duplicate",
+      "source": "C1-157 (pl-exec5): the drawing menu's Duplicate",
+      "board": "TIMED",
+      "needs": [
+        "drawing.duplicate"
+      ],
+      "capabilities": [
+        "drawing.duplicate"
+      ],
+      "before": [
+        {
+          "say": "draw a trendline from 2026-09-02 at 100 to 2026-10-28 at 180",
+          "model": {
+            "ops": [
+              {
+                "action": "drawing.addTrendline",
+                "target": "$drawings[0]",
+                "args": {
+                  "from": {
+                    "date": "2026-09-02",
+                    "price": 100
+                  },
+                  "to": {
+                    "date": "2026-10-28",
+                    "price": 180
+                  },
+                  "color": null,
+                  "style": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drawings": {
+              "count": 1,
+              "has": {
+                "type": "trendline"
+              }
+            }
+          }
+        }
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.duplicate",
+            "target": "$drawings[0]",
+            "args": {
+              "drawing": "$ctx:drawings.0.drawings.0.id"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "drawings": {
+          "count": 2,
+          "has": {
+            "type": "trendline"
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "drawings": {
+            "count": 1,
+            "has": {
+              "type": "trendline"
+            }
+          }
+        }
+      },
+      "phrasings": [
+        "duplicate this trendline",
+        "duplicate that drawing",
+        "make a duplicate of the trendline"
+      ]
+    },
+    {
+      "id": "drawing.setPositionAlerts",
+      "source": "C1-118 (pl-exec5): a position drawing's Alerts row (stop and target)",
+      "board": "DRAW",
+      "seed": {
+        "drawings": {
+          "NVDA": [
+            {
+              "type": "position",
+              "points": [
+                {
+                  "time": "2026-10-01",
+                  "price": 100
+                },
+                {
+                  "time": "2026-10-01",
+                  "price": 90
+                },
+                {
+                  "time": "2026-10-20",
+                  "price": 120
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "needs": [
+        "drawing.setPositionAlerts"
+      ],
+      "capabilities": [
+        "drawing.setPositionAlerts"
+      ],
+      "model": {
+        "disposition": "propose",
+        "ops": [
+          {
+            "action": "drawing.setPositionAlerts",
+            "target": "$drawings[0]",
+            "args": {
+              "drawing": "$ctx:drawings.0.drawings.0.id",
+              "levels": [
+                "stop",
+                "target"
+              ]
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "noCalls": [
+          "^POST /api/watchlist-alerts"
+        ]
+      },
+      "approve": true,
+      "afterApprove": {
+        "writes": [
+          "^POST /api/watchlist-alerts .*\"direction\":\"below\"",
+          "^POST /api/watchlist-alerts .*\"direction\":\"above\""
+        ],
+        "receipt": true
+      },
+      "phrasings": [
+        "set the stop and target alerts on my position",
+        "alert me on my position's stop and target",
+        "turn on the stop and target alerts for that position"
+      ]
+    },
+    {
       "id": "chartSetup.setRange",
       "source": "PR #825 (11-05): the chart's own view controls and Ctrl+M",
       "capabilities": [
