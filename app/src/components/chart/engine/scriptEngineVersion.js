@@ -127,7 +127,8 @@
 /** 43 = LIMITS: runtime limit refusals say their limit in plain words, and the stopping bar number is fixed (member-visible sentences); the service does not emit `limit` (EMIT_REFUSAL_LIMIT=false) */
 /** 44 = VAR-OFF: off-listing `var` values that cannot be known are withheld by name, with new sentences (member-visible output); see the lane's EVIDENCE */
 /** 45 = DIV-4 paint/colour: translator output changes for paints with a foldable non-literal offset (HP-1 does not digest paints); runtime colour reasons name their limit */
-export const SCRIPT_ENGINE_VERSION = 45
+/** 46 = LANE2 (fix/pine-b0-na-seed): the B0 `na` seed lane, with its N1 version gate; see docs/pine/evidence/2026-11-10-lane2-b0/EVIDENCE.md */
+export const SCRIPT_ENGINE_VERSION = 46
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */
