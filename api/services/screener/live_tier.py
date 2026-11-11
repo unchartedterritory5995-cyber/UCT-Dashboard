@@ -917,6 +917,13 @@ def _blank_receipt(**over) -> dict:
         "sqlite_upsert_busy_wait_ms": 0.0,
         "sqlite_prune_ms": 0.0,
         "sqlite_prune_busy_wait_ms": 0.0,
+        # WAITING vs WORKING (2026-11-10). Wall time beside this thread's own CPU time
+        # (`time.thread_time`): a phase whose wall is far above its CPU was waiting (the GIL,
+        # a lock, the disk), not computing. `derive_*` is the per-row recompute; `upsert_cpu_ms`
+        # sits beside `sqlite_upsert_ms`.
+        "derive_ms": 0.0,
+        "derive_cpu_ms": 0.0,
+        "upsert_cpu_ms": 0.0,
         # Reused from `contention_trace_temp.py` (never reimplemented) so a
         # slow cycle's receipt names what else was running and whether the
         # WAL sidecar was mid-checkpoint at that instant.
@@ -1154,6 +1161,7 @@ def _sweep_locked(receipt: dict, ymd: int, scan_volume, snap: dict,
     as_of = time.time()
     out_rows = []
     per_col = {c: 0 for c in LIVE_COLUMNS}
+    d_wall, d_cpu = time.perf_counter(), time.thread_time()
     for row, quote, reason in graded:
         if reason is not None:
             receipt["skipped"][reason] += 1
@@ -1175,10 +1183,14 @@ def _sweep_locked(receipt: dict, ymd: int, scan_volume, snap: dict,
             per_col[c] += 1
         out_rows.append(derived)
 
+    receipt["derive_ms"] = round((time.perf_counter() - d_wall) * 1000, 1)
+    receipt["derive_cpu_ms"] = round((time.thread_time() - d_cpu) * 1000, 1)
     receipt["as_of"] = as_of
+    u_cpu = time.thread_time()
     (receipt["rows_written"], receipt["sqlite_upsert_ms"],
      receipt["sqlite_upsert_busy_wait_ms"]) = _timed_touch(
         snapshot_db.upsert_live_rows, out_rows)
+    receipt["upsert_cpu_ms"] = round((time.thread_time() - u_cpu) * 1000, 1)
     (_, receipt["sqlite_prune_ms"], receipt["sqlite_prune_busy_wait_ms"]) = (
         _timed_touch(snapshot_db.prune_live_rows, ymd))
 
@@ -1496,6 +1508,8 @@ def sweep_job() -> dict:
         f"sqlite_upsert_busy_wait_ms={receipt['sqlite_upsert_busy_wait_ms']} "
         f"sqlite_prune_ms={receipt['sqlite_prune_ms']} "
         f"sqlite_prune_busy_wait_ms={receipt['sqlite_prune_busy_wait_ms']} "
+        f"upsert_cpu_ms={receipt['upsert_cpu_ms']} "
+        f"derive_ms={receipt['derive_ms']} derive_cpu_ms={receipt['derive_cpu_ms']} "
         f"active_jobs_at_sweep=[{receipt['active_jobs_at_sweep']}] "
         f"wal_state_at_sweep=[{receipt['wal_state_at_sweep']}]"
     )
