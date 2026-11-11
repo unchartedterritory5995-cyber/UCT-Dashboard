@@ -53,7 +53,7 @@ const SET = [
   ['make every chart weekly except the left column', B33, 'c0', ['c1', 'c2', 'c4', 'c5', 'c7', 'c8'], ['c1', 'c2', 'c4', 'c5', 'c7', 'c8']],
   ['make all of them weekly except the one to the left of this one', B13, 'c1', ['c1', 'c2'], ['c1', 'c2']],
   ['everything weekly except TSLA', B22, 'c0', ['c0', 'c1', 'c2'], ['c0', 'c1', 'c2']],
-  ['make every chart weekly except the one diagonally opposite this one', B33, 'c0', ['c0', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7'], ['c0', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7']],
+  ['switch all the charts to weekly except the chart kitty-corner from this one', B33, 'c0', ['c0', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7'], ['c0', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7']],
   // a WRONG plan (it includes the excluded chart): the same one-set question, the excluded chart never in it
   ['set every chart to weekly except the one diagonally across from this one', B22, 'c0', ['c0', 'c1', 'c2', 'c3'], ['c0', 'c1', 'c2']],
   ['make all the charts weekly apart from the two on the left', B23, 'c2', ['c0', 'c1', 'c2', 'c3', 'c4', 'c5'], ['c1', 'c2', 'c4', 'c5']],
