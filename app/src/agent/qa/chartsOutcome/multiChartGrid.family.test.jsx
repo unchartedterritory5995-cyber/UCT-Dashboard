@@ -328,8 +328,8 @@ describe.each(SHAPES)('Multi Chart family on a $id grid (pl-grid held-out)', (sh
   // deixis NEG_POINTER reads "not the clicked one" / "except this one" as excluding the click, but NOT "not the one I clicked" —
   // that phrase then POINTS at the click (POINTS), resolveDeictic answers the click, and a model plan aimed at the clicked cell
   // runs. Measured with multiChart.cell resetToMine; the rule is target-kind-generic, so chart.* ops read it the same way.
-  // PINNED (Lead, 2026-11-10): both halves flip together when #988's NEG_POINTER fix reaches master — then the it.fails starts
-  // passing (vitest reports it as a failure) and the PINNED case fails: swap them to one plain `it` asserting the ask.
+  // FIXED by #988 (NEG_POINTER), on master since 64421f770d: the it.fails and the PINNED wrong outcome flipped together on the
+  // #1030 re-merge, so they are one plain `it` asserting the ask (as the Lead's 2026-11-10 pin said).
   const runPhrasing2 = async () => {
     const n = shape.rows * shape.cols
     H.prefs = { multichart_state: JSON.stringify(gridOf(shape, { cells: POOL.slice(0, n).map((sym, i) => cell(`c${i}`, sym, { settings: { upColor: `#00000${i}` } })) })) }
@@ -337,15 +337,10 @@ describe.each(SHAPES)('Multi Chart family on a $id grid (pl-grid held-out)', (sh
     click('c0')
     await m.say('reset the bottom-right one to my chart, not the one I clicked', (ctx) => [{ action: 'multiChart.cell', target: must(ctx.charts.find(c => c.selected), 'clicked').ref, args: { op: 'resetToMine' } }])
   }
-  it.fails('KNOWN GAP (deixis NEG_POINTER, #988): "…not the one I clicked" — a plan on the clicked cell must be asked and the clicked cell keep its fork', async () => {
+  it('#988 NEG_POINTER: "…not the one I clicked" — a plan on the clicked cell is asked and the clicked cell keeps its fork', async () => {
     await runPhrasing2()
     await waitFor(() => expect(asked()).toBe(true), { timeout: 1500 })
     expect(at('c0').settings).toEqual({ upColor: '#000000' })
-  }, 30000)
-  it('PINNED current WRONG outcome (deixis NEG_POINTER, #988): "…not the one I clicked" runs the plan on the clicked cell — the top-left cell is reset', async () => {
-    await runPhrasing2()
-    await waitFor(() => expect(at('c0').settings).toBeUndefined())
-    expect(asked()).toBe(false)
   }, 30000)
 
   it('AMBIGUOUS: "maximize the top chart" fits several cells: asked, nothing changes', async () => {

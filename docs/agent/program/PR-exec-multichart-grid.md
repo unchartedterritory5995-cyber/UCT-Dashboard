@@ -142,3 +142,33 @@ All runs went through `python ../tools/agent_suite_lock.py run --who pl-grid -- 
 3. **Group seed is not persisted.** `sanitizeState` drops `group.seed` on hydrate, so an industry-cohort refresh after a reload says "Nothing to refresh". This is pre-existing and not changed here.
 4. **`multiChart.cell` and `chart.*` in one plan.** They share refs (the cell id). A plan mixing them on the same cell is refused as "doesn't apply", never applied to a wrong cell.
 5. **Opening Shared Chart Settings** is a dialog opener with an Undo that closes it (C3-061). Like C1-127, no other capability opens a dialog.
+
+## Re-merged onto 64421f770d (2026-11-11)
+
+Merge `951f7b9419` (origin/master `64421f770d`), SAT-1 `2918499cce`, this doc + the #988 pin swap after. LOCAL, vitest / pytest, scripted model, jsdom; no model calls, nothing pushed.
+
+**STATUS: STOPPED for the Lead / AUDIT. Two rails fail by the rules of this re-merge, and neither was "fixed" here:**
+
+1. **Routing v2: 2 in→out** (`docs/agent/program/evidence/1030-remerge/v2-first-calls.md`, 3635 requests, 320 differ; in→in 62, out→in 1, out→out 19, **in→out 2**, no expectation 236; in on master 665/774, merged 664/774). The rows are `corpus.json:slang-08` (screener.run) and `agentExec widget held-out:C3-172` (widget.setOption). Cause: the `multiChart` group is `fillLast` but not `wordsOnly`, so v2 uses it as filler and displaces `screener` / `boardEdit`. Experiment, not committed: `wordsOnly: true` gives 29 differing, 0 in→out.
+2. **agentNoLookbehindEquivalence: frozen routing rows changed** (digests not re-recorded). v1 `selectGroups` over the 2745 frozen inputs: 984 change. 980 only add `multiChart`. **4 collapse from the full manifest (no group matched) to `multiChart` (+ agent / undo)**: lb.routing[75], [159], [200], [227]. Their bare words `groups`, `rows` and `sync` match the group's words. With `wordsOnly` 21 still change, and the same 4 still collapse. The v1 words need narrowing (bare `groups?`, `rows?|columns?`, `sync`), or the Lead must decide whether to re-record, as #1027 did.
+
+Also failing, outside #1030's scope:
+- `tests/test_uct_agent_nl1_selection.py::test_a_routed_nl1_request_is_three_cache_blocks_core_first`: the merge adds a 25th routing group, and `turn.py` MAX_GROUPS = 24 drops `guide`. Expected until the MAX_GROUPS 32 PR lands. turn.py is untouched.
+- `tests/test_uct_agent_server_capability_mirrors.py::test_every_manifest_action_name_is_withheld_by_the_guard_ratchet` (#1030's own ratchet): master's newer actions `chartSetup.autoScale`, `chartSetup.compareGroup`, `chartSetup.stepBars`, `watchlist.arrangeColumns` and `watchlist.exportList` are not withheld by `knowledge/guard.py`'s verb list. The multiChart names pass. This needs a guard verb decision, so the guard is untouched.
+
+Numbers on the merged tree:
+- Pins: agentRouting FULL.length 164 + 2 = **166**. agentScreener manifestFor(CTX).length 158 + 2 = **160**. agentNl1Selection core and agentIndicatorsM2 are unchanged and pass (multiChart is its own fillLast group).
+- agentNl1SelectionCoverage at budget 55: corpus 174/182 (95.6%), dev 43/43 (100%), heldout-v1 164/165 (99.4%). This is identical to master `64421f770d` run the same way, with 0 not reachable.
+- agentExecReach: 23/23 tests pass, held-out v2 list 8/8. agentScanSat1Requests 62/62. routeReachability passes (multiChart.cell phrasing added). noRegexLookbehind passes.
+- capreg routing / routingV2 / inventory (702) / golden / collision ×2 / contracts pass, and nlm1Routing passes.
+- #988 rails pass: agentTargetTruth, agentRelativeChart, agentDiagonalChart, agentNegatedClickAct, agentTickerAnchors, agentLineAbsolute. multiChart.outcome passes, as do the grid tests (MultiChartGrid / GridChartCell / useMultiChartState) and agentMultiChartMode.
+- Family test: 42/42. #988's NEG_POINTER fix flipped the 3 KNOWN-GAP it.fails and the 3 PINNED cases. As the pin said, each pair is now one plain `it` asserting the ask, so the clicked cell is never the target on a grid either. #988's targeting applies to `multiChart.cell` unchanged, because its snapshot carries `chartRef` (spatialCheck `chartRefOf`). There was no textual conflict: #1030 touches neither deixis.js, spatialCheck.js nor useAgent.js.
+- Capreg corpus: #1030 had no entry for its actions. This merge adds them:
+  - a GRID fixture board (`testing/gridStub.js`, the useGridAgentControl method set);
+  - `expect.grid`;
+  - two multiChart.set intents (2×3 layout + Undo, crosshair sync + Undo), 4 phrasings plus 2 undo cases, all passing;
+  - a refusal case for multiChart.cell with the grid closed (`refusedAction` asserted);
+  - lock 173 intents / 43 refusals / 31 workflows;
+  - coverage 133/185.
+- Generated files were reset to master and regenerated, each in its own run: golden (+127, the same delta as before), parity, capreg baseline, UPDATE_CAPREG. SAT-1 has 30 hunks, each the same multiChart group listing, in its own commit.
+- CHARTS_EXECUTION_STATUS.md: master's file plus #1030's 16 rows, recounted by script: **259 / 484 VERIFIED (53.5%)**, MISSING 105, BLOCKED 29.
