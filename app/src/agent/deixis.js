@@ -13,7 +13,7 @@ import { addableRows } from './capabilities/indicatorEdits'
 import { resolvedTicker } from './nl/tickers'
 import { sanitizeChartTabs } from '../pages/charts/chartTabs'
 import { CLICK_ACT_NP } from './clickRef'
-import { namedAnchorRelation, wholeLinesNamed, clickLineMatch, clickLineHits, activeText, relationAnchor, blankStated, negatedClick, withoutExclusions } from './spatialCheck'
+import { namedAnchorRelation, wholeLinesNamed, clickLineMatch, clickLineHits, activeText, relationAnchor, blankStated, negatedClick, withoutExclusions, excludedCharts } from './spatialCheck'
 
 // Words that point at "the chart in front of me". "it" counts only for a CHART-kind op ("make it
 // weekly"), never on its own ("put it in Momentum", "what is it" are not about a chart).
@@ -672,6 +672,17 @@ export function chartRefOf(kind, snap) {
   return g && g !== snap.ref ? g : null
 }
 
+// (#988 follow-up) THE CHARTS THE WORDS LEAVE OUT — "…, not the NVDA chart", "… except the left one", "… but not on NVDA", "leave
+// this one alone": never the chart meant, whatever else the words describe or the click says. When they leave exactly ONE chart
+// of the candidates, that chart is the one meant (two charts, "hide volume, not the NVDA chart" → the other one). The exclusions
+// are the constraint check's own (spatialCheck.excludedCharts); one it cannot place (UNPLACED) is asked there, whatever this infers.
+export const leftOut = (text, charts, sel) => excludedCharts(text, charts, sel)
+function theOneLeft(ex, backed) {
+  if (!ex.size) return null
+  const rest = backed.filter(b => !ex.has(b.chart))
+  return rest.length === 1 ? rest[0] : null
+}
+
 /**
  * Narrow `candidates` (snapshots of one chart-backed kind) using the member's words and the
  * selection. → { ref } (exactly one meant) | { ask } (several and nothing reliable) | null (the
@@ -736,7 +747,10 @@ export function resolveDeictic({ host, kind, candidates, text, chartOp = false }
   // "this NVDA chart" / "the 5 minute chart" / "the empty one": the charts the words describe. One → it. Several → the clicked
   // one only if it is among them. ⛔ Otherwise the member picks from those: the clicked chart never stands in for a description.
   // (G5, AUDIT probe 18) a clause that says a chart is fine names no target: "this one …, the QQQ chart next to SPY is fine"
-  const said = describedCharts(activeText(text) || text, live)
+  const ex = leftOut(text, live, selectedChart(host))
+  // (#988 follow-up) a chart described only to be LEFT OUT ("hide volume except the NVDA chart") is no description of the target
+  const said0 = describedCharts(activeText(text) || text, live)
+  const said = said0?.length && ex.size ? (said0.some(c => !ex.has(c.ref)) ? said0.filter(c => !ex.has(c.ref)) : null) : said0
   const sel = selectedChart(host)
   if (said) {
     const refs = new Set(said.map(c => c.ref))
@@ -747,8 +761,10 @@ export function resolveDeictic({ host, kind, candidates, text, chartOp = false }
     const choices = fits.length ? fits.map(b => b.c) : candidates
     return { ask: { text: 'Which chart do you mean?', choices: choices.map(c => ({ ref: c.ref, label: c.label })) } }
   }
-  const hit = sel ? backed.filter(b => b.chart === sel) : []
+  const hit = sel && !ex.has(sel) ? backed.filter(b => b.chart === sel) : []
   if (hit.length === 1) return { ref: hit[0].c.ref }
+  const one = theOneLeft(ex, backed)
+  if (one) return { ref: one.c.ref }
   return { ask: { text: sel ? 'Which chart do you mean?' : 'Which chart do you mean? Click a chart to select it, or pick one:', choices: candidates.map(c => ({ ref: c.ref, label: c.label })) } }
 }
 
@@ -946,6 +962,12 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
   // chart there is unidentified like any other. A bare "this" still means the clicked chart, and a position word fitting several
   // charts counts the click only if it is one of them.
   const sel = selectedChart(host)
+  // (#988 follow-up) when the words leave exactly one chart out of the board, that one is named; a chart named only to be LEFT
+  // OUT ("…, not NVDA", "… except the first chart") is no chart named against the click (it still answers)
+  const ex = leftOut(words, charts, sel)
+  const left = ex.size ? charts.filter(c => !ex.has(c.ref)) : []
+  if (left.length === 1) named.add(left[0].ref)
+  const kept = withoutExclusions(words)
   // (#988) a position said only to EXCLUDE a chart ("log on the one I selected, not the left one") is no place the request names
   const said = chartPositions(withoutExclusions(words))
   const answered = (pickedRefs || []).some(Boolean)
@@ -965,7 +987,7 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
   // (#988, AUDIT probe 20 a) "other than the one I'm looking at, put THE REST on log": with the click negated, "the rest / the
   // others / everything else" names every chart but the click (a plan on the click is excluded by the negation screens)
   if (sel && !answered && REST_OF_BOARD.test(words) && negatedPointer(words)) for (const c of charts) if (c.ref !== sel) named.add(c.ref)
-  if (sel && (/\bthis\b/i.test(otherOne ? words.replace(OTHER_CHART, ' ') : words) || (!otherOne && !answered && !lineNamed && !chartsNamedBy(`${words.replace(POS_WORDS, ' ')} ${said.join(' ')}`, charts).size && clickFits(said, charts, sel)))) named.add(sel)
+  if (sel && (/\bthis\b/i.test(otherOne ? words.replace(OTHER_CHART, ' ') : words) || (!otherOne && !answered && !lineNamed && !chartsNamedBy(`${kept.replace(POS_WORDS, ' ')} ${said.join(' ')}`, charts).size && clickFits(said, charts, sel)))) named.add(sel)
   const unnamed = [...targets.keys()].filter(c => !named.has(c))
   if (!unnamed.length) return null
   if (targets.size === 1) {
