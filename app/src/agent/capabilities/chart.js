@@ -259,6 +259,8 @@ export function viewDone(meta, { op, arg, want }) {
   if (op === 'restoreView') return sameFrame(meta.frame, arg)
   // the ◀ / ▶ step: the window moved by exactly the bars asked (right-relative, within a bar), never just "it moved"
   if (op === 'stepBar') return !!meta.frame && !!want && Math.abs(meta.frame.fromRight - want.fromRight) < 0.6 && Math.abs(meta.frame.toRight - want.toRight) < 0.6
+  // the + / - zoom: the window narrowed (in) or widened (out) by at least half a bar, and its width is the one asked within a bar
+  if (op === 'zoom') return !!meta.frame && !!want && zoomedTo(meta.frame, want)
   // Auto-scale: the price scale itself says it fits the bars (unreadable is never "done")
   if (op === 'autoScale') return meta.priceAuto === true
   return meta.indicatorsHidden === arg
@@ -267,8 +269,14 @@ export function viewDone(meta, { op, arg, want }) {
 // What a view change's Undo is pinned to: the range shown, the window a step left (to a tenth of a bar), or hide-all.
 const viewFp = (snap, op) => {
   if (op === 'applyRange') return snap.view?.activeRange ?? null
-  if (op === 'stepBar') { const f = snap.view?.frame; return f ? `${f.fromRight.toFixed(1)}|${f.toRight.toFixed(1)}` : null }
+  if (op === 'stepBar' || op === 'zoom') { const f = snap.view?.frame; return f ? `${f.fromRight.toFixed(1)}|${f.toRight.toFixed(1)}` : null }
   return !!snap.view?.indicatorsHidden
+}
+// the window's width in bars (logical to − from), and whether a zoom landed: the right direction, by the width asked
+const frameWidth = (f) => f.fromRight - f.toRight
+const zoomedTo = (f, want) => {
+  const w = frameWidth(f)
+  return (want.out ? w > want.from + 0.5 : w < want.from - 0.5) && Math.abs(w - want.width) < 1
 }
 const sameFrame = (a, b) =>!!a && !!b && Math.abs(a.fromRight - b.fromRight) < 0.6 && Math.abs(a.toRight - b.toRight) < 0.6 && !!a.locked === !!b.locked
 // Did the view arrive? The Time Navigator puts the LAST BAR ON OR BEFORE the date at the right
@@ -425,7 +433,7 @@ export const chartKind = {
     if ('viewDo' in item.patch) {
       const { op } = item.patch.viewDo
       if (op === 'setIndicatorsHidden') p.viewDo = { op, arg: !!item.before.view?.indicatorsHidden }
-      else if ((op === 'applyRange' || op === 'stepBar') && item.before.view?.frame) p.viewDo = { op: 'restoreView', arg: item.before.view.frame }
+      else if ((op === 'applyRange' || op === 'stepBar' || op === 'zoom') && item.before.view?.frame) p.viewDo = { op: 'restoreView', arg: item.before.view.frame }
       else return null
     }
     return p

@@ -23,6 +23,9 @@
 //                                it also drops a dragged price scale, which nothing reads back.
 //   chartSetup.stepBars          the Time Navigator's ◀ / ▶ (StockChart.stepBar, n bars in one call). A view, read back as
 //                                the window moved by exactly n bars; Undo restores the window and view lock (restoreView).
+//   chartSetup.zoom              the + / - keys' time-axis zoom (StockChart.zoomTimeAxis, n presses in one call). A view,
+//                                read back as the window narrowed / widened to the width asked; refused at the time scale's
+//                                own limit; Undo restores the window and view lock (restoreView), stale once the member moves it.
 //   chartSetup.autoScale         the price axis menu's Auto-scale (doAutoScale, the one writer the menu row uses). Read back
 //                                from the price scale (getDateMeta.priceAuto); unreadable = unavailable. No Undo: the
 //                                hand-set range it drops is not read back.
@@ -52,7 +55,12 @@ const RANGE_NO_UNDO = 'I couldn\'t read how the chart was framed before, so this
 const RESET_NO_UNDO = 'A view reset has no Undo: pan or zoom the chart, or pick a range.'
 const MAX_STEP = 100
 const STEP_NO_UNDO = 'I couldn\'t read where the chart was before, so this step can\'t be undone here: step it the other way, or reset the view.'
-const AUTO_NO_UNDO = 'Auto-scale has no Undo: drag the price scale to set it by hand again.'
+// C1-028 · chartSetup.zoom: the + / - keys, each press × 0.8 (in) or × 1.25 (out) of the window's width
+const MAX_ZOOM_STEPS = 10
+const frameWidth = (f) => f.fromRight - f.toRight
+const ZOOM_FACTOR = { in: 0.8, out: 1.25 }
+const ZOOM_NO_UNDO = 'I couldn\'t read how the chart was framed before, so this zoom can\'t be undone here: zoom the other way, or reset the view.'
+const AUTO_NO_UNDO ='Auto-scale has no Undo: drag the price scale to set it by hand again.'
 const PRICE_UNREADABLE = 'I can\'t read this chart\'s price scale right now, so I can\'t tell whether it is on auto-scale. Try again in a moment.'
 // C1-127 · chartSetup.openSettings
 const OPEN_NO_UNDO = 'Opening Chart Settings changes nothing, so there\'s nothing to undo: close it with ✕ or Esc.'
@@ -353,6 +361,41 @@ export function registerChartSetupCapabilities() {
       return { ...st, viewDo: { op: 'stepBar', arg: n, want: { fromRight: f.fromRight - n, toRight: f.toRight - n } } }
     },
     describe: (b, a, { direction, bars }) => (a.viewDo ? `Moved this chart ${bars} bar${bars === 1 ? '' : 's'} ${direction} (view only; nothing on the chart changed)` : null),
+  })
+
+  // ── C1-028: zoom ONE chart's time axis in or out — the + / - keys' own writer (StockChart.zoomTimeAxis), n presses in one call ──
+  // Read back as the window's width (getDateMeta().frame) changed in the asked direction to the width asked (the time scale's
+  // bar-spacing clamp included). At that limit it refuses before the chart is told anything. Undo = restoreView (window + lock).
+  registerCapability({
+    ...chartCommon,
+    name: 'chartSetup.zoom',
+    summary: `Zoom ONE chart's time axis in (fewer, wider bars) or out (more, narrower bars), like pressing + or - on the chart, 1 to ${MAX_ZOOM_STEPS} presses at once. A view change: nothing is drawn, removed or saved. Undo puts the previous view back.`,
+    hints: `direction = in | out; steps = key presses, 1 to ${MAX_ZOOM_STEPS} (1 when they don't say; "a lot" = 3). For a named span (3M, 1Y…) use chartSetup.setRange; the price axis is chartSetup.autoScale.`,
+    args: { type: 'object', properties: { direction: { type: 'string', enum: ['in', 'out'] }, steps: { type: 'integer' } }, required: ['direction', 'steps'], additionalProperties: false },
+    undoNote: ZOOM_NO_UNDO,
+    check(st, { direction, steps }) {
+      if (direction !== 'in' && direction !== 'out') return 'Zoom in or out?'
+      if (!Number.isInteger(steps) || steps < 1 || steps > MAX_ZOOM_STEPS) return `I can zoom 1 to ${MAX_ZOOM_STEPS} steps at a time. For a set span, pick a range (3M, 1Y, 5Y…).`
+      const f = st.view?.frame
+      if (!f) return NOT_READY
+      const w = frameWidth(f), lim = st.view.zoomLimits
+      if (!(w > 0)) return NOT_READY
+      // the time scale's own clamp: already there = nothing to do, said plainly (never a receipt for a chart that did not move)
+      if (lim && direction === 'in' && w <= lim.minWidth + 0.5) return 'This chart is already zoomed in as far as it goes.'
+      if (lim && direction === 'out' && w >= lim.maxWidth - 0.5) return 'This chart is already zoomed out as far as it goes.'
+      return null
+    },
+    // the + / - keys' arithmetic: the width × 0.8 or × 1.25 per press, around the centre, clamped by the time scale
+    apply(st, { direction, steps }) {
+      const out = direction === 'out'
+      const from = frameWidth(st.view.frame), lim = st.view.zoomLimits
+      const raw = from * Math.pow(ZOOM_FACTOR[direction], steps)
+      const width = lim ? Math.min(lim.maxWidth, Math.max(lim.minWidth, raw)) : raw
+      return { ...st, viewDo: { op: 'zoom', arg: { out, steps }, want: { out, from, width, limited: width !== raw } } }
+    },
+    describe: (b, a, { direction, steps }) => (a.viewDo
+      ? `Zoomed this chart ${direction}${a.viewDo.want.limited ? ' as far as it goes' : steps > 1 ? ` ${steps} steps` : ''}, the same as pressing ${direction === 'in' ? '+' : '-'} on it (view only; every bar is still there)`
+      : null),
   })
 
   registerCapability({

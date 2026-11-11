@@ -221,7 +221,7 @@ describe('the chart\'s half: one writer for the menu and the Agent, and the read
     // the read-back asks the price scale itself, and the ◀ / ▶ buttons' stepBar is the one the Agent reaches
     expect(s).toMatch(/priceAuto[,:]/)
     const pane = src('../components/chart/pane/ChartPane.jsx')
-    expect(pane).toMatch(/\['applyRange', 'restoreView', 'resetView', 'setIndicatorsHidden', 'stepBar', 'autoScale'\]/)
+    expect(pane).toMatch(/\['applyRange', 'restoreView', 'resetView', 'setIndicatorsHidden', 'stepBar', 'autoScale', 'zoom']/)
     expect(src('../pages/charts/widgets/ChartDateNav.jsx')).toMatch(/paneRef\?\.current\?\.stepBar\?\.\(-1\)/)
   })
 })

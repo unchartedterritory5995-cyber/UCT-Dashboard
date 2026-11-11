@@ -337,6 +337,18 @@ export const GROUPS = [
     // review B1: EMPTY here — capabilities/coach.js arms COACH_ROUTE_WORDS only while the coach capabilities are
     // registered, so on a dark server routing is byte-identical to the base (a coach word never narrows the catalog)
     words: [] },
+  // C1-028 (pl-zoom): VIEW GESTURES on one chart — the + / - zoom (chartSetup.zoom) — in their OWN group, WORDS-ONLY and fillLast
+  // (as compareGroups / watchlistShow): master's unrecognised-request fill sits at exactly 55 actions, so a 19th chartSetup
+  // action would push another group out. Last in the catalog, so every existing group keeps its place and its listing order.
+  // Later view gestures (C1-026 price-axis compress, …) join this group. Only its own words select it: zoom + in / out
+  // (optionally "the chart" between), "closer" / "tighter" on the chart's bars, a wider / zoomed-out view, more / fewer bars.
+  // Not "reset the zoom" (chartSetup.resetView), not a "zoom" that names no direction (a company, a ticker).
+  { id: 'chartView', title: 'Chart view gestures: zoom one chart\'s time axis in or out (the + / - keys), more or fewer bars on screen', domains: [], fillLast: true, wordsOnly: true,
+    actions: ['chartSetup.zoom'],
+    words: [
+      /\bzoom(?:ed|ing)? (?:(?:the |this |that |my |it |its )?(?:\w+ )?(?:chart|view|time axis|axis|one|candles|bars) )?(?:way |all the way |back |a (?:bit|little|lot) |further |more )?(?:in|out)\b/,
+      /\b(?:closer|tighter) (?:in |look |view )?(?:on|at) (?:the |this |that |my )?(?:\w+ )?(?:chart|candles|bars|price action)\b|\b(?:wider|broader|zoomed[- ]out) view (?:of|on) (?:the |this |that |my )?(?:\w+ )?(?:chart|candles|bars)\b/,
+      /\b(?:show|see|fit|squeeze|cram) (?:me )?(?:more|fewer|less) (?:bars|candles)\b/] },
 ]
 
 const SYMBOL_VERB = /\b(switch|change|put|show|pull up|load|open|chart)\b/
