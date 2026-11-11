@@ -147,9 +147,9 @@ def test_the_escalation_is_rate_limited_per_tail(frozen_2022):
 
 
 def test_ext_complete_tolerates_one_bucket():
-    assert bars_fetch.intraday_ext_session_complete("1", et(2026, 11, 10, 19, 58)) is True
-    assert bars_fetch.intraday_ext_session_complete("1", et(2026, 11, 10, 19, 57)) is False
-    assert bars_fetch.intraday_ext_session_complete("1", TAIL_1653) is False
+    assert bars_fetch.session_complete("1", et(2026, 11, 10, 19, 58), "eth") is True
+    assert bars_fetch.session_complete("1", et(2026, 11, 10, 19, 57), "eth") is False
+    assert bars_fetch.session_complete("1", TAIL_1653, "eth") is False
 
 
 # ── review #1051 F1: live-stream-covered 5m series ───────────────────────────

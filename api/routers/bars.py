@@ -747,9 +747,21 @@ def _augment_with_tail_status(response, ticker: str, tf: str, session: str | Non
         return response
     if not isinstance(payload, dict) or payload.get("no_data") or payload.get("error"):
         return response
-    rows = payload.get("bars")
-    if not isinstance(rows, list):
+    if not isinstance(payload.get("bars"), list):
         return response
+    headers = _apply_tail_status(payload, ticker, tf, session)
+    if headers is None:
+        return response
+    out = JSONResponse(content=payload, status_code=getattr(response, "status_code", 200))
+    for k, v in headers.items():
+        out.headers[k] = v
+    return out
+
+
+def _apply_tail_status(payload: dict, ticker: str, tf: str, session: str | None = None):
+    """`tail_status` (+ `retry_after`) onto an intraday payload in place. Returns the
+    headers to add, or None when there is no tail to judge (an empty full answer)."""
+    rows = payload.get("bars")
     if payload.get("delta"):
         from api.services import bars_sqlite as _bs
         tail = _bs.get_last_ts(ticker.upper(), tf)
@@ -760,7 +772,7 @@ def _augment_with_tail_status(response, ticker: str, tf: str, session: str | Non
                 pass
     else:
         if not rows:
-            return response
+            return None
         tail = rows[-1].get("t") if isinstance(rows[-1], dict) else None
     st = (_bars_fetch.intraday_tail_status(ticker, tf, tail, session=session) if session
           else _bars_fetch.intraday_tail_status(ticker, tf, tail))
@@ -770,7 +782,49 @@ def _augment_with_tail_status(response, ticker: str, tf: str, session: str | Non
     if st["tail_status"] == "unverified":
         payload["retry_after"] = 3
         headers["Retry-After"] = "3"
+    return headers
+
+
+def _augment_with_contract(response, ticker: str, tf: str, session: str | None, *,
+                           store_backed: bool, tail_status: bool, to: bool = False,
+                           meta: dict | None = None):
+    """THE BAR CONTRACT (docs/architecture/bar-contract.md) onto EVERY 200 bars answer
+    — every tf, every serve branch, full / `since=` / `to=` alike — in ONE parse that
+    also carries `tail_status` where it always applied (`tail_status=True`: live equity
+    intraday, not replay). Additive: `bars` is untouched. Computed by
+    `bar_contract.compute`, the one implementation. Returns the response unchanged on
+    ANY problem — a contract field must never break a chart serve."""
+    try:
+        payload = orjson.loads(response.body)
+    except Exception:
+        return response
+    if not isinstance(payload, dict) or payload.get("no_data") or payload.get("error"):
+        return response
+    rows = payload.get("bars")
+    if not isinstance(rows, list):
+        return response
+    headers = {}
+    try:
+        from api.services import bar_contract
+        fields = bar_contract.compute(ticker, tf, session, rows,
+                                      delta=bool(payload.get("delta")), to=to,
+                                      store_backed=store_backed, meta=meta)
+        spliced = fields.pop("_bars", None)
+        if spliced is not None:
+            payload["bars"] = spliced      # the store's current tail (see compute)
+        payload.update(fields)
+    except Exception as e:                 # noqa: BLE001
+        _bars_log.warning("[bars] contract fields failed %s tf=%s: %s", ticker, tf,
+                          type(e).__name__)
+    if tail_status and tf in _INTRADAY_TFS:
+        try:
+            headers = _apply_tail_status(payload, ticker, tf, session) or {}
+        except Exception:
+            headers = {}
     out = JSONResponse(content=payload, status_code=getattr(response, "status_code", 200))
+    for h in ("retry-after", "x-bars-shed"):
+        if h in response.headers:
+            out.headers[h] = response.headers[h]
     for k, v in headers.items():
         out.headers[k] = v
     return out
@@ -928,6 +982,8 @@ def _serve_eth_hourly(ticker: str, bars: int, since: str, to: str, warm: int):
         return resp
     payload["tf"] = "60"
     payload["session"] = "eth"
+    base_contract = {k: payload.get(k) for k in ("series_rev", "history_rev",
+                                                 "verified_through", "complete_through")}
     rows = payload.get("bars")
     if isinstance(rows, list) and rows:
         try:
@@ -949,6 +1005,15 @@ def _serve_eth_hourly(ticker: str, bars: int, since: str, to: str, warm: int):
         except Exception:                  # noqa: BLE001 — never a 60m answer on the wrong grid
             payload["bars"] = []
             payload["tail_status"] = "unverified"
+    if "contract" in payload:
+        # The 15m answer's contract, re-stated on the ETH hour grid (`derive_for_grid`).
+        try:
+            from api.services import bar_contract
+            payload.update(bar_contract.derive_for_grid(
+                ticker, "60", "eth", payload.get("bars") or [], base_contract, "15"))
+        except Exception:                  # noqa: BLE001
+            for k in ("complete_through", "developing"):
+                payload[k] = None
     out_resp = _carry_headers(
         JSONResponse(content=payload, status_code=getattr(resp, "status_code", 200)), resp)
     if getattr(resp, "status_code", 200) == 200 and payload.get("bars"):
@@ -1010,7 +1075,9 @@ def _serve_bars_impl(
     # before these are assigned (a crash path serves a fault response, not a
     # daily payload, so the append is skipped anyway).
     _is_breadth = False
+    _is_mkt_ind = False
     _drec = None
+    _meta_pre = None
     try:
         try:
             # Schwab /pricehistory doesn't serve cash-settled indexes — silently
@@ -1049,6 +1116,11 @@ def _serve_bars_impl(
             _is_breadth = _breadth_syms.is_breadth_symbol(ticker)
             _is_mkt_ind = (not _is_breadth) and _is_market_indicator(ticker)
             _drec = None if (_is_breadth or _is_mkt_ind) else _delisted.resolve(ticker)
+            if not (_is_breadth or _is_mkt_ind or _drec):
+                # Bar contract: the series meta is read BEFORE the rows, so an answer's
+                # rows are never older than the `series_rev` they carry.
+                from api.services.bar_contract import snapshot_meta as _snap_meta
+                _meta_pre = _snap_meta(ticker, tf, session)
             if _is_breadth:
                 # Coarse label now; build_breadth_bars refines it to breadth-cache vs
                 # breadth-build once the bars-layer cache lands (Phase 2).
@@ -1218,11 +1290,17 @@ def _serve_bars_impl(
         # says whether its tail is current, provider-verified, or UNVERIFIED — so a
         # repair shed for capacity can no longer reach the client as a silent 200 that
         # looks exactly like a current chart. Same live-equity scope as the daily append.
-        if (tf in _INTRADAY_TFS and not to and not _is_breadth and _drec is None
-                and not is_index(ticker)
-                and getattr(response, "status_code", 200) == 200):
+        # ⭐ AND EVERY 200 CARRIES THE BAR CONTRACT (P1, 2026-11-11): complete_through,
+        # developing, verified_through, grid, session, series_rev, cache_key — on every
+        # tf and every serve branch, in the same single parse.
+        if getattr(response, "status_code", 200) == 200:
+            _live_equity = (not _is_breadth and not _is_mkt_ind and _drec is None
+                            and not is_index(ticker))
             try:
-                response = _augment_with_tail_status(response, ticker, tf, session)
+                response = _augment_with_contract(
+                    response, ticker, tf, session,
+                    store_backed=_live_equity and get_serve_layer() != "yf-only",
+                    tail_status=(_live_equity and not to), to=bool(to), meta=_meta_pre)
             except Exception:
                 pass
 
@@ -1860,6 +1938,7 @@ def refresh_bars_all_endpoint(
         # handles to the dropped one).
         try:
             _bs.bump_db_epoch()
+            _bs.bump_store_floor("bulk delete")
         except Exception:
             pass
     except Exception as e:

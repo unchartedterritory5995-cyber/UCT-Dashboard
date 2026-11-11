@@ -223,6 +223,9 @@ def _heal_drift(ticker: str, tf: str, bad_timestamps: list[int]) -> int:
                     (ticker.upper(), tf, *chunk),
                 )
                 deleted += cur.rowcount or 0
+            if deleted:
+                from api.services import bars_sqlite as _bs_meta
+                _bs_meta.bump_series_revs(conn, [(ticker, tf)], deleted=True)
             conn.commit()
         finally:
             conn.close()

@@ -1,6 +1,10 @@
 import os
 import sys
 
+# Bars series meta (bar contract): no background flusher in tests — a test that needs
+# persistence calls `bars_sqlite.flush_meta()` itself (see `_isolate_bars_series_meta`).
+os.environ.setdefault("BARS_META_FLUSH_SECONDS", "0")
+
 import pytest
 
 # ─── AUTH_DB_PATH isolation ────────────────────────────────────────────────
@@ -533,6 +537,27 @@ def _reset_screener_live_rest():
             ledger = None
         if isinstance(ledger, list):
             ledger.clear()
+
+    _clear()
+    yield
+    _clear()
+
+
+@pytest.fixture(autouse=True)
+def _isolate_bars_series_meta():
+    """Per-test: the bars store's in-process meta state (queued proofs, store floors)
+    starts empty, so one test's `_mark_tail_verified` cannot verify another's tail."""
+    def _clear():
+        try:
+            from api.services import bars_sqlite as _bs
+        except Exception:
+            return
+        with _bs._pending_lock:
+            _bs._pending_verified.clear()
+        with _bs._floor_lock:
+            _bs._pending_floors.clear()
+            for k in _bs._mem_floors:
+                _bs._mem_floors[k] = 0.0
 
     _clear()
     yield

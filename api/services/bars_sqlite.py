@@ -212,7 +212,9 @@ def init_db() -> None:
     # 2026-05-01). Pre-feature rows merged the 9:00 pre-market bar with
     # the 9:30 RTH-open bar into one 9:00 bucket, persisting incorrect
     # bars after the fix. Marker row records that the migration ran.
+    _create_meta_tables(c)
     c.execute("CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY, applied_at INTEGER)")
+    _wholesale = False
     for migration_name, sql in _MIGRATIONS:
         already = c.execute("SELECT 1 FROM _migrations WHERE name=?", (migration_name,)).fetchone()
         if not already:
@@ -221,9 +223,401 @@ def init_db() -> None:
                 c.execute("INSERT INTO _migrations(name, applied_at) VALUES (?, ?)",
                           (migration_name, int(__import__('time').time())))
                 print(f"[sqlite-migration] Applied {migration_name}: deleted {cur.rowcount} rows")
+                _wholesale = _wholesale or bool(cur.rowcount)
             except Exception:
                 pass
     c.commit()
+    if _wholesale:
+        bump_store_floor("init_db migration")
+
+
+# ── SERIES META: series_rev + verified_through, IN THE STORE (P1 bar contract) ──
+# ⭐ Contract: docs/architecture/bar-contract.md. One row per STORED series
+# (ticker, tf). A chart session never selects different stored rows (rth/eth read the
+# same 1-30m rows; the ETH 60m grid is derived from 15m), so (ticker, tf, session) maps
+# onto exactly one stored series — `bar_contract.source_series`.
+#
+#   rev               hybrid-logical-clock MILLISECONDS: every committed write that
+#                     touches the series' rows sets rev = max(rev + 1, now_ms) IN THE
+#                     SAME TRANSACTION as the rows. Monotonic; ms-valued so a rev also
+#                     says "as of when".
+#   verified_through  unix seconds: the provider (or the live stream) was asked at this
+#                     instant and every row it returned had already reached this store.
+#                     Written write-behind (batched, `flush_meta`), max()-merged.
+#   proof_floor       unix seconds: a DELETE of the series' rows invalidates every proof
+#                     taken before it (verified_through is cleared and a late flush of an
+#                     older proof is refused).
+#
+# ⛔ ONE WRITER RULE. Row writers go through `bump_series_revs` inside their own
+# transaction; wholesale writers (snapshot install, bulk heals that delete across
+# series) call `bump_store_floor`. `tests/test_bar_contract.py` holds a census rail:
+# a new `INTO ohlcv` / `DELETE FROM ohlcv` site that calls neither fails by name.
+# ⚖️ Why not an SQLite trigger: measured 2026-11-11, a per-row AFTER INSERT trigger
+# made a 4M-row bulk load ~6x slower (25 s -> 156 s), and the R2 merge is exactly that
+# shape. One upsert per (series, transaction) costs one extra row per write.
+_META_DDL = (
+    "CREATE TABLE IF NOT EXISTS series_meta ("
+    " ticker TEXT NOT NULL, tf TEXT NOT NULL,"
+    " rev INTEGER NOT NULL DEFAULT 0,"
+    " history_rev INTEGER NOT NULL DEFAULT 0,"
+    " verified_through REAL,"
+    " proof_floor REAL,"
+    " PRIMARY KEY (ticker, tf)) WITHOUT ROWID",
+    "CREATE TABLE IF NOT EXISTS store_meta (k TEXT PRIMARY KEY, v REAL)",
+)
+# `history_rev`: the rev of the newest write that changed SEALED history — a row older
+# than the series' stored tail, or the tail itself once proven (`_history_keys`), or any
+# delete. A client holding history_rev H only needs `since=` deltas while H is current;
+# a newer history_rev means re-read the window (a correction: split re-adjust, heal,
+# merge correction, reconciliation).
+_REV_SET = "rev = max(series_meta.rev + 1, excluded.rev)"
+_HIST_SET = "history_rev = max(series_meta.rev + 1, excluded.rev)"
+_REV_UPSERT_SQL = (
+    "INSERT INTO series_meta(ticker, tf, rev) VALUES (?, ?, ?) "
+    f"ON CONFLICT(ticker, tf) DO UPDATE SET {_REV_SET}")
+_REV_HISTORY_UPSERT_SQL = (
+    "INSERT INTO series_meta(ticker, tf, rev, history_rev) VALUES (?, ?, ?, ?) "
+    f"ON CONFLICT(ticker, tf) DO UPDATE SET {_REV_SET}, {_HIST_SET}")
+_REV_DELETE_UPSERT_SQL = (
+    "INSERT INTO series_meta(ticker, tf, rev, history_rev, proof_floor) VALUES (?, ?, ?, ?, ?) "
+    f"ON CONFLICT(ticker, tf) DO UPDATE SET {_REV_SET}, {_HIST_SET}, "
+    "verified_through = NULL, proof_floor = excluded.proof_floor")
+_VERIFIED_UPSERT_SQL = (
+    "INSERT INTO series_meta(ticker, tf, rev, verified_through) VALUES (?, ?, 0, ?) "
+    "ON CONFLICT(ticker, tf) DO UPDATE SET verified_through = CASE "
+    " WHEN excluded.verified_through <= COALESCE(series_meta.proof_floor, 0) "
+    "   THEN series_meta.verified_through "
+    " ELSE max(COALESCE(series_meta.verified_through, 0), excluded.verified_through) END")
+#: store_meta keys: wholesale-change floors (see `bump_store_floor`).
+REV_FLOOR_KEY = "rev_floor_ms"
+PROOF_FLOOR_KEY = "proof_floor_s"
+
+
+def _create_meta_tables(c: sqlite3.Connection) -> None:
+    for ddl in _META_DDL:
+        c.execute(ddl)
+    cols = {row[1] for row in c.execute("PRAGMA table_info(series_meta)").fetchall()}
+    if "history_rev" not in cols:      # a pre-release dev store
+        c.execute("ALTER TABLE series_meta ADD COLUMN history_rev INTEGER NOT NULL DEFAULT 0")
+
+
+def _now_ms() -> int:
+    return int(time.time() * 1000)
+
+
+def bump_series_revs(c: sqlite3.Connection, keys, *, deleted: bool = False,
+                     history=()) -> None:
+    """Advance `rev` of every (ticker, tf) in `keys` INSIDE the caller's open write
+    transaction (same commit as the rows). `history` = the keys whose write changed
+    sealed history (`True` = all of them); `deleted=True` implies history for every key
+    and invalidates the series' proofs. Self-heals a store that predates the meta table."""
+    keys = sorted({(str(t).upper(), str(tf)) for t, tf in keys})
+    if not keys:
+        return
+    if history is True or deleted:
+        hist = set(keys)
+    else:
+        hist = {(str(t).upper(), str(tf)) for t, tf in (history or ())}
+    now_ms = _now_ms()
+    batches = []
+    if deleted:
+        now_s = time.time()
+        batches.append((_REV_DELETE_UPSERT_SQL, [(t, tf, now_ms, now_ms, now_s) for t, tf in keys]))
+    else:
+        h = [(t, tf, now_ms, now_ms) for t, tf in keys if (t, tf) in hist]
+        p = [(t, tf, now_ms) for t, tf in keys if (t, tf) not in hist]
+        if h:
+            batches.append((_REV_HISTORY_UPSERT_SQL, h))
+        if p:
+            batches.append((_REV_UPSERT_SQL, p))
+    for sql, params in batches:
+        try:
+            c.executemany(sql, params)
+        except sqlite3.OperationalError as e:
+            msg = str(e).lower()
+            if "no such table" not in msg and "no column" not in msg and "has no column" not in msg:
+                raise
+            _create_meta_tables(c)
+            c.executemany(sql, params)
+    if deleted:
+        _drop_pending_verified(keys)
+
+
+def _tail_proven(c: sqlite3.Connection, ticker: str, tf: str, tail_ts: int) -> bool:
+    """The stored tail row's bucket has ENDED at or before the series' proof instant."""
+    vt = series_meta(ticker, tf, _conn_override=c)["verified_through"]
+    if vt is None:
+        return False
+    try:
+        from api.services import bar_contract
+        b = bar_contract.bucket_bounds(tf, tail_ts, bar_contract.grid_for(tf))
+    except Exception:                                    # noqa: BLE001
+        return True                                      # unknown: treat as proven (safe)
+    return b is None or b[1] <= vt
+
+
+def _differs(old: tuple, new: tuple) -> bool:
+    for a, b in zip(old, new):
+        if a is None or b is None:
+            if a is not b:
+                return True
+        elif abs(float(a) - float(b)) > 1e-9 * max(1.0, abs(float(b))):
+            return True
+    return False
+
+
+def _stored_max_ts(c: sqlite3.Connection, tf: str, tickers: list) -> dict:
+    """{ticker: MAX(ts)} in a few statements (a correlated MAX per ticker is one index
+    seek each; one statement per 400 tickers instead of one per ticker)."""
+    out = {}
+    for i in range(0, len(tickers), 400):
+        chunk = tickers[i:i + 400]
+        vals = ",".join("(?)" for _ in chunk)
+        for t, mx in c.execute(
+                f"WITH k(t) AS (VALUES {vals}) SELECT k.t, "
+                "(SELECT MAX(ts) FROM ohlcv WHERE ticker=k.t AND tf=?) FROM k",
+                [*chunk, tf]).fetchall():
+            if mx is not None:
+                out[t] = mx
+    return out
+
+
+def _history_keys(c: sqlite3.Connection, tf: str, written, *, replace: bool = True) -> set:
+    """The (TICKER, tf) keys among `written` row tuples (ticker, tf, ts, o, h, l, c, v)
+    whose write changes SEALED history: a row at or before the stored tail whose values
+    differ (`replace`) or whose bucket was empty, excluding the tail row while it is
+    still unproven (the developing / provisional bar is expected to change). Read under
+    the caller's write lock, before the write. Bounded by the rows being written."""
+    by_t: dict = {}
+    for r in written:
+        by_t.setdefault(r[0], []).append(r)
+    out = set()
+    if not by_t:
+        return out
+    maxes = _stored_max_ts(c, tf, list(by_t))
+    for tkr, rs in by_t.items():
+        mx = maxes.get(tkr)
+        if mx is None:
+            continue
+        lo = min(int(r[2]) for r in rs)
+        if lo > mx:
+            continue
+        stored = {int(t): v for t, *v in c.execute(
+            "SELECT ts,o,h,l,c,v FROM ohlcv WHERE ticker=? AND tf=? AND ts>=? AND ts<=?",
+            (tkr, tf, lo, mx)).fetchall()}
+        tail_proven = None
+        for r in rs:
+            ts = int(r[2])
+            if ts > mx:
+                continue
+            old = stored.get(ts)
+            if old is not None and not (replace and _differs(tuple(old), tuple(r[3:8]))):
+                continue
+            if ts == mx:
+                if tail_proven is None:
+                    tail_proven = _tail_proven(c, tkr, tf, mx)
+                if not tail_proven:
+                    continue
+            out.add((tkr, tf))
+            break
+    return out
+
+
+# Process-local view of the store floors (also persisted to store_meta by the flusher,
+# so a restart or another process reading this store sees them).
+_floor_lock = threading.Lock()
+_mem_floors = {"rev_floor_ms": 0.0, "proof_floor_s": 0.0}
+_pending_floors: dict = {}
+
+
+def bump_store_floor(reason: str = "") -> None:
+    """A WHOLESALE change (bars.db replaced by a snapshot, a bulk delete across many
+    series): every series' served rev becomes >= now_ms and every proof taken before
+    now is void. Lock-free for the caller (persisted by the meta flusher) so it is safe
+    to call from any writer, including one holding its own connection or the lock."""
+    now_ms, now_s = float(_now_ms()), time.time()
+    with _floor_lock:
+        _mem_floors[REV_FLOOR_KEY] = max(_mem_floors[REV_FLOOR_KEY], now_ms)
+        _mem_floors[PROOF_FLOOR_KEY] = max(_mem_floors[PROOF_FLOOR_KEY], now_s)
+        _pending_floors[REV_FLOOR_KEY] = _mem_floors[REV_FLOOR_KEY]
+        _pending_floors[PROOF_FLOOR_KEY] = _mem_floors[PROOF_FLOOR_KEY]
+    with _pending_lock:
+        _pending_verified.clear()       # every queued proof predates the floor
+    _logger.info("[sqlite] store floor bumped (%s)", reason or "wholesale change")
+    _ensure_meta_flusher()
+
+
+# Write-behind buffer for verified_through: (TICKER, tf) -> newest checked_at.
+_pending_lock = threading.Lock()
+_pending_verified: dict = {}
+_META_FLUSH_S = float(os.environ.get("BARS_META_FLUSH_SECONDS", "1.0"))
+_flusher_started = False
+_flusher_lock = threading.Lock()
+_meta_flush_stats = {"flushes": 0, "rows": 0, "lock_ms_max": 0.0, "lock_ms_total": 0.0,
+                     "errors": 0}
+
+
+def _drop_pending_verified(keys) -> None:
+    with _pending_lock:
+        for k in keys:
+            _pending_verified.pop(k, None)
+
+
+def record_verified(ticker: str, tf: str, checked_at: float) -> None:
+    """Queue a proof (see `_VERIFIED_UPSERT_SQL`). Readers see it at once in this
+    process (`series_meta` merges the buffer); other processes after the next flush."""
+    key = (ticker.upper(), str(tf))
+    with _pending_lock:
+        prev = _pending_verified.get(key)
+        if prev is None or checked_at > prev:
+            _pending_verified[key] = float(checked_at)
+    _ensure_meta_flusher()
+
+
+def flush_meta() -> int:
+    """Write every queued proof + floor in ONE short transaction. Returns rows written.
+    A failure re-queues (max-merged) and is retried on the next tick."""
+    with _pending_lock:
+        batch = dict(_pending_verified)
+        _pending_verified.clear()
+    with _floor_lock:
+        floors = dict(_pending_floors)
+        _pending_floors.clear()
+    if not batch and not floors:
+        return 0
+
+    def _write(c):
+        if floors:
+            c.executemany(
+                "INSERT INTO store_meta(k, v) VALUES (?, ?) "
+                "ON CONFLICT(k) DO UPDATE SET v = max(store_meta.v, excluded.v)",
+                list(floors.items()))
+        if batch:
+            c.executemany(_VERIFIED_UPSERT_SQL,
+                          [(t, tf, vt) for (t, tf), vt in batch.items()])
+
+    try:
+        t0 = time.perf_counter()
+        with _WRITE_LOCK:
+            c = _conn()
+            try:
+                _write(c)
+            except sqlite3.OperationalError as e:
+                if "no such table" not in str(e).lower():
+                    raise
+                _create_meta_tables(c)
+                _write(c)
+            c.commit()
+        held = (time.perf_counter() - t0) * 1000.0
+        _meta_flush_stats["flushes"] += 1
+        _meta_flush_stats["rows"] += len(batch) + len(floors)
+        _meta_flush_stats["lock_ms_total"] += held
+        _meta_flush_stats["lock_ms_max"] = max(_meta_flush_stats["lock_ms_max"], held)
+        return len(batch) + len(floors)
+    except Exception as e:                               # noqa: BLE001 — retried next tick
+        _meta_flush_stats["errors"] += 1
+        _logger.warning("[sqlite] meta flush failed (%s); re-queued", type(e).__name__)
+        try:
+            _conn().rollback()
+        except Exception:                                # noqa: BLE001
+            pass
+        with _pending_lock:
+            for k, vt in batch.items():
+                if vt > _pending_verified.get(k, 0.0):
+                    _pending_verified[k] = vt
+        with _floor_lock:
+            for k, v in floors.items():
+                _pending_floors[k] = max(_pending_floors.get(k, 0.0), v)
+        return 0
+
+
+def meta_flush_stats() -> dict:
+    with _pending_lock:
+        pending = len(_pending_verified)
+    return dict(_meta_flush_stats, pending=pending)
+
+
+def _ensure_meta_flusher() -> None:
+    global _flusher_started
+    if _flusher_started or _META_FLUSH_S <= 0:
+        return
+    with _flusher_lock:
+        if _flusher_started:
+            return
+        _flusher_started = True
+
+        def _loop():
+            while True:
+                time.sleep(_META_FLUSH_S)
+                try:
+                    flush_meta()
+                except Exception:                        # noqa: BLE001
+                    pass
+
+        threading.Thread(target=_loop, name="bars-meta-flush", daemon=True).start()
+
+
+_FLOORS_TTL_S = 1.0
+_floors_cache: dict = {}        # db path -> (monotonic read time, epoch, rev_floor, proof_floor)
+
+
+def _store_floors(c: sqlite3.Connection) -> tuple[float, float]:
+    """The store-wide floors (persisted; another process may have raised them) merged
+    with this process's. The persisted pair is re-read at most once a second (and after
+    every epoch bump): they move only on wholesale changes."""
+    now = time.monotonic()
+    hit = _floors_cache.get(_DB_PATH)
+    if hit is not None and hit[1] == _db_epoch and now - hit[0] < _FLOORS_TTL_S:
+        db_rev, db_proof = hit[2], hit[3]
+    else:
+        db_rev = db_proof = 0.0
+        try:
+            for k, v in c.execute("SELECT k, v FROM store_meta WHERE k IN (?, ?)",
+                                  (REV_FLOOR_KEY, PROOF_FLOOR_KEY)).fetchall():
+                if k == REV_FLOOR_KEY:
+                    db_rev = float(v or 0)
+                else:
+                    db_proof = float(v or 0)
+        except sqlite3.OperationalError:
+            pass
+        _floors_cache[_DB_PATH] = (now, _db_epoch, db_rev, db_proof)
+    return (max(_mem_floors[REV_FLOOR_KEY], db_rev),
+            max(_mem_floors[PROOF_FLOOR_KEY], db_proof))
+
+
+def series_meta(ticker: str, tf: str, _conn_override=None) -> dict:
+    """{"rev", "history_rev", "verified_through"} for a stored series, as THIS
+    store states it (persisted value merged with this process's unflushed proofs).
+    rev 0 = no write recorded since the meta table existed (still a valid rev; it
+    only grows). Never raises: an unreadable store answers rev 0 / no proof."""
+    key = (ticker.upper(), str(tf))
+    rev, hrev, vt, pfloor = 0, 0, None, _mem_floors[PROOF_FLOOR_KEY]
+    try:
+        c = _conn_override if _conn_override is not None else _conn()
+        rev_floor, store_pfloor = _store_floors(c)
+        try:
+            row = c.execute(
+                "SELECT rev, history_rev, verified_through, proof_floor FROM series_meta "
+                "WHERE ticker=? AND tf=?", key).fetchone()
+        except sqlite3.OperationalError:
+            row = None
+        if row:
+            rev = int(row[0] or 0)
+            hrev = int(row[1] or 0)
+            vt = float(row[2]) if row[2] is not None else None
+            pfloor = max(pfloor, float(row[3] or 0))
+        rev = max(rev, int(rev_floor))
+        hrev = max(hrev, int(rev_floor))
+        pfloor = max(pfloor, store_pfloor)
+    except Exception:                                    # noqa: BLE001
+        pass
+    with _pending_lock:
+        pend = _pending_verified.get(key)
+    if pend is not None and (vt is None or pend > vt):
+        vt = pend
+    if vt is not None and vt <= pfloor:
+        vt = None
+    return {"rev": rev, "history_rev": hrev, "verified_through": vt}
 
 
 def daily_bydate_index_ready() -> bool:
@@ -462,6 +856,8 @@ def delete_bars(ticker: str | None = None, tf: str | None = None) -> int:
     c = _conn()
     if ticker and tf:
         cur = c.execute("DELETE FROM ohlcv WHERE ticker=? AND tf=?", (ticker.upper(), tf))
+        if cur.rowcount:
+            bump_series_revs(c, [(ticker, tf)], deleted=True)
     elif tf:
         cur = c.execute("DELETE FROM ohlcv WHERE tf=?", (tf,))
     elif ticker:
@@ -469,6 +865,8 @@ def delete_bars(ticker: str | None = None, tf: str | None = None) -> int:
     else:
         cur = c.execute("DELETE FROM ohlcv")
     c.commit()
+    if cur.rowcount and not (ticker and tf):
+        bump_store_floor("delete_bars wildcard")
     return cur.rowcount
 
 
@@ -565,6 +963,8 @@ def replace_ticker_tf_rows(ticker: str, tf: str, bars: list[dict]) -> tuple[int,
             if rows:
                 c.executemany(
                     "INSERT OR REPLACE INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)", rows)
+            if deleted or rows:
+                bump_series_revs(c, [(tkr, tf)], deleted=bool(deleted), history=True)
             c.commit()
         except BaseException:
             c.rollback()
@@ -712,6 +1112,7 @@ def purge_mis_keyed_weekly_rows() -> int:
                     [tkr, *chunk],
                 )
                 deleted += cur.rowcount
+            bump_series_revs(c, [(tkr, "W")], deleted=True)
             c.commit()
     if sixty_probe:
         _logger.info(f"[sqlite] 60m grid: {sixty_old} old-layout ticker(s), {sixty_rebuilt} rebuilt this pass")
@@ -926,6 +1327,7 @@ def purge_impossible_bars(tf: str | None = None, *, apply: bool = False,
         c = _conn()
         c.executemany("DELETE FROM ohlcv WHERE ticker=? AND tf=? AND ts=?",
                       [(r["ticker"], r["tf"], r["ts"]) for r in found])
+        bump_series_revs(c, [(r["ticker"], r["tf"]) for r in found], deleted=True)
         c.commit()
     summary["deleted"] = len(found)
     _logger.warning("[sqlite] purged %d impossible bars: %s",
@@ -1650,6 +2052,7 @@ def put_bars_many(tf: str, bars_by_ticker: dict[str, list[dict]]) -> int:
         try:
             with _WRITE_LOCK:
                 c = _conn()
+                _hist = _history_keys(c, tf, rows) | _history_keys(c, tf, snapped_rows, replace=False)
                 c.executemany(
                     "INSERT OR REPLACE INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)",
                     rows,
@@ -1659,6 +2062,8 @@ def put_bars_many(tf: str, bars_by_ticker: dict[str, list[dict]]) -> int:
                         "INSERT OR IGNORE INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)",
                         snapped_rows,
                     )
+                bump_series_revs(c, {(r[0], tf) for r in rows} | {(r[0], tf) for r in snapped_rows},
+                                 history=_hist)
                 c.commit()
             return len(rows) + len(snapped_rows)
         except sqlite3.OperationalError as e:
@@ -1715,6 +2120,9 @@ def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False,
         try:
             with _WRITE_LOCK:
                 c = _conn()
+                _hist = (_history_keys(c, tf, rows, replace=(on_conflict != "ignore"))
+                         | _history_keys(c, tf, snapped_rows, replace=False))
+                _changes0 = c.total_changes
                 if rows:
                     c.executemany(
                         f"{_verb} INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)",
@@ -1726,6 +2134,8 @@ def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False,
                         "INSERT OR IGNORE INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)",
                         snapped_rows,
                     )
+                if c.total_changes != _changes0:
+                    bump_series_revs(c, [(ticker, tf)], history=_hist)
                 c.commit()
             return len(rows) + len(snapped_rows)
         except sqlite3.OperationalError as e:
