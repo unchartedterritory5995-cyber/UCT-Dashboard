@@ -1,0 +1,35 @@
+# head 93d0e211a9 2026-11-10T22:53:09Z dirty: 0 tracked file(s) modified
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+# cmd: cd app && npx vitest run src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx
+ RUN  v4.0.18 C:/w/pl-widget/app
+ ❯ src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx (3 tests | 2 failed) 11181ms
+     × the plan picked the left one: a question, and neither widget's look changed 8947ms
+     × the plan picked Momentum's view: a question, and no saved column layout 1132ms
+     ✓ control: "move the volume column after the symbol in Momentum" names it: moved, no question  1099ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx > F1 (b) u18-look-07: two Watchlists, "make the watchlist background black": asked, nothing written > the plan picked the left one: a question, and neither widget's look changed
+AssertionError: UCT Agent5:00 PMSome of that didn't take effect: Board failed (“canvasColor” did not change) — nothing was left changed.: expected false to be true // Object.is equality
+- Expected
++ Received
+- true
++ false
+ ❯ src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx:168:29
+    166|     const before = boardJson(m)
+    167|     const out = await m.say('make the watchlist background black', (c)…
+    168|     expect(asked(out), out).toBe(true)
+       |                             ^
+    169|     expect(boardJson(m)).toBe(before)
+    170|     expect(JSON.stringify(m.board.state.widgets)).not.toMatch(/#000000…
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+ FAIL  src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx > F1 (c) u18-cols-07: two Watchlists, "move the volume column after the symbol": asked, no column moved > the plan picked Momentum's view: a question, and no saved column layout
+AssertionError: UCT Agent5:00 PMOn “Momentum”: moved Volume after Symbol: expected false to be true // Object.is equality
+- Expected
++ Received
+- true
++ false
+ ❯ src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx:179:29
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+ Test Files  1 failed (1)
+      Tests  2 failed | 1 passed (3)
+   Start at  17:53:11
+   Duration  19.05s (transform 5.48s, setup 343ms, import 6.81s, tests 11.18s, environment 545ms)

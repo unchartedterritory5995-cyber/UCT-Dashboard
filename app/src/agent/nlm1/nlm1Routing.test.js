@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest'
 import { registerCatalog } from '../qa/capabilityRegression/testing/registry'
 import { routedNames } from '../qa/capabilityRegression/testing/route'
-import { GROUPS, groupOfAction, selectGroups, routeManifest } from '../routing'
+import { GROUPS, groupOfAction, selectGroups, routeManifest, wordsSelect } from '../routing'
 import { MANIFEST_CONTRACT, manifestFor } from '../capabilities'
 import { correctTypos, lexiconFor } from '../nl/lexicon'
 import vocabulary from './vocabulary.json'
@@ -133,5 +133,34 @@ describe('undo rides on its own words, never on the words of its description', (
   it('a recognised question is not sent Undo; one nothing recognises still gets the fallback fill, undo included, exactly as v1', () => {
     expect(routedNames('last earnings date for NVDA', { v2: true }).names).not.toContain('agent.undo')
     expect(routedNames('when did nh/nl last go negative', { v2: true }).names).toContain('breadth.history')
+  })
+})
+
+// AUDIT (wordsOnly fill, post-#1027): a `wordsOnly` group (routing.js) is chosen by its OWN words only. v1's fallback already
+// left it out of the filler (selectGroups `filler`); v2's step-6 fill packed EVERY group, so on a request nothing recognised
+// watchlistShow rode the fill and took the room `definitions` / `indicatorAlerts` had before #1027. The rail is generic over
+// GROUPS.filter(g => g.wordsOnly): a new words-only group must add a phrase of its own words to OWN_WORDS below.
+describe('routing v2: a words-only group never rides the fill, and is still sent on its own words', () => {
+  const full = () => manifestFor({ surface: 'charts', createIndicator: true, manageIndicators: true })
+  const opts = () => ({ enabled: true, limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold, correct })
+  const sentOf = (msg) => new Set(routeManifestV2(full(), msg, opts()).manifest.map(c => groupOfAction(c.name)))
+  const wordsOnly = GROUPS.filter(g => g.wordsOnly)
+  const OWN_WORDS = {
+    watchlistShow: ['put my flagged list in the watchlist widget', 'export my momentum list to excel', 'make the price column wider in the watchlist'],
+  }
+  it('there is a words-only group, and every one has phrases of its own words here', () => {
+    expect(wordsOnly.length).toBeGreaterThan(0)
+    for (const g of wordsOnly) expect(OWN_WORDS[g.id]?.length, `${g.id}: add phrases of its own words to OWN_WORDS`).toBeGreaterThan(0)
+  })
+  // requests v1 does not recognise, on which v2's fill is on (all but "hmm" sent watchlistShow on master a15b666119)
+  it.each(['flip to AMD', 'lose the gridlines', 'any articles on RIVN lately', 'show me the leaders', 'both', 'whats the RS on this', 'hmm'])
+  ('"%s": the v2 first call carries no words-only group', (msg) => {
+    const sent = sentOf(msg)
+    expect(sent.size).toBeGreaterThan(1)
+    for (const g of wordsOnly) expect(sent.has(g.id), `${g.id} for "${msg}"`).toBe(false)
+  })
+  it.each(wordsOnly.flatMap(g => (OWN_WORDS[g.id] || []).map(m => [g.id, m])))('%s on its own words: "%s"', (id, msg) => {
+    expect(wordsSelect(id, msg)).toBe(true)
+    expect(sentOf(msg).has(id)).toBe(true)
   })
 })

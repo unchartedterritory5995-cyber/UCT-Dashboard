@@ -1644,6 +1644,55 @@
    "shape": "{\"add\":[\"RVOL\"],\"hide\":[\"Volume\"],\"reset\":false}"
   },
   {
+   "name": "watchlist.arrangeColumns",
+   "domain": "watchlist",
+   "target": "listView",
+   "summary": "Move a column on a Watchlist or Scanner widget (as dragging its header does) or set its width in pixels (as dragging its gridline does). Undo puts the old columns back.",
+   "hints": "target = the ref of the listViews entry: the one marked active for \"this list\", the one named as the list they name (\"my Momentum list\"; for \"the one I just made\", the watchlists entry marked recent), the only entry for \"my watchlist\"; several could be meant → clarify by name or position. No entry means no such widget is on this board: say so, offer watchlist.open. column = a column that shows; before / after = another showing column (one of them, or neither); width = pixels (a column's minimum to 600), or null.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "column": {
+      "type": "string"
+     },
+     "before": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "after": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "width": {
+      "type": [
+       "number",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "column",
+     "before",
+     "after",
+     "width"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "watchlist.step",
    "domain": "watchlist",
    "target": "listView",
@@ -3613,6 +3662,96 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "watchlist.showList",
+   "domain": "watchlist",
+   "target": "board",
+   "summary": "Make ONE Watchlist widget show a list exactly as its picker does: one of the member's lists, a UCT prebuilt or community list, Flagged — or go back to its list picker. Undo puts back what it showed.",
+   "hints": "target = the board entry; widget = the Watchlist widget's id, or null when only one; source = mine | prebuilt | community | flagged | picker (tag = a colour tag: refused); name = the list's name as said, null for flagged / picker.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "source": {
+      "type": "string",
+      "enum": [
+       "mine",
+       "prebuilt",
+       "community",
+       "flagged",
+       "picker",
+       "tag"
+      ]
+     },
+     "name": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "widget",
+     "source",
+     "name"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "watchlist.exportList",
+   "domain": "watchlist",
+   "target": "board",
+   "summary": "Copy the list ONE Watchlist widget shows to the clipboard, or download it as CSV or Excel — the list menu's own Copy / Export. Excel uses an export from the member's quota.",
+   "hints": "target = the board entry; widget = the Watchlist widget's id, or null when only one; format = clipboard | csv | xlsx.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "format": {
+      "type": "string",
+      "enum": [
+       "clipboard",
+       "csv",
+       "xlsx"
+      ]
+     }
+    },
+    "required": [
+     "widget",
+     "format"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
    "query": false,
    "argAliases": null,
    "coerce": null,
@@ -5886,6 +6025,86 @@
    "target": "chart",
    "summary": "Reset ONE chart's view (right-click → Reset view): the default window with the newest bar in place, and the price scale back on auto. A view change: settings, drawings and indicators are untouched. No Undo.",
    "hints": "target = the chart. For a chart's SETTINGS use chart.resetDefaults.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chartSetup.openSettings",
+   "domain": "chartSetup",
+   "target": "chart",
+   "summary": "Open ONE chart's own Chart Settings dialog for the member (the gear on the chart's header, right-click → Chart settings, Alt+,), so they can look or edit there themselves. Changes no setting; no Undo needed.",
+   "hints": "target = the chart. Only when they ask to OPEN / SHOW / BRING UP the chart's settings; to CHANGE a setting use chart.setSetting. \"Open settings\" alone (no chart) is the Settings page (app.open).",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chartSetup.stepBars",
+   "domain": "chartSetup",
+   "target": "chart",
+   "summary": "Step ONE chart's view back (older bars) or forward (newer bars) by whole bars: the Time Navigator's ◀ / ▶ buttons, one bar per click, up to 100 bars at once. A view change: nothing is drawn, removed or saved. Undo puts the previous view back.",
+   "hints": "direction = back | forward; bars = how many bars, 1 to 100 (\"a bar\" = 1). For a date use chart.goToDate; for a span, chartSetup.setRange. Not Replay Mode's cutoff (chart.replay).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "direction": {
+      "type": "string",
+      "enum": [
+       "back",
+       "forward"
+      ]
+     },
+     "bars": {
+      "type": "integer"
+     }
+    },
+    "required": [
+     "direction",
+     "bars"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chartSetup.autoScale",
+   "domain": "chartSetup",
+   "target": "chart",
+   "summary": "Put ONE chart's price scale back on auto-scale so it fits the bars again (the price axis menu → Auto-scale; double-clicking the price numbers does the same), after the scale was dragged or squeezed by hand. Only the price scale: the time window, settings, drawings and indicators are untouched. No Undo.",
+   "hints": "target = the chart. Log / percent / arithmetic is chart.setScale; to also reset the time window use chartSetup.resetView.",
    "args": {
     "type": "object",
     "properties": {},
