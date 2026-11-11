@@ -5241,6 +5241,7 @@ export default function StockChart({
   const vertMarginsRef = useRef(null) // Captured proportional candle placement {top,bottom}; null = default headroom
   const latestLiveRef = useRef(null)  // Latest live price — used to re-apply after setData() wipes
   const liveBarRef = useRef(null)     // Developing bar OHLCV tracked tick-by-tick (survives setData)
+  const respNewestTRef = useRef(null)    // newest bar t (unix) in the latest /api/bars answer for THIS sym (I8 seal proof)
   const heldPushRef = useRef(null)      // { key: `${sym}|${tf}`, frames: Map<bar.t, frame> } — push frames held during a tf-switch hold
   const tfSwitchHoldRef = useRef(false)  // render → updateChart: a tf-switch hold is active (keep the old series)
   const liveBarSeriesRef = useRef(null) // `${sym}|${tf}` the held liveBarRef was seeded for (see the updateChart seed)
@@ -9774,6 +9775,10 @@ export default function StockChart({
   // server's verdict, so this must not require rows the way `_netMatches` does).
   const _respForSym = !!data && (!data.ticker || data.ticker === _symU)
   _lastTailStatusRef.current = (_respForSym && isIntraday) ? (data?.tail_status ?? null) : null
+  {
+    const _rb = (_respForSym && isIntraday && Array.isArray(data?.bars) && data.bars.length) ? data.bars[data.bars.length - 1]?.t : null
+    respNewestTRef.current = typeof _rb === 'number' ? _rb : null
+  }
   const _renderedTailT = (isIntraday && Array.isArray(bars) && bars.length)
     ? bars[bars.length - 1]?.t : null
   const barCurrentness = (isIntraday && !_isCustomTf && !replayCutoff && !_hasOverride)
@@ -13667,7 +13672,10 @@ export default function StockChart({
           { time: _lt, open: last.o, high: last.h, low: last.l, close: last.c, volume: last.v || 0 },
           { sym, periodSec: LIVE_PERIOD_SECONDS[resolvedTf] || 300,
             nowChart: toChartTime(Date.now() / 1000), tf: resolvedTf,
-            session: liveStreamSession(showExtendedRef.current) })
+            session: liveStreamSession(showExtendedRef.current),
+            // I8: the only poll-side proof a bucket is sealed — the SAME response holds a later
+            // bucket (e.g. a post-close bar the RTH view filters out). Never the clock.
+            serverHasLater: Number.isFinite(respNewestTRef.current) && toChartTime(respNewestTRef.current) > _lt })
         {
           // Reconcile the developing bar's H/L against the server bucket, PRESERVING
           // the accumulated live high/low. The live push feed IS the real-time tape

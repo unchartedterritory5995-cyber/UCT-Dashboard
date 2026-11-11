@@ -35,6 +35,7 @@ from api.services import bars_split_repair as rep
 from api.services import bars_sqlite
 from api.services import indicator_alert_evaluator as ev
 from api.services import indicator_compute as ic
+from api.services import session_calendar
 
 
 # ── the fixture store ───────────────────────────────────────────────────────
@@ -53,7 +54,7 @@ def fresh_db(tmp_path, monkeypatch):
 def _sessions(start: datetime.date, n: int) -> list[datetime.date]:
     out, d = [], start
     while len(out) < n:
-        if d.weekday() < 5:
+        if session_calendar.is_trading_day(d):   # real NYSE sessions only (date_bar_keys)
             out.append(d)
         d += datetime.timedelta(days=1)
     return out
