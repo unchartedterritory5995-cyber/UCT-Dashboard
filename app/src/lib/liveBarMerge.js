@@ -30,14 +30,18 @@
 //       Fallback writers (foldPrice, Writer A/C) may widen the painted high/low but never
 //       these; the next authoritative push frame rebuilds high/low from them, so a stray
 //       fallback print cannot survive an authoritative frame for the same bucket.
-//   I8  A CLOSED BUCKET IS THE SERVER'S. Once the bucket has ended (its end <= now) the
-//       fetched bar (or a push FINAL) replaces live O/H/L/C/V outright — the H/L union
-//       applies only to the still-forming bucket (audit D5: ghost wicks kept by max/min).
+//   I8  A SEALED BUCKET IS THE SERVER'S. Once the server PROVES the bucket complete — the
+//       response's `verified_through` (provider asked) is at/after the bucket's end, or the
+//       response holds a LATER bucket, or a push FINAL arrived — its bar replaces live
+//       O/H/L/C/V outright (audit D5: ghost wicks kept by max/min). The CLIENT clock proves
+//       nothing: a REST tail lags the stream by seconds, and a poll landing just after the
+//       bucket ends can still be missing the last minute — there the H/L union stands.
 //
 // Bar shape here is the chart's: { time, open, high, low, close, volume, sym?, tradeTs? }
 // where `time` is the chart-series time (already ET-offset — the caller converts).
 
 import { bucketEndChartTime } from '../components/chart/liveBuckets'
+import { fromChartTime } from '../components/chart/barTime'
 
 const finitePos = (v) => Number.isFinite(v) && v > 0
 
@@ -175,17 +179,21 @@ export function mergePushBar(prev, inc, opts = {}) {
  */
 export const RECONCILE_AHEAD_GRACE_SEC = 45
 
-export function reconcileWithServerTail(live, server, { sym = null, periodSec = 300, nowChart = null, tf = null, session = 'rth', graceSec = RECONCILE_AHEAD_GRACE_SEC } = {}) {
-  const srv = { ...server, volume: _vol(server.volume), sym }
+export function reconcileWithServerTail(live, server, { sym = null, periodSec = 300, nowChart = null, tf = null, session = 'rth', graceSec = RECONCILE_AHEAD_GRACE_SEC, verifiedThrough = null, serverHasLater = false } = {}) {
+  // F2: a server bar is authoritative as a whole — stamp its extremes as such (I7), so a
+  // later fallback print folded onto it is never mistaken for an authoritative extreme.
+  const srv = { ...server, volume: _vol(server.volume), sym, authHigh: server.high, authLow: server.low }
   if (!live || !Number.isFinite(live.time) || (live.sym != null && sym != null && live.sym !== sym)) {
     return { bar: srv, ahead: false }
   }
   if (live.time === server.time) {
     if (live.final) return { bar: { ...live, sym }, ahead: false }
-    // I8: a bucket that has ENDED is the server's — no live extreme survives it.
-    if (Number.isFinite(nowChart) && tf != null && bucketEndTime(live.time, tf, session) <= nowChart) {
+    // I8: a bucket the server PROVES sealed is the server's — no live extreme survives it.
+    const sealed = serverHasLater === true || (Number.isFinite(verifiedThrough) && tf != null
+      && verifiedThrough >= fromChartTime(bucketEndTime(live.time, tf, session)))
+    if (sealed) {
       const { provisional: _p, ...rest } = live
-      return { bar: { ...rest, ...srv, authHigh: srv.high, authLow: srv.low }, ahead: false }
+      return { bar: { ...rest, ...srv }, ahead: false }
     }
     if (live.provisional) {
       // I6: only the OPEN of a tick-opened bar is suspect — the fetched bucket-to-date bar

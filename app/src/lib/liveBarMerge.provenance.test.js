@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { mergePushBar, reconcileWithServerTail, foldPrice, provisionalOpen, mergeRegistryMinute, bucketEndTime } from './liveBarMerge'
-import { toChartTime } from '../components/chart/barTime'
+import { toChartTime, fromChartTime } from '../components/chart/barTime'
 
 // I7 / I8 (audit D5 "ghost wicks"), property form over seeded random sequences:
 //   I7  a value a FALLBACK writer put on the bar (Writer A/C tick, a registry minute) never
@@ -72,10 +72,30 @@ describe('I8: a closed bucket is the server\'s bar, exactly', () => {
       let live = mergePushBar(null, tape[0], { tf: '5' }).bar
       live = foldPrice(live, r2(server.high * (1.01 + r() * 0.04)), null, '5').bar   // ghost high
       live = foldPrice(live, r2(server.low * (0.95 + r() * 0.04)), null, '5').bar    // ghost low
-      const { bar, ahead } = reconcileWithServerTail(live, server, { periodSec: 300, nowChart: end + Math.floor(r() * 7200), tf: '5' })
+      // the server's PROOF the bucket is sealed: provider asked after its end, or a later bucket
+      const proof = r() < 0.5 ? { verifiedThrough: fromChartTime(end) + Math.floor(r() * 7200) } : { serverHasLater: true }
+      const { bar, ahead } = reconcileWithServerTail(live, server, { periodSec: 300, nowChart: end + Math.floor(r() * 7200), tf: '5', ...proof })
       expect(ahead).toBe(false)
       expect([bar.open, bar.high, bar.low, bar.close, bar.volume]).toEqual([server.open, server.high, server.low, server.close, server.volume])
     }
+  })
+
+  it('REGRESSION — the CLIENT clock past the end proves nothing: without the server seal a lagging partial snapshot never shrinks the live H/L', () => {
+    const end = bucketEndTime(T5, '5')
+    const live = { time: T5, open: 20, high: 20.9, low: 19.5, close: 20.6, volume: 7000, authHigh: 20.9, authLow: 19.5 }
+    const server = { time: T5, open: 20, high: 20.5, low: 19.8, close: 20.3, volume: 6500 }
+    for (const vt of [null, fromChartTime(end) - 1]) {
+      const { bar } = reconcileWithServerTail(live, server, { periodSec: 300, nowChart: end + 5, tf: '5', verifiedThrough: vt })
+      expect(bar).toMatchObject({ open: 20, high: 20.9, low: 19.5, close: 20.6 })
+    }
+  })
+
+  it('F2 — a server bar adopted with no live bar is authoritative as a whole: a later fallback ghost never survives the next push frame', () => {
+    const server = { time: T5, open: 20, high: 20.5, low: 19.8, close: 20.3, volume: 6500 }
+    let { bar } = reconcileWithServerTail(null, server, { periodSec: 300, tf: '5' })
+    bar = foldPrice(bar, 21.7, null, '5').bar          // ghost print
+    bar = mergePushBar(bar, { time: T5, open: 20, high: 20.6, low: 19.8, close: 20.55, volume: 6600 }, { tf: '5' }).bar
+    expect([bar.high, bar.low, bar.close]).toEqual([20.6, 19.8, 20.55])
   })
 
   it('CONTROL — while the bucket is still forming, the live range is kept (the snapshot lags)', () => {
