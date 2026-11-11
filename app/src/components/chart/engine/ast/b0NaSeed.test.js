@@ -26,7 +26,7 @@
 // history read that is `na` before the first bar.
 
 import { describe, it, expect } from 'vitest'
-import { translatePine, REFUSALS, naSeededSelfReferenceSentence } from './pine.js'
+import { translatePine, REFUSALS, selfReferenceSentence } from './pine.js'
 import { memberPaneDefinition } from '../../builder/memberPane/memberPaneDefinition'
 import { interpret, historySeedReading, listingSeedIsUnpinned } from './interpret.js'
 import { buildRuntimeIr } from './pineRuntimeFrontend.js'
@@ -107,9 +107,12 @@ describe('⭐⭐ rule 1 — an unmarked `na` seed runs its update on bar 0 (from
     const src = pine(5, ['x = na(x[1]) ? na : close < 3000 ? close : x[1]', 'plot(x)'])
     expect(hostRefusal(src).guard).toBe('pine:cycle')
     expect(() => host(src, listing)).toThrow(/no output tree/)
-    // control: a stated seed keeps the recurrence (bar 0 IS the seed, then the update)
-    const seeded = host(pine(5, ['y = na(y[1]) ? 7.0 : close > 3000 ? close : y[1]', 'plot(y)']), listing)
+    // control: a stated seed keeps the recurrence (bar 0 IS the seed, then the update). v2: in
+    // v3+ the stated seed does not compile either, and refuses `pine:cycle` since engine 49
+    // (`v3SelfDeclaration.test.js`)
+    const seeded = host(pine(2, ['y = na(y[1]) ? 7.0 : close > 3000 ? close : y[1]', 'plot(y)']), listing)
     expect(seeded.slice(0, 3)).toEqual([7, 7, 7])
+    expect(hostRefusal(pine(5, ['y = na(y[1]) ? 7.0 : close > 3000 ? close : y[1]', 'plot(y)'])).guard).toBe('pine:cycle')
   })
 })
 
@@ -129,7 +132,8 @@ describe('⭐⭐ r1 — pinned versions only, and only a BARE `na(x[k])` test', 
     expect(Number.isNaN(host(pine(v, PLAIN), listingFor(v))[0])).toBe(true)
   })
   it('a test that is NOT a bare `x[k]` read (`na(nz(x[1]))`, never true) is not the constant: bar 0 runs U', () => {
-    const got = host(pine(5, ['x = na(nz(x[1])) ? na : close < 3000 ? close : x[1]', 'plot(x)']), listing)
+    // v2 (v1/v2 compile it); v3+ refuses it `pine:cycle` since engine 49 (`v3SelfDeclaration.test.js`)
+    const got = host(pine(2, ['x = na(nz(x[1])) ? na : close < 3000 ? close : x[1]', 'plot(x)']), listing)
     expect(got[0]).toBe(CLOSE[0])
     expect(got.some((x) => !Number.isNaN(x))).toBe(true)
   })
@@ -170,7 +174,7 @@ describe('⭐⭐ engine 48 — `x = na(x[k]) ? na : U` refuses `pine:cycle` BY N
 
   it.each(cases)('%s, pragma %s: host (screen and pane), runtime and the member door all refuse with ONE sentence', (shape, _label, v, lines) => {
     const src = pineAt(v, lines)
-    const sentence = `${REFUSALS['pine:cycle']} — ${naSeededSelfReferenceSentence('x', v)}`
+    const sentence = `${REFUSALS['pine:cycle']} — ${selfReferenceSentence('x', v)}`
     expect(sentence).toContain(v === null || v < 3 ? V2 : V3)
     for (const r of [hostRefusal(src), hostRefusal(src, { strict: true }), runtimeRefusal(src)]) {
       expect(r && r.guard).toBe('pine:cycle')
@@ -182,24 +186,26 @@ describe('⭐⭐ engine 48 — `x = na(x[k]) ? na : U` refuses `pine:cycle` BY N
   })
 
   it('the wording, pinned once in full', () => {
-    expect(naSeededSelfReferenceSentence('x', 5)).toBe('`x` reads its own history inside its own declaration. '
+    expect(selfReferenceSentence('x', 5)).toBe('`x` reads its own history inside its own declaration. '
       + 'This does not compile in Pine v3+: a variable cannot refer to itself in its own declaration, so '
       + 'TradingView draws nothing for this script and nothing is drawn here. In v3+ the variable is '
       + 'declared once and updated with `:=`')
     // ⭐ review N3 — true for every spelling the detector catches: any lag `k` (the test's own
     // read), and a warm-up update whose two readings agree ("can disagree", not "differ")
-    expect(naSeededSelfReferenceSentence('x', 2)).toBe('`x` is set to `na` whenever its own earlier value, '
+    expect(selfReferenceSentence('x', 2)).toBe('`x` is set to `na` whenever its own earlier value, '
       + 'as its `na()` test reads it, is `na`. Pine v1/v2 (and a script with no `//@version`) does not state '
       + 'what that earlier value is before the first bar: if it is `na`, `x` is `na` on every bar; if it is 0, '
       + 'the update runs from the first bar. The two readings can disagree, and no TradingView capture has '
       + 'settled which one TradingView draws, so neither is drawn')
   })
 
-  it.each([[2, 'sma'], [5, 'ta.sma']])('a warm-up update (v%i): the host and the member door refuse `pine:cycle`; the runtime lane refuses by its own earlier wall', (v, sma) => {
-    // ⭐ review N2 — the runtime lane meets `runtime:conditional-history` before this rule; both
-    // refuse and nothing is drawn, and the member door shows the host's sentence
+  it.each([[2, 'sma'], [5, 'ta.sma']])('a warm-up update (v%i): the host and the member door refuse `pine:cycle`; the runtime lane refuses too', (v, sma) => {
+    // ⭐ review N2 — the runtime lane may meet an earlier wall of its own (`runtime:conditional-history`
+    // for a stated seed in v1/v2); both refuse and nothing is drawn, and the member door shows the
+    // host's sentence. In v3+ the runtime lane refuses `pine:cycle` first since engine 49
+    // (`v3SelfDeclaration.test.js`, `warmupSeed`/`warmupNa`)
     const src = pine(v, [`x = na(x[1]) ? na : x[1] * 0.9 + ${sma}(close, 5) * 0.1`, 'plot(x)'])
-    const sentence = `${REFUSALS['pine:cycle']} — ${naSeededSelfReferenceSentence('x', v)}`
+    const sentence = `${REFUSALS['pine:cycle']} — ${selfReferenceSentence('x', v)}`
     for (const r of [hostRefusal(src), hostRefusal(src, { strict: true })]) {
       expect(r && r.guard).toBe('pine:cycle')
       expect(r.message).toBe(sentence)
@@ -210,12 +216,19 @@ describe('⭐⭐ engine 48 — `x = na(x[k]) ? na : U` refuses `pine:cycle` BY N
     expect(door.guard).toBe('pine:cycle')
   })
 
-  it('controls: a stated seed and a test that is not a bare history read still translate, in both lanes', () => {
-    for (const v of [2, 5]) {
+  it('controls: a stated seed and a test that is not a bare history read still translate in v2, in both lanes (v3+: engine 49)', () => {
+    for (const v of [2]) {
       expect(hostRefusal(pine(v, ['y = na(y[1]) ? 7.0 : close > 3000 ? close : y[1]', 'plot(y)']))).toBe(null)
       expect(hostRefusal(pine(v, ['x = na(nz(x[1])) ? na : close < 3000 ? close : x[1]', 'plot(x)']))).toBe(null)
       expect(runtimeRefusal(pine(v, ['y = na(y[1]) ? 7.0 : close > 3000 ? close : y[1]', 'plot(y)']))).toBe(null)
       expect(runtimeRefusal(pine(v, ['x = na(nz(x[1])) ? na : close < 3000 ? close : x[1]', 'plot(x)']))).toBe(null)
+    }
+    // ⭐ engine 49: in v3+ neither compiles (each reads its own history in its declaration), and
+    // both refuse `pine:cycle` in both lanes (pinned per door in `v3SelfDeclaration.test.js`)
+    for (const lines of [['y = na(y[1]) ? 7.0 : close > 3000 ? close : y[1]', 'plot(y)'],
+      ['x = na(nz(x[1])) ? na : close < 3000 ? close : x[1]', 'plot(x)']]) {
+      expect(hostRefusal(pine(5, lines)).guard).toBe('pine:cycle')
+      expect(runtimeRefusal(pine(5, lines)).guard).toBe('pine:cycle')
     }
     // the v3+ mutable form of the same idea compiles in Pine and is untouched
     expect(hostRefusal(pine(5, ['float x = na', 'x := na(x[1]) ? na : x[1] + 1', 'plot(x)']))).not.toEqual(
