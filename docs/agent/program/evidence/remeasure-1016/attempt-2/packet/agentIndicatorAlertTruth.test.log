@@ -1,0 +1,25 @@
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+date -u: 2026-11-11T02:57:54Z
+tree: /c/w/pl-auto-remeasure HEAD 644b6d7188019c6a6d2d0ad4708152ead1c53ebb (measured master 75421184a33c10f42201c43f6bd2d6391594f4c1)
+harness: 6f9abd8515 (6f9abd85155112a64a6bc7facf0e5fc2de31c911) - recount.mjs only; no harness file is in the run tree
+# cmd: vitest run src/agent/agentIndicatorAlertTruth.test.jsx --reporter=default --reporter=json
+[suite-lock] all 2 slots busy (pl-exec, audit); waiting 15s
+[suite-lock] all 2 slots busy (pl-exec, audit); waiting 15s
+[bn] free memory GB: 40.1
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/w/pl-auto-remeasure/app[39m
+
+ [32m✓[39m src/agent/agentIndicatorAlertTruth.test.jsx [2m([22m[2m57 tests[22m[2m)[22m[33m 7567[2mms[22m[39m
+     [33m[2m✓[22m[39m "show my indicator alerts": the table shows the server's rows [33m 1022[2mms[22m[39m
+     [33m[2m✓[22m[39m "alert on the weekly RSI": a card first, nothing armed; Apply arms it on W; Undo deletes it [33m 1525[2mms[22m[39m
+     [33m[2m✓[22m[39m "tell me when my Bullish Trend flips on" → a card; Apply arms becomes_true on the server; Undo removes it [33m 1283[2mms[22m[39m
+     [33m[2m✓[22m[39m "alert when Bullish Trend switches off" → a card; Apply arms becomes_false on the server; Undo removes it [33m 1263[2mms[22m[39m
+     [33m[2m✓[22m[39m "notify me while my Bullish Trend is true" → a card; Apply arms is_true on the server; Undo removes it [33m 1260[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m57 passed[39m[22m[90m (57)[39m
+[2m   Start at [22m 21:58:26
+[2m   Duration [22m 14.76s[2m (transform 5.09s, setup 238ms, import 6.43s, tests 7.57s, environment 403ms)[22m
+
+JSON report written to C:/w/pl-auto-remeasure/docs/agent/program/evidence/remeasure-1016/attempt-2/packet/agentIndicatorAlertTruth.test.json
+# exit=0 end 02:58:41Z

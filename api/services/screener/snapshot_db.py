@@ -176,7 +176,10 @@ COLUMNS = [
     "run_ema9_ema20", "run_sma20_sma50", "run_sma50_sma200", "sma20_rising", "sma50_rising",
     "sma200_rising", "avg_volume_10d", "avg_volume_50d", "vol_trend_pct", "vol_up_run",
     "vol_down_run", "new_high_lookback", "new_low_lookback", "breakout_20d_age", "high_52w_age",
-    "low_52w_age",
+    "low_52w_age", "min_volume_3d_prior",
+    # live-tier bases (`technicals.scan_primitives`): not filters, the levels `live_tier` restates the
+    # 5-day/1-month/1-year change and MINV3.1 from during the next session. NULL until the next build.
+    "live_base_close_1w", "live_base_close_1m", "live_base_close_1y", "live_base_min_volume_3d",
     # ⭐ UCT RELATIVE STRENGTH, bar-derived (Phase 2a, unit 2a-05). ONE writer,
     # `rs_columns.collect_one` (the builder's `_step("bars_rs")`), from the same
     # `relative_strength` functions the chart's rsLine draws, so a scan and a
@@ -203,7 +206,7 @@ COLUMNS = [
     # sessions for a delta — never a guessed value. Additive: ALTER-added on
     # init.
     "rs_rating_ibd", "rs_rating_chg_5", "rs_rating_chg_20",
-    "rs_rating_1m", "rs_rating_3m", "rs_rating_6m", "rs_rating_12m",
+    "rs_rating_1m", "rs_rating_3m", "rs_rating_6m", "rs_rating_9m", "rs_rating_12m",
     # ⭐ UCT RELATIVE STRENGTH, Phase 3 (unit 3-10, decision D7). ONE writer,
     # `rs_columns.collect_one(..., phase3=True)` inside the same `bars_rs` step,
     # and only while `snapshot_builder.rs_v3_enabled()` (RS_V3_ENABLED, dark by
@@ -288,7 +291,7 @@ _INT = {"uct_composite", "rs_rank", "inside_bar_run", "higher_lows_run",
         # UCT RS, history-derived (2a-06): the 1-99 rating, two signed deltas
         # of it, four 1-99 component percentiles. Whole numbers, all seven.
         "rs_rating_ibd", "rs_rating_chg_5", "rs_rating_chg_20",
-        "rs_rating_1m", "rs_rating_3m", "rs_rating_6m", "rs_rating_12m"}
+        "rs_rating_1m", "rs_rating_3m", "rs_rating_6m", "rs_rating_9m", "rs_rating_12m"}
 
 
 # ---------------------------------------------------------------------------
@@ -467,14 +470,38 @@ def upsert_live_rows(rows: list, *, busy_timeout_ms: int = 5000) -> int:
         return 0
     from api.services.screener import live_tier
     cols = _live_write_columns()
-    placeholders = ", ".join("?" for _ in cols)
-    sql = (f"INSERT OR REPLACE INTO {live_tier.LIVE_TABLE} "
-           f"({', '.join(cols)}) VALUES ({placeholders})")
     payload = [[_coerce(c, r.get(c)) for c in cols] for r in rows]
+    head = f"INSERT OR REPLACE INTO {live_tier.LIVE_TABLE} ({', '.join(cols)}) VALUES "
+    one = "(" + ", ".join("?" for _ in cols) + ")"
     with _WRITE_LOCK, connect(busy_timeout_ms=busy_timeout_ms) as conn:
-        conn.executemany(sql, payload)
+        # ⛔⛔ MULTI-ROW STATEMENTS, NEVER `executemany`. THE GIL CONVOY (measured 2026-11-10).
+        # `sqlite3` releases the GIL around EVERY `sqlite3_step`, and `executemany` steps once per
+        # row, so ~10,800 rows means ~10,800 GIL hand-offs. With any CPU-bound Python thread
+        # alive in the pod (theme prewarm, pattern scans, catalyst bursts), each hand-off waits
+        # for that thread's switch interval before it gets the GIL back. Production sweeps
+        # spent a median 17 s (p90 34 s, max 93 s) in this write against ~110 ms on an idle box;
+        # locally, ONE busy-looping thread took `executemany` from 107 ms to 307 SECONDS. Packing
+        # the rows into statements of as many rows as SQLite's variable limit allows (~800 at the
+        # 32,766 default) is ~14 hand-offs: 123 ms idle, 1.2 s beside the same busy thread.
+        # ``tests/test_screener_live_write_convoy.py`` pins the statement count.
+        limit = _variable_limit(conn)
+        per = max(1, limit // len(cols))
+        for i in range(0, len(payload), per):
+            part = payload[i:i + per]
+            conn.execute(head + ", ".join([one] * len(part)),
+                         [v for row in part for v in row])
         conn.commit()
     return len(rows)
+
+
+def _variable_limit(conn) -> int:
+    """How many `?` one statement may bind on THIS SQLite build. `Connection.getlimit` is
+    Python 3.11+; without it, 999 (SQLite's pre-3.32 default, the smallest build that exists),
+    which is still ~24 rows per statement instead of one."""
+    try:
+        return int(conn.getlimit(sqlite3.SQLITE_LIMIT_VARIABLE_NUMBER))
+    except Exception:  # noqa: BLE001 — older Python or a build without the constant
+        return 999
 
 
 def prune_live_rows(session_ymd: int, *, busy_timeout_ms: int = 5000) -> int:

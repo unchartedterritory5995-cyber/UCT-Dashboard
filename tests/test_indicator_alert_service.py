@@ -12,6 +12,8 @@ from api.services import indicator_alert_service as ias
 def _rs_alert_flags_lit(monkeypatch):
     from api.services.signature import registry_defs as _rs_flag_defs
     monkeypatch.setattr(_rs_flag_defs, "RS_V2_ENABLED", True)
+    import api.main  # noqa: F401 -- import BEFORE lighting RS_SPLIT_ENABLED: api.main registers providers for the split rows, which registry_defs only built if the flag was on at ITS import
+    monkeypatch.setattr(_rs_flag_defs, "RS_SPLIT_ENABLED", True)  # 2026-11-10 (RS split, S2): the lit shape includes the split alerts
     monkeypatch.setenv("RS_HISTORY_ENABLED", "1")
 
 
@@ -810,7 +812,7 @@ def test_the_validator_refuses_EXACTLY_TWO_addresses_on_the_closed_lane(
     assert refused == {"vwap", "ichimoku.chikou"}, refused
     # …and the rail is not a rail over everything: 42 of 44 stay armable on D
     # (2026-11-04: +1 `ma_cross`; 2026-11-06 (RS 2b-05): +11 `rs_line.*`).
-    assert len(soak.catalog_addresses()) - len(refused) == 42  # 2026-11-07 (RS 2b-06): +rs_line.rating
+    assert len(soak.catalog_addresses()) - len(refused) == 43  # 2026-11-07 (RS 2b-06): +rs_line.rating # 2026-11-10 (RS split, S2): 44 -> 45 armed = 44 - 3 withheld Mansfield + 4 split (13 RS rows)
 
 
 def test_the_probe_resolves_every_catalog_address():
@@ -829,7 +831,7 @@ def test_the_probe_resolves_every_catalog_address():
                                  alert_series.SERIES_FUNCS[a],
                                  calendar if a in ev.RS_ADDRESSES else instant, {}))]
     assert unresolved == []
-    assert len(ev.all_addresses()) == 44  # 2026-11-07 (RS 2b-06): +1 rs_line.rating; 2026-11-04: +1 `ma_cross`; 2026-11-06 (RS 2b-05): +11 `rs_line.*`
+    assert len(ev.all_addresses()) == 48  # 2026-11-10 (RS split, S2): 44 -> 48, +rs_phases.flipBlue/flipRed +rs_vs_ema.crossUp/crossDown; 2026-11-07 (RS 2b-06): +1 rs_line.rating; 2026-11-04: +1 `ma_cross`; 2026-11-06 (RS 2b-05): +11 `rs_line.*`
     assert len(instant) == len(calendar) == ias._PROBE_BARS
     # the two probe series differ in `t` and in NOTHING else
     assert [{k: v for k, v in b.items() if k != "t"} for b in instant] == \
@@ -1055,22 +1057,22 @@ def test_the_soak_matrix_still_arms_31_and_stays_IDEMPOTENT(tmp_db):
     # them every cycle; and on QQQ, because SPY is the RS lane's default benchmark
     # and SPY over itself is a flat line the door refuses.
     first = soak.arm("owner-1", soak.DEFAULT_SYM, soak.DEFAULT_TF, 30)
-    assert len(first["created"]) == 44 and first["kept"] == [] and first["retired"] == []
+    assert len(first["created"]) == 45 and first["kept"] == [] and first["retired"] == [] # 2026-11-10 (RS split, S2): 44 -> 45 armed = 44 - 3 withheld Mansfield + 4 split (13 RS rows)
     assert (first["rs_sym"], first["rs_tf"]) == ("QQQ", "D")
     rows = soak.soak_rows()
     rs_rows = [a for a in rows if a["indicator"] in ev.RS_ADDRESSES]
-    assert len(rs_rows) == 12 and {(a["sym"], a["tf"]) for a in rs_rows} == {("QQQ", "D")}
+    assert len(rs_rows) == 13 and {(a["sym"], a["tf"]) for a in rs_rows} == {("QQQ", "D")} # 2026-11-10 (RS split, S2): 44 -> 45 armed = 44 - 3 withheld Mansfield + 4 split (13 RS rows)
     assert {(a["sym"], a["tf"]) for a in rows if a["indicator"] not in ev.RS_ADDRESSES} == {("SPY", "5")}
 
     second = soak.arm("owner-1", soak.DEFAULT_SYM, soak.DEFAULT_TF, 30)
-    assert second["created"] == [] and len(second["kept"]) == 44
+    assert second["created"] == [] and len(second["kept"]) == 45 # 2026-11-10 (RS split, S2): 44 -> 45 armed = 44 - 3 withheld Mansfield + 4 split (13 RS rows)
 
     out = soak.verify()
-    assert out["armed"] == 44
-    assert out["visible_to_shadow"] == 44
+    assert out["armed"] == 45 # 2026-11-10 (RS split, S2): 44 -> 45 armed = 44 - 3 withheld Mansfield + 4 split (13 RS rows)
+    assert out["visible_to_shadow"] == 45 # 2026-11-10 (RS split, S2): 44 -> 45 armed = 44 - 3 withheld Mansfield + 4 split (13 RS rows)
     assert out["deliverable_now"] == 0
     assert out["missing"] == [] and out["misplaced"] == []
-    assert out["addresses_covered"] == out["addresses_expected"] == 44
+    assert out["addresses_covered"] == out["addresses_expected"] == 45 # 2026-11-10 (RS split, S2): 44 -> 45 armed = 44 - 3 withheld Mansfield + 4 split (13 RS rows)
 
 
 def test_the_soak_matrix_retires_the_five_minute_rs_rows_an_earlier_arm_left(tmp_db):
@@ -1088,14 +1090,14 @@ def test_the_soak_matrix_retires_the_five_minute_rs_rows_an_earlier_arm_left(tmp
                          params_json={soak.SOAK_KEY: soak.SOAK_TAG})
         ias.snooze(aid, ias.SNOOZE_MAX_MINUTES)
     before = soak.verify()
-    assert len(before["misplaced"]) == 12 and len(before["missing"]) == 12
+    assert len(before["misplaced"]) == 13 and len(before["missing"]) == 13 # 2026-11-10 (RS split, S2): 44 -> 45 armed = 44 - 3 withheld Mansfield + 4 split (13 RS rows)
     assert soak.main(["--verify"]) == 1
     assert any("RS soak rows" in line for line in soak.verify_refusals(before))
 
     out = soak.arm("owner-1", soak.DEFAULT_SYM, soak.DEFAULT_TF, 30)
-    assert len(out["retired"]) == 12 and len(out["created"]) == 12 and len(out["kept"]) == 32
+    assert len(out["retired"]) == 13 and len(out["created"]) == 13 and len(out["kept"]) == 32 # 2026-11-10 (RS split, S2): 44 -> 45 armed = 44 - 3 withheld Mansfield + 4 split (13 RS rows)
     after = soak.verify()
-    assert after["armed"] == 44 and after["misplaced"] == [] and after["missing"] == []
+    assert after["armed"] == 45 and after["misplaced"] == [] and after["missing"] == [] # 2026-11-10 (RS split, S2): 44 -> 45 armed = 44 - 3 withheld Mansfield + 4 split (13 RS rows)
     assert soak.main(["--verify"]) == 0
     assert ias.get(member)["tf"] == "5", "a member's alert is never the matrix's to retire"
 
@@ -1124,13 +1126,14 @@ def test_the_validation_accepts_every_row_the_soak_matrix_arms(client,
     from api.services import indicator_alert_evaluator as _ev
 
     specs = soak.catalog_addresses()
-    assert len(specs) == 44  # 2026-11-07 (RS 2b-06): +1 rs_line.rating; 2026-11-06 (RS 2b-05): 32 + 11 `rs_line.*`
+    assert len(specs) == 45  # 2026-11-07 (RS 2b-06): +1 rs_line.rating; 2026-11-06 (RS 2b-05): 32 + 11 `rs_line.*` # 2026-11-10 (RS split, S2): 44 -> 45 armed = 44 - 3 withheld Mansfield + 4 split (13 RS rows)
 
     monkeypatch.setenv(_ev.ALERT_EVAL_MODE_ENV, "closed")
     refused_addresses = set(ias.closed_lane_dead_addresses())
     assert refused_addresses == {"ichimoku.chikou"}, refused_addresses
-    rs_addresses = set(_ev.RS_ADDRESSES)
-    assert len(rs_addresses) == 12 and not (rs_addresses & refused_addresses)
+    # 2026-11-10 (RS split, S2): the OFFERED RS addresses (the soak/catalog set): 16 registered - 3 withheld Mansfield = 13
+    rs_addresses = set(_ev.RS_ADDRESSES) - set(__import__("api.services.alert_rs_series", fromlist=["x"]).RS_WITHHELD_ADDRESSES)
+    assert len(rs_addresses) == 13 and not (rs_addresses & refused_addresses) # 2026-11-10 (RS split, S2): 44 -> 45 armed = 44 - 3 withheld Mansfield + 4 split (13 RS rows)
 
     # 2026-11-07 (owner decision D4): each spec is posted on the matrix's OWN target
     # (`spec_target`): the twelve RS rows on D (and QQQ, since SPY is their default
@@ -1154,7 +1157,7 @@ def test_the_validation_accepts_every_row_the_soak_matrix_arms(client,
     # 43: 44 specs minus chikou. It read 31 while the twelve RS rows were refused on
     # "5" (2026-11-04: 32 specs (+ma_cross) minus chikou; 2026-11-06/07, RS 2b-05/06:
     # +12 specs, +12 door refusals); D4 moves them to D, where all twelve arm.
-    assert len(client.get("/api/indicator-alerts").json()["alerts"]) == 43
+    assert len(client.get("/api/indicator-alerts").json()["alerts"]) == 44 # 2026-11-10 (RS split, S2): 44 -> 45 armed = 44 - 3 withheld Mansfield + 4 split (13 RS rows)
     # The control: the same RS rows on the old 5-minute target are still refused.
     for address in sorted(rs_addresses):
         spec = next(s for s in specs if s["address"] == address)
@@ -1299,7 +1302,7 @@ def test_verify_goes_RED_BEFORE_the_muzzle_expires_not_after(tmp_db, monkeypatch
         ias.snooze(aid, ias.SNOOZE_MAX_MINUTES)
 
     out = soak.verify()
-    assert out["armed"] == 44 and out["deliverable_now"] == 0   # 2026-11-06 (RS 2b-05): +11 `rs_line.*`  (2026-11-07, RS 2b-06: +rs_line.rating)
+    assert out["armed"] == 45 and out["deliverable_now"] == 0   # 2026-11-06 (RS 2b-05): +11 `rs_line.*`  (2026-11-07, RS 2b-06: +rs_line.rating) # 2026-11-10 (RS split, S2): 44 -> 45 armed = 44 - 3 withheld Mansfield + 4 split (13 RS rows)
     assert out["expiring_soon"] == 0
     assert out["muzzle_expires_in_days"] > soak.EXPIRY_WARN_DAYS
     assert soak.main(["--verify"]) == 0
@@ -1312,14 +1315,14 @@ def test_verify_goes_RED_BEFORE_the_muzzle_expires_not_after(tmp_db, monkeypatch
     warned = soak.verify()
     assert all(a["state"] == ias.STATE_SNOOZED for a in soak.soak_rows())
     assert warned["deliverable_now"] == 0        # still muzzled …
-    assert warned["expiring_soon"] == 44         # … and it says the clock is running (44 since RS 2b-06, 2026-11-07)
+    assert warned["expiring_soon"] == 45         # … and it says the clock is running (44 since RS 2b-06, 2026-11-07) # 2026-11-10 (RS split, S2): 44 -> 45 armed = 44 - 3 withheld Mansfield + 4 split (13 RS rows)
     assert soak.main(["--verify"]) == 1
 
     # past the window: deliverable, and still red
     gone = _time.time() + 31 * _DAY
     monkeypatch.setattr(soak.time, "time", lambda: gone)
     monkeypatch.setattr(ias.time, "time", lambda: gone)
-    assert soak.verify()["deliverable_now"] == 44   # 2026-11-07 (RS 2b-06): +1 rs_line.rating; 2026-11-06 (RS 2b-05): +11 `rs_line.*`
+    assert soak.verify()["deliverable_now"] == 45   # 2026-11-07 (RS 2b-06): +1 rs_line.rating; 2026-11-06 (RS 2b-05): +11 `rs_line.*` # 2026-11-10 (RS split, S2): 44 -> 45 armed = 44 - 3 withheld Mansfield + 4 split (13 RS rows)
     assert soak.main(["--verify"]) == 1
 
 
@@ -1331,7 +1334,7 @@ def test_the_soak_stays_VISIBLE_to_the_shadow_lane_through_all_of_it(tmp_db):
     from tools import alert_soak_matrix as soak
     soak.arm("owner-1", soak.DEFAULT_SYM, soak.DEFAULT_TF, 30)
     ids = {a["id"] for a in soak.soak_rows()}
-    assert len(ids) == 44   # 2026-11-07 (RS 2b-06): +1 rs_line.rating; 2026-11-06 (RS 2b-05): +11 `rs_line.*`
+    assert len(ids) == 45   # 2026-11-07 (RS 2b-06): +1 rs_line.rating; 2026-11-06 (RS 2b-05): +11 `rs_line.*` # 2026-11-10 (RS split, S2): 44 -> 45 armed = 44 - 3 withheld Mansfield + 4 split (13 RS rows)
     assert ids <= {a["id"] for a in ias.list_active()}
 
     # even after the sweep rewrites every state, they stay visible AND muzzled

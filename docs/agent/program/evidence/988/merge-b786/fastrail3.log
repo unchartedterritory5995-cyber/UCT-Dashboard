@@ -1,0 +1,195 @@
+Wed Nov 11 04:25:18 UTC 2026
+focused, BelowNormal, no lock (<=25 files); node_modules LinkType/Target: Junction  C:\w\pl-mc-fw\app\node_modules  
+dir C:/w/pl-exec-dev/app HEAD 034113c9b5 tree d0046f214c dirty-tracked: 0
+
+ RUN  v4.0.18 C:/w/pl-exec-dev/app
+
+stderr | src/agent/agentFastPathEveryExcept.test.jsx > (b) fastParse never returns ops for it > "set every chart to daily except the one under this one" (0)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentFastPathEveryExcept.test.jsx > (b) fastParse never returns ops for it > "put all the charts on the 5 minute apart from the one beside this one" (1)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentFastPathEveryExcept.test.jsx > (b) fastParse never returns ops for it > "hide volume on every chart but not the chart to the left of this one" (2)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentFastPathEveryExcept.test.jsx > (b) fastParse never returns ops for it > "add the 20 EMA to all charts other than the one diagonal from this one" (3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentFastPathEveryExcept.test.jsx > (b) fastParse never returns ops for it > "make every chart weekly excluding the one right above the chart I clicked" (4)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentFastPathEveryExcept.test.jsx > (b) fastParse never returns ops for it > "switch all of them to monthly besides the one opposite this one" (5)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentFastPathEveryExcept.test.jsx > (b) fastParse never returns ops for it > "show volume on every chart aside from the one to the right of this" (6)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentFastPathEveryExcept.test.jsx > (b) fastParse never returns ops for it > "remove the 50 SMA from every chart except the one below the selected chart" (7)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentFastPathEveryExcept.test.jsx > (b) fastParse never returns ops for it > "turn every chart to the hourly except for the one next to the one I picked" (8)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentFastPathEveryExcept.test.jsx > (b) fastParse never returns ops for it > "change all charts to weekly save the one kitty corner from this one" (9)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentFastPathEveryExcept.test.jsx > (b) fastParse never returns ops for it > "every chart daily except the one over this one" (10)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentFastPathEveryExcept.test.jsx > (b) fastParse never returns ops for it > "all charts weekly except the ones beside this one" (11)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentFastPathEveryExcept.test.jsx > (c) control: the instant path does claim the plain one-chart change > fastParse claims "set every chart to weekly" for every chart
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentFastPathEveryExcept.test.jsx > (c) control: the instant path does claim the plain one-chart change > fastParse claims "hide volume on all charts" for every chart
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/agent/agentFastPathEveryExcept.test.jsx (28 tests) 14318ms
+     ✓ "set every chart to daily except the one under this one" (0)  1088ms
+     ✓ "put all the charts on the 5 minute apart from the one beside this one" (1)  1026ms
+     ✓ "hide volume on every chart but not the chart to the left of this one" (2)  997ms
+     ✓ "add the 20 EMA to all charts other than the one diagonal from this one" (3)  996ms
+     ✓ "make every chart weekly excluding the one right above the chart I clicked" (4)  986ms
+     ✓ "switch all of them to monthly besides the one opposite this one" (5)  986ms
+     ✓ "show volume on every chart aside from the one to the right of this" (6)  1011ms
+     ✓ "remove the 50 SMA from every chart except the one below the selected chart" (7)  1015ms
+     ✓ "turn every chart to the hourly except for the one next to the one I picked" (8)  1002ms
+     ✓ "change all charts to weekly save the one kitty corner from this one" (9)  985ms
+     ✓ "every chart daily except the one over this one" (10)  996ms
+     ✓ "all charts weekly except the ones beside this one" (11)  969ms
+     ✓ "set this chart to weekly" (0)  1054ms
+     ✓ "hide volume on this chart" (1)  1044ms
+
+ Test Files  1 passed (1)
+      Tests  28 passed (28)
+   Start at  23:25:20
+   Duration  20.16s (transform 4.03s, setup 242ms, import 5.11s, tests 14.32s, environment 378ms)
+

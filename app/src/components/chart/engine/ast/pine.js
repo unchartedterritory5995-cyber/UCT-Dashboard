@@ -100,7 +100,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // 4 that would drift the day the interpreter moves. A translated body that
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
-import { FN, MAX_SELF_LAG, SEED_RESIDUAL_TOLERANCE, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf } from './interpret.js'
+import { FN, MAX_SELF_LAG, SEED_RESIDUAL_TOLERANCE, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf, listingSeedIsUnpinned } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL } from '../lowerTf.js'
 import { memberNumber } from './memberValue.js'
 import { timeInputDefaultOf, isTimeInputCall } from '../runtime/runtimeInputs.js'
@@ -3995,6 +3995,20 @@ export { containsFreeSelfSeries }
 
 export function seedAndUpdateOf(body, table) {
   return ternarySeedAndUpdate(body, table) || nzSeedAndUpdate(body, table)
+}
+
+/** ⭐⭐ LANE B0 — the ternary spelling whose seed is Pine's `na` literal and whose
+ *  test is a BARE history read (`na(x[k])`): `na` on every bar in Pine (see the
+ *  call site). Only that test: `na(nz(x[1]))` is never true, and its bar 0 runs
+ *  the update instead. */
+export function naSeededSelfReference(body, parts, table) {
+  if (!parts || !isStaticNa(parts.seed) || !ternarySeedAndUpdate(body, table)) return false
+  const spec = table && table.functions && table.functions.accum
+  const bind = spec && spec.recurrence && spec.recurrence.binds
+  const read = body.args[0].args && body.args[0].args[0]
+  return !!read && ((read.type === 'series' && read.name === bind)
+    || (read.type === 'offset' && read.args && read.args[0]
+      && read.args[0].type === 'series' && read.args[0].name === bind))
 }
 
 /** `na(self…) ? SEED : UPDATE` — the spelling the docblock above describes. */
@@ -8446,6 +8460,16 @@ export class Resolver {
             + 'first-bar value the way `na(' + name + '[1]) ? … : …` does',
             bound.at || locate(tok))
         }
+        // ⭐⭐ LANE B0 — `x = na(x[k]) ? na : U`: Pine reads `x[k]` as `na` on bar 0,
+        // takes the `na` arm, and so `x[k]` is `na` again on every later bar — the
+        // value is `na` on EVERY bar, whatever `U` says. Written as that constant,
+        // which is exactly Pine's, and which keeps the one rule the listing pass
+        // reads (`interpret.js::historySeedReading`: an unmarked `na` seed is a
+        // history seed whose bar 0 runs the update) true of every `accum` this
+        // translator writes.
+        // ⛔ r1 — only where bar 0's history is pinned (v3+, `listingSeedIsUnpinned`): for v1/v2
+        // (and no pragma) Pine's `x[1]` on bar 0 may be `0`, which is unwitnessed (W34-I4b).
+        if (!listingSeedIsUnpinned(this.pineVersion) && naSeededSelfReference(body, parts, this.table)) return parts.seed
         // 🔴🔴 THE SAME CONVERGENCE GATE AS THE MUTABLE FORM, asked of the UPDATE
         // ARM ALONE — the seed arm is what the accumulator re-seeds WITH, so
         // asking it to forget itself is asking the wrong question. Routing around
@@ -24698,6 +24722,27 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   // that reduces nothing is byte-identical to before.
   if (windowAmbiguity && windowAmbiguity.size) {
     let withheldSteps = 0
+    /** A sub-tree reads a registered reduction (or cannot be printed: assumed to). */
+    const astAmbiguous = (ast) => {
+      let f = null
+      try { f = printFormula(ast) } catch { f = null }
+      if (f === null) return true
+      for (const key of windowAmbiguity.keys()) if (f.includes(key)) return true
+      return false
+    }
+    /** The `&&` conjuncts of a guard that read no registered reduction, ANDed, or
+     *  null. Only a plain tree guard is split; anything else (a latch, an object
+     *  state read) answers null and the step keeps today's withholding. */
+    const measuredConjuncts = (when) => {
+      if (!when || when.v !== 'tree' || !Number.isInteger(when.tree)) return null
+      const parts = []
+      const split = (t) => { if (t && t.type === 'op' && t.name === '&&') { split(t.args[0]); split(t.args[1]) } else parts.push(t) }
+      split(trees[when.tree])
+      if (parts.length < 2) return null
+      const free = parts.filter((t) => !astAmbiguous(t))
+      if (!free.length || free.length === parts.length) return null
+      return free.reduce((acc, t) => (acc ? cOp('&&', [acc, t]) : t), null)
+    }
     const attach = (list) => list.map((o) => {
       let out = o
       if (o.k === 'loop' && Array.isArray(o.body)) {
@@ -24738,7 +24783,18 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         }
       }
       withheldSteps += 1
-      return { ...out, withhold: internTree(orOf(amb)) }
+      // ⭐⭐ W-C22-DEL — THE PART OF THE GUARD THAT IS STILL MEASURED. A guard that
+      // reads an unmeasured reduction is usually `a && b && …` where only some
+      // conjuncts read it (vdubus: `not na(ph) and array.size(zzP) >= 5 and …`). On
+      // a bar one of the OTHER conjuncts is false, Pine did not run the step, and
+      // that is certain (C17's known-false rule): `withholdRuns` is the AND of the
+      // conjuncts that read no registered reduction (the SAME containment test
+      // `ambiguityOfTree` makes, so it can only under-claim), and the runtime skips
+      // the step there instead of withholding it. Without it every such bar counted
+      // as a create Pine MAY have made, which is what the collector rule below
+      // (`objectRuntime.js::noteUnknownCreate`) now counts.
+      const runs = measuredConjuncts(out.when)
+      return { ...out, withhold: internTree(orOf(amb)), ...(runs ? { withholdRuns: internTree(runs) } : {}) }
     })
     const attached = attach(keptOps)
     keptOps.splice(0, keptOps.length, ...attached)

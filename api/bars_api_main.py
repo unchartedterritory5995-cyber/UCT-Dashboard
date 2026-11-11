@@ -37,6 +37,13 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import Depends, FastAPI, Query
 
+# ⛔ SECURITY (2026-11-10): redact credential query params (Massive `apiKey=`) on
+# EVERY log record of this pod -- httpx logs each request URL at INFO and an
+# HTTPStatusError's text carries the full URL. api/main.py does this for web; this
+# entrypoint never imports api.main, so it must install it itself.
+from api.services.log_redaction import install as _install_log_redaction
+_install_log_redaction()
+
 _log = logging.getLogger("uvicorn.error")
 _DATA_DIR = os.environ.get("DATA_DIR", "/data")
 
@@ -195,8 +202,22 @@ async def _lifespan(app: FastAPI):
     # made the port bind too late and Railway restart-looped the container at ~40s).
     # The extract goes to the 50GB volume (TMPDIR set in main), not ephemeral /tmp.
     # Serving cold-fetches until this completes; then it serves from the R2-installed db.
-    threading.Thread(target=_ensure_local_db_installed, daemon=True,
-                     name="bars-api-boot-install").start()
+    _install = threading.Thread(target=_ensure_local_db_installed, daemon=True,
+                                name="bars-api-boot-install")
+    _install.start()
+
+    def _offgrid_sweep_after_install():
+        # Off-grid intraday rows (intraday_grid): repair the installed store once the
+        # install is done. Background, paced, idempotent; reads are guarded meanwhile.
+        _install.join()
+        try:
+            from api.services import intraday_grid
+            intraday_grid.sweep_async()
+        except Exception as e:  # noqa: BLE001
+            _log.warning("[bars-api] off-grid sweep did not start (non-fatal): %s", e)
+
+    threading.Thread(target=_offgrid_sweep_after_install, daemon=True,
+                     name="bars-api-offgrid-sweep-wait").start()
     _start_periodic_pull()
     try:
         from api.services import bars_wal_checkpointer
@@ -228,6 +249,7 @@ async def _lifespan(app: FastAPI):
 def _build_app() -> FastAPI:
     app = FastAPI(title="UCT Bars API", docs_url=None, redoc_url=None, lifespan=_lifespan)
     from api.routers.bars import serve_bars, serve_bars_history
+    from api.routers.bars import serve_bars_http   # edge-budgeted HTTP entry (8 s abort)
     # 🔴 THIS SERVICE IS PUBLICLY ROUTABLE. Railway serves it at a public domain as
     # well as on private networking, so every data route below is directly reachable
     # from the internet and a gate on the web pod alone would protect one of TWO doors.
@@ -339,8 +361,9 @@ def _build_app() -> FastAPI:
         since: str = "",
         to: str = "",
         warm: int = 0,
+        session: str = "",
     ):
-        return serve_bars(ticker, tf, bars, since=since, to=to, warm=warm)
+        return serve_bars_http(ticker, tf, bars, since=since, to=to, warm=warm, session=session)
 
     # ⛔ NO GATE HERE ON PURPOSE — same reason as `/api/bars/{ticker}` above.
     @app.get("/api/bars-history/{ticker}")

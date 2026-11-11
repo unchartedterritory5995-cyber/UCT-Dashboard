@@ -140,8 +140,28 @@ def test_no_order_asked_means_market_cap_desc_never_the_composite():
 # Re-pinned 2026-11-10 (Screener speed, batch speed-2): e1a715868b and 966bca5191 change query.py and snapshot_builder.py on
 # purpose (the stale-row gate is computed once per snapshot, and a failed read is never kept; results pinned equal; independently
 # reviewed). The pin is that work's last Screener commit; no other Screener file changed since d72c0e62f2.
-SCREENER_PIN = "966bca5191e36158883076e14ec6ae0c00f78029"
+# Re-pinned 2026-11-10 (Anticipation preset, PR #1044): 54dabb6cb4 changes filters.py, saved_screens.py, snapshot_db.py
+# and technicals.py on purpose (the Anticipation built-in preset and the new nightly `min_volume_3d_prior` / MINV3.1
+# primitive). It is the only Screener commit since 966bca5191 (`git log 966bca5191..origin/master -- <paths>`). It left
+# master's deploy gate red; re-pinned by the desktop speed session to unblock every deploy behind it.
+# Re-pinned 2026-11-10 (live screener): 1a26d4ea00 changes live_tier.py, technicals.py and snapshot_db.py on
+# purpose (five more live columns, and the four live_base_* columns the nightly build now stores for them). It is
+# the only Screener commit since 54dabb6cb4; re-pinned in the same PR so master's deploy gate never goes red.
+# Re-pinned 2026-11-11 (UCT RS split, PR #1021): the RS work changes filters.py, snapshot_db.py, snapshot_builder.py,
+# methodology.py, identities.py and rs_history.py on purpose (Rank 9M column, picker-hidden RS columns, one RS Rating
+# everywhere). Every Screener commit since 1a26d4ea00 is that PR; pinned at its merge so master's deploy gate goes green.
+# Re-pinned 2026-11-10 (live overlay write): 823eef1ed9 changes snapshot_db.py and live_tier.py on purpose (multi-row
+# statements instead of executemany, the GIL convoy, and two timing fields). Re-pinned in the same PR; it contains the RS split above.
+# Re-pinned 2026-11-11 (live sweep cadence): 4b6891784e changes live_tier.py on purpose (30 s default cadence and the
+# rest that keeps a slow sweep from running back to back). Re-pinned in the same PR.
+SCREENER_PIN = "4b6891784ef5e6a42b2a5afc354715c64530d977"
 SCREENER_PATHS = ("api/services/screener", "api/routers/screener.py", "api/routers/scan_results.py")
+# The F16 change set is immutable: #1029's own PR head (merged as 4dacc81529). The rail compares the pin against THIS commit,
+# never HEAD, so a later Screener change by another team (e.g. #1021, the RS split) can no longer turn master's deploy gate
+# red. It asks exactly what it claims: did the F16 work touch the member Screener's server code? Full id, never a ref.
+# `pin...F16_HEAD` diffs from their merge base (292983f4bc for both 1a26d4ea00 and 7c09a4d303), so re-pinning SCREENER_PIN
+# for later Screener PRs is no longer needed and does not change what this rail reads.
+F16_HEAD = "523fa4e0122dc614106c14fed9785395c7dd99cc"
 
 
 def _diff_base(pin=SCREENER_PIN, run=None):
@@ -153,9 +173,17 @@ def _diff_base(pin=SCREENER_PIN, run=None):
     return pin if r.returncode == 0 else None
 
 
-def _screener_diff(base, head="HEAD"):
+def _screener_diff(base, head=F16_HEAD, run=None):
     import subprocess
-    return subprocess.run(["git", "diff", "--name-only", f"{base}...{head}", "--", *SCREENER_PATHS], capture_output=True, text=True)
+    run = run or subprocess.run
+    return run(["git", "diff", "--name-only", f"{base}...{head}", "--", *SCREENER_PATHS], capture_output=True, text=True)
+
+
+def _f16_verdict(base, head=F16_HEAD, run=None):
+    """The Screener files the F16 change set touched (empty = untouched). Raises when git itself failed."""
+    r = _screener_diff(base, head, run=run)
+    assert r.returncode == 0, r.stderr
+    return r.stdout.split()
 
 
 def test_the_diff_base_is_the_pin_when_the_checkout_holds_it():
@@ -178,9 +206,38 @@ def test_the_member_screeners_own_server_code_is_untouched_by_the_F16_work():
         # A shallow checkout without the pin (the master deploy gate fetches depth 2) cannot carry this comparison at
         # all; a skip is the honest reading there. agent-ci fetches full history and runs it for real.
         pytest.skip("the pinned commit %s is not in this checkout" % SCREENER_PIN)
-    r = _screener_diff(base)
-    assert r.returncode == 0, r.stderr
-    assert r.stdout.strip() == "", r.stdout
+    if _diff_base(pin=F16_HEAD) is None:
+        pytest.skip("the F16 head %s is not in this checkout" % F16_HEAD)
+    assert _f16_verdict(base) == []
+
+
+def test_the_rail_compares_against_the_fixed_F16_head_never_HEAD():
+    import subprocess
+    seen = []
+
+    def spy(cmd, **kw):
+        seen.append(cmd)
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+    assert _f16_verdict(SCREENER_PIN, run=spy) == []
+    assert seen[0][3] == f"{SCREENER_PIN}...{F16_HEAD}", seen
+    assert re.fullmatch(r"[0-9a-f]{40}", F16_HEAD), "a full commit id, never a ref that can move"
+
+
+def test_CONTROL_the_rail_fails_if_the_F16_head_had_touched_a_screener_file():
+    """CONTROL: a fake diff that names a Screener file must turn the rail's verdict non-empty (the assertion would fail)."""
+    import subprocess
+
+    def touched(cmd, **kw):
+        return subprocess.CompletedProcess(cmd, 0, "api/services/screener/filters.py\n", "")
+    verdict = _f16_verdict(SCREENER_PIN, run=touched)
+    assert verdict == ["api/services/screener/filters.py"]
+    with pytest.raises(AssertionError):
+        assert verdict == []
+
+    def broken(cmd, **kw):
+        return subprocess.CompletedProcess(cmd, 128, "", "fatal: bad revision")
+    with pytest.raises(AssertionError):  # a git failure is never read as "untouched"
+        _f16_verdict(SCREENER_PIN, run=broken)
 
 
 def test_the_guard_can_say_no():
@@ -189,7 +246,7 @@ def test_the_guard_can_say_no():
         pytest.skip("the pinned commit %s is not in this checkout" % SCREENER_PIN)
     r = _screener_diff(SCREENER_PIN + "~1", SCREENER_PIN)
     assert r.returncode == 0, r.stderr
-    assert "api/services/screener/snapshot_builder.py" in r.stdout.split()  # the file the pinned commit changed (a failed stale-gate read is never kept)
+    assert "api/services/screener/live_tier.py" in r.stdout.split()  # a file the pinned commit changed (the sweep cadence)
 
 
 def test_no_UCT_weight_or_formula_is_named_in_the_models_instructions():

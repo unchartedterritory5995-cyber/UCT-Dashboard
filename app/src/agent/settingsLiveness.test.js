@@ -112,21 +112,23 @@ describe('widget.setOption: exactly what the widget reads', () => {
   it('a `controls` row kept in opts is read back from opts by its mounted widget, at the head of its path', () => {
     const silent = mounted.flatMap(([t, file]) => {
       const reads = optsReadsOf(file)
-      return ownControls(t).filter(c => !c.door && !reads.has(String(c.path || c.key).split('.')[0])).map(c => `${t}.${c.key}`)
+      return ownControls(t).filter(c => !c.door && c.type !== 'action' && !reads.has(String(c.path || c.key).split('.')[0])).map(c => `${t}.${c.key}`)
     })
     expect(silent).toEqual([])
   })
   it('a `controls` row that needs the door has one: the mounted widget publishes its value, its writer and its choices', () => {
-    const SOURCE = { themes: 'pages/ThemeTrackerPage.jsx' }
+    const SOURCE = { themes: 'pages/ThemeTrackerPage.jsx', scanner: 'pages/charts/widgets/ScannerResults.jsx', watchlist: 'pages/Watchlists.jsx' }
     const missing = []
     for (const [t, file] of mounted) {
-      const rows = ownControls(t).filter(c => c.door || c.from === 'door')
+      const rows = ownControls(t).filter(c => c.door || c.from === 'door' || c.type === 'action')
       if (!rows.length) continue
       const src = code(read(SOURCE[t] || file))
       const at = src.indexOf('useWidgetDoor(')
       const door = at < 0 ? '' : src.slice(at, src.indexOf('\n\n', at))
       for (const c of rows) {
         const named = new RegExp(`\\b${c.key}\\b`).test(door)
+        // an `action` row (a button) is run by the door's act(key), and nothing else
+        if (c.type === 'action') { if (!named || !/\bact:/.test(door)) missing.push(`${t}.${c.key} act`); continue }
         if (!named) missing.push(`${t}.${c.key}`)
         if (c.door && !/\bread:/.test(door)) missing.push(`${t}.${c.key} read`)
         if (c.door && !/\bwrite:/.test(door)) missing.push(`${t}.${c.key} write`)
@@ -145,7 +147,7 @@ describe('widget.setOption: exactly what the widget reads', () => {
     expect(missing).toEqual([])
   })
   it('every row is well formed: a known type, a key once per widget, its choices or where they come from, a number\'s range', () => {
-    const TYPES = ['enum', 'boolean', 'number', 'day', 'set']
+    const TYPES = ['enum', 'boolean', 'number', 'day', 'set', 'color', 'action']
     for (const t of Object.keys(WIDGET_REGISTRY)) {
       const rows = ownControls(t)
       expect(new Set(rows.map(c => c.key)).size, t).toBe(rows.length)
@@ -163,6 +165,10 @@ describe('widget.setOption: exactly what the widget reads', () => {
     const prem = ownControls('optionsflow').find(c => c.key === 'minPremium').options
     expect([...flow.matchAll(/\{ v: (\d+), label:/g)].map(m => Number(m[1]))).toEqual(prem)
     for (const v of ['SWEEP', 'BLOCK', 'BULL', 'BEAR']) expect(flow).toContain(`k: '${v}'`)
+    // every chip word the Agent says is the one on the chip: the premium chips are `{ v, label }`, the others `{ k, l }`
+    for (const c of ownControls('optionsflow')) for (const [v, word] of Object.entries(c.shown || {})) {
+      expect(flow).toContain(c.key === 'minPremium' ? `{ v: ${v}, label: '${word}' }` : `k: '${v}', l: '${word}'`)
+    }
     expect(read('pages/ThemeTrackerPage.jsx')).toContain("'1W': '1w', '1M': '1m', '3M': '3m', '1Y': '1y', 'YTD': 'ytd'")
   })
   it('the rail can see what it checks (guards the parse above)', () => {

@@ -627,6 +627,67 @@ def get_implied_move(sym: str, earnings_date: Optional[str] = None,
 
 # ─── 6. Key quotes from previous earnings call transcript ─────────────────────
 
+# -- key-quotes cache (2026-11-10 AI-spend audit) -----------------------------------
+# The quotes come from the PRIOR call's transcript, which changes once a quarter, but
+# every enrichment run (each preview/analysis generation, warm or click) paid Claude to
+# extract them again: 42 calls in the first 2.5 h of the AI-spend ledger. They are now
+# kept on disk per symbol, keyed by a hash of the exact excerpt the model read, so a new
+# transcript is extracted fresh and an unchanged one is free. Only a real extraction is
+# stored; a failure stays uncached and retries next time.
+def _kq_dir() -> Optional[str]:
+    import os
+    import sys
+    d = os.environ.get("KEY_QUOTES_CACHE_DIR")
+    if d:
+        return d
+    if "pytest" in sys.modules:     # never touch a real DATA_DIR from a test
+        return None
+    return os.path.join(os.environ.get("DATA_DIR", "/data"), "key_quotes_cache")
+
+
+def _kq_path(sym: str) -> Optional[str]:
+    import os
+    import re
+    d = _kq_dir()
+    if not d:
+        return None
+    safe = re.sub(r"[^A-Z0-9._-]", "_", sym.upper())[:20]
+    return os.path.join(d, f"{safe}.json")
+
+
+def _kq_read(sym: str, digest: str) -> Optional[list]:
+    import json
+    p = _kq_path(sym)
+    if not p:
+        return None
+    try:
+        with open(p, encoding="utf-8") as f:
+            row = json.load(f)
+    except (OSError, ValueError):
+        return None
+    if isinstance(row, dict) and row.get("hash") == digest and isinstance(row.get("quotes"), list):
+        return row["quotes"] or None
+    return None
+
+
+def _kq_write(sym: str, digest: str, quotes: list) -> None:
+    import json
+    import os
+    import time
+    p = _kq_path(sym)
+    if not p:
+        return
+    try:
+        blob = json.dumps({"hash": digest, "quotes": quotes, "at": int(time.time())}, ensure_ascii=False)
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        tmp = p + ".tmp"
+        with open(tmp, "w", encoding="utf-8", newline="") as f:
+            f.write(blob)
+        os.replace(tmp, p)
+    except Exception as e:  # noqa: BLE001 -- a cache write never costs the caller its answer
+        _logger.warning("key-quotes cache write failed for %s: %s", sym, e)
+
+
 def get_key_quotes(sym: str) -> Optional[list]:
     """Extract the 3 most material quotes from the prior earnings call transcript.
 
@@ -652,6 +713,11 @@ def get_key_quotes(sym: str) -> Optional[list]:
 
     # Truncate to ~30K chars to keep token usage modest
     excerpt = text[:30_000]
+    import hashlib
+    digest = hashlib.sha256(excerpt.encode("utf-8", "replace")).hexdigest()[:20]
+    cached = _kq_read(sym, digest)
+    if cached:
+        return cached
     try:
         client = _get_anthropic_client()
         prompt = (
@@ -690,6 +756,8 @@ def get_key_quotes(sym: str) -> Optional[list]:
                     "topic": str(q.get("topic", ""))[:40],
                     "quote": str(q.get("quote", ""))[:300],
                 })
+        if out:
+            _kq_write(sym, digest, out)
         return out or None
     except Exception as e:
         _logger.warning("AI key-quotes extraction failed for %s: %s", sym, e)

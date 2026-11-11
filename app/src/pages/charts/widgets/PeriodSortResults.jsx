@@ -38,7 +38,8 @@ const DEFAULT_COLS_GROUP = { order: ['flag', 'sym', 'periodchg', 'grpcount'], so
 const GROUP_LABEL = { theme: 'Themes', sector: 'Sectors', industry: 'Industries' }
 const GROUP_UNIT = { theme: 'theme', sector: 'sector', industry: 'industry' }
 
-export default function PeriodSortResults({ start, end, color, settingsOverride = null, onSettingsPersist = null, onExit = null, symbolsFilter = null, titlePrefix = null, group = null }) {
+// `refreshRef` (optional): the host's handle on the footer's own Refresh (PeriodSortWidget's Agent door, C3-208)
+export default function PeriodSortResults({ start, end, color, settingsOverride = null, onSettingsPersist = null, onExit = null, symbolsFilter = null, titlePrefix = null, group = null, refreshRef = null }) {
   const { groupSyms, setGroupSym, groupTfs, activeWatchlistRef } = useWorkspace() || {}
   const widgetId = useId()
 
@@ -65,6 +66,9 @@ export default function PeriodSortResults({ start, end, color, settingsOverride 
   })
 
   const data = group ? groupData : stockData
+  // the footer's Refresh: the stock scan, and the group ranking in group mode; resolves once both have re-read
+  const refresh = useCallback(() => Promise.all([stockMutate(), group ? groupMutate() : null]), [stockMutate, groupMutate, group])
+  useEffect(() => { if (refreshRef) refreshRef.current = refresh }, [refreshRef, refresh])
   const isValidating = group ? groupVal : stockVal
 
   const filterSet = useMemo(() => (Array.isArray(symbolsFilter) ? new Set(symbolsFilter) : null), [symbolsFilter])
@@ -169,7 +173,7 @@ export default function PeriodSortResults({ start, end, color, settingsOverride 
       <span className={styles.scanCount}>{symbols.length.toLocaleString()} {symbols.length === 1 ? unit : `${unit}s`}</span>
       {data?.partial && <span className={styles.scanUpdated}>· surviving universe</span>}
       {data?.as_of && <span className={styles.scanUpdated}>· {fmtScanTime(data.as_of)} ET</span>}
-      <button type="button" className={styles.scanRefresh} onClick={() => { stockMutate(); if (group) groupMutate() }} title="Refresh" aria-label="Refresh">
+      <button type="button" className={styles.scanRefresh} onClick={() => { refresh() }} title="Refresh" aria-label="Refresh">
         <UIcon name="refresh" size={12} gold={false} className={isValidating ? styles.scanRefreshSpin : undefined} />
       </button>
     </div>

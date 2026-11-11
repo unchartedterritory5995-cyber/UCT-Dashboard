@@ -7,7 +7,10 @@
 
 const FEATURE_METHODS = {
   'window-state': ['onWindowState'],
+  'desk-visibility': ['onDeskVisibility'],
   'before-quit': ['onBeforeQuit', 'ackBeforeQuit'],
+  'site-events': ['reportEvent'],
+  'app-update': ['getAppUpdate', 'onAppUpdate', 'restartToUpdate'],
 }
 
 const noop = () => {}
@@ -50,12 +53,45 @@ function subscribe(feature, call) {
 }
 
 export function onWindowState(cb) { return subscribe('window-state', (b) => b.onWindowState(cb)) }
+/** 'visible' | 'hidden' for the WHOLE desk: hidden only when every app window is hidden or minimized. */
+export function onDeskVisibility(cb) { return subscribe('desk-visibility', (b) => b.onDeskVisibility(cb)) }
 
 export function onBeforeQuit(cb) { return subscribe('before-quit', (b) => b.onBeforeQuit(cb)) }
 
 export function ackBeforeQuit() {
   if (!hasDesktopFeature('before-quit')) return
   try { getBridge().ackBeforeQuit() } catch { /* the shell closes on its own timer */ }
+}
+
+/**
+ * Tell the shell about an event only the website can see, for its enum-only telemetry (plan 5.1):
+ * 'signed_in' (the shell sends first_signin once per install) or 'desk_restored' (a saved desk came
+ * back at launch). The shell drops any other name. A no-op outside the app or on an older shell.
+ */
+export function reportDesktopEvent(name) {
+  if (!hasDesktopFeature('site-events')) return
+  try { getBridge().reportEvent(name) } catch { /* telemetry never breaks the page */ }
+}
+
+const asUpdate = (u) => (u && typeof u.version === 'string' && /^\d+\.\d+\.\d+$/.test(u.version) ? { version: u.version } : null)
+
+/** The desktop app update downloaded and waiting to install ({ version }), or null. */
+export async function getAppUpdate() {
+  if (!hasDesktopFeature('app-update')) return null
+  try {
+    return asUpdate(await getBridge().getAppUpdate())
+  } catch {
+    return null
+  }
+}
+
+/** Called with { version } when an app update is ready, and null when it is withdrawn. */
+export function onAppUpdate(cb) { return subscribe('app-update', (b) => b.onAppUpdate((u) => cb(asUpdate(u)))) }
+
+/** "Restart to update": the shell runs its normal quit (unsaved-text prompt included), installs, reopens. */
+export function restartToUpdate() {
+  if (!hasDesktopFeature('app-update')) return
+  try { getBridge().restartToUpdate() } catch { /* the shell installs on the next quit anyway */ }
 }
 
 /** { appVersion, platform }, or null outside the app or if the shell cannot answer. */

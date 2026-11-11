@@ -1,0 +1,17 @@
+rail src/lib/persistence/persistenceManifest.test.js
+## the persistence census sees the tree before anything is compared > finds known keys in every store, including ones only reachable through imports and wrappers
++ Received:
+
+## the persistence census sees the tree before anything is compared > classifies every storage-shaped call and resolves every key
++     "file": "app/src/components/StockChart.jsx",
++     "fn": "persistViewLock",
++     "fn": "readViewLock",
++     "line": 5109,
++     "line": 5110,
++     "line": 5116,
++     "store": "localStorage",
++     "why": "key is a parameter nobody resolvably passes (via
++     "why": "key is a parameter nobody resolvably passes (via app/src/pages/study/DrillPlayer.jsx:450)",
++   {
++   },
++ Received

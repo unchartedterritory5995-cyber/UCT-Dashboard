@@ -40,6 +40,7 @@ import { __setWarmRetryDelaysForTests } from './utils/warmRetry'
 import { __setFirstLiveWidgetForTests } from './pages/journal-2-0/lib/notebookTelemetry'
 import { __setTodayLandingForTests } from './pages/journal-2-0/lib/todayHome'
 import { __setRsTelemetryOffForTests } from './lib/rsTelemetry'
+import { __setBenchmarkTailFetcherForTests } from './components/chart/engine/liveTail'
 
 // ── GT (2026-10-02): the runtime pane's per-member gate and starter allowlist ──
 // Production is FAIL-CLOSED on both: nothing latched = not permitted, nothing
@@ -64,6 +65,23 @@ beforeEach(() => { __setWarmRetryDelaysForTests([]) })
 // pin "renders from params without a fetch"; the beacon is off here by default and railed ON in
 // `pages/journal-2-0/lib/notebookTelemetry.test.js` and `components/notebook/EmptyNamesAsk.test.jsx`.
 beforeEach(() => { __setFirstLiveWidgetForTests(false) })
+
+// ── UCT RS split, U7 (2026-11-09): `VITE_RS_SPLIT_ENABLED` picks which `rsLine` definition `nativeRegistry.js`
+// REGISTERS at module load (the slim UCT RS Line under '1', today's UCT Relative Strength otherwise). The suite's
+// default is OFF, as the build's is: the 60-odd RS files pin today's shape, and a developer's shell env must not flip
+// them. The slim definition is railed through its exported raw (`rsSplitSlim.test.js`, `rsSplitMigration.test.js`),
+// and the registration under '1' through a stubbed env + `vi.resetModules()` (`rsSplitFlagOn.test.jsx`).
+try { delete import.meta.env.VITE_RS_SPLIT_ENABLED } catch { /* a read-only env object: the default is already off */ }
+
+// ── UCT RS split, F2 (2026-11-10): the benchmark tail store (`engine/liveTail.js`) asks for a benchmark's forming bar
+// only through a request its HOST registers; the chart door (`engine/serverCompute.js`) registers the browser's on
+// import, and it used to disarm itself under `import.meta.env.MODE === 'test'` — a build-flag read that the runtime
+// lane's compute closure may not hold (`tools/pine_runtime_closure.mjs`). This is the test host's side of that seam:
+// the request is taken away before every test, so a suite that counts `fetch` calls never meets a GET it did not
+// arm. A suite that wants the tail arms a counting one with `__setBenchmarkTailFetcherForTests(fn)` itself
+// (`liveTail.test.js`, `__tests__/liveTailLane.test.js`). ⚠️ This reaches the module instance imported HERE: a file
+// that `vi.resetModules()` and re-imports the chart door gets a fresh, armed store for that test, as the browser does.
+beforeEach(() => { __setBenchmarkTailFetcherForTests(null) })
 
 // ── UCT RS (2026-11-07): the six RS counts are ON by default in a build since the server lists them. The chart
 // suites written while they were dark mount RS copies under fetch mocks that count calls, so the counts are off here

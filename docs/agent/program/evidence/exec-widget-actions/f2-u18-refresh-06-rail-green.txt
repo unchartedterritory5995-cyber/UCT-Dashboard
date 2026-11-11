@@ -1,0 +1,19 @@
+node_modules LinkType/Target: Junction -> C:\w\pl-mc-fw\app\node_modules
+
+ RUN  v4.0.18 C:/w/pl-widget/app
+
+ ✓ src/agent/whichWidget.rules.rail.test.js (21 tests) 7ms
+ ✓ src/agent/agentWhichWidget.rail.test.jsx (7 tests) 7254ms
+     ✓ "refresh the scanner" (the plan picked the top one): asked which, and neither door is pressed  1090ms
+     ✓ "don't touch the period sort, just reload the scanner", planned on the Period Sort: the Period Sort gets NO refetch, nothing is claimed  1011ms
+     ✓ u18-refresh-06: the refusal names the Period Sort AND the Scanner, and says it won't guess  991ms
+     ✓ u18-show-05 "put Long Term on the Swing watchlist widget": the Swing widget shows Long Term; the other is untouched; no question  1028ms
+     ✓ u18-export-04 "export the Swing watchlist as a csv file": the Swing widget's own Export CSV, no question  1043ms
+     ✓ "refresh the IPOs scanner" with two Scanners: that one only  1046ms
+     ✓ "refresh the scanner" with ONE Scanner (and a Period Sort): it acts  1043ms
+
+ Test Files  2 passed (2)
+      Tests  28 passed (28)
+   Start at  22:52:44
+   Duration  13.10s (transform 4.58s, setup 501ms, import 5.90s, tests 7.26s, environment 771ms)
+

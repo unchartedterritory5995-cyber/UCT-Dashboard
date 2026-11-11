@@ -1,0 +1,770 @@
+LinkType: focused batch 2 (20 files, no lock)
+Wed Nov 11 05:51:01 UTC 2026
+232a3b19dd
+
+ RUN  v4.0.18 C:/w/pl-ocs/app
+
+stderr | src/pages/charts/grid/GridChartCell.settingsScope.test.jsx > a multi-chart grid cell keeps its indicator edits to itself > an indicator ADD on an unforked cell never writes chart_settings and lands on the cell
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/charts/grid/GridChartCell.settingsScope.test.jsx > a multi-chart grid cell keeps its indicator edits to itself > a HIDE on a forked cell with a per-cell Style stays on the cell (the chartType override path)
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/charts/grid/GridChartCell.settingsScope.test.jsx > a multi-chart grid cell keeps its indicator edits to itself > the per-cell extended-hours toggle writes the cell, never global
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/charts/grid/GridChartCell.settingsScope.test.jsx > a multi-chart grid cell keeps its indicator edits to itself > a forked cell shows "Reset to my chart", and it clears the fork
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/charts/grid/GridChartCell.settingsScope.test.jsx > a multi-chart grid cell keeps its indicator edits to itself > an unforked cell offers no Reset (there is nothing to reset)
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/charts/grid/GridChartCell.settingsScope.test.jsx > a multi-chart grid cell keeps its indicator edits to itself > the cell gear names the shared modal for what it is
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/charts/grid/GridChartCell.settingsScope.test.jsx > the other two scopes are unchanged > CONTROL — a chart with no home of its own (no override, no sink) still edits the main chart
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/charts/grid/GridChartCell.settingsScope.test.jsx > the other two scopes are unchanged > a ChartPane-shaped host (stored blob + sink, the ChartWidget recipe) stays isolated
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to StockChart inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/pages/charts/grid/GridChartCell.settingsScope.test.jsx (9 tests) 2251ms
+     ✓ the sink settles: an edit fed back through a real container re-renders a BOUNDED number of times  1309ms
+ ✓ src/agent/qa/capabilityRegression/corpus.routingV2.test.js (646 tests) 1894ms
+ ✓ src/agent/agentBatch1.test.jsx (17 tests) 1324ms
+     ✓ "open the screener" (fast path) → /screener, after the receipt; no Undo  1052ms
+ ✓ src/agent/agentChartGrid.test.js (18 tests) 5483ms
+     ✓ a step that does not land takes back everything before it: the board is exactly as it was  5050ms
+ ✓ src/components/chart/pane/ChartPane.test.jsx (23 tests) 595ms
+ ✓ src/agent/agentPageScreener.test.jsx (5 tests) 1329ms
+     ✓ MODEL: an unknown screen name is refused with the real names; the manifest is this page's (no chart controls, the queries, the page writes)  998ms
+stdout | src/agent/agentRouting.test.jsx > routing — offline accuracy over the benchmark messages > routing actually narrows: most cases send far fewer capabilities than the full manifest
+[routing] 43/43 routed; mean 23.4 of 158 capabilities; 0 full
+
+ ✓ src/agent/agentRouting.test.jsx (15 tests) 270ms
+ ✓ src/agent/qa/capabilityRegression/corpus.routing.test.js (646 tests) 479ms
+ ✓ src/agent/agentGuideTarget.test.jsx (4 tests) 140ms
+ ✓ src/pages/charts/widgets/ChartWidget.openSettings.test.jsx (4 tests) 255ms
+ ✓ src/agent/agentGuideTargets.test.js (71 tests) 10529ms
+     ✓ builderAction: each target is rendered by the product  323ms
+     ✓ gridAction: each target is rendered by the product  406ms
+     ✓ watchlistAction: each target is rendered by the product  1313ms
+     ✓ widgetAction: each target is rendered by the product  1863ms
+     ✓ chartMenu: each target is rendered by the product  311ms
+     ✓ legendChip: each target is rendered by the product  1256ms
+     ✓ widgetSettings: each target is rendered by the product  1253ms
+     ✓ widgetAdd: each target is rendered by the product  433ms
+     ✓ chartSetting: each target is rendered by the product  787ms
+     ✓ drawing: each target is rendered by the product  396ms
+ ✓ src/agent/agentCoachRoutingParity.test.js (22 tests) 60ms
+ ✓ src/agent/agentDeixis.test.js (42 tests) 69ms
+ ✓ src/agent/qa/capabilityRegression/inventory.test.js (676 tests) 347ms
+ ✓ src/agent/agentContracts.test.js (14 tests) 40ms
+ ✓ src/agent/agentNl1Selection.test.js (13 tests) 34ms
+ ✓ src/agent/agentOpenChartSettings.test.jsx (26 tests | 1 skipped) 21559ms
+     ✓ one chart: "open chart settings" opens its dialog, with no model call  1084ms
+     ✓ "open the chart settings" is the same door  1034ms
+     ✓ "show me the chart settings" is the same door  997ms
+     ✓ "bring up chart settings" is the same door  1045ms
+     ✓ "open the settings dialog" is the same door  1035ms
+     ✓ "show me the settings panel" is the same door  1043ms
+     ✓ "open this chart's settings" is the same door  1042ms
+     ✓ "pull up the settings for this chart" is the same door  1033ms
+     ✓ names the AAPL chart: only that chart opens  1011ms
+     ✓ names a position: "show me the settings panel for the top-left chart"  1042ms
+     ✓ ⛔ two charts, none named or clicked: it asks which, and opens nothing  1007ms
+     ✓ two charts, one clicked: "this chart" is the clicked one  1024ms
+     ✓ ⛔ excluded: "the chart that is not NVDA" — the model aiming at NVDA anyway opens nothing, and asks  1011ms
+     ✓ ⛔ excluded: "the other chart" (NVDA clicked) — the model aiming at the clicked chart opens nothing there  985ms
+     ✓ excluded control: "the other chart" (NVDA clicked), the model on AMD: AMD opens  1038ms
+     ✓ a chart with no settings door here (Multi Chart cell, a read-only surface) refuses and calls nothing  977ms
+     ✓ ⛔ a dialog that did not open gets no success  3097ms
+     ✓ already open: says so and calls nothing  993ms
+     ✓ says there is no Undo (nothing changed), and declares none  1024ms
+ ✓ src/agent/qa/capabilityRegression/corpus.dark.test.jsx (70 tests) 23051ms
+     ✓ "how does SPY do after new 50-day highs"  1098ms
+     ✓ "what happens to SPY after a 50-day breakout"  1012ms
+     ✓ "how has SPY performed after making a new 50-day high"  1019ms
+     ✓ "how did SPY do after 50 day breakouts"  980ms
+     ✓ "how has NVDA behaved after 5%+ gaps"  986ms
+     ✓ "what happens to NVDA after a 5% gap up"  1013ms
+     ✓ "how did NVDA react after 5% earnings gaps"  993ms
+     ✓ "how has NVDA traded after gaps"  1004ms
+     ✓ "what happens to AMD after it crosses above its 50-day"  1027ms
+     ✓ "how has AMD done after crossing above the 50 day moving average"  1007ms
+     ✓ "how did AMD trade after it closed above its 50-day sma"  1001ms
+     ✓ "how has NVDA done after RSI drops below 30"  1002ms
+     ✓ "what happens to NVDA after its RSI falls under 30"  997ms
+     ✓ "how did NVDA do after rsi goes below 30"  1000ms
+     ✓ "what has NVDA historically done in the weeks after gapping up 8% or more"  1053ms
+     ✓ "NVDA after 8%+ gap ups: how did it do over the next 1, 2 and 4 weeks"  1038ms
+     ✓ "historically, after NVDA gaps up 8% or more, what happened over the following weeks"  1051ms
+     ✓ "what's the price of gold"  1007ms
+     ✓ "gold price"  1010ms
+     ✓ "how much is gold"  1052ms
+     ✓ GW-26.history-questions (PKG2 (11-04): conversational scanning + historical analysis, owner-style phrasings: event studies, a dark kind (history.eventStudy))  1164ms
+     ✓ refuse.history.breadth-thrust  1044ms
+ ✓ src/agent/qa/fastPathCorpus.test.jsx (33 tests) 33077ms
+     ✓ CONTROL: the fast path DOES claim a phrase it knows (a saved screen: 0 model turns, 1 scan)  1081ms
+     ✓ CONTROL: "show me my strongest stocks" is refused LOCALLY (0 model turns, no scan)  988ms
+     ✓ d01: top RS names near 52-week highs  1053ms
+     ✓ d02: stocks with RS rank above 90  989ms
+     ✓ d03: show me the leaders making new highs  1022ms
+     ✓ d04: what's ripping this month  1008ms
+     ✓ d05: best 3-month performers over $10  997ms
+     ✓ d06: unusual volume in semis  991ms
+     ✓ d07: stocks trading at least 3x their average volume  1007ms
+     ✓ d08: names trading over $50M a day  993ms
+     ✓ d09: volume dried up to a 4-week low  1072ms
+     ✓ d10: high ADR stocks, above 5%  994ms
+     ✓ d11: movers with real range, ADR 4 to 8 percent  1008ms
+     ✓ d12: tight consolidations above the 50-day  996ms
+     ✓ d13: NR7 days in strong stocks  995ms
+     ✓ d14: pullbacks to the 20 EMA in uptrends  984ms
+     ✓ d15: EMA stack intact and RS line trending up  982ms
+     ✓ d16: stocks within 3% of their 20-day high  977ms
+     ✓ d17: gapping up more than 4% today  1086ms
+     ✓ d18: RSI over 70  1010ms
+     ✓ d19: oversold large caps  993ms
+     ✓ d20: EPS growth above 25% and revenue growth above 20%  977ms
+     ✓ d21: fast growers in software  947ms
+     ✓ d22: small caps under $2B with short float over 20%  988ms
+     ✓ d23: reporting earnings in the next 5 days  994ms
+     ✓ d24: energy stocks above the 50-day  996ms
+     ✓ d25: strongest sectors' leaders  997ms
+     ✓ d26: chip stocks up today  995ms
+     ✓ r01: EMA 9 crossing above EMA 20  979ms
+     ✓ r02: run my custom squeeze indicator as a scan  975ms
+     ✓ r03: stocks where MACD just turned positive  995ms
+     ✓ r04: screen on put/call ratio above 2  997ms
+     ✓ r05: dark pool prints over $10M  1006ms
+stderr | src/agent/qa/capabilityRegression/golden.test.jsx > refusals (the corpus) > refuse.indicatorAlert.threshold.dismissed
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/golden.test.jsx > refusals (the corpus) > refuse.indicatorAlert.ma-cross.dismissed
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/golden.test.jsx > refusals (the corpus) > refuse.indicatorAlert.delete.dismissed
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/golden.test.jsx > refusals (the corpus) > refuse.bqa1.full-board-new-chart
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/golden.test.jsx > refusals (the corpus) > refuse.bqa1.full-board-new-chart.model
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/capabilityRegression/golden.test.jsx > refusals (the corpus) > refuse.bqa1.line-noun-no-drawing
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/agent/qa/capabilityRegression/golden.test.jsx (69 tests) 85718ms
+     ✓ GW-01.symbol-weekly-emas-log-undo (LIVE-TESTING-RESULTS-2026-11-03.md E-01 (E each; D/LM))  2032ms
+     ✓ GW-02.empty-board-honest (LIVE-TESTING-RESULTS-2026-11-03.md E-01′ (R, 0 model calls))  1177ms
+     ✓ GW-03.breadth-member-side (LIVE-TESTING-RESULTS-2026-11-03.md P-07 (answered from UCT's breadth store; the live reading came through the server's breadth path, so here: routed to breadth.show and read through the canonical breadth route))  1003ms
+     ✓ GW-04.earnings-when (LIVE-TESTING-RESULTS-2026-11-03.md A-10a (earnings card))  1033ms
+     ✓ GW-05.screen-price-rvol (LIVE-TESTING-RESULTS-2026-11-03.md A-13 (E scan))  1062ms
+     ✓ GW-06.hidden-field-refused (LIVE-TESTING-RESULTS-2026-11-03.md C-08a / LT-8 fix (W1.1 R-05): F-16 refusal, nothing substituted)  1103ms
+     ✓ GW-07.protected-layout-rename (LIVE-TESTING-RESULTS-2026-11-03.md P-09 / LT-9 fix (W1.1 R-03): refused by name, 0 model calls)  988ms
+     ✓ GW-08.indicator-alert-routed (LIVE-TESTING-RESULTS-2026-11-03.md B-07 / LT-4 fix (W1.1 R-04): the indicator-alert group is offered)  1028ms
+     ✓ GW-09.two-new-charts (hotfix #766 T1 (owner live regression, verified 11-03); AUDIT live production pass 2026-11-04 (edd353fc06): two new daily charts, re-tiled)  1333ms
+     ✓ GW-10.grid-then-undo-by-kind (hotfix #766 T3 + review F2 (owner's exact words); AUDIT live production pass 2026-11-04 (edd353fc06): 2×2, 1 reused, 3 new)  1166ms
+     ✓ GW-11.change-then-undo-compound (hotfix #766 T2 (owner's exact words); AUDIT live production pass 2026-11-04 (edd353fc06): 2 steps, ends on daily)  1102ms
+     ✓ GW-12.emas-coloured-exact-undo (agentExactUndo test 1 / owner acceptance 2026-10-29 (Indicators #517))  2100ms
+     ✓ GW-13.model-undo-is-the-receipt-undo (hotfix #766 T2 (the model plans agent.undo → doUndo, never a claim))  1165ms
+     ✓ GW-14.price-alert-needs-approval (agentAlerts (alert.create is confirm-risk: a proposal, written only on Apply))  1158ms
+     ✓ GW-15.live-undo-last-change-charts (AUDIT live production pass 2026-11-04 (edd353fc06): 'Undo the last change you made to my charts.')  1164ms
+     ✓ GW-16.live-grid-2x2-daily (AUDIT live production pass 2026-11-04 (edd353fc06): 'Create four charts in a 2×2 grid: … all on the daily timeframe.')  1071ms
+     ✓ GW-17.live-earnings-next (AUDIT live production pass 2026-11-04 (edd353fc06): 'When does TSLA report earnings next?' (stock.earnings card))  1025ms
+     ✓ GW-18.live-emas-already-present (AUDIT live production pass 2026-11-04 (edd353fc06): 'Add the 9 and 20 EMAs to the TSLA chart.' on a chart that shows them → honest no-op)  1021ms
+     ✓ GW-19.daily-charts-each-with-50sma (Batch E6 (11-04): multi-step combos (AUDIT list): charts + indicator, timeframe + indicator, two charts side by side — the owner's acceptance phrasing (agentFlagshipOperator: CYPH kept, three new daily charts, SMA 50 on each) (the SMA adds are asserted on the state; the static reading of this sentence names only chartGrid.set, so only that is credited))  1389ms
+     ✓ GW-20.weekly-then-20ema (Batch E6 (11-04): multi-step combos (AUDIT list): charts + indicator, timeframe + indicator, two charts side by side — a compound: the timeframe, then the indicator, each its own receipt)  1155ms
+     ✓ GW-21.two-charts-side-by-side (Batch E6 (11-04): multi-step combos (AUDIT list): charts + indicator, timeframe + indicator, two charts side by side — two charts + grid (agentMultiActionRegression routing set))  1164ms
+     ✓ GW-22.new-chart-then-rsi-on-it (Batch F4 (11-04): multi-step combos across turns (the AUDIT list) — add a chart, then an indicator on 'it' (the chart the conversation just made). The new chart is born with the product's default overlays (EMA 9/20, SMA 50/200), so the follow-up adds RSI)  1261ms
+     ✓ GW-23.weekly-and-ema-then-undo-all (Batch F4 (11-04): multi-step combos across turns (the AUDIT list) — timeframe + indicator in one request, then ONE 'undo all of that')  1354ms
+     ✓ GW-24.grid-then-all-weekly (Batch F4 (11-04): multi-step combos across turns (the AUDIT list) — four charts, then one change on all of them)  1305ms
+     ✓ GW-25.scan-conversation (PKG2 (11-04): conversational scanning + historical analysis, owner-style phrasings: screen, sector, price, sort, watchlist, charts, undo)  2601ms
+     ✓ GW-27.indicator-package-draft-to-delete (PACKAGE 3 (11-04): indicator creation and configuration end to end — the owner's example ("marks days where close is above the 21 EMA and volume is 1.5x the 50-day average") through the REAL authoring interface, a scripted builder model (seed.builder), human names, follow-ups — the whole lifecycle in one conversation, each committed step undone)  3185ms
+     ✓ GW-28.counted-others-four-charts (Owner 11-05: a stated chart count is part of the target; a count that does not match the board changes nothing and says so, with no model call)  1565ms
+     ✓ GW-29.counted-others-two-charts (Owner 11-05: a stated chart count is part of the target; a count that does not match the board changes nothing and says so, with no model call)  1277ms
+     ✓ GW-34.watchlist-setFlag-bare (Agent integration 1 (11-05): through the real panel, reached by the need_groups reroute. A golden workflow rather than a corpus intent because neither router sends this action for its phrasings today (see the "Agent integration 1" PR).)  1109ms
+     ✓ GW-35.drawing-add-arrow (Agent integration 1 (11-05): through the real panel and the real drawings store, reached by the need_groups reroute. A golden workflow rather than a corpus intent because the legacy router does not send drawing.add for its phrasings today (see the "Agent integration 1" PR).)  1212ms
+     ✓ refuse.undo-nothing  996ms
+     ✓ refuse.rs-rank-hidden  994ms
+     ✓ refuse.tab-standin  1043ms
+     ✓ refuse.alert-needs-approval  965ms
+     ✓ refuse.alert.price-above.dismissed  1059ms
+     ✓ refuse.indicator.remove-sma200.dismissed  1022ms
+     ✓ refuse.alert.delete.dismissed  1041ms
+     ✓ refuse.layout.saveAs.dismissed  1080ms
+     ✓ refuse.watchlist.create.dismissed  1055ms
+     ✓ refuse.indicatorAlert.threshold.dismissed  1036ms
+     ✓ refuse.indicatorAlert.ma-cross.dismissed  1053ms
+     ✓ refuse.indicatorAlert.delete.dismissed  1024ms
+     ✓ refuse.drawing.clear.dismissed  1194ms
+     ✓ refuse.chart.applyTemplate.dismissed  1055ms
+     ✓ refuse.chartSetup.deleteTemplate.dismissed  1054ms
+     ✓ refuse.screener.saveAs.dismissed  1136ms
+     ✓ refuse.screener.renameSaved.dismissed  1057ms
+     ✓ refuse.screener.deleteSaved.dismissed  1086ms
+     ✓ refuse.screener.duplicateSaved.dismissed  1090ms
+     ✓ refuse.watchlist.rename.dismissed  1039ms
+     ✓ refuse.watchlist.clear.dismissed  1043ms
+     ✓ refuse.watchlist.delete.dismissed  1072ms
+     ✓ refuse.layout.rename.dismissed  1055ms
+     ✓ refuse.layout.delete.dismissed  1056ms
+     ✓ refuse.layout.duplicate.dismissed  1012ms
+     ✓ refuse.layout.create.dismissed  1042ms
+     ✓ refuse.trading-unsupported  1020ms
+     ✓ refuse.missing-target  1022ms
+     ✓ refuse.empty-board-timeframe  993ms
+     ✓ refuse.bqa1.full-board-new-chart  1222ms
+     ✓ refuse.bqa1.full-board-new-chart.model  1081ms
+     ✓ refuse.bqa1.line-noun-no-drawing  1412ms
+     ✓ refuse.undo-after-indicator-save  1300ms
+     ✓ refuse.other-chart-ambiguous  1250ms
+     ✓ refuse.other-one.ambiguous-four  1775ms
+     ✓ followup.other-one.two-charts  1507ms
+     ✓ followup.other-charts.plural-four  1901ms
+     ✓ followup.it-on-chart.two  1653ms
+     ✓ followup.it-on-chart.four  1913ms
+
+ Test Files  20 passed (20)
+      Tests  2422 passed | 1 todo (2423)
+   Start at  00:51:02
+   Duration  93.55s (transform 36.07s, setup 4.49s, import 67.32s, tests 188.51s, environment 12.05s)
+

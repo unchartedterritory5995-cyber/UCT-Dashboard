@@ -214,7 +214,8 @@ describe('a blob written before the engine existed', () => {
     // a legacy pane because it was never a pane — the value was printed into the
     // volume pane's LABEL. No block, no toggle, no stored blob that named it.
     // ⭐ 2026-10-01 — and the Technical library's thirty own-pane Tier 1 studies.
-    const NEVER_A_SHIPPED_PANE = ['rsLine', 'dataSeries', 'dollarVolume',
+    // ⭐ U6 (2026-11-09): the RS split's three, server pane definitions like `rsLine`.
+    const NEVER_A_SHIPPED_PANE = ['rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'dataSeries', 'dollarVolume',
       ...TIER1_IDS.filter((id) => !['superTrend', 'keltner', 'envelope'].includes(id))]
     const shippedPaneIds = paneIds.filter(id => !NEVER_A_SHIPPED_PANE.includes(id))
     for (const id of NEVER_A_SHIPPED_PANE) {
@@ -253,7 +254,8 @@ describe('a blob written before the engine existed', () => {
         'dataSeries', 'dollarVolume',
         // ⭐ 2026-10-01 — the Technical library's Tier 1, natives registered after
         // `dollarVolume`, so appended in registration order before the server lane.
-        ...TIER1_IDS, 'rsLine'])
+        // ⭐ U6 (2026-11-09): the RS split's three follow rsLine, in registration order.
+        ...TIER1_IDS, 'rsLine', 'rsRating', 'rsPhases', 'rsVsEma'])
   })
 
   it('runs ONCE — a v2 blob is passed through untouched, by identity', () => {
@@ -484,7 +486,8 @@ describe('a blob written before the engine existed', () => {
       // rather than into a z-order members already have on screen.
       // ⭐ 2026-10-01 — the Technical library's Tier 1 is appended the same way, in
       // registration order, ahead of the server lane's `rsLine`.
-      .toEqual(['avwap', 'atrBands', 'dataSeries', 'dollarVolume', ...TIER1_IDS, 'rsLine'])
+      // ⭐ U6 (2026-11-09): the RS split's three are appended after rsLine the same way.
+      .toEqual(['avwap', 'atrBands', 'dataSeries', 'dollarVolume', ...TIER1_IDS, 'rsLine', 'rsRating', 'rsPhases', 'rsVsEma'])
     // ✅ AND IT IS APPLIED AT B5 TASK 13 — in the FOLD, which is what makes
     // `orderedPaneKeys` (which walks the instance list) produce it without a sort
     // of its own. Task 12 measured that Flip C shipped without it and left the

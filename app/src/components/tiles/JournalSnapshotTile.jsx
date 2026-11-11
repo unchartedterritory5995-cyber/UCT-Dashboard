@@ -770,6 +770,11 @@ const prefersReducedMotion = () =>
  * One hidden defs block — a gold gradient with a bright band that slowly sweeps
  * across (the brand's gold-shimmer language), shared by every benefit glyph so
  * they shimmer in unison. Static for reduced-motion.
+ *
+ * ⛔ The sweep runs TWICE and rests (2026-11-10): an endless repeat count on an SVG
+ * SMIL animation re-styles and re-lays-out the whole page every frame, forever
+ * (measured on /dashboard: 60 layouts and 60 style recalcs a second while idle).
+ * SMIL is invisible to `document.getAnimations()`; endlessAnimations.test.js scans it.
  */
 function IconDefs() {
   const reduce = prefersReducedMotion()
@@ -789,7 +794,7 @@ function IconDefs() {
               from="-1 0"
               to="1 0"
               dur="3.4s"
-              repeatCount="indefinite"
+              repeatCount="2"
             />
           )}
         </linearGradient>

@@ -19,6 +19,7 @@ import { chartFeaturesOf, addFeature, removeFeature, setFeatureOpen } from './ch
 import styles from '../ChartsWorkspace.module.css'
 import ChartTabStrip from './ChartTabStrip'
 import { prefetchReplayTimeframes } from '../../../utils/prefetchBars'
+import { viewCacheTf } from '../../../utils/viewSession'
 import { fetchTf } from '../../../components/chart/timeframes'
 import useSymbolHandoff from '../../../hooks/useSymbolHandoff'
 import useSymbolSettle from '../../../hooks/useSymbolSettle'
@@ -111,7 +112,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   const hostOverlay = useContext(ChartHostOverlayContext)
   const panelSlotReady = useContext(PanelSlotContext)
   const symDebounceMs = Number.isFinite(hostOverlay?.symbolDebounceMs) ? hostOverlay.symbolDebounceMs : 90
-  const symIsWarm = useCallback((s) => memHas(s, fetchTf(tf)), [tf])
+  const symIsWarm = useCallback((s) => memHas(s, viewCacheTf(fetchTf(tf))), [tf])
   const requestedSym = useSymbolSettle(groupSym, { debounceMs: symDebounceMs, isWarm: symIsWarm })
 
   // ⭐⭐ ATOMIC SYMBOL HANDOFF. `sym` is what the chart DISPLAYS, and it only
@@ -323,6 +324,16 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         drawSym: () => symRef.current,
         goToDate: (ms) => paneRef.current?.goToDate?.(ms),
         viewDo: (op, arg) => !!paneRef.current?.viewDo?.(op, arg),
+        // ⭐ C1-127: the chart's OWN Chart Settings dialog — the very openSettings the gear, the right-click
+        // "Chart settings" item and Alt+, call (ChartPane). Opening it writes nothing; `settingsOpen` is the read-back.
+        canOpenSettings: () => !!paneRef.current?.canOpenSettings?.(),
+        settingsOpen: () => !!paneRef.current?.isSettingsOpen?.(),
+        openSettings: () => {
+          const pane = paneRef.current
+          if (!pane?.canOpenSettings?.() || typeof pane.openSettings !== 'function') return false
+          pane.openSettings()
+          return true
+        },
         // INDICATORS M1 (AGENT-INTEGRATION-HANDOFF §11): the chart's own Create Indicator door.
         openCreateIndicator: (o) => paneRef.current?.openCreateIndicatorFor?.(o) ?? { ok: false, reason: 'unavailable', prefilled: false, draft: false, editing: false },
         canCreateIndicator: () => !!paneRef.current?.canCreateIndicator?.(),

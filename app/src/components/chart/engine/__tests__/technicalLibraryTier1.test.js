@@ -189,8 +189,12 @@ describe('4 — the search aliases resolve to the right row', () => {
 
 describe('5 — the right-click quick menu', () => {
   it('every Tier 1 study declares quickMenu:false; no pre-existing definition does', () => {
+    // ⭐ UCT RS split, U6 (2026-11-09): the three gated server definitions (`meta.requiresServer`)
+    // declare it too, for the same reason: browsed and added in the library once the live
+    // server lists them, never a right-click quick toggle. Spelled by name, like Tier 1.
+    const LIBRARY_ONLY = [...TIER1_IDS, 'rsRating', 'rsPhases', 'rsVsEma']
     for (const d of registry.listDefinitions()) {
-      expect(d.meta.quickMenu === false, d.id).toBe(TIER1_IDS.includes(d.id))
+      expect(d.meta.quickMenu === false, d.id).toBe(LIBRARY_ONLY.includes(d.id))
     }
   })
 })

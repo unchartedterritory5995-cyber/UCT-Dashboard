@@ -1,0 +1,43 @@
+# head 354e61596f 2026-11-10T23:00:40Z dirty: 0 tracked file(s) modified
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+# cmd: cd app && npx vitest run src/agent/agentRouting.test.jsx
+ RUN  v4.0.18 C:/w/pl-widget/app
+stdout | src/agent/agentRouting.test.jsx > routing — offline accuracy over the benchmark messages > routing actually narrows: most cases send far fewer capabilities than the full manifest
+[routing] 43/43 routed; mean 23.7 of 160 capabilities; 0 full
+ ❯ src/agent/agentRouting.test.jsx (23 tests | 1 failed) 250ms
+     ✓ every registered capability belongs to exactly one routing group (a new domain fails here) 4ms
+     ✓ nothing recognised → the FULL manifest (the pre-routing behaviour), never a guess 1ms
+     ✓ M1: an indicator word (EMA, SMA, RSI…) is recognised now — the indicators group (agreed with Indicators), the model may still just answer 1ms
+     ✓ a recognised request gets its groups plus the always-on agent group, and names the rest 1ms
+     ✓ multi-intent requests select every group they touch 0ms
+     ✓ follow-ups keep the groups of a pending proposal and of the last change 1ms
+     ✓ a ticker in a symbol request routes to charts (case-sensitive on the raw text) 0ms
+     ✓ the kill switch sends the full manifest 0ms
+     ✓ a reroute ADDS the requested groups 0ms
+     ✓ every case gets the groups its correct plan needs (100% — a miss would cost a reroute) 0ms
+     ✓ routing actually narrows: most cases send far fewer capabilities than the full manifest 1ms
+     ✓ deterministic commands still never reach the model (fast paths unchanged by routing) 28ms
+     ✓ need_groups → ONE more call with those groups added (marked reroute); the plan then runs once 162ms
+     ✓ a second need_groups is NOT chased again — one bounded retry, then an honest sentence 40ms
+     × each group can be sent (by its words or a reroute) within the per-request limit, and the groups cover the whole catalog 7ms
+     ✓ the flag is declared (the Watchlist widget's list group) 0ms
+     ✓ "zzz unrelated": no words-only group is in the request 0ms
+     ✓ "scratch that": no words-only group is in the request 0ms
+     ✓ "what is an EP setup": no words-only group is in the request 0ms
+     ✓ "how does the team think about patience": no words-only group is in the request 0ms
+     ✓ "go back to how it was before": no words-only group is in the request 0ms
+     ✓ "hmm": no words-only group is in the request 0ms
+     ✓ named by its own words, or asked for by a reroute, it is sent 0ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  src/agent/agentRouting.test.jsx > release audit: every registered action is reachable through routing > each group can be sent (by its words or a reroute) within the per-request limit, and the groups cover the whole catalog
+AssertionError: expected 160 to be 158 // Object.is equality
+- Expected
++ Received
+- 158
++ 160
+ ❯ src/agent/agentRouting.test.jsx:203:25
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+ Test Files  1 failed (1)
+      Tests  1 failed | 22 passed (23)
+   Start at  18:00:42
+   Duration  10.15s (transform 7.20s, setup 319ms, import 8.83s, tests 250ms, environment 595ms)

@@ -4,10 +4,10 @@
       "evidence": "Bulkowski measured 15,763 chart patterns: the direction of RS before a breakout barely changed the result, while RS rising after the breakout did (an average gain of 41% against 22%). No published hit rate exists for this signal and UCT has not measured one yet.",
       "label": "Before price",
       "origin": "IBD: more bullish, and not a precondition. Deepvue, ChillLax.",
-      "what": "That RS high came while price was still more than the tolerance below its own lookback high: relative strength led, price had not confirmed."
+      "what": "That RS high came while price was still more than 2% below its own lookback high: relative strength led, price had not confirmed. The gold dot."
     },
     "benchmarkName": {
-      "evidence": "A rising RS line means the stock is beating this benchmark over the window, nothing more: it can rise while the stock is falling if the benchmark falls faster (IBD). Which benchmark you compare against changes the answer; the Agreement row reads the same line against SPY, the equal-weight index and the sector.",
+      "evidence": "A rising RS line means the stock is beating this benchmark over the window, nothing more: it can rise while the stock is falling if the benchmark falls faster (IBD). Which benchmark you compare against changes the answer.",
       "label": "Benchmark",
       "origin": "IBD and MarketSurge draw RS against the S&P 500. The equal-weight index or the sector ETF isolates the stock from the few giants that carry a cap-weighted index.",
       "what": "What the RS line is measured against: this symbol's close divided by the benchmark's close, bar by bar. The resolved ticker is printed; SECTOR and INDUSTRY are resolved on the server."
@@ -16,79 +16,31 @@
       "evidence": "Counts, not signals: the green-on-red check passes at 6 of the last 20 sessions, which is UCT's own threshold, and the screener's up-on-down-days scan is looser at 3. No published hit rate exists for these checks and UCT has not measured them yet.",
       "label": "Checks",
       "origin": "UCT workshops (Chartmaster, the four RS checks).",
-      "what": "The four UCT checks, each a yes or no with its numbers: distance from the 200-day average against the benchmark's; return since the benchmark's 20-session low against the benchmark's; how many of the last ten red days closed in the top third of their range; how many of the last twenty sessions closed up on a red day."
-    },
-    "fastRating": {
-      "evidence": null,
-      "label": "Fast",
-      "origin": "The site's existing RS rank (rs_ranking), read once a night beside the IBD-style rating; the Rated as of row dates both. A different formula from the IBD-style rating, so the two can differ widely.",
-      "what": "UCT fast rating, 1 to 99, as captured by the nightly job (the screener's hourly RS Rank): 3-month, 6-month, 1-month and 1-week returns over about 138 sessions."
-    },
-    "mansfield": {
-      "evidence": "No published hit rate exists for this signal and UCT has not measured one yet.",
-      "label": "Mansfield",
-      "origin": "Weinstein, Secrets for Profiting in Bull and Bear Markets; the Mansfield RS line on his charts.",
-      "what": "Mansfield Relative Strength: the RS ratio as a percent above or below its own moving average, measured over the Mansfield length set on this chart, in this chart's bars; the Length row prints it. 200 is the default; 52 on a weekly chart is Weinstein's published length, which the weekly Trend preset sets. Above zero, the stock is outperforming its own trend against the benchmark."
+      "what": "The four UCT checks, each a yes or no with its numbers: distance from the 200-day average against the benchmark's; return since the benchmark's lowest close of the last 20 sessions against the benchmark's; how many of the last ten red days closed in the top third of their range; how many of the last twenty sessions closed up on a red day."
     },
     "phase": {
       "evidence": "No published hit rate exists for this signal and UCT has not measured one yet.",
       "label": "RS line",
       "origin": "Manrav video 59 (the 21 EMA on the RS line); TraderLion RS Phase; Deepvue Webby RS. A trend read that lags turns by design.",
-      "what": "Whether the RS line closed above or below its moving average on the last bar. Above is the bullish phase; the cross is the event the screener and alerts read."
-    },
-    "quality": {
-      "evidence": "An independent point-in-time re-test of Clenow's whole strategy (Quanterlab), simulated for a full portfolio rule set and not a forecast for this score on one stock, found it beat SPY from 2006 to 2014 (12.0% a year against 7.7%) and trailed it from 2015 to 2025 (7.5% against 13.4%). No published hit rate exists for this signal and UCT has not measured one yet.",
-      "label": "Quality",
-      "origin": "Andreas Clenow, Stocks on the Move (2015): the yearly pace of a regression on the log of price, times its R². Commonly implemented with 90 trading days.",
-      "what": "Clenow's momentum quality: how fast and how steadily the price has climbed over the window, 90 sessions by default. A straight line is fitted through the closes on a log scale; its slope becomes a yearly pace, which is multiplied by R², how closely the closes hug that line (0 to 1). A fast, smooth climb scores high, and a jumpy one scores lower at the same pace. It reads the stock's own price, not the benchmark. The gap flag says whether one session in the window moved more than the gap threshold, 15% by default, and the dot on the line marks that session. Daily charts only."
+      "what": "Whether the RS line closed above or below its moving average on the last bar, and by how much. Above is the bullish phase; the cross is the event the screener and alerts read. The average is drawn while Show average is on and read here either way."
     },
     "ratingSummary": {
-      "evidence": "The rating is a rank of past return, not a forecast. The nearest evidence is the academic momentum literature (a 12-month return with the last month skipped): past 6 to 12-month winners kept outperforming for the next 3 to 12 months across many markets and decades, about 8% a year long-short and positive in roughly four years of five (Jegadeesh and Titman 1993; Asness, Frazzini, Israel and Moskowitz 2014), with the crash risk the Regime row describes.",
+      "evidence": "The rating is a rank of past return, not a forecast. The nearest evidence is the academic momentum literature (a 12-month return with the last month skipped): past 6 to 12-month winners kept outperforming for the next 3 to 12 months across many markets and decades, about 8% a year long-short and positive in roughly four years of five (Jegadeesh and Titman 1993; Asness, Frazzini, Israel and Moskowitz 2014). It loses roughly one year in five and reverses hardest at bear-market bottoms (Daniel and Moskowitz 2016).",
       "label": "Rating",
       "origin": "IBD's Relative Strength Rating, with IBD's published term weights (40% on the latest quarter). Labelled IBD-style because the universe and the bars are ours; ETFs are rated against the stock distribution, not inside it.",
-      "what": "IBD-style RS Rating, 1 to 99: where this symbol's weighted 3, 6, 9 and 12-month return ranks across the universe, computed nightly from our own bars. 90 means it beat 90% of the names rated."
-    },
-    "ratingView": {
-      "evidence": "No published hit rate exists for this signal and UCT has not measured one yet.",
-      "label": "RS Rating",
-      "origin": "Deepvue and MarketSurge draw the RS Rating as a line under the chart. This one plots the rating UCT's nightly job stored for each session: IBD's published term weights, ranked across our universe on our own bars.",
-      "what": "The RS Rating itself over time: the nightly IBD-style rating, 1 to 99, at each session on the chart, with its 21-session average dashed and guides at 80 and 90. A rising line means the stock has been climbing past the other names rated; a flat line near the top means it has held its place there. The row prints the latest rating and how many points it moved over the last 20 stored sessions. Daily charts only: the rating is stored once a session, and a session with no stored rating is left blank."
+      "what": "IBD-style RS Rating, 1 to 99: where this symbol's weighted 3, 6, 9 and 12-month return ranks across the universe, computed nightly from our own bars. 90 means it beat 90% of the names rated. The 1M to 12M rows are the ranks of each return on its own."
     },
     "redDay": {
       "evidence": "No published hit rate exists for this signal and UCT has not measured one yet.",
       "label": "On a red day",
       "origin": "UCT workshops; Kell; TraderLion on down days. Taught widely, never measured publicly.",
-      "what": "That RS high came on a day the benchmark closed down by at least the red-day threshold: strength while the market sold off."
-    },
-    "regime": {
-      "evidence": "Relative strength is a tendency, not a guarantee: in backtests it loses roughly one year in five and reverses hardest at bear-market bottoms. The fifteen worst momentum months since 1927 all came after a negative two-year market return, fourteen of them in months the market rose (1932, 2001, 2009), and in 2003 and 2009 the laggards beat the leaders by 35 to 50 points (Daniel and Moskowitz 2016; Dorsey Wright 2016).",
-      "label": "Regime",
-      "origin": "Daniel and Moskowitz, Momentum Crashes: leaders keep leading in persistence regimes and reverse hardest in rebounds after bear markets.",
-      "what": "The market state the reading lives in, from the benchmark alone: above or below its 200-day average, the sign of its two-year return, and where its six-month realised volatility sits in its own three-year range. Persistence: above the 200-day with a positive two-year trend. Rebound-risk: a negative two-year trend in the high-volatility third. Mixed: anything else."
-    },
-    "rotation": {
-      "evidence": "No published hit rate exists for this signal and UCT has not measured one yet.",
-      "label": "Rotation",
-      "origin": "Julius de Kempenaer's Relative Rotation Graphs. His formula is proprietary, so this is UCT's published approximation, the one the Terminal's RRG prints under its graph: RS-Ratio is 100 times the RS line over its 10-bar average, and RS-Momentum is 100 times RS-Ratio over its 5-bar average. Labelled RRG-style for that reason.",
-      "what": "Two lines around 100 against the benchmark. RS-Ratio is the RS line against its own recent average: above 100, the stock has been beating the benchmark lately. RS-Momentum is RS-Ratio against its own recent average: above 100, that lead is growing. Together they place the stock in one of four quadrants: Leading (both above 100), Weakening (RS-Ratio above, RS-Momentum below), Lagging (both below) and Improving (RS-Ratio below, RS-Momentum above). The row counts how many bars in a row it has held its quadrant. It is a map of where the stock stands, not a trading system."
+      "what": "That RS high came on a day the benchmark closed down by at least 0.5%: strength while the market sold off. Drawn as its own dot while Red-day highs is on."
     },
     "rsHigh": {
       "evidence": "No published hit rate exists for this signal and UCT has not measured one yet.",
       "label": "Last RS high",
       "origin": "IBD's RS line new high; the blue dot MarketSurge draws.",
       "what": "How many bars since the RS line last closed at its highest level of the lookback (252 bars on a daily chart, ties count)."
-    },
-    "sensitivity": {
-      "evidence": "In 2023 and 2024, 78% of S&P 500 stocks underperformed the cap-weighted index (Lyrical, 2024), so a line falling against SPY while rising against the equal-weight index or the sector separates stock-specific strength from a few giants carrying the index. The nightly test will print the rank correlation of RS across the three benchmarks here.",
-      "label": "Agreement",
-      "origin": "UCT: a leader against the cap-weighted index alone may only be riding the giants that carry it.",
-      "what": "Whether the last 20 bars of relative strength point the same way against SPY, the equal-weight index (RSP) and the sector ETF. Agree means all three slopes share a sign."
-    },
-    "vars": {
-      "evidence": "No published hit rate exists for this signal and UCT has not measured one yet.",
-      "label": "Vol-adjusted",
-      "origin": "OANDA's volatility-adjusted relative strength (VARS).",
-      "what": "Volatility-adjusted relative strength. Every session, the stock's move and the benchmark's move are each divided by that symbol's own typical daily move (its average true range, 20 bars by default), and the difference is added up over the lookback, 60 bars by default. Above zero, the stock has gained more than the benchmark once each is measured in its own usual move, so a quiet stock and a wild one read on one scale. The dashed line is its 50-bar average. Strong or Weak says which side of zero it is on; rising, fading, improving or falling says which side of its average."
     }
   },
   "glossary": [
@@ -137,7 +89,7 @@
       "aliases": [
         "Mansfield relative strength"
       ],
-      "definition": "Weinstein's version: the RS ratio measured against its own long average (52 weeks on his weekly charts), so it swings around zero. Above zero and rising means the stock is outperforming its own trend against the benchmark.",
+      "definition": "Weinstein's version: the RS ratio measured against its own long average (52 weeks on his weekly charts), so it swings around zero, and above zero and rising means the stock is outperforming its own trend against the benchmark. On UCT it is the screener's Mansfield RS column, read on 200 daily bars.",
       "key": "mansfieldRs",
       "term": "Mansfield RS"
     },
@@ -145,7 +97,7 @@
       "aliases": [
         "RRG quadrant"
       ],
-      "definition": "Leading (strong and gaining), Weakening (strong but fading), Lagging (weak and fading) or Improving (weak but gaining), read from the trend of the RS ratio and that trend's momentum. A map, not a system.",
+      "definition": "Leading (strong and gaining), Weakening (strong but fading), Lagging (weak and fading) or Improving (weak but gaining), read from the trend of the RS ratio and that trend's momentum on the Terminal's rotation graph and in the screener's weekly Rotation Quadrant column. A map, not a system.",
       "key": "rotationQuadrant",
       "term": "Rotation quadrant"
     },
@@ -196,6 +148,33 @@
       "definition": "Money moving from one group of stocks to another. The RS lines of the new group turn up while the old group's turn down.",
       "key": "rotation",
       "term": "Rotation"
+    },
+    {
+      "aliases": [
+        "RS Rating history",
+        "rating line"
+      ],
+      "definition": "An indicator that draws the stock's RS Rating, 1 to 99, session by session on daily charts, with its 21-session average and guides at 80 and 90. The 1, 3, 6, 9 and 12-month ranks print in the corner of its pane.",
+      "key": "uctRsRating",
+      "term": "UCT RS Rating"
+    },
+    {
+      "aliases": [
+        "RS phases",
+        "RS divergence shading"
+      ],
+      "definition": "An indicator that shades the bars where the RS line and the market pull apart: blue while RS rises as the market falls, red for the reverse, with a histogram of how unusual the split is for this stock. Both trends are a short average of the line against a longer one, 3 and 10 bars by default.",
+      "key": "uctRsPhases",
+      "term": "UCT RS Phases"
+    },
+    {
+      "aliases": [
+        "RS vs 21 EMA",
+        "Webby RS line"
+      ],
+      "definition": "An indicator that draws how far the RS line sits above or below its 21 EMA, in percent, bar by bar, blue above and red below, with a 3 and a 13 EMA of that distance. It is the same number the RS line's readout prints as its distance from the average.",
+      "key": "uctRsVsEma",
+      "term": "UCT RS vs 21 EMA"
     }
   ],
   "misconceptions": [

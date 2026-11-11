@@ -11,6 +11,7 @@ import UIcon from '../../../components/ui/UIcon'
 import { BoardFromList, usePanelList } from '../../../components/terminal'
 import useScreenerMeta from '../hooks/useScreenerMeta'
 import useScreenerScan from '../hooks/useScreenerScan'
+import { LIVE_REFRESH_MS } from '../hooks/liveRefresh'
 import { scanErrorText } from './scanErrorText'
 import useColumnPresets from '../hooks/useColumnPresets'
 import useScreenerCount from '../hooks/useScreenerCount'
@@ -122,7 +123,7 @@ export default function ScannerShell({ embedded = false, toolbarLead = null }) {
   const scanSpec = useMemo(
     () => (retryNonce ? { ...s.scanSpec, _retry: retryNonce } : s.scanSpec),
     [s.scanSpec, retryNonce])
-  const { result, isLoading, error } = useScreenerScan(scanSpec)
+  const { result, isLoading, error } = useScreenerScan(scanSpec, { refreshMs: LIVE_REFRESH_MS })
   const { presets: columnPresets, save: saveColumnPreset, remove: removeColumnPreset } = useColumnPresets()
   // PACKET-AB CP1 (fingerprint bc19457cf) -- same scanSpec, a materially cheaper
   // and faster preview count fed into FilterRail as a fast signal ahead of the
@@ -186,8 +187,11 @@ export default function ScannerShell({ embedded = false, toolbarLead = null }) {
     const keys = new Set(Object.keys(COLUMN_DEFS))
     for (const v of meta?.views || []) v.columns.forEach(c => keys.add(c))
     for (const f of meta?.filters || []) if (f.column) keys.add(f.column)
+    // S1: the server's `picker_hidden` columns stay defined and computed (saved
+    // screens render them) but are not offered, unless already on screen.
+    for (const k of meta?.picker_hidden || []) if (!visibleColumns.includes(k)) keys.delete(k)
     return [...keys].map(k => ({ key: k, label: COLUMN_DEFS[k]?.label || k }))
-  }, [meta])
+  }, [meta, visibleColumns])
 
   // FT-041/042: the metered server export. `exportQuota()` is null while the
   // server door is dark (404) or the plan is free (402) -- then the toolbar keeps

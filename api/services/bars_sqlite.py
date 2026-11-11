@@ -489,6 +489,117 @@ def iter_tickers(conn: sqlite3.Connection):
         yield current
 
 
+# ── 60m grid migration (2026-11-10: clock hours → TradingView session grid) ──
+# The stored tf=60 layout moved from 09:30(30 min), 10:00, 11:00 … 15:00 to
+# TradingView's 09:30, 10:30 … 15:30 (bars_fetch.SIXTY_MIN_GRID). A row stamped
+# on an ET :00 between 10:00 and the regular close can ONLY come from the old
+# layout, and an old ticker's 09:30 row has the right key but 30 minutes of
+# content — so detection is per row, healing is per TICKER: drop every 60m row
+# of a ticker that has any, and the next request re-resamples from 15m.
+_ET_ZONE = None
+
+
+def is_old_grid_60m_ts(ts: int) -> bool:
+    """True when a stored tf=60 ``ts`` is a pre-2026-11-10 clock-hour RTH bucket
+    (an ET :00 in [10:00, regular close)), which the session grid never emits."""
+    global _ET_ZONE
+    from datetime import datetime
+    if _ET_ZONE is None:
+        from zoneinfo import ZoneInfo
+        _ET_ZONE = ZoneInfo("America/New_York")
+    try:
+        dt = datetime.fromtimestamp(int(ts), tz=_ET_ZONE)
+    except (TypeError, ValueError, OverflowError, OSError):
+        return False
+    if dt.minute != 0 or dt.second != 0:
+        return False
+    close_h = 16
+    try:
+        from api.services.nyse_calendar import NYSE_EARLY_CLOSES_YYYYMMDD
+        if dt.year * 10000 + dt.month * 100 + dt.day in NYSE_EARLY_CLOSES_YYYYMMDD:
+            close_h = 13
+    except Exception:  # noqa: BLE001 — calendar unreadable → regular day
+        pass
+    return 10 <= dt.hour < close_h
+
+
+def ticker_has_old_grid_60m(c: sqlite3.Connection, ticker: str, probe: int = 120) -> bool:
+    """Index-seek both ends of a ticker's tf=60 rows for an old-layout bucket."""
+    for order in ("DESC", "ASC"):
+        rows = c.execute(
+            f"SELECT ts FROM ohlcv WHERE ticker=? AND tf='60' ORDER BY ts {order} LIMIT ?",
+            (ticker, int(probe)),
+        ).fetchall()
+        if any(is_old_grid_60m_ts(r[0]) for r in rows):
+            return True
+    return False
+
+
+def _invalidate_60m_caches(tkr: str) -> None:
+    try:
+        from api.services import bars_disk_cache as _disk
+        _disk.delete(tkr, "60")
+    except Exception:  # noqa: BLE001 — a stale disk JSON is re-validated on read anyway
+        pass
+    try:
+        from api.services.cache import cache as _mem
+        _mem.delete_prefix(f"bars_{tkr}_60_")
+        _mem.delete_prefix(f"histfull_{tkr}_60")
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def replace_ticker_tf_rows(ticker: str, tf: str, bars: list[dict]) -> tuple[int, int]:
+    """Atomically replace ALL of (ticker, tf)'s rows with ``bars`` (validated like
+    ``put_bars``). One transaction under the write lock: a reader sees the old set
+    or the new one, never a mix. Returns (rows deleted, rows written)."""
+    tkr = ticker.upper()
+    keep, _rej = _writable_bars(tkr, tf, bars)
+    rows = [(tkr, tf, int(b["t"]), b.get("o"), b.get("h"), b.get("l"), b.get("c"),
+             int(b.get("v") or 0)) for b in keep]
+    c = _conn()
+    with _WRITE_LOCK:
+        try:
+            cur = c.execute("DELETE FROM ohlcv WHERE ticker=? AND tf=?", (tkr, tf))
+            deleted = cur.rowcount
+            if rows:
+                c.executemany(
+                    "INSERT OR REPLACE INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)", rows)
+            c.commit()
+        except BaseException:
+            c.rollback()
+            raise
+    return deleted, len(rows)
+
+
+#: One-time marker: set once a full sweep finds no old-grid 60m ticker. After
+#: it, boot/snapshot passes skip the per-ticker probe entirely (snapshot merges
+#: reject old-grid 60m rows at the door — data_sync._merge_pair).
+SIXTY_GRID_CLEAN_MARKER = "sixty_min_grid_tv_2026_11_10_clean"
+#: Tickers rebuilt per sweep pass (local 15m/30m resample, no provider call).
+#: The rest are rebuilt lazily on serve, or by the next pass.
+SIXTY_GRID_REBUILDS_PER_PASS = int(os.environ.get("BARS_SIXTY_GRID_REBUILDS_PER_PASS", "400"))
+
+
+def _sixty_grid_clean(c: sqlite3.Connection) -> bool:
+    try:
+        return c.execute("SELECT 1 FROM _migrations WHERE name=?",
+                         (SIXTY_GRID_CLEAN_MARKER,)).fetchone() is not None
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _mark_sixty_grid_clean(c: sqlite3.Connection) -> None:
+    try:
+        with _WRITE_LOCK:
+            c.execute("CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY, applied_at INTEGER)")
+            c.execute("INSERT OR IGNORE INTO _migrations(name, applied_at) VALUES (?, ?)",
+                      (SIXTY_GRID_CLEAN_MARKER, int(time.time())))
+            c.commit()
+    except Exception as e:  # noqa: BLE001
+        _logger.warning(f"[sqlite] 60m grid clean marker not written (non-fatal): {e}")
+
+
 def purge_mis_keyed_weekly_rows() -> int:
     """Delete weekly rows whose date key is not the FRIDAY of its ISO week.
 
@@ -533,7 +644,23 @@ def purge_mis_keyed_weekly_rows() -> int:
 
     c = _conn()
     deleted = 0
+    # ⭐ Same pass, same PK-prefixed seeks: a ticker still carrying the
+    # pre-2026-11-10 clock-hour 60m layout is REBUILT in place from its own stored
+    # 15m/30m rows (bars_fetch.rebuild_sixty_min_grid — local, no provider call),
+    # bounded per pass. Skipped entirely once a pass has found none (marker).
+    sixty_probe = not _sixty_grid_clean(c)
+    sixty_old = sixty_rebuilt = 0
     for tkr in iter_tickers(c):
+        if sixty_probe:
+            try:
+                if ticker_has_old_grid_60m(c, tkr):
+                    sixty_old += 1
+                    if sixty_rebuilt < SIXTY_GRID_REBUILDS_PER_PASS:
+                        from api.services.bars_fetch import rebuild_sixty_min_grid
+                        rebuild_sixty_min_grid(tkr)
+                        sixty_rebuilt += 1
+            except Exception as e:  # noqa: BLE001 — never let the 60m check stop the weekly purge
+                _logger.warning(f"[sqlite] 60m grid rebuild {tkr} failed (non-fatal): {e}")
         bad = [
             ts for (ts,) in c.execute(
                 "SELECT ts FROM ohlcv WHERE ticker=? AND tf='W'", (tkr,)
@@ -552,6 +679,10 @@ def purge_mis_keyed_weekly_rows() -> int:
                 )
                 deleted += cur.rowcount
             c.commit()
+    if sixty_probe:
+        _logger.info(f"[sqlite] 60m grid: {sixty_old} old-layout ticker(s), {sixty_rebuilt} rebuilt this pass")
+        if sixty_old == 0:
+            _mark_sixty_grid_clean(c)
     if deleted:
         _logger.info(f"[sqlite] purge_mis_keyed_weekly_rows: deleted {deleted} stale weekly rows")
     return deleted
@@ -1326,6 +1457,24 @@ def _writable_bars(ticker: str, tf: str, bars: list[dict]) -> tuple[list[dict], 
     return keep, rejected
 
 
+#: 🔴 THE GRID INVARIANT, AT THE SAME DOOR (2026-11-10). An intraday row is keyed on
+#: its BUCKET START. Prod held post-market rows stamped at a trade time (SPY 5m
+#: 16:35:50 beside 16:35:00), each drawn as an extra candle — the yfinance fallback's
+#: separate live row, written add-only beside the Massive grid row. A misaligned row
+#: whose bucket has a row in the batch is dropped (that row wins); otherwise it is
+#: snapped to the bucket start and written INSERT OR IGNORE (fills an empty bucket,
+#: never replaces a stored one). Rule + rationale: `intraday_grid` module doc.
+def _grid_rows(ticker: str, tf: str, bars: list[dict], date_tf: bool) -> tuple[list[dict], list[dict]]:
+    if date_tf or not bars:
+        return bars, []
+    try:
+        from api.services import intraday_grid
+        return intraday_grid.fold_for_write(ticker, tf, bars)
+    except Exception as e:                               # pragma: no cover
+        _logger.warning("[sqlite] grid fold failed for %s tf=%s (writing as-is): %s", ticker, tf, e)
+        return bars, []
+
+
 def put_bars_many(tf: str, bars_by_ticker: dict[str, list[dict]]) -> int:
     """Upsert many tickers' bars of ONE timeframe in a single transaction.
 
@@ -1334,12 +1483,17 @@ def put_bars_many(tf: str, bars_by_ticker: dict[str, list[dict]]) -> int:
     write lock. Same validity gate and the same INSERT OR REPLACE as `put_bars`.
     `t` is the stored integer key (unix seconds intraday, YYYYMMDD for D)."""
     rows = []
+    snapped_rows = []
     for ticker, bars in (bars_by_ticker or {}).items():
         keep, _rejected = _writable_bars(ticker.upper(), tf, bars)
+        keep, snapped = _grid_rows(ticker.upper(), tf, keep, False)
         for b in keep:
             rows.append((ticker.upper(), tf, int(b.get("t", 0)), b.get("o"), b.get("h"),
                          b.get("l"), b.get("c"), int(b.get("v") or 0)))
-    if not rows:
+        for b in snapped:
+            snapped_rows.append((ticker.upper(), tf, int(b["t"]), b.get("o"), b.get("h"),
+                                 b.get("l"), b.get("c"), int(b.get("v") or 0)))
+    if not rows and not snapped_rows:
         return 0
     last_lock_err: sqlite3.OperationalError | None = None
     for attempt in range(3):
@@ -1350,8 +1504,13 @@ def put_bars_many(tf: str, bars_by_ticker: dict[str, list[dict]]) -> int:
                     "INSERT OR REPLACE INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)",
                     rows,
                 )
+                if snapped_rows:
+                    c.executemany(
+                        "INSERT OR IGNORE INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)",
+                        snapped_rows,
+                    )
                 c.commit()
-            return len(rows)
+            return len(rows) + len(snapped_rows)
         except sqlite3.OperationalError as e:
             if "locked" not in str(e).lower():
                 raise
@@ -1385,7 +1544,8 @@ def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False,
         return 0
     ticker = ticker.upper()
     bars, _rejected = _writable_bars(ticker, tf, bars)
-    if not bars:
+    bars, snapped = _grid_rows(ticker, tf, bars, date_tf)
+    if not bars and not snapped:
         return 0
     rows = []
     for b in bars:
@@ -1396,6 +1556,8 @@ def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False,
             b.get("o"), b.get("h"), b.get("l"), b.get("c"),
             int(b.get("v") or 0),
         ))
+    snapped_rows = [(ticker, tf, int(b["t"]), b.get("o"), b.get("h"), b.get("l"),
+                     b.get("c"), int(b.get("v") or 0)) for b in snapped]
 
     _verb = "INSERT OR IGNORE" if on_conflict == "ignore" else "INSERT OR REPLACE"
     last_lock_err: sqlite3.OperationalError | None = None
@@ -1403,12 +1565,19 @@ def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False,
         try:
             with _WRITE_LOCK:
                 c = _conn()
-                c.executemany(
-                    f"{_verb} INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)",
-                    rows,
-                )
+                if rows:
+                    c.executemany(
+                        f"{_verb} INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)",
+                        rows,
+                    )
+                if snapped_rows:
+                    # Snapped off-grid rows fill an EMPTY bucket only (intraday_grid doc).
+                    c.executemany(
+                        "INSERT OR IGNORE INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)",
+                        snapped_rows,
+                    )
                 c.commit()
-            return len(rows)
+            return len(rows) + len(snapped_rows)
         except sqlite3.OperationalError as e:
             # OperationalError covers "locked" (contention) and a few non-
             # corruption cases; only retry the locked variant. Other
@@ -1431,3 +1600,28 @@ def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False,
     if last_lock_err is not None:
         raise last_lock_err
     return 0  # unreachable
+
+
+def iter_ts_close(ticker: str, tf: str, batch: int = 20_000):
+    """Yield ``(ts, c)`` for every stored row of (ticker, tf), oldest first, paged by
+    primary-key seeks of ``batch`` rows. O(batch) memory however deep the series is —
+    the intraday split detector only needs closes, never a materialised bar list."""
+    ticker = ticker.upper()
+    last = None
+    while True:
+        if last is None:
+            rows = _conn().execute(
+                "SELECT ts, c FROM ohlcv WHERE ticker=? AND tf=? ORDER BY ts LIMIT ?",
+                (ticker, tf, int(batch))).fetchall()
+        else:
+            rows = _conn().execute(
+                "SELECT ts, c FROM ohlcv WHERE ticker=? AND tf=? AND ts>? ORDER BY ts LIMIT ?",
+                (ticker, tf, int(last), int(batch))).fetchall()
+        if not rows:
+            return
+        yield from rows
+        last = rows[-1][0]
+        if len(rows) < batch:
+            return
+
+

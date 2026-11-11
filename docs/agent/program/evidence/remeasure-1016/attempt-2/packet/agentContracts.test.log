@@ -1,0 +1,18 @@
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+date -u: 2026-11-11T02:52:34Z
+tree: /c/w/pl-auto-remeasure HEAD 644b6d7188019c6a6d2d0ad4708152ead1c53ebb (measured master 75421184a33c10f42201c43f6bd2d6391594f4c1)
+harness: 6f9abd8515 (6f9abd85155112a64a6bc7facf0e5fc2de31c911) - recount.mjs only; no harness file is in the run tree
+# cmd: vitest run src/agent/agentContracts.test.js --reporter=default --reporter=json
+[bn] free memory GB: 47.1
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/w/pl-auto-remeasure/app[39m
+
+ [32m✓[39m src/agent/agentContracts.test.js [2m([22m[2m14 tests[22m[2m)[22m[32m 41[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m14 passed[39m[22m[90m (14)[39m
+[2m   Start at [22m 21:52:36
+[2m   Duration [22m 6.99s[2m (transform 4.41s, setup 271ms, import 5.57s, tests 41ms, environment 811ms)[22m
+
+JSON report written to C:/w/pl-auto-remeasure/docs/agent/program/evidence/remeasure-1016/attempt-2/packet/agentContracts.test.json
+# exit=0 end 02:52:43Z

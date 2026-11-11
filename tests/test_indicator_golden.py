@@ -94,6 +94,10 @@ RS_PARITY_CASES = ["rs_parity_clenow", "rs_parity_vars", "rs_parity_rrg_stockcha
 # ratings in, `ratingLine` / `ratingMa` and `payload.ratingHistory` out). NOT a compute_case
 # input; read by tests/test_rs_rating_view.py through the real provider.
 RS_RATING_VIEW_CASES = ["rs_rating_view"]
+# UCT RS split, unit U6 (2026-11-09): the `rsPhases` / `rsVsEma` maths on one seeded
+# synthetic series, regenerated and compared by tests/test_rs_split_golden.py and read
+# by the JS lane's definition tests. NOT compute_case inputs (two series, like RS_LINE_CASES).
+RS_SPLIT_CASES = ["rs_phases_spy", "rs_vs_ema_spy"]
 
 # ⛔ THE AST CASES ARE THEIR OWN LIST FOR TWO STRUCTURAL REASONS, AND BOTH ARE
 # STATEMENTS ABOUT THE CASES RATHER THAN ABOUT THIS FILE — the same shape as
@@ -272,7 +276,8 @@ def test_every_fixture_file_is_covered_by_a_test():
     on_disk = {p.stem for p in FIX.glob("*.json")}
     listed = (set(CASES) | set(VWAP_CASES) | set(RS_LINE_CASES) | set(RS_EVENT_CASES)
               | set(RS_MANSFIELD_CASES) | set(AST_CASES) | set(RS_LEARN_FIXTURES)
-              | set(RS_PHASE3_CASES) | set(RS_PARITY_CASES) | set(RS_RATING_VIEW_CASES))
+              | set(RS_PHASE3_CASES) | set(RS_PARITY_CASES) | set(RS_RATING_VIEW_CASES)
+              | set(RS_SPLIT_CASES))   # U6 (2026-11-09): the two RS split fixtures
     assert on_disk == listed, (
         f"fixture files and the CASES lists disagree: {on_disk ^ listed}"
     )

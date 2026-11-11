@@ -666,11 +666,6 @@
       ],
       "note": "Part of the edge-deep-history / instant-charts initiative (specs 2026-08-31 onward); recorded 2026-09-02 after a live read. Selects the dedicated bars-SERVING entrypoint via the railway.json dispatcher, so app/partner deploys can never restart chart serving. This entry read pending until now for a reason that was not about the flag: tools/flag_ledger_audit.py hardcoded a three-service roster (web, worker, flow-worker) while the project has five, so a flag armed only on bars-api was invisible to the audit and was reported as undecided. The roster is now derived from the project."
     },
-    "BARS_A_CLOSE_GUARD_ENABLED": {
-      "status": "dark",
-      "note": "Off 2026-09-04 (Phase 2b, api/services/bar_broadcaster.py:41-53), not yet armed on any service. Guards a developing intraday bar's close against a momentary ghost/odd-lot T-tick print winning over the next unfiltered A-aggregate close within BARS_A_CLOSE_GUARD_MS (default 2000ms) -- a display-integrity fix, never touches persisted bars. Shipped dark by design so the byte-identical old behavior stays the default while the guard is proven; own test file tests/test_bar_broadcaster_a_close_guard.py. Arm via the env var alone, no deploy needed.",
-      "where": []
-    },
     "BARS_HISTORY_ORIGIN_ENABLED": {
       "status": "armed",
       "where": [
@@ -3158,6 +3153,17 @@
       "where": ["web"],
       "note": "UCT Relative Strength lists RS Leaders and RS Emerging (engineering map docs/superpowers/plans/2026-11-08-uct-rs-phase3-4-engineering-map.md, unit 4-01; decisions D9 names, D10 host, D11 rules). Read PER CALL by api.services.rs_lists.enabled inside the rs_lists_nightly job (web pod, 04:40 ET, after rs_history_nightly at 04:15 and before rs_discord_post at 04:45; registered unconditionally in register_screener_jobs, coalesce=True, misfire_grace_time=3600); only the literal 1 arms it. Off (default): the job returns before reading or writing anything and records no receipt. On: it rebuilds two managed prebuilt watchlists IN PLACE in auth.db (no dated history, D10), under the picker section UCT Relative Strength, written by watchlist_prebuilt.write_rs_list as the ADMIN_EMAILS admin user and exempt from the boot seeder's delete-what-is-not-configured step like Sunday Scans. Rules over screener_rows of the screener session (median bars_asof), ETF-free twice (is_etf and rs_history.default_etf_tickers) with the saved_screens._RS_LIQUID floors ($10M+ traded, price $5+): Leaders = rating >= 90, rs_nh_bars_ago <= 10, pct_vs_sma200 > 0, rs_benchmark_agree = 1; Emerging = rs_cross_up_bars_ago <= 5, rs_line_above_ma = 1 (still above its 21-day average, owner decision 2026-11-07) and rating >= 80, minus Leaders; the rating is that session's rs_rating_history row (the screener column only for a name without one). Cap 30 each, cut by rating, laid out by theme. Guards, each a recorded skip with a reason: no screener session; no rating history; the rating history's newest session older than the screener session; the lists already holding a newer session; and per list an empty result never replaces a list with names unless the screener session is the settled session and had rows to judge. Receipt: the rs_lists_runs side table in screener.db, read back as rs_lists on snapshot_db.status() (/api/screener/snapshot-status). Arm order: step 5 of the map's section 4 (after RS_V3_ENABLED and the Phase 4 merge). Arm: railway variables --service web --set RS_LISTS_ENABLED=1 (the owner's); no redeploy needed for the job (confirm from the pod that the process sees it, the --set behaviour differs by service). THE FIRST FILL NEEDS THE NEXT 04:40 ET RUN AFTER ARMING: until then the picker has no UCT Relative Strength section (the section appears once a list exists). Rollback: set 0 or unset (follow a delete with railway redeploy --service web --yes and confirm from the pod); the two lists then stop updating and keep their last contents; to remove them delete the two rows as the admin user."
     },
+    "RS_RANK_IBD_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-09",
+      "where": ["web"],
+      "note": "DARK. One RS Rating everywhere (RS split engineering map, unit U5a, 2026-11-09; owner decision: cut the fast rating, one rating on every surface). The site showed two RS ratings: the chart's UCT RS prints the nightly IBD-style rating (rs_rating_history.ibd, 40/20/20/20 over 3/6/9/12-month returns, ranked across the cap universe minus ETFs, written 04:15 ET), while the stock-page badge (/api/rs-rankings/{sym}), the screener's rs_rank column and the groups swing gate read the hourly fast rank (api/services/rs_ranking.py, 3M 40% / 6M 20% / 1M 20% / 1W 20%), so one stock read 94 and 88 at once. Read PER CALL by api.services.rs_ranking.rs_rank_ibd_enabled (only the literal 1 arms it; no restart to flip). Off (default): every reader answers byte for byte what it did (cached_rank_map returns the very cache objects; the methodology's RS Rank entry describes the hourly weighting). On: cached_rank_map, get_rs_for_ticker and unified_rankings (the /api/rs-rankings list, groups._rs_map) lay the newest stored session's ibd over the hourly map as rs_rank, keep the hourly value as rs_rank_fast, add rs_rank_source (ibd or fast) and rs_rank_asof, and append nightly-rated names the hourly list lacks (ETFs); a name with no row keeps the fast rank and says so; the screener build receipt counts sources.rs_ranking.source_ibd / source_fast; the swing gate metric carries rs_rank_source; the methodology's RS Rank entry says it is the nightly rating and the same number as RS Rating. Read-only on rs_rating_history: no table, no rows or a failed read means the fast rank, nothing is created, memoised 300 s (rs_ranking.invalidate_ibd_cache). The field NAME rs_rank is kept everywhere (518 references in 149 files); rs_rating_ibd and rs_rank then carry the same number and both columns stay. Saved screens that threshold on rs_rank (starter_rs_leaders_equal_weight 80, starter_momentum_leaders 90, starter_pullback_20ema 80, starter_tight_base 70, starter_three_weeks_tight 70, starter_trend_template 90, starter_earnings_momentum 70) change membership when armed: intended. ARM after rs_rating_history holds the newest session for at least 99 % of the universe (rs_history.status, the nightly receipt): railway variables --service web --set RS_RANK_IBD_ENABLED=1 (the owner's). VERIFY: the badge equals the chart's UCT RS rating on 10 names, and GET /api/rs-rankings/{sym} carries rs_rank_source ibd. Rollback: unset (a variable delete does not restart the process, but this flag is read per call, so the next request already serves the fast rank); nothing is stored."
+    },
+    "RS_SPLIT_ENABLED": {
+      "status": "dark",
+      "where": ["web"],
+      "note": "UCT RS split (engineering map projects/rs-split-handoff-2026-11-09/engineering-map.md, unit U4; flags section (e) step 1). Read ONCE at import by api/services/signature/registry_defs.py (RS_SPLIT_ENABLED), beside RS_V2_ENABLED and RS_V3_ENABLED. Off (default): SERVER_DEFS is the four rows it always was and /api/signature/definitions lists four ids; the rsLine row is untouched in BOTH flag states (rev 5 stays byte-identical, tests/test_rs_split_rows.py holds it against tests/fixtures/rs_line_rows_pre_phase3.json and the in-process builder). On: three more server rows after rsLine, each version 1 / compute.rev 1, and api/routers/signature.py plugs their providers in under the same flag: rsRating (UCT RS Rating: daily charts only, no benchmark input, columns ratingLine and ratingMa, payload rating + ratingHistory as the rsLine rev 5 Rating Reading builds them; reads rs_rating_history only on a daily chart with RS_HISTORY_ENABLED on), rsPhases (UCT RS Phases: inputs benchmark incl. CUSTOM, customBenchmark, shortEma 3, longEma 10; columns phase and divergence) and rsVsEma (UCT RS vs 21 EMA: inputs benchmark and customBenchmark; columns dist, fast, slow). The three share one memoised core (rs_provider._rs_core: bars + resolved benchmark + ratio, 15 s per process) so one chart carrying all of them reads bars once per request cycle; none of them reads the regime, sensitivity or evidence blocks. The chart shows the three only once the client build carries their definitions (unit U6, behind VITE_RS_SPLIT_ENABLED, gated per definition by meta.requiresServer, unit U1), so arming this first is harmless and is the required order: 1 before 2. Arm: railway variables --service web --set RS_SPLIT_ENABLED=1 (the owner's), then railway redeploy --service web --yes, because it is an IMPORT-TIME flag; verify GET /api/signature/definitions lists rsRating, rsPhases and rsVsEma and one /api/signature/columns call per id answers on AAPL D. Rollback: set 0 or unset, then railway redeploy --service web --yes; the four-row lane returns and no alert or saved chart is touched (the JS definitions fail closed to hidden)."
+    },
     "RS_V2_ENABLED": {
       "status": "armed",
       "since": "2026-11-07",
@@ -3198,6 +3204,22 @@
       "since": "2026-11-10",
       "where": [],
       "note": "PR #1012 (feat/schwab-token-replication, commit 25e78dbf2d): the RECEIVE half on flow-worker. Read in api/schwab_token_replica.py (receive_enabled), default '0'; POST /api/flow/schwab-token/install (admin-gated). Strips the refresh token unconditionally so flow-worker can never refresh or invalidate web's grant; refuses a replay, a token already expired on arrival, and a future saved_at. Ships DARK on purpose; pairs with SCHWAB_TOKEN_PUSH_ENABLED on web. While dark, flow-worker keeps its own (stale) token and falls back to Massive OI as before. Entry added 2026-11-10 because the gate merged without one."
+    },
+    "ASSETS_NO_TRANSFORM_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-10",
+      "where": [],
+      "default": "1",
+      "values": ["0", "1"],
+      "note": "DEFAULT ON (today's behaviour): unset or 1 keeps Cache-Control no-transform on every /assets response. 0 drops no-transform from hashed JS/CSS ONLY so Cloudflare may compress them: with it on, Cloudflare decompresses our precompressed response and may not re-compress it, so members got every JS/CSS file uncompressed (measured 2026-11-10: main script 573 KB vs 157 KB Brotli). Safe only while the zone's Compression Rule limits /assets/* to brotli or gzip, never zstd (zstd truncated the ECharts chunk, 72f1c438f8), and only after every hashed asset is verified byte-for-byte through the edge. Read per request in api/services/static_assets.py (no_transform_enabled). Rails: tests/test_precompressed_static_assets.py. LIVE VALUE 0 ON web SINCE 2026-11-10 22:06 CT (fresh boot confirmed by uptime): tools/cdn_asset_integrity.py 1,118/1,118 intact, all Brotli, with AND without an Origin header; a real Chrome first visit to /charts fell from 6.75 MB to 2.42 MB of JS/CSS. ⛔ CLOUDFLARE KEEPS A SEPARATE CACHE OBJECT FOR REQUESTS WITH AN Origin HEADER (every browser module script sends one): a plain URL purge left that variant stale and uncompressed while header-less checks were all Brotli. Every purge must name both: files [{url}, {url, headers: {Origin: https://uctintelligence.com}}]. Rollback: railway variables --service web --set ASSETS_NO_TRANSFORM_ENABLED=1 (a delete stages but does not restart: redeploy), then PURGE every /assets URL at Cloudflare, both variants."
+    },
+    "DESKTOP_TELEMETRY_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-10",
+      "where": [],
+      "default": "1",
+      "values": ["0", "1"],
+      "note": "Desktop plan 5.1 (v2 Task 30): the KILL SWITCH for the desktop app's telemetry door, POST /api/desktop/event (api/routers/desktop_events.py, mounted in api/main.py). SHIPS ON BY DEFAULT as a rollback switch: unset or any value but 0/false/no/off means the web service stores reports; 0/false/no/off answers {enabled: false}, writes nothing, and the hourly alert job (desktop_events_alerts) posts nothing. Read per request in api/services/desktop_events.py::enabled(). Turning it off stops COLLECTION and never deletes a stored row. ENUM-ONLY: every stored field is a fixed set or a digits-and-dots pattern (event, shell_version, os, error_code), an optional random install id stored only as a salted hash, and a signed-in flag; never a message, URL, path, member id or IP. Session optional because launch and crash events happen before sign-in. Own store DESKTOP_EVENTS_DB_PATH (default /data/desktop_events.db), 90-day retention, hard cap 100,000 rows. Halt triggers (same crash or update_error on 2+ machines in 24 h, or a launch-failure loop) post once to the OPS destination; one digest a day after 07:00 ET. Rails: tests/test_desktop_events.py."
     },
     "PRECOMPRESSED_ASSETS_ENABLED": {
       "status": "dark",
@@ -3416,6 +3438,17 @@
       "last_changed": "never set",
       "note": "Unset and the read defaults ON (`!== '0'`), so multi-chart grid warming is live. Setting it to '0' is the kill switch."
     },
+    "VITE_RS_SPLIT_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "owner": "owner - UCT RS split (engineering map 2026-11-09, flag 2)",
+      "railway_value": "UNSET",
+      "baked_value": "'' (empty - the ENV mirror in Dockerfile.web)",
+      "baked_measured_on": "never built with it set",
+      "last_changed": "never set",
+      "note": "Registers the slim UCT RS Line in place of today's UCT Relative Strength (nativeRegistry.js, RS_LINE_SLIM_RAW vs RS_LINE_V5_RAW): the RS line on the price pane by default, the RS Rating tag at the line's end, no presets, no Reading, about a dozen settings; every retired input stays declared legacy so no saved chart is dropped. Only '1' is on; unset, empty, '0' and 'true' are off. Arm AFTER RS_SPLIT_ENABLED (web) so the three new RS definitions have rows to answer; unset + rebuild restores the v5 definition (safe because U7a shipped the legacy declaration of showAverage). Build-time: set the var, redeploy web.",
+      "arm_order": "after RS_SPLIT_ENABLED; the Study overlay (U8) must ship in the same deploy"
+    },
     "VITE_RS_TELEMETRY_ENABLED": {
       "status": "dark",
       "where": [],
@@ -3424,7 +3457,7 @@
       "baked_value": "'' (empty - the ENV mirror in Dockerfile.web)",
       "baked_measured_on": "7663f85ef1",
       "last_changed": "never set",
-      "note": "UCT RS section 13 telemetry counts (rs_on, rs_off_within_60s, rs_preset, rs_benchmark, rs_marker_card, rs_learn) through the existing indicator-telemetry door. Unset and the read defaults ON (`!== '0'`); the server accepts only the six events with closed value sets (api/services/indicator_telemetry.py). Setting it to '0' is the build-time kill switch."
+      "note": "UCT RS section 13 telemetry counts (rs_on, rs_off_within_60s, rs_benchmark, rs_marker_card, rs_learn; rs_preset retired with the presets by the RS split, U9 2026-11-09) through the existing indicator-telemetry door. Unset and the read defaults ON (`!== '0'`); the server accepts only the five events with closed value sets (api/services/indicator_telemetry.py). Setting it to '0' is the build-time kill switch."
     },
     "VITE_INDICATOR_TEMPLATES_ENABLED": {
       "status": "armed",
@@ -3558,11 +3591,11 @@
         "web"
       ],
       "owner": "pine parity programme",
-      "owner_decision": "owner ruling 2026-11-01: saved scripts pick up engine accuracy fixes automatically (PR #610); default ON",
-      "railway_value": "UNSET on every service (unset = ON; only the literal '0' disables)",
-      "baked_value": "undefined, which the read treats as ON",
-      "baked_measured_on": "2026-11-01, from Dockerfile.web's ARG list (declared in this commit; #610 shipped the read without it and the master deploy gate held production)",
-      "last_changed": "2026-11-01T00:00:00Z",
+      "owner_decision": "owner ruling 2026-11-01: saved scripts pick up engine accuracy fixes automatically (PR #610); default ON. Same day the owner set '0' on Railway web as a HOLD before the build-arg fix (recorded in e2fe145fcb on fix/pine-610-build-flag, which never reached master). The hold is lifted by REMOVING the variable (unset = ON) once F-15 (#617) is live: F-15 is the defect that bites once the upgrade is ON (an Agent delete -> Undo restored a saved Pine indicator without its stored script and engine stamp, and reported it confirmed, so that indicator silently stopped picking up engine upgrades).",
+      "railway_value": "'0' on web (owner hold since 2026-11-01); removal follows this PR's deploy (#617, F-15). Unset on every other service.",
+      "baked_value": "'0' expected in the live bundle (set on web and declared as a Dockerfile.web ARG by f7c55f0383); NOT re-measured by #617 - measure the served JS after the variable is removed",
+      "baked_measured_on": "not measured since the 2026-11-01 hold; the 2026-11-01 entry was read from Dockerfile.web's ARG list, not the served bundle",
+      "last_changed": "2026-11-01 (owner set '0' on web as a hold; ledger corrected 2026-11-10 in #617)",
       "note": "Kill switch for saved-script auto-upgrade, read in ONE place: app/src/components/chart/builder/memberPane/savedScriptUpgrade.js::savedScriptUpgradeEnabled as `(env.VITE_SAVED_SCRIPT_UPGRADE ?? '1') !== '0'`. ON (unset): a saved Pine doc whose meta.engineVersion is older than SCRIPT_ENGINE_VERSION and that carries its stored source is re-translated after first paint and written back once. Rollback: set the variable to 0 on web and redeploy (build constant). Declared as a build ARG in Dockerfile.web because Railway drops undeclared build args silently."
     }
   },

@@ -1,0 +1,33 @@
+{
+  "_comment": "UCT RS split, unit U6: the JS copy of tests/test_rs_split_rows.py::RS_SPLIT_CONTRACT, per definition the wire columns, the server input keys and every payload scalar path the definition may read. tests/test_rs_split_js_rows.py pins this file equal to the Python contract, so the three definition tests read one contract, never a retyped one.",
+  "rsRating": {
+    "columns": ["ratingLine", "ratingMa"],
+    "inputs": [],
+    "paths": ["rating.ibd", "rating.m1", "rating.m3", "rating.m6", "rating.m9", "rating.m12",
+      "rating.asof", "rating.summary", "rating.components", "rating.source",
+      "ratingHistory.summary", "ratingHistory.reason", "ratingHistory.value",
+      "ratingHistory.average", "ratingHistory.change20", "ratingHistory.sessions",
+      "ratingHistory.asof", "ratingHistory.stale",
+      "history.bars", "history.short", "inputs", "intraday", "state"]
+  },
+  "rsPhases": {
+    "columns": ["phase", "divergence"],
+    "inputs": ["benchmark", "customBenchmark", "shortEma", "longEma"],
+    "paths": ["benchmark.label", "benchmark.resolved", "benchmark.requested", "benchmark.fallback",
+      "benchmark.note", "benchmark.bars",
+      "legend.summary", "legend.phase", "legend.phaseLabel", "legend.divergence",
+      "legend.rsTrend", "legend.benchTrend", "legend.asOf", "legend.stale",
+      "history.bars", "history.short", "inputs.benchmark", "inputs.customBenchmark",
+      "inputs.shortEma", "inputs.longEma", "intraday", "state"]
+  },
+  "rsVsEma": {
+    "columns": ["dist", "fast", "slow"],
+    "inputs": ["benchmark", "customBenchmark"],
+    "paths": ["benchmark.label", "benchmark.resolved", "benchmark.requested", "benchmark.fallback",
+      "benchmark.note", "benchmark.bars",
+      "legend.summary", "legend.pctFromMa", "legend.above", "legend.maSlope", "legend.index",
+      "legend.lastValue", "legend.asOf", "legend.stale", "legend.fast", "legend.slow",
+      "history.bars", "history.short", "inputs.benchmark", "inputs.customBenchmark",
+      "inputs.maLength", "inputs.maType", "intraday", "state"]
+  }
+}

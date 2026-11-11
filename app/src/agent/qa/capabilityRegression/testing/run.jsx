@@ -55,6 +55,12 @@ export function checkExpect(ctx, e, label) {
     }
   }
   if (e.restored) expect(boardState(board), `${label}: the board is back as it started`).toBe(start)
+  // #1030: the Multi Chart grid's own state (the GRID board's host.gridControl), each named field exactly
+  if (e.grid) for (const [k, want] of Object.entries(e.grid)) {
+    const g = h.gridControl
+    const now = k === 'maxId' ? g?.maxId() : k === 'settingsOpen' ? g?.settingsOpen() : k === 'cellCount' ? g?.state()?.cells?.length : g?.state()?.[k]
+    expect(now, `${label}: the grid's ${k}`).toEqual(want)
+  }
   if (e.charts) {
     const cs = chartsOf(board)
     if (e.charts.count != null) expect(cs.length, `${label}: chart count`).toBe(e.charts.count)
@@ -208,6 +214,8 @@ export function checkExpect(ctx, e, label) {
   if (e.viewRight) expect(new Date(ctx.st.views[chartsOf(board)[0]?.id]?.rightMs || 0).toISOString().slice(0, 10), `${label}: the chart's right edge`).toBe(e.viewRight)
   // the chart's view as its read-back reports it (activeRange, atDefaultView, indicatorsHidden)
   if (e.view) for (const [k, v] of Object.entries(e.view)) expect(ctx.st.views[chartsOf(board)[0]?.id]?.[k], `${label}: the chart's view ${k}`).toEqual(v)
+  // C1-127: the first chart's Chart Settings dialog open (or not), as the pane reads it back
+  if ('settingsOpen' in e) expect(!!ctx.st.settingsOpen?.[chartsOf(board)[0]?.id], `${label}: Chart Settings open`).toBe(e.settingsOpen)
   // is any moving average on the first chart showing (the same answer Ctrl+M reads)
   if ('movingAveragesOn' in e) expect(anyAverageOn(mergeChartSettings(chartsOf(board)[0]?.opts?.settings ?? null), nativeRegistry.getDefinition), `${label}: a moving average showing`).toBe(e.movingAveragesOn)
   if (e.indicators) {

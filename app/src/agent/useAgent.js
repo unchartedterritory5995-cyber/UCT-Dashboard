@@ -26,6 +26,9 @@ import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSa
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
 import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts } from './deixis'
+import { screenWatchlistWidget } from './watchlistTarget'
+import { whichListView, LIST_VIEW_WHICH } from './whichWidget'
+import { checkSpatialConstraints, excludedCharts, spatialConstraints, UNPLACED, withoutExcludedCharts, everyExceptSet } from './spatialCheck'
 import { groundSymbols } from './nl/tickers'
 import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } from './multiChart'
 import { scopeHostToGrid } from './host'
@@ -42,10 +45,7 @@ import { refsOf, checkRefs, consumedProducers, pendingLines, resolveRefs, expand
 import { traceStart, mark, traceEnd, turnStart, turnPath, turnVisible, turnOutput, turnOutputMs, turnMarkMs, turnEnd } from './trace'
 import { buildContext, refreshContext, manifestFor, getCapability, getTargetKind, runWarmups, MANIFEST_VERSION, MANIFEST_CONTRACT, normalizeArgs } from './capabilities'
 import { UNDO_ACTION } from './capabilities/about'
-import { FLOW_FIELDS } from './capabilities/scanHidden'
-import { namedBoardWidgets } from './routing'
 // the widget's own filter chips are not set from the Agent here (open owner decision); the member is pointed at the control itself
-export const FLOW_WIDGET_REFUSAL = "I can't set the Options Flow widget's filters for you yet. Use the filter chips on the widget itself (Calls / Puts, Sweeps / Blocks, Bull / Bear, the premium floor). Nothing was changed."
 import { registerBuiltins, registerServerGatedBuiltins } from './builtins'
 import { routingEnabled, routingNames, GROUPS as ROUTE_GROUPS, wordsSelect } from './routing'
 import { pickRouter, routingV2Active } from './nlm1/flag'   // NLM-1 D1 (dark, two keys): routing v2, else v1's routeManifest
@@ -367,6 +367,42 @@ export function isNewRequest(text, question = null) {
 // the groups a question is ABOUT: those its request's own words named (never the always-on / budget fill)
 const questionGroups = (words) => ROUTE_GROUPS.filter(g => !g.always && wordsSelect(g.id, words)).map(g => g.id)
 const kindsOf = (ops) => [...new Set(ops.map(o => getCapability(o?.action)?.target).filter(Boolean))]
+// ⭐ #988 (AUDIT ruling, option 2): "every chart except …" (spatialCheck.everyExceptSet) is asked about with the WHOLE set as ONE
+// choice that names every chart — never one chart of it, so a partial set can't be picked. Only where a gate was about to ask
+// (an ask is never added). The plan must be one uniform change (the same ops on each of its charts), so the set's ops are that
+// change on each chart of the set, nothing else. → { text, choice: { ref, label, ops } } or null.
+function everyExceptQuestion(host, ops, text) {
+  try {
+    const live = host?.charts?.list?.() || []
+    const ev = everyExceptSet(text, live, selectedChart(host))
+    if (!ev || !ops?.length) return null
+    const kinds = kindsOf(ops)
+    if (kinds.length !== 1) return null
+    const k = getTargetKind(kinds[0])
+    const list = k?.list(host) || []
+    const sig = (o) => JSON.stringify([o.action, o.args || {}])
+    const byChart = new Map()
+    for (const o of ops) {
+      const snap = list.find(x => x.ref === o.target)
+      const c = snap ? chartRefOf(k, snap) : null
+      if (!c) return null
+      byChart.set(c, [...(byChart.get(c) || []), o])
+    }
+    const shapes = [...byChart.values()].map(os => os.map(sig).sort().join('|'))
+    if (new Set(shapes).size !== 1) return null
+    const tpl = [...byChart.values()][0]
+    const set = live.filter(c => ev.refs.includes(c.ref))
+    const out = []
+    for (const c of set) {
+      const snap = list.find(x => chartRefOf(k, x) === c.ref)
+      if (!snap) return null
+      for (const o of tpl) out.push({ ...o, target: snap.ref })
+    }
+    const labels = set.map(c => c.label || c.symbol || c.ref)
+    const label = labels.length === 1 ? labels[0] : `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`
+    return { text: set.length === 1 ? `Did you mean ${label}? Nothing has changed yet.` : `Did you mean these ${set.length} charts: ${label}? Nothing has changed yet.`, choice: { ref: `set:${set.map(c => c.ref).join(',')}`, label, ops: out } }
+  } catch { return null }
+}
 // GATE C: a committed plan → session memory, every target as its CHART ref (a kind's `groupOf`), with
 // the chart's symbol after the change. Never throws (memory is a convenience, not a gate).
 // ⭐ W2 (context across turns): `created` = the commit's alias → real ref map. A widget this change CREATED is what its ops
@@ -1159,7 +1195,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         return { followUps: fan }
       }
       const pid = nid()
-      pendingRef.current = { kind: 'proposal', id: pid, ops: fan, epoch: boardEpoch(host, fan), card: plines, expiresAt: Date.now() + PROPOSAL_TTL_MS, binding: binds }
+      pendingRef.current = { kind: 'proposal', id: pid, ops: fan, epoch: boardEpoch(host, fan), card: plines, expiresAt: Date.now() + PROPOSAL_TTL_MS, binding: binds, words: [member, saidRef.current] }
       push({ id: pid, role: 'proposal', lines: plines, status: 'pending' })
       record({ member, outcome: `Proposed: ${plines.join(' · ')}`, outcomeData: { kind: 'proposed', actions }, telemetry: { path, disposition: 'propose', actions, voice } })
       return
@@ -1247,7 +1283,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     if (composing && !composed) {
       const pid = nid()
       pendingRef.current = { kind: 'proposal', id: pid, ops: [...allOps, ...deferred], epoch: boardEpoch(host, [...allOps, ...deferred]),
-        binding: approvalBinding(plan, host), expiresAt: Date.now() + PROPOSAL_TTL_MS }
+        binding: approvalBinding(plan, host), expiresAt: Date.now() + PROPOSAL_TTL_MS, words: [member, saidRef.current] }
       // a proposal says what WILL happen (proposalWording.js), never a success not yet written
       const lines = pendingWording([...pendingLines(allOps, host), ...plan.lines, ...deferredLines])
       push({ id: pid, role: 'proposal', lines, status: 'pending' })
@@ -1276,7 +1312,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const plines = pendingWording([...(wholly ? expansion.proposal : (plan.lines.length ? plan.lines : plan.noops)), ...deferredLines])
       const seals = sealsOf(plan)
       pendingRef.current = { kind: 'proposal', id: pid, ops: keep, epoch: boardEpoch(host, keep),
-        binding: approvalBinding(plan, host), expiresAt: Date.now() + PROPOSAL_TTL_MS,
+        binding: approvalBinding(plan, host), expiresAt: Date.now() + PROPOSAL_TTL_MS, words: [member, saidRef.current],
         ...(seals.length ? { seals, card: plines, expiresAt: Math.min(Date.now() + PROPOSAL_TTL_MS, ...seals.map(x => x.expiresAt)) } : {}) }
       push({ id: pid, role: 'proposal', lines: plines, status: 'pending' })
       record({ member, outcome: `Proposed: ${plines.join(' · ')}`, outcomeData: { kind: 'proposed', actions }, telemetry: { path, disposition: 'propose', actions, voice } })
@@ -1403,7 +1439,12 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   }, [host, push, patchItem, record, capCtx, withdrawPending])
 
   // Every execution is traced (agent/trace.js): phase timestamps, memory only.
-  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice, chosen = false, approval = null, card = null, onTarget = null, binding = null, subset = false, noDuplicates = null, more = false }) => {
+  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice, chosen = false, approval = null, card = null, onTarget = null, binding = null, subset = false, noDuplicates = null, more = false, words = null, proposedWords = null }) => {
+    // ⛔ #988 (AUDIT GO): the words the excluded-chart gate reads — an approved card carries the words it was PROPOSED
+    // from (its proposal stored them): "do it" / "yes" / the Apply click name no chart, so they could never re-check it.
+    // (merge with #1029) `proposedWords` is its own option: #1029's `words` is the turn's message string for resolveArgs
+    // (the which-widget guard); the two never share one name, so neither reads the other's shape.
+    const gateWords = Array.isArray(proposedWords) ? proposedWords : [member, saidRef.current]
     // ⭐ Multi Chart: one gate for the instant, model and approved paths — what cannot run on the grid is said, and nothing runs
     const onGrid = gridMode ? screenGridOps(opsIn, host) : null
     if (onGrid?.refuse) {
@@ -1413,6 +1454,30 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       return undefined
     }
     if (onGrid?.note) onTarget = onTarget ? `${onTarget} ${onGrid.note}` : onGrid.note
+    // ⛔ #988 (pl-auto u14-g3-05, GO bar 1): ONE gate for every card and every apply, on every path (instant, model, a resumed
+    // question): a chart the member's words EXCLUDE ("this row except the TSLA one") is dropped from the plan here — never on a
+    // proposal card, never applied. An apply that loses a chart this way is only proposed; nothing left → asked, with no card.
+    // (AUDIT, #988 GO) an APPROVED card is re-checked too (idempotent: its card was built behind this gate) — should it ever
+    // carry an excluded chart, nothing of it runs; the follow-ups a change makes (runFollowUps) pass the same check
+    {
+      const g = withoutExcludedCharts(opsIn, gateWords, { host, getTargetKind, getCapability })
+      if (g.dropped && path === 'approved') {
+        const text = boundRefusal('it includes a chart your request excludes')
+        push({ role: 'refusal', text })
+        record({ member, outcome: text, outcomeData: { kind: 'refused-excluded', actions: (opsIn || []).map(o => o?.action) }, telemetry: { path, refused: true, voice } })
+        return undefined
+      }
+      if (g.dropped) {
+        if (!g.ops.length) {
+          const text = 'Which chart do you mean? Click it (or say left, right…) and ask again — nothing has changed yet.'
+          push({ role: 'agent', text })
+          record({ member, outcome: text, outcomeData: { kind: 'clarify-excluded', actions: (opsIn || []).map(o => o?.action) }, telemetry: { path, disposition: 'clarify', voice } })
+          return undefined
+        }
+        opsIn = g.ops
+        if (suggested === 'apply') suggested = 'propose'
+      }
+    }
     // ⭐ PHASE 2 (agent/duplicates.js, owner decision 2026-10-29): an add of an indicator the chart already shows, same
     // settings, is not added a second time — the existing one is reused (and is what "make it a 9" means next); a hidden
     // one is shown instead. Never on an approved card, nor when the member asked for another copy ("add another RSI").
@@ -1444,7 +1509,13 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         const cap = getCapability(opsIn[i]?.action)
         if (typeof cap?.resolveArgs !== 'function') continue
         let r = null
-        try { r = cap.resolveArgs(opsIn[i].args || {}, host) } catch { r = null }
+        try { r = cap.resolveArgs(opsIn[i].args || {}, host, words ?? member, { approved: suggested === 'approved' }) } catch { r = null }   // `words`: the turn's own message on the model path
+        // F2 (AUDIT #1027): a widget the member's words set aside is never acted on, and with no other of its type nothing is: refused
+        if (r?.refuse) {
+          push({ role: 'refusal', text: r.refuse })
+          record({ member, outcome: r.refuse, outcomeData: { kind: 'refused', actions: opsIn.map(o => o?.action) }, telemetry: { path, refused: true, voice } })
+          return undefined
+        }
         if (r?.ask) {
           pendingRef.current = { kind: 'target', ops: opsIn, path, mode: suggested, member, voice, epoch: epochOf(host), pickArg: { action: opsIn[i].action, arg: r.ask.arg } }
           push({ role: 'question', text: r.ask.text, choices: r.ask.choices, local: true })
@@ -1452,6 +1523,27 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
           return undefined
         }
         if (r?.args) opsIn = opsIn.map((o, j) => (j === i ? { ...o, args: r.args } : o))
+      }
+      // F1 (AUDIT #1027): a LIST-VIEW op (its target is a list view, not a widget arg) acts on the widget the words name, by the same
+      // rule (whichWidget.js); asked → the pick re-aims the op at that widget's view
+      for (let i = 0; i < opsIn.length; i++) {
+        if (!LIST_VIEW_WHICH.has(opsIn[i]?.action)) continue
+        let r = null
+        try { r = whichListView(opsIn[i], host, words ?? member, { approved: suggested === 'approved' }) } catch { r = null }
+        if (r?.refuse) {
+          push({ role: 'refusal', text: r.refuse })
+          record({ member, outcome: r.refuse, outcomeData: { kind: 'refused', actions: opsIn.map(o => o?.action) }, telemetry: { path, refused: true, voice } })
+          return undefined
+        }
+        if (r?.ask) {
+          const action = opsIn[i].action, refOf = r.refOf
+          const then = (filled) => filled.map(o => (o.action === action && o.args?.__widget != null ? { ...o, target: refOf(o.args.__widget) || o.target, args: Object.fromEntries(Object.entries(o.args).filter(([k]) => k !== '__widget')) } : o))
+          pendingRef.current = { kind: 'target', ops: opsIn, path, mode: suggested, member, voice, epoch: epochOf(host), pickArg: { action, arg: '__widget', then } }
+          push({ role: 'question', text: r.ask.text, choices: r.ask.choices, local: true })
+          record({ member, outcome: r.ask.text, outcomeData: { kind: 'clarify-arg', actions: opsIn.map(o => o?.action) }, telemetry: { path, disposition: 'clarify', voice } })
+          return undefined
+        }
+        if (r?.target) opsIn = opsIn.map((o, j) => (j === i ? { ...o, target: r.target } : o))
       }
     }
     const amb = chosen ? null : draftAmbiguity(host, opsIn)
@@ -1574,6 +1666,11 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
           continue
         }
         one = r.op
+      }
+      // ⛔ #988 (AUDIT GO): a follow-up never lands on a chart the member's words exclude (the same gate as execute's)
+      if (withoutExcludedCharts([one], gateWords, { host, getTargetKind, getCapability }).dropped) {
+        record({ member, outcome: 'excluded chart skipped', outcomeData: { kind: 'refused-excluded', actions: [one.action] }, telemetry: { path: 'followup', refused: true, voice } })
+        continue
       }
       traceStart('followup:apply')
       try { await executeInner([one], { path: 'followup', mode: approvedStep ? 'approved' : 'apply', member, voice, note: followNote || null, lead: held }) } finally { traceEnd('done') }
@@ -1811,7 +1908,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     const kinds = p.then ? [] : null
     if (kinds) tapRef.current = kinds
     try {
-      await execute(ops, { path: 'approved', mode: 'approved', member, voice, approval: p.seals || null, card: p.card || null, binding: p.binding, subset: !!count && count < p.ops.length })
+      await execute(ops, { path: 'approved', mode: 'approved', member, voice, approval: p.seals || null, card: p.card || null, binding: p.binding, subset: !!count && count < p.ops.length, proposedWords: p.words || null })
     } finally { if (kinds) tapRef.current = null }
     // NLM-1 step plans (dark): the plan this card belonged to is read back now that it has run
     if (stepPlanRef.current) await readBackRef.current?.()
@@ -1851,6 +1948,12 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     if (!p.draft && p.epoch !== epochOf(host)) {
       push({ role: 'refusal', text: "A different layout is open now, so I didn't change anything. Ask again." })
       return
+    }
+    if (p.setChoice) {
+      // #988 (option 2): the whole "every chart except …" set, exactly — or nothing
+      if (ref !== p.setChoice.ref) return
+      lastActionsRef.current = p.setChoice.ops.map(o => o.action)
+      return await execute(p.setChoice.ops, { path: p.path, mode: p.mode === 'propose' ? 'propose' : 'apply', member: `${p.member || ''} → ${label}`, voice: p.voice })
     }
     if (p.gridChoice) {
       // live train 4: the member's pick — replace the charts (a card: it removes charts) or add these beside them
@@ -2293,16 +2396,9 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       }
       let fast = fast0
       if (fast?.kind === 'ops' && !(await typedSymbolsKnown(fast.ops, text))) { mark('fast:symbol-to-model'); fast = null }
-      // round 3 (pl-auto unseen3): "only show puts in the options flow" with an Options Flow WIDGET on the board is a request for that
-      // widget's own filter chips, not a screen. Which chips UCT Agent may set is an open owner decision (F-16), so nothing is widened:
-      // it is still not done here, but the refusal says so about the widget's control, never "use the Screener page".
-      if (fast?.kind === 'ops' && fast.ops.some(o => o?.action === 'screener.run' && (o.args?.filters || []).some(f => FLOW_FIELDS.has(f?.field)))
-        && namedBoardWidgets(text, host?.widgets?.types?.() || []).includes('optionsflow')) {
-        const t = FLOW_WIDGET_REFUSAL
-        push({ role: 'refusal', text: t })
-        record({ member: text, outcome: t, outcomeData: { kind: 'refused', actions: ['widget.setOption'] }, telemetry: { path: 'fast', refused: true, voice } })
-        return
-      }
+      // F-16 widened (owner 2026-11-10): the Options Flow widget's own chips are never claimed as a screen (screener.js), so they
+      // reach the planner and widget.setOption; a flow SCREEN with no chip word keeps the F-16 refusal. (The round-3 refusal block
+      // that stood here is gone.)
       // round 3: clauses naming different charts are planned per clause by the model, never one instant target for all
       // (only several CHART changes read as one: a swap or a list add naming two charts is one op, read as before)
       if (fast?.kind === 'ops' && fast.ops.length > 1 && fast.ops.every(o => getCapability(o?.action)?.target === 'chart')
@@ -2418,9 +2514,16 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         // (policy.js, owner 2026-10-12). A position hint narrows by the positions the kind
         // publishes; anything still ambiguous asks. A lone target needs no hint.
         // ⭐ PHASE 3: "switch em to weekly" — `them` resolved to the charts the conversation last changed (pluralTarget)
-        const allOf = fast.target?.refs ? charts.filter(c => fast.target.refs.includes(c.ref)) : charts
+        // (a set named by CHART refs — a whole line, AUDIT probe 17 F-a — matches each kind's entry through its chart)
+        const allOf = fast.target?.refs ? charts.filter(c => fast.target.refs.includes(c.ref) || fast.target.refs.includes(chartRefOf(kind, c))) : charts
         if (fast.target?.all && allOf.length > 1 && fast.target?.refs) {
           return await execute(allOf.flatMap(c => fast.ops.map(o => ({ ...o, target: c.ref }))), { path: 'fast', mode: 'apply', member: text, voice })
+        }
+        // ⛔ a named set that does not reach two entries here is never widened to every chart below: it is asked
+        if (fast.target?.all && fast.target?.line && allOf.length <= 1) {
+          pendingRef.current = { kind: 'target', ops: fast.ops, path: 'fast', member: text, voice, epoch: epochOf(host) }
+          push({ role: 'question', text: 'Which chart do you mean?', choices: (allOf.length ? allOf : charts).map(c => ({ ref: c.ref, label: c.label })), local: true })
+          return
         }
         if (fast.target?.all && charts.length > 1) {
           // ⛔ P2-B: "all four charts" with three on the board (or "both" with four) — the member counted a
@@ -2466,7 +2569,9 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         const unmatchedHint = fast.target?.position && charts.length > 1 && candidates === charts
         if (candidates.length > 1 || unmatchedHint || ordAsk) {
           pendingRef.current = { kind: 'target', ops: fast.ops, path: 'fast', member: text, voice, epoch: epochOf(host) }
-          push({ role: 'question', text: ordAsk || ask, choices: (ordAsk ? charts : candidates).map(c => ({ ref: c.ref, label: c.label })), local: true })
+          // an ask that names its own candidates (a named-anchor relation: never the anchor, AUDIT probe 17 F-b) offers only those
+          const own = fast.target?.ask?.choices?.length ? charts.filter(c => fast.target.ask.choices.some(x => x.ref === c.ref || x.ref === chartRefOf(kind, c))) : []
+          push({ role: 'question', text: ordAsk || ask, choices: (ordAsk ? (own.length ? own : charts) : candidates).map(c => ({ ref: c.ref, label: c.label })), local: true })
           record({ member: text, outcome: 'Asked which target.', outcomeData: { kind: 'clarify-target', actions: fast.ops.map(o => o?.action) }, telemetry: { path: 'fast', clarified: true, voice } })
           return
         }
@@ -2897,6 +3002,20 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const deictic = onSubject ? null : sw0.changed
         ? { ask: { text: 'Which chart do you mean?', choices: (host?.charts?.list?.() || []).map(c => ({ ref: c.ref, label: c.label })) } }
         : screenDeicticOps({ host, ops: screened.ops, text, getTargetKind, getCapability, parse: fastParse })
+      // ⛔ AUDIT probe 18 (G3) / GO bar (3): a chart the words EXCLUDE ("everything in this row except SPY"), or a relation's ANCHOR
+      // that is not a target, is never offered by any question — the constraint check's own exclusions (spatialCheck)
+      const dropExcluded = (ask) => {
+        try {
+          const live = host?.charts?.list?.() || []
+          const ex = new Set([...excludedCharts(text, live, selectedChart(host)), ...spatialConstraints(text, live, selectedChart(host)).excluded])
+          ex.delete(UNPLACED)
+          if (!ex.size || !Array.isArray(ask?.choices)) return ask
+          const k = getTargetKind(getCapability(screened.ops[0]?.action)?.target)
+          const list = k?.list(host) || []
+          return { ...ask, choices: ask.choices.filter(c => { const snap = list.find(s => s.ref === c.ref); return !ex.has(snap ? chartRefOf(k, snap) : c.ref) }) }
+        } catch { return ask }
+      }
+      if (deictic?.ask) deictic.ask = dropExcluded(deictic.ask)
       if (deictic?.aim) screened.ops = deictic.aim
       if (deictic?.refuse) {
         const said = `I didn't change anything: ${deictic.refuse}`
@@ -2904,6 +3023,15 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         record({ member: null, outcome: said, outcomeData: { kind: 'refused', actions: screened.ops.map(o => o?.action) }, telemetry: { path: 'model', refused: true, voice } })
         return
       }
+      const askEveryExcept = (mode) => {
+        const q = everyExceptQuestion(host, screened.ops, text)
+        if (!q) return false
+        pendingRef.current = { kind: 'target', ops: [], path: 'model', mode, member: text, voice, epoch: epochOf(host), setChoice: q.choice }
+        push({ role: 'question', text: q.text, choices: [{ ref: q.choice.ref, label: q.choice.label }, { label: 'Cancel', cancel: true }], local: true })
+        record({ member: null, outcome: q.text, outcomeData: { kind: 'clarify-every-except', actions: screened.ops.map(o => o?.action) }, telemetry: { path: 'model', disposition: 'clarify', voice } })
+        return true
+      }
+      if (deictic?.ask && askEveryExcept(env.disposition)) return
       if (deictic?.ask) {
         const kinds = kindsOf(screened.ops)
         if (kinds.length === 1) {
@@ -2925,6 +3053,8 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // still stops at a ready draft when an R1 condition fails after the build (an acknowledgement, a name they already use)
       if (!nl1 && disposition === 'propose' && explicitIndicatorCreate(screened.ops)) { mark('deescalate', 'explicit-create'); disposition = 'apply' }
       const unnamed = onSubject ? null : screenUnnamedTargets({ host, ops: screened.ops, text, context: askedFor, pickedRefs: answeredRefs, getTargetKind, getCapability })
+      if (unnamed?.ask) unnamed.ask = dropExcluded(unnamed.ask)
+      if (unnamed?.ask && askEveryExcept(disposition)) return
       if (unnamed?.ask) {
         const kinds = kindsOf(screened.ops)
         if (kinds.length === 1) {
@@ -2934,6 +3064,31 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
           push({ role: 'agent', text: 'Which chart do you mean? Click it (or say left, right…) and ask again — nothing has changed yet.' })
         }
         record({ member: null, outcome: unnamed.ask.text, outcomeData: { kind: 'clarify-unnamed-chart', actions: screened.ops.map(o => o?.action) }, telemetry: { path: 'model', disposition: 'clarify', voice } })
+        return
+      }
+      // watchlist group A (Lead 2026-11-09): which Watchlist widget a showList acts on is decided by the WORDS — several widgets and
+      // none named is asked, never guessed (watchlistTarget.js)
+      const wlTarget = screenWatchlistWidget({ host, ops: screened.ops, text })
+      if (wlTarget?.ask) {
+        push({ role: 'agent', text: wlTarget.ask })
+        record({ member: null, outcome: wlTarget.ask, outcomeData: { kind: 'clarify-watchlist-widget', actions: screened.ops.map(o => o?.action) }, telemetry: { path: 'model', disposition: 'clarify', voice } })
+        return
+      }
+      if (wlTarget?.ops) screened.ops = wlTarget.ops
+      // ⛔ #988 (AUDIT probe 17): the LAST safety net behind the resolvers — every spatial constraint the words state (a line, a
+      // place, a relation from a named anchor or the click, a count), checked on the plan's own targets. A violation is asked
+      // (only the cells that satisfy them are offered, never an anchor) and nothing runs. spatialCheck.js
+      const spatial = onSubject ? null : checkSpatialConstraints({ host, ops: screened.ops, text, pickedRefs: answeredRefs, getTargetKind, getCapability })
+      if (spatial?.ask && askEveryExcept(disposition)) return
+      if (spatial?.ask) {
+        const kinds = kindsOf(screened.ops)
+        if (kinds.length === 1 && spatial.ask.choices.length) {
+          pendingRef.current = { kind: 'target', ops: screened.ops, path: 'model', mode: disposition, member: text, voice, epoch: epochOf(host) }
+          push({ role: 'question', text: spatial.ask.text, choices: spatial.ask.choices, local: true })
+        } else {
+          push({ role: 'agent', text: 'Which chart do you mean? Click it (or say left, right…) and ask again — nothing has changed yet.' })
+        }
+        record({ member: null, outcome: spatial.ask.text, outcomeData: { kind: 'clarify-spatial', actions: screened.ops.map(o => o?.action) }, telemetry: { path: 'model', disposition: 'clarify', voice } })
         return
       }
       if (unnamed?.propose && disposition === 'apply') {
@@ -2990,7 +3145,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         const reversed = cp?.ok ? await doUndo(cp.undoId, { member: null, voice }) : false
         if (!reversed) {
           push({ role: 'agent', text: `I didn't reverse my earlier change${cp && !cp.ok ? ` (${cp.reason})` : ''}, so here is the corrected change on its own — apply it only if you still want it.` })
-          await execute(ops, { path: 'model', mode: 'propose', member: null, voice })
+          await execute(ops, { path: 'model', mode: 'propose', member: null, voice, words: text })
           return
         }
       }
@@ -2998,7 +3153,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         const outer = tapRef.current
         const kinds = []
         tapRef.current = kinds
-        try { await execute(ops, { path: 'model', mode: disposition, member: null, voice }) } finally { tapRef.current = outer; if (outer) outer.push(...kinds) }
+        try { await execute(ops, { path: 'model', mode: disposition, member: null, voice, words: text }) } finally { tapRef.current = outer; if (outer) outer.push(...kinds) }
         // ⭐ NLM-1 STEP PLANS (dark): each step's postcondition read back from the board (and the touched charts' saved copy)
         // — one plain line: what is in place, what is not, what is not saved. A plan waiting on an approval card is read
         // back when the card is decided (approve) — nothing of it has run yet

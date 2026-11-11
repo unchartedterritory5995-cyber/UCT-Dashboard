@@ -30,6 +30,10 @@
 // that could disagree with the server.
 
 import { withDerivedColumns } from './derivedColumns'
+// ⭐ U2b — the forming bar's live value for a `plots[].liveTail` (`liveTail.js`):
+// the one cell of a cached envelope that moves with price, recomputed where the
+// envelope is aligned. The module imports nothing of this one.
+import { withLiveTail, benchmarkTailFor, subscribeBenchmarkTails, registerBenchmarkTailRequest } from './liveTail'
 
 /** The ONE path every server-lane definition is fetched through. */
 export const SERVER_COLUMNS_PATH = '/api/signature/columns'
@@ -305,6 +309,21 @@ function _notify(key) {
   }
 }
 
+// ⭐ U2b — a landed BENCHMARK TAIL says "something landed, ask again" through the
+// same door as a landed envelope, so the chart's one listener (`useServerColumns`)
+// repaints and the binder's memo (which carries the tail's version, see
+// `nativeRegistry.computeSignature`) recomputes the forming bar.
+subscribeBenchmarkTails((key) => _notify(`liveTail:${key}`))
+
+// ⭐ F2 (2026-11-10) — and THIS module is the benchmark tail's door: the store
+// (`liveTail.js`) holds no request of its own, so the browser's — the same
+// `fetch` the envelopes above use — is registered here, on import, by the one
+// module that already owns the lane's network (H4). A host that never imports
+// this door (the runtime worker, the server bundle, a test file before it arms
+// its own) asks for no tail at all. `test-setup.js` takes it away before every
+// test; `liveTail.test.js` proves both the registration and the refusal.
+registerBenchmarkTailRequest(_defaultFetch)
+
 /** ⭐ RT1 — another lane whose columns arrive AFTER the paint that asked (the
  *  runtime pane's off-thread run, `runtime/runtimeAsync.js`) says so through the
  *  same notification, so the chart's one listener (`useServerColumns`) repaints
@@ -440,7 +459,22 @@ export function serverColumnsFor(def, bars, inputs, ctx) {
   // ⭐ UCT RS design round (2026-11-08): the declared `plots[].derive` columns —
   // an event's glyph riding the line — are built here, the one place a server
   // definition's columns are aligned, from columns the envelope already carries.
-  return withDerivedColumns(def, alignColumns(parsed, bars), inputs)
+  // ⭐ U2b (RS split, 2026-11-09): and the declared `plots[].liveTail` moves the
+  // FORMING bar's cell first — the cached envelope's history is served as it is,
+  // its last cell is `close / benchmarkClose` (and the average's exact one-step
+  // continuation) on the chart's own last bar, with the benchmark's forming bar
+  // read from the bars route the candle itself is served from. Before `derive`,
+  // so a glyph that fires on the last bar rides the live line, not the stale one.
+  // Fail closed in `withLiveTail`: anything it cannot prove leaves the server's
+  // value in place.
+  const aligned = alignColumns(parsed, bars)
+  const live = withLiveTail(def, aligned, bars, inputs, {
+    scalars: parsed.payload || null, sym, tf: ctx.tf,
+    newestBarIsForming: ctx.newestBarIsForming,
+    timeKey: barTimeKey,
+    tail: (benchSym, tf) => benchmarkTailFor(benchSym, tf),
+  })
+  return withDerivedColumns(def, live, inputs)
 }
 
 /**
@@ -504,6 +538,7 @@ let _defsPromise = null       // the one request (or its one retry), once asked
 let _defsTestFetcher = null   // armed by a test
 let _defsRetryTimer = null    // the one retry, while scheduled
 let _defsGeneration = 0       // bumped by clear/prime, so a stale answer lands nowhere
+let _defsVersion = 0          // bumped on every landing / prime, read by `serverDefinitionsVersion`
 const _defsSubscribers = new Set()
 
 /** ⭐ 3-02 — how long after a failed definitions fetch the ONE retry is asked. */
@@ -559,6 +594,9 @@ function _declarationsFromBody(body) {
 }
 
 function _notifyDefinitions() {
+  // ⭐ RS split U1 — a surface that lists OFFERED definitions memoises on this
+  // number (a `useSyncExternalStore` snapshot), so a landing re-lists.
+  _defsVersion += 1
   for (const fn of [..._defsSubscribers]) {
     try { fn() } catch { /* a bad subscriber must not break the gate */ }
   }
@@ -646,6 +684,77 @@ export function serverDeclares(defId, fetcher) {
   if (!id) return null
   if (!_defsPromise) fetchServerDefinitions(fetcher)
   return (_defsRows && _defsRows.get(id)) || null
+}
+
+// ─── THE DEFINITION-LEVEL GATE (UCT RS split, unit U1) ────────────────────────
+//
+// ⭐⭐ A WHOLE DEFINITION CAN MERGE AHEAD OF ITS SERVER ROW. The per-input gate
+// above hides a CONTROL until the live row declares it; the three new RS
+// definitions (`rsRating`, `rsPhases`, `rsVsEma`, unit U6) have no row at all
+// until `RS_SPLIT_ENABLED` is armed on the web pod (map §(e) step 1), and a
+// library row that adds an indicator the server cannot compute is an empty pane
+// with a name on it. So a definition declares `meta.requiresServer: true`
+// (`defSchema.validateMeta`), and every surface that OFFERS indicators to add
+// — the library dialog, the discovery catalogue and its search, the phone
+// indicator sheet, Chart Settings' Indicators tab, the agent's catalogue —
+// asks `isDefinitionOffered(def)` before listing it.
+//
+// ⛔ FAIL CLOSED, THE SAME WAY, FROM THE SAME FETCH. "Offered" is
+// `serverDeclares(def.id) !== null`: not fetched yet, failed, malformed, or an
+// id the server does not publish all read "not offered". It is the one GET the
+// per-input gate already pays for — there is no second request, no second cache.
+//
+// ⭐ AN INSTANCE ALREADY ON A CHART IS NOT A ROW IN A LIST. The gate hides the
+// OFFER only. `getDefinition` still resolves a gated definition, so a stored
+// instance validates (`instances.validateInstance`), keeps its settings row and
+// draws when the server answers — and draws nothing, never a guess, when it
+// cannot, exactly as the columns lane already behaves.
+//
+// ⛔ A DEFINITION WITHOUT THE FLAG IS NEVER ASKED ABOUT. `isDefinitionOffered`
+// returns true for it without touching `serverDeclares`, so listing RSI never
+// spends the page's one definitions GET, and a catalogue of ungated definitions
+// is exactly the list it was before this gate existed.
+
+/** Does this definition declare the definition-level server gate (`meta.requiresServer: true`)? */
+export function definitionRequiresServer(def) {
+  return !!(def && def.meta && def.meta.requiresServer === true)
+}
+
+/**
+ * ⭐ May a surface OFFER this definition (list it as something to add)?
+ * `true` for any definition without `meta.requiresServer`; for one with it,
+ * only once the live server lists its id (`serverDeclares`), which starts the
+ * page's one request on first ask. `null`/non-object → false.
+ */
+export function isDefinitionOffered(def) {
+  if (!def || typeof def !== 'object') return false
+  if (!definitionRequiresServer(def)) return true
+  return serverDeclares(def.id) !== null
+}
+
+/**
+ * The catalogue-row form of the same question, for the surfaces that read
+ * `indicatorCatalog.catalogRows()` (rows, not definitions). A row with no
+ * definition behind it (a carved-out section such as `volumeProfile`, a
+ * built-in row) is offered: there is nothing to gate. `registry` is whatever
+ * the surface was handed (`getDefinition`); absent, every row is offered.
+ */
+export function isCatalogRowOffered(row, registry) {
+  if (!row || typeof row !== 'object') return false
+  const id = typeof row.id === 'string' ? row.id : (typeof row.defId === 'string' ? row.defId : '')
+  if (!id || !registry || typeof registry.getDefinition !== 'function') return true
+  let def = null
+  try { def = registry.getDefinition(id) } catch { def = null }
+  return def ? isDefinitionOffered(def) : true
+}
+
+/**
+ * A number that moves on every landing (success, failure or prime) of the
+ * definitions answer: the `useSyncExternalStore` snapshot a surface keys its
+ * offered-list memo on, beside `subscribeServerDefinitions`.
+ */
+export function serverDefinitionsVersion() {
+  return _defsVersion
 }
 
 /** Seed the answer from a body somebody already holds (and the test seam). */

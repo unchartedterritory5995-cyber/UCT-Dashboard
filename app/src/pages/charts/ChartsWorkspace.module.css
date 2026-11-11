@@ -938,8 +938,18 @@
   align-self: center;
   background: var(--clk-tone, #6b7280);
   box-shadow: 0 0 5px 0 var(--clk-glow, transparent);
-  animation: clockPulse 2.4s ease-in-out infinite;
 }
+/* ⛔ NO ENDLESS ANIMATION HERE (2026-11-10, measured). This dot sits in EVERY chart widget,
+   popped out or not. The old `animation: clockPulse 2.4s infinite` made each window produce a
+   compositor frame at the display rate forever: 12 popped widgets meant ~550 presents a second,
+   which saturated the GPU process's main thread (90% busy, 78% in Present) and held every window
+   to 9-16 fps. Killing only this animation took 12 widgets from p95 34 ms to 17 ms and p99 84 ms
+   to 18 ms, and cut CPU 43% (desktop `charts-load-proofs.mjs --kill-anim=clockDot`).
+   The live cue now rides the clock's own once-a-second render: `data-beat` flips with the
+   seconds, a stepped change with no transition, so it costs no frame the time text was not
+   already paying for. */
+.clockDot[data-beat="1"] { opacity: 0.5; }
+.clkClosed .clockDot[data-beat="1"] { opacity: 1; }
 .clockTime {
   font-size: 13px;
   font-weight: 700;
@@ -975,12 +985,8 @@
 .clkExt    { --clk-tone: var(--warn); --clk-glow: color-mix(in srgb, var(--warn) 50%, transparent); }
 .clkClosed { --clk-tone: var(--text-muted); --clk-glow: transparent; }
 
-@keyframes clockPulse {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.45; }
-}
 @media (prefers-reduced-motion: reduce) {
-  .clockDot { animation: none; }
+  .clockDot[data-beat="1"] { opacity: 1; }
 }
 
 /* Shift+F flag confirmation toast, centered near the top of the chart. */

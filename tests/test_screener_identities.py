@@ -121,6 +121,7 @@ _CASES: dict[str, tuple[dict, dict]] = {
     "rs_rating_1m_in_range": ({"rs_rating_1m": 50}, {"rs_rating_1m": 100}),
     "rs_rating_3m_in_range": ({"rs_rating_3m": 1}, {"rs_rating_3m": 100}),
     "rs_rating_6m_in_range": ({"rs_rating_6m": 50}, {"rs_rating_6m": 0}),
+    "rs_rating_9m_in_range": ({"rs_rating_9m": 50}, {"rs_rating_9m": 0}),
     "rs_rating_12m_in_range": ({"rs_rating_12m": 99}, {"rs_rating_12m": -1}),
     "rs_rating_chg_5_in_range": ({"rs_rating_chg_5": -6}, {"rs_rating_chg_5": 99}),
     "rs_rating_chg_20_in_range": ({"rs_rating_chg_20": 98}, {"rs_rating_chg_20": -99}),

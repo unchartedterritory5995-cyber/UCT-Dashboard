@@ -7,7 +7,9 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import DesktopStaleBanner from './DesktopStaleBanner'
 import DesktopDeskToast from './DesktopDeskToast'
-import { ackBeforeQuit, hasDesktopFeature, onBeforeQuit } from '../lib/desktopBridge'
+import AppUpdateToast from './AppUpdateToast'
+import { ackBeforeQuit, hasDesktopFeature, onBeforeQuit, onDeskVisibility, reportDesktopEvent } from '../lib/desktopBridge'
+import { setDeskHidden } from '../lib/deskVisibility'
 import { clearAppClosing, markAppClosing } from '../lib/appClosing'
 import { requestDeskLaunch, withdrawDeskLaunch } from '../lib/popoutRegistry'
 import { onPrefsUserChange, prefsUser } from '../lib/prefsSession'
@@ -35,6 +37,16 @@ export default function DesktopBridgeSync() {
     }
   }, [])
 
+  // Idle mode: while every app window is hidden or minimized, SWR stops polling (its isVisible reads
+  // lib/deskVisibility). Unmounting clears it, so a shell that goes away never leaves polls paused.
+  useEffect(() => {
+    const off = onDeskVisibility((state) => setDeskHidden(state === 'hidden'))
+    return () => {
+      off()
+      setDeskHidden(false)
+    }
+  }, [])
+
   // The desk comes back at launch whatever page the app opens on: tell ChartsDeskHost to hold the
   // workspace mounted so it can re-pop the windows. Only for the main window, which owns the desk.
   const uid = useSyncExternalStore(onPrefsUserChange, prefsUser, prefsUser) ?? null
@@ -47,10 +59,18 @@ export default function DesktopBridgeSync() {
     if (hasDeskRecords(uid)) requestDeskLaunch()
   }, [uid])
 
+  // Telemetry: a member is signed in in the main window. The shell sends first_signin once per
+  // install, so repeating this on every launch costs nothing.
+  useEffect(() => {
+    if (!uid || window.opener || isTerminalPopoutChild()) return
+    reportDesktopEvent('signed_in')
+  }, [uid])
+
   return (
     <>
       <DesktopStaleBanner />
       <DesktopDeskToast />
+      <AppUpdateToast />
     </>
   )
 }

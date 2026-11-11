@@ -30,11 +30,20 @@ describe('isIntradayTailStale', () => {
     it('STALE: tail = today 09:35 (current session, ~85min behind → intra-session hole)', () => {
       expect(isIntradayTailStale(sec('2026-08-19T13:35:00Z'), '5')).toBe(true)
     })
-    it('60m tolerates a wider recency gate than 5m for the current session', () => {
-      // ~2h behind: stale for 5m (max(15min)) but fresh for 60m (max(3h))
-      const tail = sec('2026-08-19T13:00:00Z')  // today 09:00 ET, 2h behind
-      expect(isIntradayTailStale(tail, '5')).toBe(true)
-      expect(isIntradayTailStale(tail, '60')).toBe(false)
+    it('the recency gate is ONE BUCKET of the timeframe, not 3x its length', () => {
+      // 2026-11-10: the old max(3*tf) window called a 2h-old 60m tail fresh while it
+      // was missing BOTH completed RTH hours (09:30, 10:00). Within one bucket of the
+      // frontier is fresh on every timeframe; two missing bars is behind on every one.
+      const preOpen = sec('2026-08-19T13:00:00Z')  // today 09:00 ET (pre-market bar)
+      expect(isIntradayTailStale(preOpen, '5')).toBe(true)
+      // 60m is the TradingView grid (09:30, 10:30 …): at 11:00 only the 09:30-10:30 bar
+      // has completed, so a 09:00 tail is ONE bucket behind (fresh) and 09:30 is the frontier.
+      expect(isIntradayTailStale(preOpen, '60')).toBe(false)
+      expect(isIntradayTailStale(sec('2026-08-19T13:30:00Z'), '60')).toBe(false)  // 09:30: the frontier
+      // …and at 11:35 (09:30 AND 10:30 completed) the 09:00 tail is two missing bars: behind.
+      vi.setSystemTime(new Date('2026-08-19T15:35:00Z'))
+      expect(isIntradayTailStale(preOpen, '60')).toBe(true)
+      expect(isIntradayTailStale(sec('2026-08-19T13:30:00Z'), '60')).toBe(false)  // 09:30: 1 bucket behind
     })
   })
 

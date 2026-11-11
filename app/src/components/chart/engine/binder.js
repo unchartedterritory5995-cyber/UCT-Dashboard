@@ -75,7 +75,7 @@ import { semanticsOf, SEMANTICS_UNKNOWN_PROPAGATES } from './definitionSemantics
 // provide one simply draws no objects.
 import { evaluateObjects } from './objectRuntime'
 // ⭐⭐ RT5 — a runtime document's drawings, made by its own run (imports nothing).
-import { runtimeObjectsOf, drawsRuntimeObjects } from './runtime/runtimeObjects.js'
+import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects } from './runtime/runtimeObjects.js'
 // ⭐⭐ W9-T12 — a strategy's trade markers, from the run's record (refused by name until W9-MK1)
 import { drawsTradeMarkers, memberTradeMarkers, tradeMarkerObjects, publishTradeMarkers, markersWithheldWith,
   joinMarkersToState } from './runtime/tradeMarkers.js'
@@ -114,6 +114,7 @@ import { setChartClockNotes } from './chartClockNotice'
 import { serverDeclares } from './serverCompute'
 // ⭐ P2b — what a render state dropped, for the member's drawing note.
 import { setObjectRenderDrops, renderDroppedCount, renderHeldCount } from './objectRenderNotice'
+import { runtimeWithheldWhy, stoppedRunSentence, STOPPED_KEY } from './ast/objectLoss'
 import { ThinVolumeSeries } from '../thinVolumeSeries'
 
 /** RTH filter for an intraday FRAME on a chart that hides extended hours — the same
@@ -1121,11 +1122,23 @@ export function createBinder({ chart, LWC, scope = '' }) {
    *  state could not place is counted into the member's drawing note, never only
    *  into a DOM attribute. A state of `null` (nothing drawn) clears. */
   const dropsPublished = new Set()
-  const publishDrops = (instanceId, state) => {
+  // ⭐ W-C22-DEL — `families`: the drawing families the run withheld WHOLE because
+  // TradingView's collector may have removed objects this chart still holds
+  // (`objectRuntime.js`, `withheldBy['objects:collector']`), said by name in the
+  // same note.
+  // `familiesAll`: those withheld WHOLE (`withheldBy['objects:collector-all']`).
+  // ⭐ DIV-3 r2 — `why`: family → the member's sentence, for a family the HOST run
+  // withheld whole by a named guard of its own (`objectRuntime.js`, `withheldWhy`:
+  // a `table.cell` on a merged head cell). Said in the same note, never a silent drop.
+  const publishDrops = (instanceId, state, { families = null, familiesAll = null, why = null } = {}) => {
     const n = state ? renderDroppedCount(state) : 0
-    if (!n && !dropsPublished.has(instanceId)) return
-    attempt(() => setObjectRenderDrops(instanceId, n, state ? renderHeldCount(state) : 0, noticeScope))
-    if (n) dropsPublished.add(instanceId)
+    const fams = Array.isArray(families) ? families : []
+    const all = Array.isArray(familiesAll) ? familiesAll : []
+    const whyN = why && typeof why === 'object' ? Object.keys(why).length : 0
+    if (!n && !fams.length && !all.length && !whyN && !dropsPublished.has(instanceId)) return
+    attempt(() => setObjectRenderDrops(instanceId, n, state ? renderHeldCount(state) : 0, noticeScope,
+      { families: fams, familiesAll: all, why }))
+    if (n || fams.length || all.length || whyN) dropsPublished.add(instanceId)
     else dropsPublished.delete(instanceId)
   }
   // ⭐⭐ W9-T12 — the marker outcome per instance (served, or the refusal's sentence), for the
@@ -1203,11 +1216,25 @@ export function createBinder({ chart, LWC, scope = '' }) {
           : objPayload ? { ...objPayload, live: objPayload.live.concat(markLive) }
             : markLive.length ? { live: markLive, withheld: {}, reason: null, stats: { nextId: `mk${markLive.length}` }, pineVersion: null }
               : null
-        if (!payload) { publishDrops(inst.instanceId, null); attempt(() => rlayer.set(null, '')); continue }
+        if (!payload) {
+          // ⭐ OZ r1 — a run that withheld its drawings whole (`WITHHELD`) says why
+          const wr = runtimeObjectsWithheldOf(memo && memo.cols)
+          const ws = wr ? stoppedRunSentence(wr.reason, 'withheld', { fromListing: ctx.historyFromListing === true }) : null
+          publishDrops(inst.instanceId, null, { why: ws ? { [STOPPED_KEY]: ws } : null })
+          attempt(() => rlayer.set(null, '')); continue
+        }
         const rstate = attempt(() => toRenderState(payload.live,
           { bars, tf: ctx.tf, theme, pineVersion: payload.pineVersion })).value
         if (!rstate) { markersCleared(); publishDrops(inst.instanceId, null); attempt(() => rlayer.set(null, '')); continue }
-        publishDrops(inst.instanceId, rstate)
+        // ⭐ OZ — a family the RUN withheld whole draws none; its name reaches the
+        // member's drawing note on this lane too (`runtimeWithheldWhy`).
+        // ⭐ OZ r1 — and a run STOPPED on a step no capture settles (`OBJECT_UNWITNESSED`,
+        // C40) draws nothing; its reason reached only the layer's meta until now.
+        const rStop = payload.status && payload.status !== 'ok' && objPayload
+          ? stoppedRunSentence(payload.reason, 'unmeasured', { fromListing: ctx.historyFromListing === true }) : null
+        const rWhy = runtimeWithheldWhy(payload.withheld)
+        publishDrops(inst.instanceId, rstate,
+          { why: rStop || rWhy ? { ...(rStop ? { [STOPPED_KEY]: rStop } : {}), ...(rWhy || {}) } : null })
         const rsig = `rt:${bars.length}:${bars.length ? bars[bars.length - 1].t : 0}:${(payload.stats || {}).nextId}:${theme.fg || ''}/${theme.bg || ''}`
           + markSig
         const rset = attempt(() => rlayer.set(rstate, rsig, {
@@ -1280,6 +1307,10 @@ export function createBinder({ chart, LWC, scope = '' }) {
           // ⭐ C12: an op reading a `var` before its warm-up is withheld, not
           // drawn off a `NaN` that reads as Pine's `na` (`objectRuntime.js`).
           readUnknown: reader.readUnknown,
+          // ⭐ OZ r1 — and the same with the chart clock's channel out, so a family the
+          // clock note (C36) already explains is not said twice, and one withheld for
+          // another reason is still said (`objectRuntime.js` `famUnknownOther`).
+          readUnknownOther: reader.readUnknownOther,
           // ⭐ F1 — off the listing a `var` list of drawings is withheld whole.
           offListing: reader.historyFromListing !== true,
         })
@@ -1373,7 +1404,11 @@ export function createBinder({ chart, LWC, scope = '' }) {
           meta.stats.dropped = hstate.dropped
         } else markersCleared()
       }
-      publishDrops(inst.instanceId, hstate)
+      publishDrops(inst.instanceId, hstate, {
+        families: (built.value.run.withheldBy || {})['objects:collector'] || null,
+        familiesAll: (built.value.run.withheldBy || {})['objects:collector-all'] || null,
+        why: built.value.run.withheldWhy || null,
+      })
       if (!attempt(() => layer.set(hstate, sig + markSig, meta)).ok) markersCleared()
     }
     for (const [id, layer] of objectLayers) {
@@ -1943,8 +1978,16 @@ export function createBinder({ chart, LWC, scope = '' }) {
         runCols.set(inst.instanceId, null)
         continue
       }
+      // ⭐ U2b — what the compute reads BEYOND bars and inputs that can change under
+      // an unchanged key (a server definition's live benchmark tail, `plots[].
+      // liveTail`): the registry says so through one optional hook
+      // (`nativeRegistry.computeSignature`), so a landed benchmark quote is a memo
+      // miss and not another paint of the stale forming bar. `''` for every native.
+      const liveSig = typeof registry.computeSignature === 'function'
+        ? (registry.computeSignature(def, inst.inputs, { sym: ctx.sym, tf: frame || ctx.tf }) || '') : ''
       const sig = inputsSignature(inst.inputs) + sourceSig + (otherSig ? `|os:${otherSig}` : '')
         + (lowerSig ? `|ltf:${lowerSig}` : '')
+        + (liveSig ? `|live:${liveSig}` : '')
         + (strategyWindow !== null ? `|hw${strategyWindow}` : '')
         + (!frame && ctx.historyFromListing === true ? '|listing' : '')
         + (!frame && ctx.barIndexFromFirstBar === true ? '|bar0' : '')
