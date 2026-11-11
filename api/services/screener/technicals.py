@@ -534,7 +534,7 @@ _WINDOW_BARS = {
     "run_close_ema20": 10 ** 9, "run_close_sma50": 10 ** 9, "run_close_sma200": 10 ** 9,
     "run_ema9_ema20": 10 ** 9, "run_sma20_sma50": 10 ** 9, "run_sma50_sma200": 10 ** 9,
     "sma20_rising": 40, "sma50_rising": 70, "sma200_rising": 220,
-    "avg_volume_10d": 10, "avg_volume_50d": 50, "vol_trend_pct": 20,
+    "avg_volume_10d": 10, "avg_volume_50d": 50, "vol_trend_pct": 20, "min_volume_3d_prior": 4,
     "vol_up_run": 10 ** 9, "vol_down_run": 10 ** 9,
     "new_high_lookback": 253, "new_low_lookback": 253, "breakout_20d_age": 83,
     "high_52w_age": 252, "low_52w_age": 252,
@@ -563,6 +563,7 @@ SCAN_PRIMITIVE_COLUMNS = (
     "pct_vs_ema9", "pct_vs_ema10", "run_close_ema20", "run_close_sma50", "run_close_sma200",
     "run_ema9_ema20", "run_sma20_sma50", "run_sma50_sma200", "sma20_rising", "sma50_rising", "sma200_rising",
     "avg_volume_10d", "avg_volume_50d", "vol_trend_pct", "vol_up_run", "vol_down_run",
+    "min_volume_3d_prior",
     "new_high_lookback", "new_low_lookback", "breakout_20d_age", "high_52w_age", "low_52w_age",
 )
 #: The longest "N-day high" `new_high_lookback` can state: a trading year.
@@ -655,6 +656,12 @@ def scan_primitives(bars, closes, ipo_date=None) -> dict:
     out["vol_trend_pct"] = round((a5 / a20 - 1) * 100, 2) if (a5 is not None and a20) else None
     out["vol_up_run"] = _volume_run(vols, True)
     out["vol_down_run"] = _volume_run(vols, False)
+    # TC2000's `MINV3.1`: the lowest volume of the three sessions BEFORE the newest one (the
+    # newest is left out, so a heavy day today cannot lift it). Blank when any of the three has
+    # no volume: an absent session is never read as zero, which would fail every floor.
+    prior3 = vols[-4:-1]
+    out["min_volume_3d_prior"] = (min(prior3) if len(prior3) == 3 and all(v is not None for v in prior3)
+                                  else None)
 
     out["new_high_lookback"] = out["new_low_lookback"] = None
     if len(bars) >= 2:

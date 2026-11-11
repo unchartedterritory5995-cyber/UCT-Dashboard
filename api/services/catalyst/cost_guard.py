@@ -36,6 +36,13 @@ _PRICING = {
     # Opus 5 ships at Opus 4.8's list price — $5 in / $25 out per 1M (Anthropic
     # model table, cached 2026-06-24; the same figures flow_explain._PRICING
     # already carries for claude-opus-4-8). W0.4, 2026-08-25.
+    "claude-fable-5-2":  {"input": 8.0,  "output": 40.0},
+    # 2026-11-10: the 5.5 family. Without these rows a dated-alias strip read
+    # claude-opus-5-5 as claude-opus-5 (25% over) and claude-haiku-5-5 fell to the
+    # priciest row (Fable, ~100x over), which trips a daily cap on the first calls.
+    "claude-opus-5-5":   {"input": 4.0,  "output": 20.0},
+    "claude-sonnet-5-5": {"input": 2.0,  "output": 10.0},
+    "claude-haiku-5-5":  {"input": 0.10, "output": 0.50},
     "claude-opus-5":     {"input": 5.0,  "output": 25.0},
     "claude-opus-4-8":   {"input": 5.0,  "output": 25.0},
     "claude-opus-4-7":   {"input": 5.0,  "output": 25.0},

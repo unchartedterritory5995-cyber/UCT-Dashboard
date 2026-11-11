@@ -459,11 +459,12 @@ def _process_finnhub_trade(trade):
     trade_vol = trade.get("v", 0)
     timestamp = trade.get("t", 0)  # milliseconds
 
-    # SIP sale-condition gate (matches TC2000/TradingView tape filtering): an
-    # odd-lot / out-of-sequence / form-T / average-priced print may NOT move the
-    # last price (last_ok) or extend a candle's high/low (hl_ok). Missing/unknown
-    # conditions → (True, True) = fully eligible, so real trades are never hidden.
-    hl_ok, last_ok = trade_conditions.classify(trade.get("c"))
+    # Finnhub numbers its trade conditions with ITS OWN table, not the SIP ids
+    # trade_conditions knows (D10): classifying them as SIP codes hid real trades
+    # and kept ghosts at random. source="finnhub" => (True, True) (unclassified,
+    # fully eligible) until a verified Finnhub map exists. The ghost-print filter
+    # lives on the Massive push stream (bar_broadcaster), the live candle's source.
+    hl_ok, last_ok = trade_conditions.classify(trade.get("c"), source="finnhub")
 
     # Record liveness regardless — a print DID occur (Finnhub ms → epoch seconds).
     ts_seconds = int(timestamp / 1000) if timestamp else int(time.time())

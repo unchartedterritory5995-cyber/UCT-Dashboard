@@ -666,11 +666,6 @@
       ],
       "note": "Part of the edge-deep-history / instant-charts initiative (specs 2026-08-31 onward); recorded 2026-09-02 after a live read. Selects the dedicated bars-SERVING entrypoint via the railway.json dispatcher, so app/partner deploys can never restart chart serving. This entry read pending until now for a reason that was not about the flag: tools/flag_ledger_audit.py hardcoded a three-service roster (web, worker, flow-worker) while the project has five, so a flag armed only on bars-api was invisible to the audit and was reported as undecided. The roster is now derived from the project."
     },
-    "BARS_A_CLOSE_GUARD_ENABLED": {
-      "status": "dark",
-      "note": "Off 2026-09-04 (Phase 2b, api/services/bar_broadcaster.py:41-53), not yet armed on any service. Guards a developing intraday bar's close against a momentary ghost/odd-lot T-tick print winning over the next unfiltered A-aggregate close within BARS_A_CLOSE_GUARD_MS (default 2000ms) -- a display-integrity fix, never touches persisted bars. Shipped dark by design so the byte-identical old behavior stays the default while the guard is proven; own test file tests/test_bar_broadcaster_a_close_guard.py. Arm via the env var alone, no deploy needed.",
-      "where": []
-    },
     "BARS_HISTORY_ORIGIN_ENABLED": {
       "status": "armed",
       "where": [
@@ -3198,6 +3193,14 @@
       "since": "2026-11-10",
       "where": [],
       "note": "PR #1012 (feat/schwab-token-replication, commit 25e78dbf2d): the RECEIVE half on flow-worker. Read in api/schwab_token_replica.py (receive_enabled), default '0'; POST /api/flow/schwab-token/install (admin-gated). Strips the refresh token unconditionally so flow-worker can never refresh or invalidate web's grant; refuses a replay, a token already expired on arrival, and a future saved_at. Ships DARK on purpose; pairs with SCHWAB_TOKEN_PUSH_ENABLED on web. While dark, flow-worker keeps its own (stale) token and falls back to Massive OI as before. Entry added 2026-11-10 because the gate merged without one."
+    },
+    "PRECOMPRESSED_ASSETS_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-10",
+      "where": [],
+      "default": "1",
+      "values": ["0", "1"],
+      "note": "KILL SWITCH, DEFAULT ON: unset means precompressed serving is ON. Status is dark only because no service sets it (same shape as ALERT_ROUTING_ENABLED); 'armed' here means set on a service. Read per request in api/services/static_assets.py (precompressed_enabled). 0, false or no serves every /assets JS and CSS file plain, with no Content-Encoding and no Vary. Rails: tests/test_precompressed_static_assets.py. Rollback: railway variables --service web --set PRECOMPRESSED_ASSETS_ENABLED=0, then PURGE /assets AT CLOUDFLARE: these files are immutable for a year, so encoded bytes already at the edge survive any origin change. Report: docs/speed/speed-4-report.md."
     }
   },
   "retired": {

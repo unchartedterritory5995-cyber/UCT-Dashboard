@@ -166,6 +166,7 @@ export const COLUMN_DEFS = {
   sma200_rising: { label: 'S200 Up', fmt: tri },
   avg_volume_10d: { label: 'Vol 10d', fmt: shares },
   avg_volume_50d: { label: 'Vol 50d', fmt: shares },
+  min_volume_3d_prior: { label: 'Min Vol 3d', fmt: shares },
   vol_trend_pct: { label: 'Vol Trend', fmt: pct },
   vol_up_run: { label: 'Vol Up Run', fmt: num(0) },
   vol_down_run: { label: 'Vol Dn Run', fmt: num(0) },

@@ -55,14 +55,17 @@ class TestExpectedCompletedBucket:
         assert bars_fetch.expected_completed_bucket("5", MON_1133) == et(2026, 9, 28, 11, 25)
 
     @pytest.mark.parametrize("tf,expected", [
-        ("1", (11, 32)), ("5", (11, 25)), ("15", (11, 15)), ("30", (11, 0)), ("60", (10, 0)),
+        ("1", (11, 32)), ("5", (11, 25)), ("15", (11, 15)), ("30", (11, 0)), ("60", (10, 30)),
     ])
     def test_every_intraday_tf(self, tf, expected):
         assert bars_fetch.expected_completed_bucket(tf, MON_1133) == et(2026, 9, 28, *expected)
 
-    def test_60m_uses_the_irregular_0930_opening_bucket(self):
-        # At 10:05 the 09:30-10:00 bar has closed, even though a full hour has not elapsed.
-        assert bars_fetch.expected_completed_bucket("60", et(2026, 9, 28, 10, 5)) == et(2026, 9, 28, 9, 30)
+    def test_60m_uses_the_tradingview_0930_opening_bucket(self):
+        # TradingView grid: the 09:30 bar runs to 10:30 — open at 10:05, closed at 10:35.
+        assert bars_fetch.expected_completed_bucket("60", et(2026, 9, 28, 10, 5)) is None
+        assert bars_fetch.expected_completed_bucket("60", et(2026, 9, 28, 10, 35)) == et(2026, 9, 28, 9, 30)
+        # …and the 15:30 half bar is the session's last: final at the close.
+        assert bars_fetch.expected_completed_bucket("60", et(2026, 9, 28, 16, 30)) == et(2026, 9, 28, 15, 30)
 
     def test_no_expectation_before_the_first_bucket_closes(self):
         assert bars_fetch.expected_completed_bucket("5", et(2026, 9, 28, 9, 32)) is None
@@ -121,9 +124,19 @@ class TestTailStatus:
         assert bars_fetch.intraday_tail_status("THIN", "5", et(2026, 9, 28, 10, 0), now=later)["tail_status"] == "unverified"
 
     def test_weekend_complete_friday_is_current(self, monkeypatch):
+        # "Complete" is the EXTENDED session (the series carries post-market): a tail
+        # through Friday 19:55 is current on Sunday (2026-11-11 extended-tail fix).
         monkeypatch.setattr(bars_fetch, "_expected_latest_session_yyyymmdd", lambda now=None: 20260925)
         sun = et(2026, 9, 27, 12, 0)
-        assert bars_fetch.intraday_tail_status("X", "5", FRI_1555, now=sun)["tail_status"] == "current"
+        assert bars_fetch.intraday_tail_status("X", "5", FRI_1955, now=sun)["tail_status"] == "current"
+
+    def test_weekend_friday_tail_at_the_RTH_close_is_missing_post_market(self, monkeypatch):
+        monkeypatch.setattr(bars_fetch, "_expected_latest_session_yyyymmdd", lambda now=None: 20260925)
+        sun = et(2026, 9, 27, 12, 0)
+        assert bars_fetch.intraday_tail_status("X", "5", FRI_1555, now=sun)["tail_status"] == "unverified"
+        # ...until the provider has been asked after Friday's extended close
+        bars_fetch._mark_tail_verified("X", "5", et(2026, 9, 27, 11, 0))
+        assert bars_fetch.intraday_tail_status("X", "5", FRI_1555, now=sun)["tail_status"] == "verified"
 
     def test_weekend_thursday_tail_is_not(self, monkeypatch):
         monkeypatch.setattr(bars_fetch, "_expected_latest_session_yyyymmdd", lambda now=None: 20260925)
@@ -134,7 +147,7 @@ class TestTailStatus:
 
 class TestVerificationIsEarnedNotInferred:
     def _ok_delta(self, rows):
-        def _fn(ticker, tf, last_ts, status=None):
+        def _fn(ticker, tf, last_ts, status=None, **_kw):
             if status is not None:
                 status["ok"] = True
             return rows
@@ -150,7 +163,7 @@ class TestVerificationIsEarnedNotInferred:
     def test_a_failed_provider_verifies_nothing(self, monkeypatch):
         # The real `_delta_intraday` swallows provider errors into [] — identical to
         # "nothing newer". Only the explicit status flag separates them.
-        monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None: [])
+        monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None, **_kw: [])
         bars_fetch._heal_intraday_tail("AVGO", "5", FRI_1955)
         assert bars_fetch.tail_verified_through("AVGO", "5") is None
 
@@ -267,7 +280,7 @@ def _body(resp):
 
 class TestServeContract:
     def test_AVGO_REGRESSION_shed_repair_is_UNVERIFIED_not_silent(self, avgo, monkeypatch):
-        monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None: _monday_delta(status))
+        monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None, **_kw: _monday_delta(status))
         n_bg = _saturate(bars_fetch._bg_delta_sem)
         n_ia = _saturate(bars_fetch._interactive_heal_sem)
         try:
@@ -283,7 +296,7 @@ class TestServeContract:
         assert resp.headers.get("Retry-After") == "3"
 
     def test_since_path_shed_is_also_UNVERIFIED(self, avgo, monkeypatch):
-        monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None: _monday_delta(status))
+        monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None, **_kw: _monday_delta(status))
         n_bg = _saturate(bars_fetch._bg_delta_sem)
         n_ia = _saturate(bars_fetch._interactive_heal_sem)
         try:
@@ -297,7 +310,7 @@ class TestServeContract:
         assert resp.headers.get("Retry-After") == "3"
 
     def test_INTERACTIVE_RESERVE_repairs_while_background_holds_every_shared_slot(self, avgo, monkeypatch):
-        monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None: _monday_delta(status))
+        monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None, **_kw: _monday_delta(status))
         n_bg = _saturate(bars_fetch._bg_delta_sem)
         try:
             resp = bars_router.serve_bars("AVGO", "5", 50)          # warm=0 → interactive
@@ -312,7 +325,7 @@ class TestServeContract:
     def test_CONTROL_a_warm_request_cannot_take_the_reserve(self, avgo, monkeypatch):
         called = {"n": 0}
 
-        def _d(t, tf, lt, status=None):
+        def _d(t, tf, lt, status=None, **_kw):
             called["n"] += 1
             return _monday_delta(status)
         monkeypatch.setattr(bars_fetch, "_delta_intraday", _d)
@@ -326,17 +339,17 @@ class TestServeContract:
             assert _body(resp)["tail_status"] == "unverified"
 
     def test_the_interactive_mark_never_leaks_to_the_next_request_on_the_thread(self, avgo, monkeypatch):
-        monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None: _monday_delta(status))
+        monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None, **_kw: _monday_delta(status))
         bars_router.serve_bars("AVGO", "5", 50)
         assert bars_fetch._request_is_interactive() is False
 
     def test_a_healthy_repair_reads_current(self, avgo, monkeypatch):
-        monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None: _monday_delta(status))
+        monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None, **_kw: _monday_delta(status))
         body = _body(bars_router.serve_bars("AVGO", "5", 50))
         assert body["tail_status"] == "current"
 
     def test_a_failed_provider_stays_unverified(self, avgo, monkeypatch):
-        monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None: [])
+        monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None, **_kw: [])
         resp = bars_router.serve_bars("AVGO", "5", 50)
         assert _body(resp)["tail_status"] == "unverified"
         assert resp.headers.get("Retry-After") == "3"
@@ -355,7 +368,7 @@ class TestWarmCacheAuthority:
         assert "bars_AVGO_5_50" in avgo["mem"]
 
     def test_after_a_stale_warm_the_click_still_repairs(self, avgo, monkeypatch):
-        monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None: _monday_delta(status))
+        monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None, **_kw: _monday_delta(status))
         bars_fetch.serve_warm_from_cache("AVGO", "5", 50)
         body = _body(bars_router.serve_bars("AVGO", "5", 50))
         assert body["bars"][-1]["t"] == et(2026, 9, 28, 11, 30)
@@ -381,7 +394,7 @@ class TestSdDoBounded:
         monkeypatch.setattr(bars_fetch, "_inflight", {})
         monkeypatch.setattr(bars_fetch, "_REQUEST_DEADLINE_SECONDS", 0.3)
 
-        def _slow(t, tf, lt, status=None):
+        def _slow(t, tf, lt, status=None, **_kw):
             time.sleep(2.0)
             return []
         monkeypatch.setattr(bars_fetch, "_delta_intraday", _slow)
@@ -422,12 +435,16 @@ class TestScope:
         assert "tail_status" not in _body(out)
 
 
-def test_60m_opening_bucket_is_verifiable_at_1000_not_1030():
-    """The 09:30 hourly bucket ends at 10:00. A check at 10:01 proves it."""
+def test_60m_opening_bucket_is_verifiable_at_1030():
+    """The 09:30 hourly bucket ends at 10:30 (TradingView grid). A check at 10:31 proves it."""
     bars_fetch._tail_verified.clear()
-    bars_fetch._mark_tail_verified("THIN", "60", et(2026, 9, 28, 10, 1))
-    st = bars_fetch.intraday_tail_status("THIN", "60", FRI_1555, now=et(2026, 9, 28, 10, 20))
+    bars_fetch._mark_tail_verified("THIN", "60", et(2026, 9, 28, 10, 31))
+    st = bars_fetch.intraday_tail_status("THIN", "60", FRI_1555, now=et(2026, 9, 28, 10, 50))
     assert st["tail_status"] == "verified"
+    # the 15:30 half bar ends at 16:00: a 16:01 check proves the session's last bar
+    bars_fetch._tail_verified.clear()
+    bars_fetch._mark_tail_verified("THIN", "60", et(2026, 9, 28, 16, 1))
+    assert bars_fetch._bucket_end("60", et(2026, 9, 28, 15, 30), 3600) == et(2026, 9, 28, 16, 0)
 
 
 # ── Weekly: the current week's forming candle (the verified intended contract) ──
