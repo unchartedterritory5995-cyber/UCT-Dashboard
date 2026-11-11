@@ -1,0 +1,87 @@
+{
+  "dirs_total": 11,
+  "dirs_measured": 10,
+  "dirs_unmeasured": [
+    "tests"
+  ],
+  "sum_collected": 7067,
+  "rows": [
+    {
+      "dir": "tests/pattern_engine",
+      "collected": 3687,
+      "seconds": 35.23,
+      "rss_mb": 437.4,
+      "result": "ok"
+    },
+    {
+      "dir": "tests/api",
+      "collected": 348,
+      "seconds": 19.26,
+      "rss_mb": 334.1,
+      "result": "ok"
+    },
+    {
+      "dir": "tests/golden_judged",
+      "collected": 1364,
+      "seconds": 13.46,
+      "rss_mb": 165.5,
+      "result": "ok"
+    },
+    {
+      "dir": "tests/theme_engine",
+      "collected": 64,
+      "seconds": 12.43,
+      "rss_mb": 134.8,
+      "result": "ok"
+    },
+    {
+      "dir": "tests/theme_curation",
+      "collected": 57,
+      "seconds": 16.3,
+      "rss_mb": 122.5,
+      "result": "ok"
+    },
+    {
+      "dir": "tests/econ",
+      "collected": 854,
+      "seconds": 17.92,
+      "rss_mb": 89.4,
+      "result": "ok"
+    },
+    {
+      "dir": "tests/marketcap",
+      "collected": 407,
+      "seconds": 13.96,
+      "rss_mb": 85.0,
+      "result": "ok"
+    },
+    {
+      "dir": "tests/fundamentals_pit",
+      "collected": 223,
+      "seconds": 13.7,
+      "rss_mb": 84.4,
+      "result": "ok"
+    },
+    {
+      "dir": "tests/study",
+      "collected": 17,
+      "seconds": 14.7,
+      "rss_mb": 80.1,
+      "result": "ok"
+    },
+    {
+      "dir": "tests/discord_render",
+      "collected": 46,
+      "seconds": 14.09,
+      "rss_mb": 79.5,
+      "result": "ok"
+    },
+    {
+      "dir": "tests",
+      "collected": null,
+      "seconds": null,
+      "rss_mb": null,
+      "result": "capped-or-failed"
+    }
+  ]
+}

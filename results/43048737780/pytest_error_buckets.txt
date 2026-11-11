@@ -1,0 +1,4 @@
+bucket | count | example node id
+----------------------------------------------------------------------
+2   | ModuleNotFoundError: No module named 'playwright' | tests/test_notebook_fin_walk_followup_group.py
+1   | AssertionError: assert 1 == 0 | tests/test_notebook_fin_walk_page_layouts_group.py

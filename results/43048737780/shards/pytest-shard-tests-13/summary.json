@@ -1,0 +1,24 @@
+{
+  "suite": "pytest",
+  "collected": 3178,
+  "passed": 3159,
+  "failed": 18,
+  "errored": 0,
+  "skipped": 1,
+  "wall_s": 918.06,
+  "failed_files": [
+    "tests/test_support_loop_tools.py",
+    "tests/test_term013_bars_rail_reader.py",
+    "tests/test_term048_watchlist_alerts_s7.py",
+    "tests/test_terminal_next_kill_switch.py",
+    "tests/test_terminal_seen.py",
+    "tests/test_test_discovery_coverage.py",
+    "tests/test_ticker_logos.py",
+    "tests/test_ticker_meta.py",
+    "tests/test_ticker_resolver.py",
+    "tests/test_tools_pin_the_root.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "18 failed, 3159 passed, 1 skipped, 1 xfailed, 85 warnings in 918.06s (0:15:18)",
+  "ok": true
+}

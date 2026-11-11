@@ -1,0 +1,132 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [ 20%]
+........................................................................ [ 41%]
+.................................................F...................... [ 62%]
+.....................s.................................................. [ 82%]
+.................................F..........................             [100%]
+=================================== FAILURES ===================================
+_______________________ test_base_then_delta_round_trip ________________________
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_base_then_delta_round_tri0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f28ab953920>
+
+    def test_base_then_delta_round_trip(tmp_path, monkeypatch):
+        import time
+        fake = _FakeS3()
+        monkeypatch.setattr(data_sync, "_client", lambda: fake)
+        monkeypatch.setattr(data_sync, "_bucket", lambda: "b")
+        # This test exercises base+delta round-trip mechanics with a tiny seed DB;
+        # the production upload integrity gate's 1000-row floor (which guards against
+        # shipping an empty/truncated DB) is not what's under test here, so lower it.
+        monkeypatch.setattr(data_sync, "SNAPSHOT_MIN_OHLCV_ROWS", 1)
+        # Real wall clock: the base is stamped from time.time(); the delta must be
+        # newer (deltas are always uploaded after the base in production).
+        base_now = int(time.time())
+        delta_now = base_now + 10
+    
+        # --- worker side: seed an OLD daily bar + full base, then a RECENT 5m bar + delta ---
+        worker_dir = tmp_path / "worker"
+        worker_dir.mkdir()
+        monkeypatch.setattr(data_sync, "_DATA_DIR", str(worker_dir))
+        old_daily_ts = base_now - 100 * 86400   # ~100 days old: in base, outside delta window
+        recent_5m_ts = base_now - 3600          # 1h ago: inside the 7-day intraday window
+        _seed_db(str(worker_dir / "bars.db"), [("AAPL", "D", old_daily_ts, 1, 1, 1, 1, 1)])
+        base_ts = data_sync.upload_snapshot(force=True)        # existing full path
+        assert base_ts
+        _seed_db(str(worker_dir / "bars.db"),
+                 [("AAPL", "5", recent_5m_ts, 9, 9, 9, 9, 9)])  # new recent row
+        delta_ts = data_sync.upload_delta(now=delta_now)
+        assert delta_ts == str(delta_now)
+    
+        # --- web side: cold DB, apply base then delta ---
+        web_dir = tmp_path / "web"
+        web_dir.mkdir()
+        monkeypatch.setattr(data_sync, "_DATA_DIR", str(web_dir))
+        applied = data_sync.sync_with_deltas()
+        assert applied == delta_ts
+        rows = sqlite3.connect(str(web_dir / "bars.db")).execute(
+            "SELECT ticker,tf,ts FROM ohlcv ORDER BY ts"
+        ).fetchall()
+        assert ("AAPL", "D", old_daily_ts) in rows    # from base
+>       assert ("AAPL", "5", recent_5m_ts) in rows    # from delta
+E       AssertionError: assert ('AAPL', '5', 1794407543) in [('AAPL', 'D', 1785771143)]
+
+tests/api/test_delta_snapshot.py:171: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-11-11 15:32:23,312 INFO api.services.data_sync: [data_sync] snapshot copy lacked ['idx_ohlcv_lookup', 'idx_ohlcv_daily_bydate']; built in 0.0s so the install carries them
+2026-11-11 15:32:23,313 INFO api.services.data_sync: [data_sync] snapshot integrity gate passed (1 ohlcv rows)
+2026-11-11 15:32:23,314 INFO api.services.data_sync: [data_sync] uploaded snapshot 1794411143 (622 bytes)
+2026-11-11 15:32:23,317 INFO api.services.data_sync: [data_sync] uploaded delta 1794411153 (474 bytes)
+2026-11-11 15:32:23,318 INFO api.services.data_sync: [data_sync] downloaded snapshot 1794411143
+2026-11-11 15:32:23,320 INFO api.services.data_sync: [data_sync] merge start: 1 pairs
+2026-11-11 15:32:23,320 WARNING api.services.bars_sqlite: [sqlite] weekly key purge failed (non-fatal): no such table: ohlcv
+2026-11-11 15:32:23,321 INFO api.services.data_sync: [data_sync] merge end: 1 pairs, 0 added, 0 corrected, 1 chunks, lock max 1ms total 1ms, wall 1ms
+2026-11-11 15:32:23,321 INFO api.services.data_sync: [data_sync] applied delta 1794411153: 0 rows adopted
+------------------------------ Captured log call -------------------------------
+INFO     api.services.data_sync:data_sync.py:485 [data_sync] snapshot copy lacked ['idx_ohlcv_lookup', 'idx_ohlcv_daily_bydate']; built in 0.0s so the install carries them
+INFO     api.services.data_sync:data_sync.py:491 [data_sync] snapshot integrity gate passed (1 ohlcv rows)
+INFO     api.services.data_sync:data_sync.py:605 [data_sync] uploaded snapshot 1794411143 (622 bytes)
+INFO     api.services.data_sync:data_sync.py:1407 [data_sync] uploaded delta 1794411153 (474 bytes)
+INFO     api.services.data_sync:data_sync.py:743 [data_sync] downloaded snapshot 1794411143
+INFO     api.services.data_sync:data_sync.py:1167 [data_sync] merge start: 1 pairs
+WARNING  api.services.bars_sqlite:bars_sqlite.py:715 [sqlite] weekly key purge failed (non-fatal): no such table: ohlcv
+INFO     api.services.data_sync:data_sync.py:1193 [data_sync] merge end: 1 pairs, 0 added, 0 corrected, 1 chunks, lock max 1ms total 1ms, wall 1ms
+INFO     api.services.data_sync:data_sync.py:1449 [data_sync] applied delta 1794411153: 0 rows adopted
+_____________ test_every_sse_route_the_app_declares_is_gzip_exempt _____________
+
+    def test_every_sse_route_the_app_declares_is_gzip_exempt():
+        offenders = [p for p in _sse_routes() if not _is_gzip_exempt(_concrete(p))]
+        # Names, never a count — a failure must say WHICH route goes dead.
+>       assert offenders == []
+E       AssertionError: assert ['/api/agent/turn/resume'] == []
+E         
+E         Left contains one more item: '/api/agent/turn/resume'
+E         
+E         Full diff:
+E         - []
+E         + [
+E         +     '/api/agent/turn/resume',
+E         + ]
+
+tests/api/test_sse_gzip_exempt.py:69: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/api/test_ltr_call_request.py:186
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/api/test_ltr_call_request.py:186: SyntaxWarning: invalid escape sequence '\['
+    assert "\[click\](http://x.test) \*\*big\*\* @everyone" in content
+
+tests/api/test_delta_snapshot.py::test_base_then_delta_round_trip
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/data_sync.py:679: DeprecationWarning: Python 3.14 will, by default, filter extracted tar archives and reject files or modify their metadata. Use the filter argument to control this behavior.
+    tar.extractall(tmpdir)
+
+tests/api/test_delta_snapshot.py::test_base_then_delta_round_trip
+tests/api/test_delta_snapshot.py::test_sync_with_deltas_is_idempotent
+tests/api/test_delta_snapshot.py::test_sync_with_deltas_is_idempotent
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/data_sync.py:315: DeprecationWarning: Python 3.14 will, by default, filter extracted tar archives and reject files or modify their metadata. Use the filter argument to control this behavior.
+    tar.extractall(dest)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/api/test_health.py:24: app/dist not built — run npm run build first
+FAILED tests/api/test_delta_snapshot.py::test_base_then_delta_round_trip - AssertionError: assert ('AAPL', '5', 1794407543) in [('AAPL', 'D', 1785771143)]
+FAILED tests/api/test_sse_gzip_exempt.py::test_every_sse_route_the_app_declares_is_gzip_exempt - AssertionError: assert ['/api/agent/turn/resume'] == []
+  
+  Left contains one more item: '/api/agent/turn/resume'
+  
+  Full diff:
+  - []
+  + [
+  +     '/api/agent/turn/resume',
+  + ]
+2 failed, 345 passed, 1 skipped, 7 warnings in 40.40s

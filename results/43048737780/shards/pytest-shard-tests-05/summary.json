@@ -1,0 +1,28 @@
+{
+  "suite": "pytest",
+  "collected": 4390,
+  "passed": 4296,
+  "failed": 48,
+  "errored": 0,
+  "skipped": 46,
+  "wall_s": 917.02,
+  "failed_files": [
+    "tests/test_flow_aggregate.py",
+    "tests/test_flow_lanes_failed_call_charged.py",
+    "tests/test_flow_prepare.py",
+    "tests/test_flow_read_gate_manifest.py",
+    "tests/test_flow_tape_spool.py",
+    "tests/test_flow_worker_watch_coverage.py",
+    "tests/test_gallery_w11_fnote1.py",
+    "tests/test_gate_box_lock.py",
+    "tests/test_gate_shards.py",
+    "tests/test_gitattributes_eol.py",
+    "tests/test_hub_nav_smoke_login_inconclusive.py",
+    "tests/test_hub_nav_smoke_routes.py",
+    "tests/test_hub_sandbox_model_keys.py",
+    "tests/test_implied_backfill.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "48 failed, 4296 passed, 46 skipped, 3462 warnings in 917.02s (0:15:17)",
+  "ok": true
+}

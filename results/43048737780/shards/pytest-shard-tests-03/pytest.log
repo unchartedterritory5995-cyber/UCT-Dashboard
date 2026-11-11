@@ -1,0 +1,779 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  1%]
+........................................................................ [  3%]
+........................................................................ [  5%]
+....sss...sss...ss....ss....s.....s.....s.....s.....ss....ss....s.....s. [  7%]
+........................................................................ [  9%]
+........................................................................ [ 11%]
+............................s.....s..................................... [ 12%]
+....sss...sss...s.....s................................................. [ 14%]
+.........................................F.............................. [ 16%]
+........................................................................ [ 18%]
+........................................................................ [ 20%]
+........................................................................ [ 22%]
+........................................................................ [ 23%]
+........................................................................ [ 25%]
+........................................................................ [ 27%]
+........................................................................ [ 29%]
+......F................................................................. [ 31%]
+.....................................................F.................. [ 33%]
+.............................................F.......................... [ 34%]
+........................................................................ [ 36%]
+........................................................................ [ 38%]
+........................................................................ [ 40%]
+........................................................................ [ 42%]
+...............x..
+[TERM-030] week-contract readers outside api.routers.calendar: 7
+    FROZEN    api.services.calendar_alerts._get_reporters_for_date_with_status
+    asserted  api.services.calendar_week_poster.build_payloads
+    asserted  api.services.earnings_calendar_audit._get_week
+    asserted  api.services.earnings_preview_warm._rank
+    asserted  api.services.journal_two.earnings_followup._board_names
+    asserted  api.services.research.earnings_ai_adapter._cross_check_live_window
+    asserted  api.services.wire.detector.todays_reporters
+[TERM-030] owner-internal readers (denominator, not in scope): 8 — asserted 1
+    asserted  api.routers.calendar._collect_reporters_for_ics
+    bare      api.routers.calendar._days_for_date
+    bare      api.routers.calendar.cached_report_session
+    bare      api.routers.calendar.get_month_calendar
+    bare      api.routers.calendar.most_anticipated_png
+    bare      api.routers.calendar.refresh_calendar
+    bare      api.routers.calendar.rewarm_current_week_once
+    bare      api.routers.calendar.sector_read
+.......................F.............................. [ 44%]
+..........F............................................................. [ 45%]
+........................................................................ [ 47%]
+........................................................................ [ 49%]
+................F............................F......................F... [ 51%]
+........................................................................ [ 53%]
+........................................................................ [ 55%]
+........................................................................ [ 57%]
+........................................................................ [ 58%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........................................................................ [ 64%]
+........................................................................ [ 66%]
+........................................................................ [ 68%]
+........................................................................ [ 69%]
+........................................................................ [ 71%]
+........................................................................ [ 73%]
+........................................................................ [ 75%]
+........................................................................ [ 77%]
+........................................................................ [ 79%]
+........................................................................ [ 80%]
+........................................................................ [ 82%]
+........................................................................ [ 84%]
+........................................................................ [ 86%]
+........................................................................ [ 88%]
+........................................................................ [ 90%]
+............................................................F........... [ 91%]
+..F.F.....F.F.........F................................................. [ 93%]
+........................................................................ [ 95%]
+................F...........................FF........F................. [ 97%]
+........................................................................ [ 99%]
+..........................                                               [100%]
+=================================== FAILURES ===================================
+_____________ test_G2_every_ledger_writer_is_classified_as_audited _____________
+
+    def test_G2_every_ledger_writer_is_classified_as_audited():
+        """⛔ THE AUDIT AS A RAIL: every module that writes this ledger, and the lane
+        its rows land in. A new writer must be added here, deliberately."""
+        interactive = {
+            "api/services/definition_concierge.py": 'f"concierge:{user_id}"',
+            "api/services/definition_conversation.py": 'f"concierge:{user_id}"',
+        }
+        # vision writes its row as a RESERVATION before the model runs (cost_guard.reserve_member_call)
+        vision = (ROOT / "api/services/indicator_from_image.py").read_text("utf-8")
+        assert 'ticker = f"indicator-vision:{user_id}"' in vision
+>       assert "reserve_member_call(market_date, ticker" in vision
+E       assert 'reserve_member_call(market_date, ticker' in '"""A SCREENSHOT IN, RANKED *CANDIDATE* INDICATORS OUT. The fourth door.\n\n⭐ WHY THIS EXISTS. A member has an indicat...f it.\n        return _refusal("vision:no-candidate", **body)\n    return {"ok": True, CANDIDATES: accepted, **body}\n'
+
+tests/test_budget_isolation.py:411: AssertionError
+_________ test_the_whole_series_question_per_lane[tree3-alert3-sweep3] _________
+
+tree = {'args': [{'args': [{'args': [{...}, {...}], 'name': '||', 'type': 'op'}, {'args': [{...}, {...}], 'name': '==', 'type...': [{'type': 'num', 'value': 0}, {'type': 'num', 'value': 0}], 'name': '/', 'type': 'op'}], 'name': '?:', 'type': 'op'}
+alert = ('time-own:chart-unwitnessed',), sweep = ()
+
+    @pytest.mark.parametrize("tree,alert,sweep", [
+        (WEEK, ("time-anchor:not-daily",), ("time-clock:unreadable",)),
+        (WEEK_CHANGED, ("time-anchor:not-daily",), ("time-clock:unreadable",)),
+        (WEEK_CLOSE, ("time-close:not-daily",), ("time-clock:unreadable",)),
+        (OWN_TIME, ("time-own:chart-unwitnessed",), ()),
+        (ABOVE_AVERAGE, (), ()),
+        (CLOSE, (), ()),
+    ])
+    def test_the_whole_series_question_per_lane(tree, alert, sweep):
+        # a user-series alert: no `tf`, and no bars are read to decide it
+        assert ai.whole_series_withheld(tree, []) == alert
+        # the sweep: daily bars keyed by date
+>       assert ai.whole_series_withheld(tree, ai.DATE_KEYED_PROBE_BARS, opts={"tf": "D"}) == sweep
+E       AssertionError: assert ('time-clock:unreadable',) == ()
+E         
+E         Left contains one more item: 'time-clock:unreadable'
+E         
+E         Full diff:
+E         - ()
+E         + (
+E         +     'time-clock:unreadable',
+E         + )
+
+tests/test_c45_withheld_doors.py:131: AssertionError
+______________ test_the_question_is_not_vacuous_and_can_answer_no ______________
+
+    def test_the_question_is_not_vacuous_and_can_answer_no():
+        cases = [ANCHOR[n]["ast"] for n in ANCHOR]
+        sweep = [ai.whole_series_withheld(t, ai.DATE_KEYED_PROBE_BARS, opts={"tf": "D"}) for t in cases]
+        alert = [ai.whole_series_withheld(t, []) for t in cases]
+        assert sum(1 for c in sweep if c) >= 40 and sum(1 for c in sweep if not c) >= 5
+>       assert all(alert), "with no tf every chart-clock tree is withheld whole"
+E       AssertionError: with no tf every chart-clock tree is withheld whole
+E       assert False
+E        +  where False = all([('time-anchor:not-daily',), ('time-anchor:not-daily',), ('time-anchor:not-daily',), ('time-anchor:not-daily',), ('time-anchor:not-daily',), ('time-anchor:not-daily',), ...])
+
+tests/test_c45_withheld_doors.py:171: AssertionError
+_______________ test_the_flag_is_declared_in_the_ledger_as_dark ________________
+
+    def test_the_flag_is_declared_in_the_ledger_as_dark():
+        ledger = json.loads((_REPO / "docs" / "feature_flags.json").read_text(encoding="utf-8"))
+        mon = _load(_MON, "tnmon_ledger")
+        entry = ledger["flags"][mon.ROLLUP_FLAG]
+>       assert entry["status"] == "dark" and entry["note"]
+E       AssertionError: assert ('armed' == 'dark'
+E         
+E         - dark
+E         + armed)
+
+tests/test_cadence_heartbeat.py:502: AssertionError
+_________________ test_most_anticipated_card_render_is_pinned __________________
+
+    def test_most_anticipated_card_render_is_pinned():
+        """calendar_png_common is shared by all three cards, so a change there
+        reaches this already-shipped one too. The hash is a TRIPWIRE, not a
+        freeze: when a deliberate chrome change trips it, look at the render and
+        re-pin. Last re-pinned 2026-07-30 for the full-bleed logo tile (which
+        also nudged the monogram corner radius 0.22 -> 0.24)."""
+        import hashlib
+        from api.services.calendar_anticipated_png import render_anticipated_png
+        entries = [
+            {"sym": "AAPL", "name": "Apple Inc.", "timing": "amc", "weekday": "MON",
+             "mc_b": 3400.0, "logo_path": None},
+            {"sym": "MSFT", "name": "Microsoft Corporation", "timing": "bmo",
+             "weekday": "WED", "mc_b": 3100.0, "logo_path": None},
+            {"sym": "NVDA", "name": "NVIDIA Corporation", "timing": "amc",
+             "weekday": "THU", "mc_b": 4200.0, "logo_path": None},
+            {"sym": "XOM", "name": "Exxon Mobil Corporation", "timing": "bmo",
+             "weekday": "FRI", "mc_b": 480.0, "logo_path": None},
+            {"sym": "KO", "name": "The Coca-Cola Company", "timing": "bmo",
+             "weekday": "TUE", "mc_b": 290.5, "logo_path": None},
+            {"sym": "F", "name": "Ford Motor Company", "timing": "amc",
+             "weekday": "TUE", "mc_b": 0.42, "logo_path": None},
+        ]
+        got = hashlib.sha256(
+            render_anticipated_png("Week of Aug 3-7, 2026", entries)).hexdigest()
+>       assert got == "f1ae5925d8d831afff593177813d75518587518dca245ce9b3bfc17075e86d0c"
+E       AssertionError: assert '814a9107c457...e7d9627274bdd' == 'f1ae5925d8d8...fc17075e86d0c'
+E         
+E         - f1ae5925d8d831afff593177813d75518587518dca245ce9b3bfc17075e86d0c
+E         + 814a9107c457afb2317fcc8d49c5e2ce60fea889e08b325febfe7d9627274bdd
+
+tests/test_calendar_week_post.py:283: AssertionError
+_________ test_unmarked_rows_render_byte_identical_to_before_the_marks _________
+
+    def test_unmarked_rows_render_byte_identical_to_before_the_marks():
+        """A row with no honesty fields must not change at all: pinned against the
+        pre-change renderer's bytes (sha256 of the same input on master bda17ea4ce)."""
+        import hashlib
+        week = [_day(f"D{i}", n_bmo=5, n_amc=3, n_tbd=2) for i in range(5)]
+        got = hashlib.sha256(render_earnings_week_png("Week of Aug 3-7, 2026", week)).hexdigest()
+>       assert got == "b34d84a1187e3f2238d1338e40749a4cab966768e5077ee596c2eef649f6e58d"
+E       AssertionError: assert 'bae70540fcc6...f8a2aaf88f38c' == 'b34d84a1187e...2eef649f6e58d'
+E         
+E         - b34d84a1187e3f2238d1338e40749a4cab966768e5077ee596c2eef649f6e58d
+E         + bae70540fcc6f41a2bd54a4cf2ab509383688b76f91a1d11314f8a2aaf88f38c
+
+tests/test_calendar_week_post.py:814: AssertionError
+___________ test_the_checked_in_book_IS_what_the_declarations_derive ___________
+
+    def test_the_checked_in_book_IS_what_the_declarations_derive():
+        """⛔ THE DERIVATION ITSELF, not a spot check of it.
+    
+        The builder's `--check` regenerates from source and byte-compares. A book
+        edited by hand — the exact failure mode a hand-maintained manifest has —
+        fails here even if every field above still happens to agree.
+        """
+        r = subprocess.run([sys.executable, str(_BUILDER), "--check"],
+                           cwd=str(_REPO), capture_output=True, text=True)
+>       assert r.returncode == 0, (
+            "the checked-in address book is not what the declarations derive:\n"
+            + r.stdout + r.stderr)
+E       AssertionError: the checked-in address book is not what the declarations derive:
+E         [address-book] expected exactly one `<col> > ?` delta filter over ohlcv, found ['ticker', 'ts']
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/opt/hostedtoolcache/Python/3.12.16/x64/bin/python', '/home/runner/work/UCT-Dashboard/UCT-Dash... stdout='', stderr="[address-book] expected exactly one `<col> > ?` delta filter over ohlcv, found ['ticker', 'ts']\n").returncode
+
+tests/test_canonical_address_book.py:135: AssertionError
+_______ test_the_as_of_column_is_the_one_the_store_asks_SINCE_WHEN_about _______
+
+    def test_the_as_of_column_is_the_one_the_store_asks_SINCE_WHEN_about():
+        """⛔ DERIVED FROM THE DELTA QUERY, NOT FROM A NAME THAT LOOKS TEMPORAL.
+    
+        An as-of is the thing you compare against to ask "what is new". The store's
+        own `… ts>? ORDER BY ts ASC` is that question written down. A rail that
+        matched on the column being called `ts` would pass for a store that called
+        it `updated_at` and filtered on something else.
+        """
+        import re as _re
+        store = _bars_store()
+        src = _BARS_MODULE.read_text(encoding="utf-8")
+        pat = _re.compile(r"FROM\s+" + store["table"] + r"\b.*?\b(\w+)\s*>\s*\?", _re.I | _re.S)
+        found = {m.group(1) for m in [pat.search(s) for s in [src]] if m}
+>       assert found == {store["as_of_column"]}, (
+            f"the store's delta filter is over {sorted(found)}, the book says "
+            f"{store['as_of_column']!r}")
+E       AssertionError: the store's delta filter is over ['ticker'], the book says 'ts'
+E       assert {'ticker'} == {'ts'}
+E         
+E         Extra items in the left set:
+E         'ticker'
+E         Extra items in the right set:
+E         'ts'
+E         
+E         Full diff:
+E           {
+E         -     'ts',
+E         +     'ticker',
+E           }
+
+tests/test_canonical_address_book.py:687: AssertionError
+________ test_the_axis_declares_exactly_what_the_legacy_lane_enumerates ________
+
+    def test_the_axis_declares_exactly_what_the_legacy_lane_enumerates():
+        declared = set(ax.declarations())
+        legacy = set(indicator_alert_evaluator.all_addresses())
+        assert declared == legacy, (
+            "the axis and the legacy lane disagree about what exists — "
+            f"only-axis={declared - legacy} only-legacy={legacy - declared}")
+>       assert len(declared) == 44, f"expected 30 indicators + close + ma_cross + 12 rs_line (2b-05; +rating, 2b-06 2026-11-07), got {len(declared)}"
+E       AssertionError: expected 30 indicators + close + ma_cross + 12 rs_line (2b-05; +rating, 2b-06 2026-11-07), got 48
+E       assert 48 == 44
+E        +  where 48 = len({'adx.adx', 'adx.minusDI', 'adx.plusDI', 'atr', 'bb', 'bb.lower', ...})
+
+tests/test_canonical_indicator_axis.py:27: AssertionError
+____ test_EVERY_concept_RESOLVES_and_the_grounding_is_LOOKED_UP_not_claimed ____
+
+    def test_EVERY_concept_RESOLVES_and_the_grounding_is_LOOKED_UP_not_claimed():
+        """🔴 AMENDMENT 1 §A1.3, made mechanical. The moat is that UCT's answer comes
+        from the firm's own assets; a "grounding" nobody verifies is a comment.
+    
+        Every citation is resolved against the artifact it names — a preset in the
+        screener's filter registry, a screen the screener ships, a column the closed
+        table declares, or a labelled branch of firm code located by AST.
+        """
+        report = cv.grounding_report()
+        assert report["concepts"], "the vocabulary is empty; every rail here is vacuous"
+>       assert report["unresolved"] == [], report
+E       AssertionError: {'concepts': [{'attribution': None, 'cites': ['new_52w_high: whether the bar made a new 52-week high'], 'has_sentence'...ry can ground it.', 'word': 'strong'}, ...], 'resolved': 20, 'unresolved': ['leaders pulling back', 'tight base'], ...}
+E       assert ['leaders pul... 'tight base'] == []
+E         
+E         Left contains 2 more items, first extra item: 'leaders pulling back'
+E         
+E         Full diff:
+E         - []
+E         + [
+E         +     'leaders pulling back',
+E         +     'tight base',
+E         + ]
+
+tests/test_concept_vocabulary.py:196: AssertionError
+_______________ test_NO_NUMBER_IN_A_CONCEPTS_TREE_IS_THE_AUTHORS _______________
+
+    def test_NO_NUMBER_IN_A_CONCEPTS_TREE_IS_THE_AUTHORS():
+        """⭐⭐ THE RAIL THAT MAKES THIS A VOCABULARY RATHER THAN AN OPINION.
+    
+        Every numeric literal in every concept's tree must be published by one of
+        that concept's own citations — the firm's preset, the firm's screen, the
+        firm's classifier windows, or the 0/1 of a boolean column. `rs_rank >= 80`
+        is here because `FILTERS['rs_rank']` ships a preset labelled `Over 80`.
+    
+        ⛔ AND THE SCALARS TOO. A concept that quietly added a fourth column to a
+        three-filter screen would keep every threshold honest and still screen on
+        something nobody cited.
+        """
+        for word in cv.concepts():
+            got = cv.resolve(word)
+>           assert got["ok"] is True, (word, got.get("reason"))
+E           AssertionError: ('leaders pulling back', '"leaders pulling back" is no longer grounded: the screener no longer ships a starter screen ...ght_base\', \'starter_trend_template\', \'starter_uct_50\', \'starter_value_quality\', \'starter_volume_surge_now\'])')
+E           assert False is True
+
+tests/test_concept_vocabulary.py:525: AssertionError
+_________ test_a_concept_that_screens_on_an_UNCITED_column_is_refused __________
+
+    def test_a_concept_that_screens_on_an_UNCITED_column_is_refused():
+        """⛔ THE OTHER HALF OF THE SAME RAIL, and the one a threshold check misses.
+    
+        A fourth column quietly added to a three-filter screen keeps every number
+        honest and still screens on something nobody at the firm agreed to. The
+        plant uses a BARE boolean column so it carries no literal at all — the
+        threshold rail cannot see it, and only the citation-keys rail can.
+        """
+        planted = _raw()
+        leader = planted["concepts"]["leader"]
+        leader["ast"] = {"type": "op", "name": "&&", "args": [
+            leader["ast"], {"type": "series", "name": "above_50sma"}]}
+        out = cv.resolve("leader", vocab=planted)
+        assert out["ok"] is False and out["gate"] == cv.GATE_UNGROUNDED
+        assert "above_50sma" in out["reason"], out["reason"]
+        # The control: the same column IS cited by the screen-grounded concept, and
+        # that one resolves — so the rail is about the citation, not the column.
+>       assert cv.resolve("leaders pulling back")["ok"] is True
+E       assert False is True
+
+tests/test_concept_vocabulary.py:571: AssertionError
+__ test_the_vocabularys_own_KEYS_are_NORMALISED_so_two_spellings_cannot_drift __
+
+    def test_the_vocabularys_own_KEYS_are_NORMALISED_so_two_spellings_cannot_drift():
+        for word in cv.concepts():
+            assert word == cv.normalise(word), word
+        for word in cv.refused():
+            assert word == cv.normalise(word), word
+>       assert cv.resolve("  Leaders   Pulling BACK ")["ok"] is True
+E       assert False is True
+
+tests/test_concept_vocabulary.py:641: AssertionError
+_________ test_the_SENTENCE_resolve_HANDS_BACK_IS_THE_FILES_OWN_BYTES __________
+
+    def test_the_SENTENCE_resolve_HANDS_BACK_IS_THE_FILES_OWN_BYTES():
+        """⛔ THIS LANE HAS NO READ-BACK AND MUST NEVER GROW ONE.
+    
+        `sentence.js` is the ONE producer of the text a member confirms, and the JS
+        lane re-derives every frozen sentence from the shipped module on every run.
+        What Python can guarantee is the other half: that `resolve` is a
+        PASS-THROUGH — no prettifying, no title-casing, no fallback to the word, no
+        synthesised text for a concept that carries none. Any of those would be the
+        second vocabulary this whole design exists to prevent, arriving through the
+        lane that cannot check itself.
+    
+        ⛔ AND IT SAYS NOTHING ABOUT WHICH CONCEPTS HAVE ONE. Whether a tree is
+        sayable is `sentence.js`'s answer; a rule here that "every concept carries a
+        sentence" would be a SECOND AUTHORITY over a value another module owns, and
+        would go red for the wrong reason the day the read-back legitimately refuses
+        something.
+        """
+        raw = _raw()["concepts"]
+        for word in cv.concepts():
+            got = cv.resolve(word)
+>           assert got["ok"] is True, (word, got.get("reason"))
+E           AssertionError: ('leaders pulling back', '"leaders pulling back" is no longer grounded: the screener no longer ships a starter screen ...ght_base\', \'starter_trend_template\', \'starter_uct_50\', \'starter_value_quality\', \'starter_volume_surge_now\'])')
+E           assert False is True
+
+tests/test_concept_vocabulary.py:699: AssertionError
+_ test_grounding_report_is_TOTAL_over_the_vocabulary_and_names_the_unresolved __
+
+    def test_grounding_report_is_TOTAL_over_the_vocabulary_and_names_the_unresolved():
+        """⭐ THE ARTIFACT A REVIEW READS: every word, what it means, and what makes
+        that the firm's answer. Total over the file, so a concept cannot be reviewed
+        by being left out of the report."""
+        report = cv.grounding_report()
+        assert {r["word"] for r in report["concepts"]} == set(cv.concepts())
+        assert {r["word"] for r in report["refused"]} == set(cv.refused())
+>       assert report["resolved"] == len(cv.concepts())
+E       assert 20 == 22
+E        +  where 22 = len(mappingproxy({'trending': mappingproxy({'source': 'close > sma(close, 20) && sma(close, 20) > sma(close, 50) && sma(cl...ery term is one of its filters, at its thresholds; the stocks-only clause is the starter's universe, not a column."})}))
+E        +    where mappingproxy({'trending': mappingproxy({'source': 'close > sma(close, 20) && sma(close, 20) > sma(close, 50) && sma(cl...ery term is one of its filters, at its thresholds; the stocks-only clause is the starter's universe, not a column."})}) = <function concepts at 0x7b38341fb2e0>()
+E        +      where <function concepts at 0x7b38341fb2e0> = cv.concepts
+
+tests/test_concept_vocabulary.py:876: AssertionError
+__________ test_a_census_path_pointing_at_the_shared_root_is_refused ___________
+
+    def test_a_census_path_pointing_at_the_shared_root_is_refused():
+        """After the pins are applied, any census path still inside C:\\data refuses the run."""
+        good = str(ROOT / "nowhere" / "auth.db")
+        ce.verify_pins({"AUTH_DB_PATH": good}, None)            # control: a sandbox path passes
+        for bad in (r"C:\data\auth.db", "C:/data/catalysts.db", "/data/auth.db", ""):
+>           with pytest.raises(ce.Refused):
+E           Failed: DID NOT RAISE <class 'converse_eval.Refused'>
+
+tests/test_converse_eval_runner.py:274: Failed
+_________ test_every_corporate_action_site_is_REGISTERED_with_a_state __________
+
+rows = [Row(path='api/services/adjustment_basis.py', kind='ADJUSTMENT_APPLIED', occurrences=3, state='outside', reason="reads...session. It never rescales a price; the bars_sanitize and bars_split_repair rows remain the only rescale sites."), ...]
+
+    def test_every_corporate_action_site_is_REGISTERED_with_a_state(rows):
+        """⛔ THE RAIL. It fails BY NAME, never with a count."""
+        unregistered = sorted((r.path, r.kind) for r in rows if r.state == "UNREGISTERED")
+>       assert not unregistered, (
+            "a corporate-action site nobody has classified:\n" +
+            "\n".join("    %s [%s]" % (p, k) for p, k in unregistered) +
+            "\n\nAdd it to tools/corp_actions_census.py::REGISTER with one of "
+            f"{cac.STATES} and, if `outside`, a written reason.")
+E       AssertionError: a corporate-action site nobody has classified:
+E             api/services/breadth_eod_extras.py [VENDOR_ADJUSTED]
+E             api/services/breadth_eod_source.py [VENDOR_ADJUSTED]
+E             api/services/breadth_ma_extra.py [VENDOR_ADJUSTED]
+E             api/services/breadth_nhnl_intraday.py [PROVIDER_READ]
+E             api/services/breadth_nhnl_intraday.py [VENDOR_ADJUSTED]
+E             api/services/breadth_server_universe.py [VENDOR_ADJUSTED]
+E             api/services/intraday_split_heal.py [ADJUSTMENT_APPLIED]
+E             api/services/marketcap/acquire.py [PROVIDER_READ]
+E             api/services/marketcap/acquire.py [VENDOR_ADJUSTED]
+E             api/services/raw_price_view.py [VENDOR_ADJUSTED]
+E             api/services/screener/snapshot_builder.py [VENDOR_ADJUSTED]
+E             api/services/uct_agent/session_stats.py [VENDOR_ADJUSTED]
+E         
+E         Add it to tools/corp_actions_census.py::REGISTER with one of ('outstanding', 'migrated', 'outside') and, if `outside`, a written reason.
+E       assert not [('api/services/breadth_eod_extras.py', 'VENDOR_ADJUSTED'), ('api/services/breadth_eod_source.py', 'VENDOR_ADJUSTED'),...ces/breadth_nhnl_intraday.py', 'VENDOR_ADJUSTED'), ('api/services/breadth_server_universe.py', 'VENDOR_ADJUSTED'), ...]
+
+tests/test_corp_actions_census.py:102: AssertionError
+____ test_every_state_is_one_of_the_three_and_OUTSIDE_carries_a_REAL_reason ____
+
+rows = [Row(path='api/services/adjustment_basis.py', kind='ADJUSTMENT_APPLIED', occurrences=3, state='outside', reason="reads...session. It never rescales a price; the bars_sanitize and bars_split_repair rows remain the only rescale sites."), ...]
+
+    def test_every_state_is_one_of_the_three_and_OUTSIDE_carries_a_REAL_reason(rows):
+        """⛔ `outside` IS A DECISION, NOT A SUPPRESSION. An exclusion with no reason
+        attached is a silent skip wearing a register's clothes."""
+        for r in rows:
+>           assert r.state in cac.STATES, f"{r.path} [{r.kind}] has state {r.state!r}"
+E           AssertionError: api/services/intraday_split_heal.py [ADJUSTMENT_APPLIED] has state 'UNREGISTERED'
+E           assert 'UNREGISTERED' in ('outstanding', 'migrated', 'outside')
+E            +  where 'UNREGISTERED' = Row(path='api/services/intraday_split_heal.py', kind='ADJUSTMENT_APPLIED', occurrences=1, state='UNREGISTERED', reason='').state
+E            +  and   ('outstanding', 'migrated', 'outside') = cac.STATES
+
+tests/test_corp_actions_census.py:113: AssertionError
+__________ test_the_census_runs_as_a_command_and_reports_its_verdict ___________
+
+    def test_the_census_runs_as_a_command_and_reports_its_verdict():
+        """⛔ AN AUDIT NOBODY CAN RUN READS AS COVERAGE. This programme's own
+        history: the Desk insights pass was written, documented as scheduled, and
+        wired into no scheduler for weeks."""
+        r = subprocess.run([sys.executable, str(_TOOL)], cwd=str(_REPO),
+                           capture_output=True, text=True, encoding="utf-8",
+                           errors="replace")
+>       assert r.returncode == 0, (
+            "the census exits non-zero, so something is unregistered:\n"
+            + (r.stdout or "") + (r.stderr or ""))
+E       AssertionError: the census exits non-zero, so something is unregistered:
+E         CORPORATE-ACTIONS CENSUS — 40 rows across 37 files
+E         
+E         adjustment entry points, DERIVED from api/**'s own defs:
+E             _apply_split_adjust          api/services/bars_sanitize.py:568
+E             intraday_unadjusted_splits   api/services/bars_sanitize.py:520
+E             split_adjust_active          api/services/bars_sanitize.py:645
+E             unadjusted_splits            api/services/bars_sanitize.py:430
+E         
+E         == PROVIDER_READ — 6 rows (outstanding 1, migrated 1, outside 2) ==
+E             api/services/bars_sanitize.py                            PROVIDER_READ        x1   outstanding  FMP /stable/splits, read to decide whether a stored series is unadjust
+E             api/services/breadth_dividends.py                        PROVIDER_READ        x1   outside      Massive /v3/reference/dividends, consumed to build the breadth frame's
+E             api/services/breadth_nhnl_intraday.py                    PROVIDER_READ        x1   UNREGISTERED 
+E             api/services/marketcap/acquire.py                        PROVIDER_READ        x1   UNREGISTERED 
+E             api/services/polygon_extras.py                           PROVIDER_READ        x2   outside      Massive /v3/reference/splits AND /v3/reference/dividends — the only fi
+E             api/services/reference_corp_actions.py                   PROVIDER_READ        x3   migrated     D5 CP3 — the one confirmed splits source. Massive /v3/reference/splits
+E         
+E         == ADJUSTMENT_APPLIED — 6 rows (outstanding 2, migrated 0, outside 3) ==
+E             api/services/adjustment_basis.py                         ADJUSTMENT_APPLIED   x3   outside      reads unadjusted_splits() to LABEL which mechanism owns a series' adju
+E             api/services/bars_sanitize.py                            ADJUSTMENT_APPLIED   x9   outstanding  _apply_split_adjust + unadjusted_splits — the SERVE-path rescale. Noth
+E             api/services/bars_split_repair.py                        ADJUSTMENT_APPLIED   x1   outstanding  the STORE-path rewrite, calling the same unadjusted_splits judgement f
+E             api/services/intraday_split_heal.py                      ADJUSTMENT_APPLIED   x1   UNREGISTERED 
+E             api/services/rs_evidence/job.py                          ADJUSTMENT_APPLIED   x1   outside      the RS evidence job's split guard: unadjusted_splits() finds the bound
+E             api/services/screener/rs_history.py                      ADJUSTMENT_APPLIED   x1   outside      the RS rating history's split guard: unadjusted_splits() over a name's
+E         
+E         == VENDOR_ADJUSTED — 28 rows (outstanding 8, migrated 0, outside 11) ==
+E             api/gex_router.py                                        VENDOR_ADJUSTED      x1   outside      same surface as gex_service; router-level pass-through.
+E             api/gex_service.py                                       VENDOR_ADJUSTED      x6   outside      options GEX surface; an equity split basis is not a claim it makes, an
+E             api/index_bars.py                                        VENDOR_ADJUSTED      x4   outside      index series; indices do not split, so the flag is inert here.
+E             api/oi_morning.py                                        VENDOR_ADJUSTED      x1   outside      open-interest snapshot; carries no equity price series.
+E             api/routers/live_prices.py                               VENDOR_ADJUSTED      x2   outstanding  the live quote path. CP7's label.
+E             api/services/audit.py                                    VENDOR_ADJUSTED      x1   outside      the reconciliation auditor's own canonical fetch — it must ask for the
+E             api/services/bars_fetch.py                               VENDOR_ADJUSTED      x8   outstanding  the main bars path asks the vendor to pre-adjust; the served payload d
+E             api/services/breadth_eod_extras.py                       VENDOR_ADJUSTED      x2   UNREGISTERED 
+E             api/services/breadth_eod_source.py                       VENDOR_ADJUSTED      x1   UNREGISTERED 
+E             api/services/breadth_ma_extra.py                         VENDOR_ADJUSTED      x2   UNREGISTERED 
+E             api/services/breadth_nhnl_intraday.py                    VENDOR_ADJUSTED      x2   UNREGISTERED 
+E             api/services/breadth_pit_calibrate.py                    VENDOR_ADJUSTED      x1   outside      point-in-time calibration for the breadth frame — the same different-r
+E             api/services/breadth_pit_frame.py                        VENDOR_ADJUSTED      x4   outstanding  get_grouped_daily_frame(..., adjusted=True) — the point-in-time breadt
+E             api/services/breadth_server_universe.py                  VENDOR_ADJUSTED      x2   UNREGISTERED 
+E             api/services/earnings_enrichment.py                      VENDOR_ADJUSTED      x6   outstanding  earnings reaction percentages are computed off an adjusted series with
+E             api/services/journal_two/broker/historical_equity.py     VENDOR_ADJUSTED      x1   outside      broker-sync mirrors the BROKER's own figures; imposing our adjustment 
+E             api/services/journal_two/broker/option_marks.py          VENDOR_ADJUSTED      x1   outside      same mirror-fidelity invariant as historical_equity.
+E             api/services/journal_two/broker/reconstruct.py           VENDOR_ADJUSTED      x2   outside      same mirror-fidelity invariant as historical_equity.
+E             api/services/marketcap/acquire.py                        VENDOR_ADJUSTED      x1   UNREGISTERED 
+E             api/services/massive.py                                  VENDOR_ADJUSTED      x2   outstanding  the adapter passes the flag through. CP7's label.
+E             api/services/options_analytics/chain_tools.py            VENDOR_ADJUSTED      x1   outside      one option CONTRACT's own daily bars, asked for raw (adjusted=False) o
+E             api/services/raw_price_view.py                           VENDOR_ADJUSTED      x3   UNREGISTERED 
+E             api/services/scan_gainers.py                             VENDOR_ADJUSTED      x2   outstanding  a scan ranking off an adjusted series with no basis recorded. CP7's la
+E             api/services/scan_period.py                              VENDOR_ADJUSTED      x2   outstanding  get_grouped_daily_closes(..., adjusted=True) — the whole-market groupe
+E             api/services/screener/snapshot_builder.py                VENDOR_ADJUSTED      x2   UNREGISTERED 
+E             api/services/uct_agent/session_stats.py                  VENDOR_ADJUSTED      x1   UNREGISTERED 
+E             api/services/watchlist_prebuilt_refresh.py               VENDOR_ADJUSTED      x1   outstanding  ?adjusted=true on the grouped-daily aggregate that refreshes the prebu
+E             api/services/wisdom/capture/families/gex.py              VENDOR_ADJUSTED      x1   outside      keyword collision, not a corporate-action call: 'adjusted' here picks 
+E         
+E         ⛔ UNREGISTERED (12) — a corporate-action site nobody has classified:
+E             api/services/intraday_split_heal.py [ADJUSTMENT_APPLIED] x1
+E             api/services/breadth_nhnl_intraday.py [PROVIDER_READ] x1
+E             api/services/marketcap/acquire.py [PROVIDER_READ] x1
+E             api/services/breadth_eod_extras.py [VENDOR_ADJUSTED] x2
+E             api/services/breadth_eod_source.py [VENDOR_ADJUSTED] x1
+E             api/services/breadth_ma_extra.py [VENDOR_ADJUSTED] x2
+E             api/services/breadth_nhnl_intraday.py [VENDOR_ADJUSTED] x2
+E             api/services/breadth_server_universe.py [VENDOR_ADJUSTED] x2
+E             api/services/marketcap/acquire.py [VENDOR_ADJUSTED] x1
+E             api/services/raw_price_view.py [VENDOR_ADJUSTED] x3
+E             api/services/screener/snapshot_builder.py [VENDOR_ADJUSTED] x2
+E             api/services/uct_agent/session_stats.py [VENDOR_ADJUSTED] x1
+E         /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+E           taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+E         /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+E           taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+E         /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+E           taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+E         /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+E           taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/opt/hostedtoolcache/Python/3.12.16/x64/bin/python', '/home/runner/work/UCT-Dashboard/UCT-Dash...id escape sequence '\\`'\n  taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\\` read as `/`\n").returncode
+
+tests/test_corp_actions_census.py:292: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+<unknown>:964: 1 warning
+tests/test_cadence_heartbeat.py: 1 warning
+tests/test_calendar_week_contract.py: 3 warnings
+tests/test_canonical_address_book.py: 6 warnings
+tests/test_corp_actions_census.py: 1 warning
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_calendar_ics_token_v2.py::test_an_anonymous_scope_all_is_capped_and_says_so
+tests/test_calendar_ics_token_v2.py::test_under_the_cap_nothing_is_cut_and_no_notice_is_added
+tests/test_comparison_ai_adapter.py::TestRoute::test_route_shape_when_authenticated
+tests/test_comparison_ai_adapter.py::TestRoute::test_route_degrades_safely_on_an_exception
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+tests/test_chart_renderer_admin_recycle.py: 32 warnings
+tests/test_chart_renderer_pool.py: 17 warnings
+tests/test_chart_renderer_service.py: 6 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/services/chart_renderer/app.py:720: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+tests/test_chart_renderer_admin_recycle.py: 64 warnings
+tests/test_chart_renderer_pool.py: 34 warnings
+tests/test_chart_renderer_service.py: 12 warnings
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+tests/test_chart_renderer_admin_recycle.py: 32 warnings
+tests/test_chart_renderer_pool.py: 17 warnings
+tests/test_chart_renderer_service.py: 6 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/services/chart_renderer/app.py:827: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("shutdown")
+
+tests/test_corp_actions_census.py::test_the_census_finds_the_sites_we_KNOW_are_there
+tests/test_corp_actions_census.py::test_the_census_finds_the_sites_we_KNOW_are_there
+tests/test_corp_actions_census.py::test_the_census_finds_the_sites_we_KNOW_are_there
+tests/test_corp_actions_census.py::test_the_adjustment_entry_points_are_DERIVED_from_the_repos_own_defs
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+tests/test_cream_selection_audit_1009.py::test_card_still_renders_with_two_contracts_per_name
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/watchlist_card.py:131: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    for (r, g, b, a) in lg.getdata()])
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_chart_parity_harness.py:46: chart_parity imports playwright at module scope
+SKIPPED [30] tests/test_bs_iv.py:49: price pinned to intrinsic floor; no recoverable vol
+XFAIL tests/test_calendar_week_contract.py::test_a_malformed_week_fails_calendar_alerts_by_name - calendar_alerts is frozen by S7 (see FROZEN)
+FAILED tests/test_budget_isolation.py::test_G2_every_ledger_writer_is_classified_as_audited - assert 'reserve_member_call(market_date, ticker' in '"""A SCREENSHOT IN, RANKED *CANDIDATE* INDICATORS OUT. The fourth door.\n\n⭐ WHY THIS EXISTS. A member has an indicat...f it.\n        return _refusal("vision:no-candidate", **body)\n    return {"ok": True, CANDIDATES: accepted, **body}\n'
+FAILED tests/test_c45_withheld_doors.py::test_the_whole_series_question_per_lane[tree3-alert3-sweep3] - AssertionError: assert ('time-clock:unreadable',) == ()
+  
+  Left contains one more item: 'time-clock:unreadable'
+  
+  Full diff:
+  - ()
+  + (
+  +     'time-clock:unreadable',
+  + )
+FAILED tests/test_c45_withheld_doors.py::test_the_question_is_not_vacuous_and_can_answer_no - AssertionError: with no tf every chart-clock tree is withheld whole
+assert False
+ +  where False = all([('time-anchor:not-daily',), ('time-anchor:not-daily',), ('time-anchor:not-daily',), ('time-anchor:not-daily',), ('time-anchor:not-daily',), ('time-anchor:not-daily',), ...])
+FAILED tests/test_cadence_heartbeat.py::test_the_flag_is_declared_in_the_ledger_as_dark - AssertionError: assert ('armed' == 'dark'
+  
+  - dark
+  + armed)
+FAILED tests/test_calendar_week_post.py::test_most_anticipated_card_render_is_pinned - AssertionError: assert '814a9107c457...e7d9627274bdd' == 'f1ae5925d8d8...fc17075e86d0c'
+  
+  - f1ae5925d8d831afff593177813d75518587518dca245ce9b3bfc17075e86d0c
+  + 814a9107c457afb2317fcc8d49c5e2ce60fea889e08b325febfe7d9627274bdd
+FAILED tests/test_calendar_week_post.py::test_unmarked_rows_render_byte_identical_to_before_the_marks - AssertionError: assert 'bae70540fcc6...f8a2aaf88f38c' == 'b34d84a1187e...2eef649f6e58d'
+  
+  - b34d84a1187e3f2238d1338e40749a4cab966768e5077ee596c2eef649f6e58d
+  + bae70540fcc6f41a2bd54a4cf2ab509383688b76f91a1d11314f8a2aaf88f38c
+FAILED tests/test_canonical_address_book.py::test_the_checked_in_book_IS_what_the_declarations_derive - AssertionError: the checked-in address book is not what the declarations derive:
+  [address-book] expected exactly one `<col> > ?` delta filter over ohlcv, found ['ticker', 'ts']
+  
+assert 1 == 0
+ +  where 1 = CompletedProcess(args=['/opt/hostedtoolcache/Python/3.12.16/x64/bin/python', '/home/runner/work/UCT-Dashboard/UCT-Dash... stdout='', stderr="[address-book] expected exactly one `<col> > ?` delta filter over ohlcv, found ['ticker', 'ts']\n").returncode
+FAILED tests/test_canonical_address_book.py::test_the_as_of_column_is_the_one_the_store_asks_SINCE_WHEN_about - AssertionError: the store's delta filter is over ['ticker'], the book says 'ts'
+assert {'ticker'} == {'ts'}
+  
+  Extra items in the left set:
+  'ticker'
+  Extra items in the right set:
+  'ts'
+  
+  Full diff:
+    {
+  -     'ts',
+  +     'ticker',
+    }
+FAILED tests/test_canonical_indicator_axis.py::test_the_axis_declares_exactly_what_the_legacy_lane_enumerates - AssertionError: expected 30 indicators + close + ma_cross + 12 rs_line (2b-05; +rating, 2b-06 2026-11-07), got 48
+assert 48 == 44
+ +  where 48 = len({'adx.adx', 'adx.minusDI', 'adx.plusDI', 'atr', 'bb', 'bb.lower', ...})
+FAILED tests/test_concept_vocabulary.py::test_EVERY_concept_RESOLVES_and_the_grounding_is_LOOKED_UP_not_claimed - AssertionError: {'concepts': [{'attribution': None, 'cites': ['new_52w_high: whether the bar made a new 52-week high'], 'has_sentence'...ry can ground it.', 'word': 'strong'}, ...], 'resolved': 20, 'unresolved': ['leaders pulling back', 'tight base'], ...}
+assert ['leaders pul... 'tight base'] == []
+  
+  Left contains 2 more items, first extra item: 'leaders pulling back'
+  
+  Full diff:
+  - []
+  + [
+  +     'leaders pulling back',
+  +     'tight base',
+  + ]
+FAILED tests/test_concept_vocabulary.py::test_NO_NUMBER_IN_A_CONCEPTS_TREE_IS_THE_AUTHORS - AssertionError: ('leaders pulling back', '"leaders pulling back" is no longer grounded: the screener no longer ships a starter screen ...ght_base\', \'starter_trend_template\', \'starter_uct_50\', \'starter_value_quality\', \'starter_volume_surge_now\'])')
+assert False is True
+FAILED tests/test_concept_vocabulary.py::test_a_concept_that_screens_on_an_UNCITED_column_is_refused - assert False is True
+FAILED tests/test_concept_vocabulary.py::test_the_vocabularys_own_KEYS_are_NORMALISED_so_two_spellings_cannot_drift - assert False is True
+FAILED tests/test_concept_vocabulary.py::test_the_SENTENCE_resolve_HANDS_BACK_IS_THE_FILES_OWN_BYTES - AssertionError: ('leaders pulling back', '"leaders pulling back" is no longer grounded: the screener no longer ships a starter screen ...ght_base\', \'starter_trend_template\', \'starter_uct_50\', \'starter_value_quality\', \'starter_volume_surge_now\'])')
+assert False is True
+FAILED tests/test_concept_vocabulary.py::test_grounding_report_is_TOTAL_over_the_vocabulary_and_names_the_unresolved - assert 20 == 22
+ +  where 22 = len(mappingproxy({'trending': mappingproxy({'source': 'close > sma(close, 20) && sma(close, 20) > sma(close, 50) && sma(cl...ery term is one of its filters, at its thresholds; the stocks-only clause is the starter's universe, not a column."})}))
+ +    where mappingproxy({'trending': mappingproxy({'source': 'close > sma(close, 20) && sma(close, 20) > sma(close, 50) && sma(cl...ery term is one of its filters, at its thresholds; the stocks-only clause is the starter's universe, not a column."})}) = <function concepts at 0x7b38341fb2e0>()
+ +      where <function concepts at 0x7b38341fb2e0> = cv.concepts
+FAILED tests/test_converse_eval_runner.py::test_a_census_path_pointing_at_the_shared_root_is_refused - Failed: DID NOT RAISE <class 'converse_eval.Refused'>
+FAILED tests/test_corp_actions_census.py::test_every_corporate_action_site_is_REGISTERED_with_a_state - AssertionError: a corporate-action site nobody has classified:
+      api/services/breadth_eod_extras.py [VENDOR_ADJUSTED]
+      api/services/breadth_eod_source.py [VENDOR_ADJUSTED]
+      api/services/breadth_ma_extra.py [VENDOR_ADJUSTED]
+      api/services/breadth_nhnl_intraday.py [PROVIDER_READ]
+      api/services/breadth_nhnl_intraday.py [VENDOR_ADJUSTED]
+      api/services/breadth_server_universe.py [VENDOR_ADJUSTED]
+      api/services/intraday_split_heal.py [ADJUSTMENT_APPLIED]
+      api/services/marketcap/acquire.py [PROVIDER_READ]
+      api/services/marketcap/acquire.py [VENDOR_ADJUSTED]
+      api/services/raw_price_view.py [VENDOR_ADJUSTED]
+      api/services/screener/snapshot_builder.py [VENDOR_ADJUSTED]
+      api/services/uct_agent/session_stats.py [VENDOR_ADJUSTED]
+  
+  Add it to tools/corp_actions_census.py::REGISTER with one of ('outstanding', 'migrated', 'outside') and, if `outside`, a written reason.
+assert not [('api/services/breadth_eod_extras.py', 'VENDOR_ADJUSTED'), ('api/services/breadth_eod_source.py', 'VENDOR_ADJUSTED'),...ces/breadth_nhnl_intraday.py', 'VENDOR_ADJUSTED'), ('api/services/breadth_server_universe.py', 'VENDOR_ADJUSTED'), ...]
+FAILED tests/test_corp_actions_census.py::test_every_state_is_one_of_the_three_and_OUTSIDE_carries_a_REAL_reason - AssertionError: api/services/intraday_split_heal.py [ADJUSTMENT_APPLIED] has state 'UNREGISTERED'
+assert 'UNREGISTERED' in ('outstanding', 'migrated', 'outside')
+ +  where 'UNREGISTERED' = Row(path='api/services/intraday_split_heal.py', kind='ADJUSTMENT_APPLIED', occurrences=1, state='UNREGISTERED', reason='').state
+ +  and   ('outstanding', 'migrated', 'outside') = cac.STATES
+FAILED tests/test_corp_actions_census.py::test_the_census_runs_as_a_command_and_reports_its_verdict - AssertionError: the census exits non-zero, so something is unregistered:
+  CORPORATE-ACTIONS CENSUS — 40 rows across 37 files
+  
+  adjustment entry points, DERIVED from api/**'s own defs:
+      _apply_split_adjust          api/services/bars_sanitize.py:568
+      intraday_unadjusted_splits   api/services/bars_sanitize.py:520
+      split_adjust_active          api/services/bars_sanitize.py:645
+      unadjusted_splits            api/services/bars_sanitize.py:430
+  
+  == PROVIDER_READ — 6 rows (outstanding 1, migrated 1, outside 2) ==
+      api/services/bars_sanitize.py                            PROVIDER_READ        x1   outstanding  FMP /stable/splits, read to decide whether a stored series is unadjust
+      api/services/breadth_dividends.py                        PROVIDER_READ        x1   outside      Massive /v3/reference/dividends, consumed to build the breadth frame's
+      api/services/breadth_nhnl_intraday.py                    PROVIDER_READ        x1   UNREGISTERED 
+      api/services/marketcap/acquire.py                        PROVIDER_READ        x1   UNREGISTERED 
+      api/services/polygon_extras.py                           PROVIDER_READ        x2   outside      Massive /v3/reference/splits AND /v3/reference/dividends — the only fi
+      api/services/reference_corp_actions.py                   PROVIDER_READ        x3   migrated     D5 CP3 — the one confirmed splits source. Massive /v3/reference/splits
+  
+  == ADJUSTMENT_APPLIED — 6 rows (outstanding 2, migrated 0, outside 3) ==
+      api/services/adjustment_basis.py                         ADJUSTMENT_APPLIED   x3   outside      reads unadjusted_splits() to LABEL which mechanism owns a series' adju
+      api/services/bars_sanitize.py                            ADJUSTMENT_APPLIED   x9   outstanding  _apply_split_adjust + unadjusted_splits — the SERVE-path rescale. Noth
+      api/services/bars_split_repair.py                        ADJUSTMENT_APPLIED   x1   outstanding  the STORE-path rewrite, calling the same unadjusted_splits judgement f
+      api/services/intraday_split_heal.py                      ADJUSTMENT_APPLIED   x1   UNREGISTERED 
+      api/services/rs_evidence/job.py                          ADJUSTMENT_APPLIED   x1   outside      the RS evidence job's split guard: unadjusted_splits() finds the bound
+      api/services/screener/rs_history.py                      ADJUSTMENT_APPLIED   x1   outside      the RS rating history's split guard: unadjusted_splits() over a name's
+  
+  == VENDOR_ADJUSTED — 28 rows (outstanding 8, migrated 0, outside 11) ==
+      api/gex_router.py                                        VENDOR_ADJUSTED      x1   outside      same surface as gex_service; router-level pass-through.
+      api/gex_service.py                                       VENDOR_ADJUSTED      x6   outside      options GEX surface; an equity split basis is not a claim it makes, an
+      api/index_bars.py                                        VENDOR_ADJUSTED      x4   outside      index series; indices do not split, so the flag is inert here.
+      api/oi_morning.py                                        VENDOR_ADJUSTED      x1   outside      open-interest snapshot; carries no equity price series.
+      api/routers/live_prices.py                               VENDOR_ADJUSTED      x2   outstanding  the live quote path. CP7's label.
+      api/services/audit.py                                    VENDOR_ADJUSTED      x1   outside      the reconciliation auditor's own canonical fetch — it must ask for the
+      api/services/bars_fetch.py                               VENDOR_ADJUSTED      x8   outstanding  the main bars path asks the vendor to pre-adjust; the served payload d
+      api/services/breadth_eod_extras.py                       VENDOR_ADJUSTED      x2   UNREGISTERED 
+      api/services/breadth_eod_source.py                       VENDOR_ADJUSTED      x1   UNREGISTERED 
+      api/services/breadth_ma_extra.py                         VENDOR_ADJUSTED      x2   UNREGISTERED 
+      api/services/breadth_nhnl_intraday.py                    VENDOR_ADJUSTED      x2   UNREGISTERED 
+      api/services/breadth_pit_calibrate.py                    VENDOR_ADJUSTED      x1   outside      point-in-time calibration for the breadth frame — the same different-r
+      api/services/breadth_pit_frame.py                        VENDOR_ADJUSTED      x4   outstanding  get_grouped_daily_frame(..., adjusted=True) — the point-in-time breadt
+      api/services/breadth_server_universe.py                  VENDOR_ADJUSTED      x2   UNREGISTERED 
+      api/services/earnings_enrichment.py                      VENDOR_ADJUSTED      x6   outstanding  earnings reaction percentages are computed off an adjusted series with
+      api/services/journal_two/broker/historical_equity.py     VENDOR_ADJUSTED      x1   outside      broker-sync mirrors the BROKER's own figures; imposing our adjustment 
+      api/services/journal_two/broker/option_marks.py          VENDOR_ADJUSTED      x1   outside      same mirror-fidelity invariant as historical_equity.
+      api/services/journal_two/broker/reconstruct.py           VENDOR_ADJUSTED      x2   outside      same mirror-fidelity invariant as historical_equity.
+      api/services/marketcap/acquire.py                        VENDOR_ADJUSTED      x1   UNREGISTERED 
+      api/services/massive.py                                  VENDOR_ADJUSTED      x2   outstanding  the adapter passes the flag through. CP7's label.
+      api/services/options_analytics/chain_tools.py            VENDOR_ADJUSTED      x1   outside      one option CONTRACT's own daily bars, asked for raw (adjusted=False) o
+      api/services/raw_price_view.py                           VENDOR_ADJUSTED      x3   UNREGISTERED 
+      api/services/scan_gainers.py                             VENDOR_ADJUSTED      x2   outstanding  a scan ranking off an adjusted series with no basis recorded. CP7's la
+      api/services/scan_period.py                              VENDOR_ADJUSTED      x2   outstanding  get_grouped_daily_closes(..., adjusted=True) — the whole-market groupe
+      api/services/screener/snapshot_builder.py                VENDOR_ADJUSTED      x2   UNREGISTERED 
+      api/services/uct_agent/session_stats.py                  VENDOR_ADJUSTED      x1   UNREGISTERED 
+      api/services/watchlist_prebuilt_refresh.py               VENDOR_ADJUSTED      x1   outstanding  ?adjusted=true on the grouped-daily aggregate that refreshes the prebu
+      api/services/wisdom/capture/families/gex.py              VENDOR_ADJUSTED      x1   outside      keyword collision, not a corporate-action call: 'adjusted' here picks 
+  
+  ⛔ UNREGISTERED (12) — a corporate-action site nobody has classified:
+      api/services/intraday_split_heal.py [ADJUSTMENT_APPLIED] x1
+      api/services/breadth_nhnl_intraday.py [PROVIDER_READ] x1
+      api/services/marketcap/acquire.py [PROVIDER_READ] x1
+      api/services/breadth_eod_extras.py [VENDOR_ADJUSTED] x2
+      api/services/breadth_eod_source.py [VENDOR_ADJUSTED] x1
+      api/services/breadth_ma_extra.py [VENDOR_ADJUSTED] x2
+      api/services/breadth_nhnl_intraday.py [VENDOR_ADJUSTED] x2
+      api/services/breadth_server_universe.py [VENDOR_ADJUSTED] x2
+      api/services/marketcap/acquire.py [VENDOR_ADJUSTED] x1
+      api/services/raw_price_view.py [VENDOR_ADJUSTED] x3
+      api/services/screener/snapshot_builder.py [VENDOR_ADJUSTED] x2
+      api/services/uct_agent/session_stats.py [VENDOR_ADJUSTED] x1
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+  
+assert 1 == 0
+ +  where 1 = CompletedProcess(args=['/opt/hostedtoolcache/Python/3.12.16/x64/bin/python', '/home/runner/work/UCT-Dashboard/UCT-Dash...id escape sequence '\\`'\n  taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\\` read as `/`\n").returncode
+19 failed, 3864 passed, 31 skipped, 1 xfailed, 243 warnings in 491.08s (0:08:11)

@@ -1,0 +1,426 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+F....................................................................... [  1%]
+........................................................................ [  3%]
+........................................................................ [  5%]
+........................................................................ [  7%]
+........................................................................ [  9%]
+........................................................................ [ 11%]
+........................................................................ [ 12%]
+........................................................................ [ 14%]
+...................................................................s.... [ 16%]
+........................................................................ [ 18%]
+........................................................................ [ 20%]
+........................................................................ [ 22%]
+........................................................................ [ 23%]
+........................................................................ [ 25%]
+........................................................................ [ 27%]
+........................................................................ [ 29%]
+........................................................................ [ 31%]
+........................................................................ [ 33%]
+........................................................................ [ 34%]
+........................................................................ [ 36%]
+.....s.................................................................. [ 38%]
+........................................................................ [ 40%]
+........................................................................ [ 42%]
+........................................................................ [ 44%]
+........................................................................ [ 45%]
+........................................................................ [ 47%]
+........................................................................ [ 49%]
+........................................................................ [ 51%]
+........................................................................ [ 53%]
+........................................................................ [ 55%]
+........................................................................ [ 56%]
+........................................................................ [ 58%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........................................................................ [ 64%]
+........................................................................ [ 66%]
+........................................................................ [ 68%]
+........................................................................ [ 69%]
+...........................................................F............ [ 71%]
+.s...................................................................... [ 73%]
+........................................................................ [ 75%]
+........................................................................ [ 77%]
+........................................................................ [ 79%]
+........................................................................ [ 80%]
+........................................................................ [ 82%]
+........................................................................ [ 84%]
+........................................................................ [ 86%]
+........................................................................ [ 88%]
+........................................................................ [ 90%]
+........................................................................ [ 91%]
+........................................................................ [ 93%]
+........................................................................ [ 95%]
+........................................................................ [ 97%]
+................................................................F.....F. [ 99%]
+F........F.s...FFFFs......s..                                            [100%]
+=================================== FAILURES ===================================
+__ test_no_route_handler_can_reach_the_evaluator__DERIVED_FROM_router_routes ___
+
+    def test_no_route_handler_can_reach_the_evaluator__DERIVED_FROM_router_routes():
+        """🔴 M8. A member request never triggers an evaluation — not bounded on the
+        request path, ABSENT from it."""
+        handlers = _endpoints_from_router_routes()
+        assert len(handlers) > 100, f"the census walked {len(handlers)} handlers"
+    
+        offenders = [f"{h[2]} -> {h[0]}::{h[1]}" for h in handlers
+                     if _transitive_imports_and_calls(h)]
+>       assert not offenders, (
+            "these route handlers can reach the universe sweep:\n  "
+            + "\n  ".join(offenders)
+            + "\nA universe screen is 2-8 s of GIL-bound pure-Python CPU on a pod "
+              "with 64 shared anyio threads. That is the 2026-07-01 outage.")
+E       AssertionError: these route handlers can reach the universe sweep:
+E           /api/indicator-alerts -> api.routers.indicator_alerts::create_alert
+E           /api/indicator-alerts/current-value -> api.routers.indicator_alerts::get_current_value
+E         A universe screen is 2-8 s of GIL-bound pure-Python CPU on a pod with 64 shared anyio threads. That is the 2026-07-01 outage.
+E       assert not ['/api/indicator-alerts -> api.routers.indicator_alerts::create_alert', '/api/indicator-alerts/current-value -> api.routers.indicator_alerts::get_current_value']
+
+tests/test_scan_evaluator_off_request_path.py:459: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[notebook-migration] migrated=0 skipped=0 errored=0
+_______________ test_no_credential_in_git_history_of_this_branch _______________
+
+    def test_no_credential_in_git_history_of_this_branch():
+        """A scrubbed working tree is not enough — the leak may be in a commit.
+    
+        ⛔ RANGE IS `origin/master..HEAD`, NOT `merge-base..HEAD`. After this branch merges
+        master, a merge-base range replays master's OWN commits as if they were ours — the
+        first run failed on an `Authorization:` header in `api/` code from another
+        workstream. A rail that reds on somebody else's commit gets waved through.
+    
+        ⛔ Findings name the FILE. The first version scanned one concatenated blob and
+        reported `line 2058` of something that exists nowhere on disk, which is a finding
+        nobody can act on (`lesson_a_differ_can_truncate_the_names_a_rail_exists_to_report`).
+        """
+        # ⛔ NOT `text=True`: on Windows that decodes the pipe with the locale codec
+        # (cp1252) and git emits UTF-8, so the first box-drawing byte kills the reader
+        # thread. That is the exact bug that made `tools/flag_ledger_audit.py` unrunnable
+        # for weeks while reporting something that read like an auth failure.
+        def git(*args):
+            return subprocess.run(["git", "-C", str(REPO), *args],
+                                  capture_output=True, encoding="utf-8", errors="replace").stdout
+    
+        if not git("rev-parse", "--verify", "-q", "origin/master").strip():
+            return                                  # no remote to compare against
+        diff = git("diff", "-U0", "origin/master..HEAD")
+>       assert diff.strip(), "empty diff — the check would pass vacuously"
+E       AssertionError: empty diff — the check would pass vacuously
+E       assert ''
+E        +  where '' = <built-in method strip of str object at 0x73913aa2f5f0>()
+E        +    where <built-in method strip of str object at 0x73913aa2f5f0> = ''.strip
+
+tests/test_secret_scrub.py:81: AssertionError
+_________ test_the_screener_default_would_still_name_the_live_database _________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x73909497d820>
+
+    def test_the_screener_default_would_still_name_the_live_database(monkeypatch):
+        """The pin is load-bearing: remove it and the product resolves production.
+    
+        This is the control for the rail above — without it, "pinned outside the
+        root" could be true because the product never named the root in the first
+        place.
+        """
+        from api.services.screener import snapshot_db
+    
+        monkeypatch.delenv("SCREENER_DB_PATH", raising=False)
+        unisolated = snapshot_db.get_db_path()           # resolution only, no write
+>       assert rootconf._shared_root_hit(unisolated) is not None, (
+            f"expected the un-pinned resolution to name the shared root, "
+            f"got {unisolated!r}")
+E       AssertionError: expected the un-pinned resolution to name the shared root, got './data/screener.db'
+E       assert None is not None
+E        +  where None = <function _shared_root_hit at 0x73913844e480>('./data/screener.db')
+E        +    where <function _shared_root_hit at 0x73913844e480> = rootconf._shared_root_hit
+
+tests/test_shared_data_root_guard.py:149: AssertionError
+___ test_each_newly_pinned_path_still_resolves_to_ITS_OLD_LITERAL_when_unset ___
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_each_newly_pinned_path_st0')
+
+    def test_each_newly_pinned_path_still_resolves_to_ITS_OLD_LITERAL_when_unset(tmp_path):
+        """⭐ THE NO-OP HALF: production, with nothing set, must not move an inch.
+    
+        Every expected value is `rootconf.SHARED_DATA_ENV_PINS[var]` — the census's
+        own record of the literal sitting in that env read's default slot — so
+        nothing here is hand-typed.
+    
+        ⚠️ `normpath` on both sides because two of the eight wrap the literal in
+        `pathlib.Path`, and `Path("/data/avatars")` prints `\\data\\avatars` on
+        Windows. That is a property those modules already had; this change did not
+        introduce it, and comparing raw strings would grade `pathlib`, not the
+        default.
+    
+        ⛔ Nothing here points at a live path: the child arms the tripwire before it
+        imports anything, resolution is a string, and `_resolve_in_child` asserts
+        the recorded violation count is zero.
+        """
+        values = _resolve_in_child(tmp_path, {v: None for v in NEWLY_PINNED_PATHS})
+    
+        wrong, not_load_bearing = [], []
+        for var, (_mod, _expr, _why) in sorted(NEWLY_PINNED_PATHS.items()):
+            literal = rootconf.SHARED_DATA_ENV_PINS[var]
+            got = values[var]
+            if os.path.normpath(got) != os.path.normpath(literal):
+                wrong.append(f"{var}: unset resolves {got!r}, literal was {literal!r}")
+            # ⭐ CONTROL — the pin has to be LOAD-BEARING. "Resolves to the literal"
+            # would also be true of a path that never named the shared root, and
+            # then the override would be protecting nothing.
+            if rootconf._shared_root_hit(got) is None:
+                not_load_bearing.append(f"{var}: {got!r}")
+    
+>       assert not wrong, (
+            "an override CHANGED THE PRODUCTION DEFAULT — with nothing set the "
+            "product must resolve exactly what the bare literal did:\n  "
+            + "\n  ".join(wrong))
+E       AssertionError: an override CHANGED THE PRODUCTION DEFAULT — with nothing set the product must resolve exactly what the bare literal did:
+E           SSETF_DB_PATH: unset resolves '/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/../../data/single_stock_etfs.db', literal was '/data/single_stock_etfs.db'
+E       assert not ["SSETF_DB_PATH: unset resolves '/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/../../data/single_stock_etfs.db', literal was '/data/single_stock_etfs.db'"]
+
+tests/test_shared_data_root_guard.py:559: AssertionError
+_____ test_no_shared_root_literal_sits_in_a_function_that_reads_no_env_var _____
+
+    def test_no_shared_root_literal_sits_in_a_function_that_reads_no_env_var():
+        """🔴 A LITERAL BEING PINNED SOMEWHERE ≠ EVERY SITE OF IT BEING REACHABLE.
+    
+        This rail exists because the pin map lied by omission and the guard caught
+        it in a full run. `FLOW_DB_PATH` was pinned from twenty modules, and TWO
+        functions still carried `db_path="/data/flow.db"` as a DEFAULT ARGUMENT with
+        no env read anywhere inside them:
+    
+            api/flow_db.py:132   FlowDB.__init__   ← called from `massive-ws-consumer`
+            api/baselines.py:97  init_db           ← called at import of liveflow_worker
+    
+        A pin moves an env READ; neither had one; both wrote to `C:\\data\\flow.db`.
+        Both are fixed, and this fails BY `file:line:function` if a third appears.
+    
+        ⚠️ The remaining entries are ALLOWED and enumerated, not silenced: they
+        are all bare `/data` probes (`os.path.isdir("/data")` inside a status
+        handler), which create nothing, plus `api/main.py`'s two `_flow_*`
+        helpers, which are owned elsewhere. Growing this list is what fails.
+    
+        ⭐ `api/routers/auth.py` USED to be on the allowed side: `export_user_data`
+        spelled two bare literals, `/data/trades.json` and `/data/watchlists.json`.
+        W9j.1 closed both — the first through a `TRADES_FILE` read in the function
+        itself, the second by importing `watchlist_tracker.WATCHLIST_FILE` instead
+        of restating the path — so it is asserted GONE below, the same way
+        `flow_db` and `baselines` are.
+        """
+        sites = rootconf.UNGUARDED_SHARED_LITERAL_SITES
+        named_files = {s[0] for s in sites}
+        # The CONTROL, first: an "X must not appear" rail passes trivially against a
+        # census that finds nothing, so prove it still finds the sites that are
+        # genuinely there before asking whether the fixed ones are gone.
+        assert len(sites) >= 8, f"the site census went blind — it found {len(sites)}"
+        assert "api/main.py" in named_files, \
+            "_flow_plan/_flow_optimize still carry a bare /data/flow.db and the " \
+            "census no longer sees them; it is not looking"
+        assert "api/routers/auth.py" not in named_files, \
+            "export_user_data is spelling a bare /data literal again — the " \
+            "redirect cannot reach a literal in a function that reads no env var"
+        assert "api/flow_db.py" not in named_files, \
+            "FlowDB.__init__ is carrying a bare /data default again"
+        assert "api/baselines.py" not in named_files, \
+            "baselines is carrying a bare /data default again"
+>       assert len(sites) <= 8, (
+            "a new /data literal now sits in a function that reads no env var — "
+            "the redirect cannot reach it:\n  "
+            + "\n  ".join(f"{f}:{ln} {fn}() -> {v}" for f, ln, fn, v in sites))
+E       AssertionError: a new /data literal now sits in a function that reads no env var — the redirect cannot reach it:
+E           api/darkpool_router.py:193 get_darkpool_data() -> /data
+E           api/flow_backup.py:136 _marker_path() -> /data
+E           api/flow_router.py:2303 get_flow_data() -> /data
+E           api/flow_router_RESTORE.py:286 get_flow_data() -> /data
+E           api/gex_router.py:12 gex_data() -> /data
+E           api/main.py:11524 _flow_plan_sync() -> /data/flow.db
+E           api/main.py:11567 _flow_optimize_sync() -> /data/flow.db
+E           api/schwab_router.py:30 schwab_status() -> /data
+E           api/services/uct_agent/scan/sat/seed.py:57 check_data_dir() -> /data
+E       assert 9 <= 8
+E        +  where 9 = len([('api/darkpool_router.py', 193, 'get_darkpool_data', '/data'), ('api/flow_backup.py', 136, '_marker_path', '/data'), ...ata'), ('api/gex_router.py', 12, 'gex_data', '/data'), ('api/main.py', 11524, '_flow_plan_sync', '/data/flow.db'), ...])
+
+tests/test_shared_data_root_guard.py:643: AssertionError
+________________________ test_every_spelling_is_refused ________________________
+
+fake = (PosixPath('/tmp/pytest-of-runner/pytest-0/test_every_spelling_is_refused0/FAKEDATA'), PosixPath('/tmp/pytest-of-runner/pytest-0/test_every_spelling_is_refused0/FAKEDATA-sandbox'))
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_every_spelling_is_refused0')
+
+    def test_every_spelling_is_refused(fake, tmp_path):
+        root, _ = fake
+        for label, spelling in _spellings(root, tmp_path).items():
+>           assert guard.refuse(spelling, roots=[str(root)]), label
+E           AssertionError: upper
+E           assert None
+E            +  where None = <function refuse at 0x73913844f100>('/TMP/PYTEST-OF-RUNNER/PYTEST-0/TEST_EVERY_SPELLING_IS_REFUSED0/FAKEDATA', roots=['/tmp/pytest-of-runner/pytest-0/test_every_spelling_is_refused0/FAKEDATA'])
+E            +    where <function refuse at 0x73913844f100> = guard.refuse
+
+tests/test_shared_root_guard.py:67: AssertionError
+___________ test_the_tripwire_entry_point_maps_every_string_spelling ___________
+
+fake = (PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_tripwire_entry_point_0/FAKEDATA'), PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_tripwire_entry_point_0/FAKEDATA-sandbox'))
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_tripwire_entry_point_0')
+
+    def test_the_tripwire_entry_point_maps_every_string_spelling(fake, tmp_path):
+        root, _ = fake
+        croots = guard.canonical_roots([str(root)])
+        for label, spelling in _spellings(root, tmp_path).items():
+>           assert guard.hit(os.path.join(spelling, "auth.db") if not spelling.endswith(os.sep) else spelling + "auth.db",
+                             croots), label
+E           AssertionError: upper
+E           assert None
+E            +  where None = <function hit at 0x73913844e3e0>('/TMP/PYTEST-OF-RUNNER/PYTEST-0/TEST_THE_TRIPWIRE_ENTRY_POINT_0/FAKEDATA/auth.db', ['/tmp/pytest-of-runner/pytest-0/test_the_tripwire_entry_point_0/FAKEDATA'])
+E            +    where <function hit at 0x73913844e3e0> = guard.hit
+
+tests/test_shared_root_guard.py:119: AssertionError
+_________________ test_the_hub_launcher_refuses_every_spelling _________________
+
+fake = (PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_hub_launcher_refuses_0/FAKEDATA'), PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_hub_launcher_refuses_0/FAKEDATA-sandbox'))
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_hub_launcher_refuses_0')
+capsys = <_pytest.capture.CaptureFixture object at 0x739094861790>
+
+    def test_the_hub_launcher_refuses_every_spelling(fake, tmp_path, capsys):
+        root, sandbox = fake
+        for label, spelling in _spellings(root, tmp_path).items():
+>           with pytest.raises(SystemExit):
+E           Failed: DID NOT RAISE <class 'SystemExit'>
+
+tests/test_shared_root_guard.py:128: Failed
+____________________ test_the_seeder_refuses_every_spelling ____________________
+
+fake = (PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_seeder_refuses_every_0/FAKEDATA'), PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_seeder_refuses_every_0/FAKEDATA-sandbox'))
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_seeder_refuses_every_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7390948614c0>
+
+    def test_the_seeder_refuses_every_spelling(fake, tmp_path, monkeypatch):
+        root, sandbox = fake
+        monkeypatch.setattr(seedmod, "SHARED_ROOTS", (str(root),))
+        for label, spelling in _spellings(root, tmp_path).items():
+>           assert seedmod.refuse_shared_root(spelling), label
+E           AssertionError: upper
+E           assert None
+E            +  where None = <function refuse_shared_root at 0x739114a2e8e0>('/TMP/PYTEST-OF-RUNNER/PYTEST-0/TEST_THE_SEEDER_REFUSES_EVERY_0/FAKEDATA')
+E            +    where <function refuse_shared_root at 0x739114a2e8e0> = seedmod.refuse_shared_root
+
+tests/test_shared_root_guard.py:138: AssertionError
+_________________ test_the_perf_harness_refuses_every_spelling _________________
+
+fake = (PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_perf_harness_refuses_0/FAKEDATA'), PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_perf_harness_refuses_0/FAKEDATA-sandbox'))
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_perf_harness_refuses_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7390948d88c0>
+
+    def test_the_perf_harness_refuses_every_spelling(fake, tmp_path, monkeypatch):
+        root, sandbox = fake
+        monkeypatch.setattr(perf, "SHARED_ROOTS", (str(root),))
+        for label, spelling in _spellings(root, tmp_path).items():
+>           assert perf.refuse_shared_root(spelling), label
+E           AssertionError: upper
+E           assert None
+E            +  where None = <function refuse_shared_root at 0x739114a2d6c0>('/TMP/PYTEST-OF-RUNNER/PYTEST-0/TEST_THE_PERF_HARNESS_REFUSES_0/FAKEDATA')
+E            +    where <function refuse_shared_root at 0x739114a2d6c0> = perf.refuse_shared_root
+
+tests/test_shared_root_guard.py:146: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+tests/test_scan_run.py:1347
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_scan_run.py:1347: SyntaxWarning: invalid escape sequence '\d'
+    which leaves the carriage return inside the match, so a trailing ``(\d+)$``
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_scan_evaluator_off_request_path.py::test_no_route_handler_can_reach_the_evaluator__DERIVED_FROM_router_routes
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_scan_period.py::test_ranks_common_stock_by_period_change
+tests/test_scan_period.py::test_ranks_common_stock_by_period_change
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:2734: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_scan_period.py::test_ranks_common_stock_by_period_change
+tests/test_scan_period.py::test_ranks_common_stock_by_period_change
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:2737: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+tests/test_schwab_partner_fixes.py::test_snapshot_now_is_admin_only_not_merely_logged_in
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+tests/test_screener_backtest_auth.py::test_a_PAID_member_still_gets_200_on_EVERY_route
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:2249: UnsupportedFieldAttributeWarning: The 'alias' attribute with value 'from' was provided to the `Field()` function, which has no effect in the context it was used. 'alias' is field-specific metadata, and can only be attached to a model field using `Annotated` metadata or by assignment. This may have happened because an `Annotated` type alias using the `type` statement was used, or if the `Field()` function was attached to a single member of a union type.
+    warnings.warn(
+
+tests/test_session_guard.py: 3640 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/rs_ranking.py:158: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_session_guard.py: 3640 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/rs_ranking.py:159: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=200)).strftime("%Y-%m-%d")
+
+tests/test_shared_data_root_guard.py::test_the_census_names_every_shared_root_literal_the_product_contains
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_screener_auth_surface.py:71: SCREEN_BACKTEST_ENABLED is off — the router is not mounted, so there is no served route to check (this is the flag working, not a gap)
+SKIPPED [1] tests/test_screener_integration.py:15: local bars reader unavailable: no such table: ohlcv
+SKIPPED [1] tests/test_seed_large_notebook_guard.py:72: mklink /J unavailable/failed on this host ([Errno 2] No such file or directory: 'cmd') -- this guard's resistance to an NTFS-junction bypass into the shared production root is UNVERIFIED on this host.
+SKIPPED [1] tests/test_shared_root_guard.py:77: junctions are a Windows reparse point
+SKIPPED [1] tests/test_shared_root_guard.py:153: device paths are a Windows spelling
+SKIPPED [1] tests/test_shared_root_guard.py:190: the NT prefix is a Windows spelling
+FAILED tests/test_scan_evaluator_off_request_path.py::test_no_route_handler_can_reach_the_evaluator__DERIVED_FROM_router_routes - AssertionError: these route handlers can reach the universe sweep:
+    /api/indicator-alerts -> api.routers.indicator_alerts::create_alert
+    /api/indicator-alerts/current-value -> api.routers.indicator_alerts::get_current_value
+  A universe screen is 2-8 s of GIL-bound pure-Python CPU on a pod with 64 shared anyio threads. That is the 2026-07-01 outage.
+assert not ['/api/indicator-alerts -> api.routers.indicator_alerts::create_alert', '/api/indicator-alerts/current-value -> api.routers.indicator_alerts::get_current_value']
+FAILED tests/test_secret_scrub.py::test_no_credential_in_git_history_of_this_branch - AssertionError: empty diff — the check would pass vacuously
+assert ''
+ +  where '' = <built-in method strip of str object at 0x73913aa2f5f0>()
+ +    where <built-in method strip of str object at 0x73913aa2f5f0> = ''.strip
+FAILED tests/test_shared_data_root_guard.py::test_the_screener_default_would_still_name_the_live_database - AssertionError: expected the un-pinned resolution to name the shared root, got './data/screener.db'
+assert None is not None
+ +  where None = <function _shared_root_hit at 0x73913844e480>('./data/screener.db')
+ +    where <function _shared_root_hit at 0x73913844e480> = rootconf._shared_root_hit
+FAILED tests/test_shared_data_root_guard.py::test_each_newly_pinned_path_still_resolves_to_ITS_OLD_LITERAL_when_unset - AssertionError: an override CHANGED THE PRODUCTION DEFAULT — with nothing set the product must resolve exactly what the bare literal did:
+    SSETF_DB_PATH: unset resolves '/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/../../data/single_stock_etfs.db', literal was '/data/single_stock_etfs.db'
+assert not ["SSETF_DB_PATH: unset resolves '/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/../../data/single_stock_etfs.db', literal was '/data/single_stock_etfs.db'"]
+FAILED tests/test_shared_data_root_guard.py::test_no_shared_root_literal_sits_in_a_function_that_reads_no_env_var - AssertionError: a new /data literal now sits in a function that reads no env var — the redirect cannot reach it:
+    api/darkpool_router.py:193 get_darkpool_data() -> /data
+    api/flow_backup.py:136 _marker_path() -> /data
+    api/flow_router.py:2303 get_flow_data() -> /data
+    api/flow_router_RESTORE.py:286 get_flow_data() -> /data
+    api/gex_router.py:12 gex_data() -> /data
+    api/main.py:11524 _flow_plan_sync() -> /data/flow.db
+    api/main.py:11567 _flow_optimize_sync() -> /data/flow.db
+    api/schwab_router.py:30 schwab_status() -> /data
+    api/services/uct_agent/scan/sat/seed.py:57 check_data_dir() -> /data
+assert 9 <= 8
+ +  where 9 = len([('api/darkpool_router.py', 193, 'get_darkpool_data', '/data'), ('api/flow_backup.py', 136, '_marker_path', '/data'), ...ata'), ('api/gex_router.py', 12, 'gex_data', '/data'), ('api/main.py', 11524, '_flow_plan_sync', '/data/flow.db'), ...])
+FAILED tests/test_shared_root_guard.py::test_every_spelling_is_refused - AssertionError: upper
+assert None
+ +  where None = <function refuse at 0x73913844f100>('/TMP/PYTEST-OF-RUNNER/PYTEST-0/TEST_EVERY_SPELLING_IS_REFUSED0/FAKEDATA', roots=['/tmp/pytest-of-runner/pytest-0/test_every_spelling_is_refused0/FAKEDATA'])
+ +    where <function refuse at 0x73913844f100> = guard.refuse
+FAILED tests/test_shared_root_guard.py::test_the_tripwire_entry_point_maps_every_string_spelling - AssertionError: upper
+assert None
+ +  where None = <function hit at 0x73913844e3e0>('/TMP/PYTEST-OF-RUNNER/PYTEST-0/TEST_THE_TRIPWIRE_ENTRY_POINT_0/FAKEDATA/auth.db', ['/tmp/pytest-of-runner/pytest-0/test_the_tripwire_entry_point_0/FAKEDATA'])
+ +    where <function hit at 0x73913844e3e0> = guard.hit
+FAILED tests/test_shared_root_guard.py::test_the_hub_launcher_refuses_every_spelling - Failed: DID NOT RAISE <class 'SystemExit'>
+FAILED tests/test_shared_root_guard.py::test_the_seeder_refuses_every_spelling - AssertionError: upper
+assert None
+ +  where None = <function refuse_shared_root at 0x739114a2e8e0>('/TMP/PYTEST-OF-RUNNER/PYTEST-0/TEST_THE_SEEDER_REFUSES_EVERY_0/FAKEDATA')
+ +    where <function refuse_shared_root at 0x739114a2e8e0> = seedmod.refuse_shared_root
+FAILED tests/test_shared_root_guard.py::test_the_perf_harness_refuses_every_spelling - AssertionError: upper
+assert None
+ +  where None = <function refuse_shared_root at 0x739114a2d6c0>('/TMP/PYTEST-OF-RUNNER/PYTEST-0/TEST_THE_PERF_HARNESS_REFUSES_0/FAKEDATA')
+ +    where <function refuse_shared_root at 0x739114a2d6c0> = perf.refuse_shared_root
+10 failed, 3901 passed, 6 skipped, 7291 warnings in 407.11s (0:06:47)

@@ -1,0 +1,713 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+.....F...................F.............................................. [  2%]
+.................................FFFFF...........................F...... [  4%]
+.............F..............................................F........... [  6%]
+........................................................................ [  8%]
+.............................................F.......................... [ 10%]
+........................................................................ [ 12%]
+........................................................................ [ 14%]
+........................................................................ [ 16%]
+........................................................................ [ 18%]
+........................................................................ [ 20%]
+........................................................................ [ 23%]
+........................................................................ [ 25%]
+........................................................................ [ 27%]
+........................................................................ [ 29%]
+........................................................................ [ 31%]
+........................................................................ [ 33%]
+........................................................................ [ 35%]
+........................................................................ [ 37%]
+........................................................................ [ 39%]
+........................................................................ [ 41%]
+........................................................................ [ 44%]
+........................................................................ [ 46%]
+........................................................................ [ 48%]
+........................................................................ [ 50%]
+................................................F....................... [ 52%]
+...............................F........................................ [ 54%]
+........................................................................ [ 56%]
+........................................................................ [ 58%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........................................................................ [ 64%]
+................s....................................................... [ 67%]
+........................................................................ [ 69%]
+........................................................................ [ 71%]
+........................................................................ [ 73%]
+........................................................................ [ 75%]
+........................................................................ [ 77%]
+..................................................F..................... [ 79%]
+.........................................F.............................. [ 81%]
+.................................................F...................... [ 83%]
+........................................................s.............F. [ 85%]
+........................................................................ [ 88%]
+........................................................................ [ 90%]
+........................................................................ [ 92%]
+........................................................................ [ 94%]
+........................................................................ [ 96%]
+........................................................................ [ 98%]
+..................................................                       [100%]
+==============================================================================
+SHARED PRODUCTION DATA ROOT WRITTEN TO BY THE TEST SUITE — 2 attempt(s)
+==============================================================================
+  sqlite3.connect -> /data/flow.db
+      test   : tests/test_admin_oi_routes_off_the_loop.py::test_route_answers_without_a_bare_500[/api/admin/flow/plan]
+      thread : AnyIO worker thread
+      at     : /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py:1032 _bootstrap
+      at     : /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py:1075 _bootstrap_inner
+      at     : /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:1124 run
+      at     : /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/main.py:11524 _flow_plan_sync
+      at     : /home/runner/work/UCT-Dashboard/UCT-Dashboard/conftest.py:1060 _guarded_sqlite_connect
+  sqlite3.connect -> /data/flow.db
+      test   : tests/test_admin_oi_routes_off_the_loop.py::test_route_answers_without_a_bare_500[/api/admin/flow/optimize]
+      thread : AnyIO worker thread
+      at     : /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py:1032 _bootstrap
+      at     : /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py:1075 _bootstrap_inner
+      at     : /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:1124 run
+      at     : /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/main.py:11567 _flow_optimize_sync
+      at     : /home/runner/work/UCT-Dashboard/UCT-Dashboard/conftest.py:1060 _guarded_sqlite_connect
+
+=================================== FAILURES ===================================
+__________________ test_column_presets_have_a_typed_store_now __________________
+
+    def test_column_presets_have_a_typed_store_now():
+        """§2 gap 1 -- FLIPPED 2026-09-25 by A12 CP2 (the pin below did exactly what it
+        was written to do: it failed the day the store landed, and was updated rather
+        than made to pass again). `visiblePerf` is now backed by the per-member server
+        preference `watchlist_perf_cols` through `usePreferences`: hydrated once after
+        prefs load, written on change, unknown keys dropped on read. Pinned the same way
+        the gap was -- by the literals -- so a regression to session state fails here."""
+        path = os.path.join(_AT_ROOT, "app", "src", "pages", "Watchlists.jsx")
+        src = open(path, encoding="utf-8").read()
+        assert "const [visiblePerf, setVisiblePerf] = useState(new Set())" not in src, (
+            "visiblePerf is plain session state again -- A12 CP2's persistence was reverted")
+        assert "const WATCHLIST_PERF_COLS_KEY = 'watchlist_perf_cols'" in src
+        assert "parsePref(prefs?.[WATCHLIST_PERF_COLS_KEY], null)" in src, "the read side is gone"
+>       assert "setPref(WATCHLIST_PERF_COLS_KEY, serialized)" in src, "the write side is gone"
+E       AssertionError: the write side is gone
+E       assert 'setPref(WATCHLIST_PERF_COLS_KEY, serialized)' in '// app/src/pages/Watchlists.jsx\n//\n// ⚠️ READ BEFORE CHANGING THE LAYOUT OF THIS FILE.\n//\n// This component has T...        onUnavailable={() => setWlHistoryId(null)}\n          />\n        </Sheet>\n      )}\n\n    </div>\n  )\n}\n\n'
+
+tests/test_a12_s6_consistency_rail.py:250: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[notebook-migration] migrated=0 skipped=0 errored=0
+[auth] Database ready at /tmp/pytest-of-runner/pytest-0/test_column_presets_have_a_typ0/auth.db
+__________ test_no_new_cashtag_grammar_and_the_baseline_only_shrinks ___________
+
+    def test_no_new_cashtag_grammar_and_the_baseline_only_shrinks():
+        """Every OTHER cashtag grammar is a recorded, reasoned divergence (each has its
+        own owner ruling). A new one fails by name; one that disappeared must leave the
+        baseline in the same commit, so the ledger can only shrink."""
+        baseline = _cashtag_baseline()
+        for e in baseline.values():
+            assert len((e.get("reason") or "").strip()) >= 20, f"{e['path']}: a baseline entry needs a reason"
+        found = set()
+        new = []
+        for rel in product_python_files():
+            tree = _parse(rel)
+            if tree is None:
+                continue
+            for ln, pat in cashtag_grammars(tree):
+                if pat == A8.CASHTAG_PATTERN:
+                    continue  # the rail above owns this case
+                found.add((rel, pat))
+                if (rel, pat) not in baseline:
+                    new.append(f"{rel}:{ln} introduces a cashtag grammar {pat!r} - read a8_taxonomy.CASHTAG_RE")
+        stale = sorted(f"{p}  {pat!r}" for (p, pat) in set(baseline) - found)
+>       assert not new, "\n".join(new)
+E       AssertionError: api/services/social_polarity.py:193 introduces a cashtag grammar '(?<![A-Za-z0-9])\\$[A-Za-z]{1,6}(?:[.-][A-Za-z]{1,2})?\\b' - read a8_taxonomy.CASHTAG_RE
+E         api/services/tx_headline_match.py:63 introduces a cashtag grammar '\\$([A-Z]{1,5}(?:\\.[A-Z])?)\\b' - read a8_taxonomy.CASHTAG_RE
+E         api/services/uct_agent/turn.py:1892 introduces a cashtag grammar '\\$[A-Za-z]{1,6}\\b|(?<![A-Za-z0-9])[A-Z]{1,5}(?![A-Za-z0-9])' - read a8_taxonomy.CASHTAG_RE
+E         tools/agent_v2_corpus_cost.py:79 introduces a cashtag grammar '^\\$([A-Za-z]+)(?:\\[(\\d+)\\])?(?:\\{\\w+\\})?$' - read a8_taxonomy.CASHTAG_RE
+E       assert not ["api/services/social_polarity.py:193 introduces a cashtag grammar '(?<![A-Za-z0-9])\\\\$[A-Za-z]{1,6}(?:[.-][A-Za-z]{...uces a cashtag grammar '^\\\\$([A-Za-z]+)(?:\\\\[(\\\\d+)\\\\])?(?:\\\\{\\\\w+\\\\})?$' - read a8_taxonomy.CASHTAG_RE"]
+
+tests/test_a8_taxonomy.py:375: AssertionError
+_______________________ test_scenario_simulator_size[A] ________________________
+
+conn = <sqlite3.Connection object at 0x7a95f6144a90>, kind = 'A'
+
+    @pytest.mark.parametrize("kind", list(SIM_SIZE))
+    def test_scenario_simulator_size(conn, kind):
+        from api.services import scenario_simulator as sim
+        uid, acct, _ = _make(conn, kind)
+>       assert sim.simulate(user_id=uid, rule="multiplier", rule_value=1.0, account_id=acct)["account_size"] \
+            == SIM_SIZE[kind]
+E       KeyError: 'account_size'
+
+tests/test_account_size_enforcement_parity.py:205: KeyError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at /tmp/pytest-of-runner/pytest-0/test_scenario_simulator_size_A0/auth.db
+_______________________ test_scenario_simulator_size[B] ________________________
+
+conn = <sqlite3.Connection object at 0x7a95f61445e0>, kind = 'B'
+
+    @pytest.mark.parametrize("kind", list(SIM_SIZE))
+    def test_scenario_simulator_size(conn, kind):
+        from api.services import scenario_simulator as sim
+        uid, acct, _ = _make(conn, kind)
+>       assert sim.simulate(user_id=uid, rule="multiplier", rule_value=1.0, account_id=acct)["account_size"] \
+            == SIM_SIZE[kind]
+E       KeyError: 'account_size'
+
+tests/test_account_size_enforcement_parity.py:205: KeyError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at /tmp/pytest-of-runner/pytest-0/test_scenario_simulator_size_B0/auth.db
+_______________________ test_scenario_simulator_size[D] ________________________
+
+conn = <sqlite3.Connection object at 0x7a95f6145210>, kind = 'D'
+
+    @pytest.mark.parametrize("kind", list(SIM_SIZE))
+    def test_scenario_simulator_size(conn, kind):
+        from api.services import scenario_simulator as sim
+        uid, acct, _ = _make(conn, kind)
+>       assert sim.simulate(user_id=uid, rule="multiplier", rule_value=1.0, account_id=acct)["account_size"] \
+            == SIM_SIZE[kind]
+E       KeyError: 'account_size'
+
+tests/test_account_size_enforcement_parity.py:205: KeyError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at /tmp/pytest-of-runner/pytest-0/test_scenario_simulator_size_D0/auth.db
+_______________________ test_scenario_simulator_size[E] ________________________
+
+conn = <sqlite3.Connection object at 0x7a95f61458a0>, kind = 'E'
+
+    @pytest.mark.parametrize("kind", list(SIM_SIZE))
+    def test_scenario_simulator_size(conn, kind):
+        from api.services import scenario_simulator as sim
+        uid, acct, _ = _make(conn, kind)
+>       assert sim.simulate(user_id=uid, rule="multiplier", rule_value=1.0, account_id=acct)["account_size"] \
+            == SIM_SIZE[kind]
+E       KeyError: 'account_size'
+
+tests/test_account_size_enforcement_parity.py:205: KeyError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at /tmp/pytest-of-runner/pytest-0/test_scenario_simulator_size_E0/auth.db
+_______________________ test_scenario_simulator_size[F] ________________________
+
+conn = <sqlite3.Connection object at 0x7a96873ba2f0>, kind = 'F'
+
+    @pytest.mark.parametrize("kind", list(SIM_SIZE))
+    def test_scenario_simulator_size(conn, kind):
+        from api.services import scenario_simulator as sim
+        uid, acct, _ = _make(conn, kind)
+>       assert sim.simulate(user_id=uid, rule="multiplier", rule_value=1.0, account_id=acct)["account_size"] \
+            == SIM_SIZE[kind]
+E       KeyError: 'account_size'
+
+tests/test_account_size_enforcement_parity.py:205: KeyError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at /tmp/pytest-of-runner/pytest-0/test_scenario_simulator_size_F0/auth.db
+___________ test_scenario_simulator_runs_and_sizes_on_the_authority ____________
+
+conn = <sqlite3.Connection object at 0x7a95f61453f0>
+
+    def test_scenario_simulator_runs_and_sizes_on_the_authority(conn):
+        from api.services import scenario_simulator as sim
+        unset = _member(conn, "sm1")
+        _trade(conn, "sm1", unset, pnl=500)
+        out = sim.simulate(user_id="sm1", rule="flat_pct", rule_value=1.0, account_id=unset)
+        assert "error" not in out, out
+>       assert out["account_size"] == UNSET and out["account_size_is_default"] is True
+E       KeyError: 'account_size'
+
+tests/test_account_size_readers.py:242: KeyError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at /tmp/pytest-of-runner/pytest-0/test_scenario_simulator_runs_a0/auth.db
+_ test_the_default_store_is_NEVER_the_real_bucket_unless_the_backups_are_armed _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7a95f79a06e0>
+
+    def test_the_default_store_is_NEVER_the_real_bucket_unless_the_backups_are_armed(monkeypatch):
+        """⛔ DATA_SYNC_* is set on the owner's machine; credentials alone must not be enough."""
+        from api.services import data_sync
+        monkeypatch.delenv(at.LOCAL_STORE_ENV, raising=False)
+        monkeypatch.setattr(data_sync, "_client", lambda: object())
+        monkeypatch.setattr(data_sync, "_bucket", lambda: "real-bucket")
+        monkeypatch.delenv("AUTHDB_BACKUP_ENABLED", raising=False)
+        assert at.default_store() is None
+        monkeypatch.setenv("AUTHDB_BACKUP_ENABLED", "1")
+>       assert isinstance(at.default_store(), at.R2ObjectStore)
+E       AssertionError: assert False
+E        +  where False = isinstance(None, <class 'api.services.account_tombstones.R2ObjectStore'>)
+E        +    where None = <function default_store at 0x7a96865da520>()
+E        +      where <function default_store at 0x7a96865da520> = at.default_store
+E        +    and   <class 'api.services.account_tombstones.R2ObjectStore'> = at.R2ObjectStore
+
+tests/test_account_tombstones.py:167: AssertionError
+___ test_every_owned_named_table_is_an_address_kind_or_exempt_with_a_reason ____
+
+    def test_every_owned_named_table_is_an_address_kind_or_exempt_with_a_reason():
+        derived = a.saved_object_tables()
+        assert len(derived) >= 20, f"census found only {len(derived)} tables -- a broken scan passes everything"
+        kinds = {k.table for k in a.KINDS.values()}
+        unclassified = sorted(set(derived) - kinds - set(a.EXEMPT))
+>       assert not unclassified, (
+            f"owned + named tables with no address and no exemption: {unclassified} "
+            "-- give each an address kind in KINDS, or an EXEMPT line with its reason")
+E       AssertionError: owned + named tables with no address and no exemption: ['agent_conversations', 'j2_obsidian_attachments', 'j2_routines', 'j2_trackers', 'j2_widget_definitions', 'tsdr_lessons', 'txn_collections'] -- give each an address kind in KINDS, or an EXEMPT line with its reason
+E       assert not ['agent_conversations', 'j2_obsidian_attachments', 'j2_routines', 'j2_trackers', 'j2_widget_definitions', 'tsdr_lessons', ...]
+
+tests/test_address_space.py:44: AssertionError
+_____ test_every_module_that_calls_a_model_is_described_in_the_door_table ______
+
+    def test_every_module_that_calls_a_model_is_described_in_the_door_table():
+        found = _found()
+        unlisted = sorted(set(found) - set(ai_doors.DOORS))
+>       assert not unlisted, (
+            "these modules call a model API and api/services/ai_doors.py does not say "
+            "what reaches them or what bounds their spend:\n"
+            + "\n".join(f"  {p}  <- {', '.join(str(s) for s in found[p][:3])}" for p in unlisted)
+            + "\n\nAdd a Door: kind, surface, budget, and for a member door the meter it "
+            "reads through and the module wiring the population cap (or `gap=` saying why not)."
+        )
+E       AssertionError: these modules call a model API and api/services/ai_doors.py does not say what reaches them or what bounds their spend:
+E           api/services/earnings_preview_warm.py  <- api/services/earnings_preview_warm.py:509 via:api/services/llm_batch.py llm_batch.submit (in _PreviewBatch), api/services/earnings_preview_warm.py:527 invoke .messages.create (in _live_preview)
+E           api/services/pattern_vision/orchestrator.py  <- api/services/pattern_vision/orchestrator.py:141 via:api/services/llm_batch.py llm_batch.submit (in JudgeBatch)
+E         
+E         Add a Door: kind, surface, budget, and for a member door the meter it reads through and the module wiring the population cap (or `gap=` saying why not).
+E       assert not ['api/services/earnings_preview_warm.py', 'api/services/pattern_vision/orchestrator.py']
+
+tests/test_ai_doors_census.py:48: AssertionError
+______ test_the_importers_of_this_module_are_EXACTLY_the_converted_roster ______
+
+    def test_the_importers_of_this_module_are_EXACTLY_the_converted_roster():
+        """⛔ BOTH DIRECTIONS, which is what makes this the successor to step 2's
+        "no consumer" rail rather than its deletion.
+    
+        MORE: a producer was converted and did not update this roster, so nobody can
+        say what step 3's blast radius is. FEWER: a conversion was reverted and the
+        invariant above is now being proved about a module nothing calls.
+        """
+        derived = {rel for rel, source in _api_sources()
+                   if rel != "api/services/alert_destination.py"
+                   and imports_module(source, "alert_destination")}
+>       assert derived == CONVERTED, (
+            f"step 3's consumer roster has moved.\n"
+            f"  pinned but no longer importing : {sorted(CONVERTED - derived)}\n"
+            f"  importing but not pinned       : {sorted(derived - CONVERTED)}")
+E       AssertionError: step 3's consumer roster has moved.
+E           pinned but no longer importing : []
+E           importing but not pinned       : ['api/services/llm_budget.py']
+E       assert {'api/auth_su...erts.py', ...} == {'api/auth_su...erts.py', ...}
+E         
+E         Extra items in the left set:
+E         'api/services/llm_budget.py'
+E         
+E         Full diff:
+E           {
+E               'api/auth_surface_check.py',
+E               'api/event_loop_watchdog.py',
+E               'api/flow_backup.py',
+E               'api/flow_gap_autofill.py',
+E               'api/services/alerts.py',
+E               'api/services/breadth_alerts.py',
+E               'api/services/catalyst/digest.py',
+E               'api/services/chart_health_alerts.py',
+E               'api/services/chart_iq/pack.py',
+E               'api/services/desk_daily_session.py',
+E               'api/services/desktop_events.py',
+E               'api/services/journal_two/books_audit.py',
+E               'api/services/journal_two/broker/mirror_check.py',
+E               'api/services/journal_two/broker/notifications.py',
+E               'api/services/journal_two/notebook_slo.py',
+E               'api/services/liveflow_monitor.py',
+E         +     'api/services/llm_budget.py',
+E               'api/services/measurement_window.py',
+E               'api/services/session_guard.py',
+E               'api/services/trade_exchange_news/ops_alerts.py',
+E               'api/terminal_next_monitor_main.py',
+E               'api/worker_main.py',
+E           }
+
+tests/test_alert_destination.py:1256: AssertionError
+_ test_THE_CENSUS_every_member_keyed_table_is_purged_cascaded_or_named_with_its_reason _
+
+    def test_THE_CENSUS_every_member_keyed_table_is_purged_cascaded_or_named_with_its_reason():
+        found = census()
+        # Non-vacuity, by name, on each way a table is accounted for -- and on the AST read itself:
+        # `ais_saved` and `wisdom_archive_calls` are built from implicitly concatenated fragments
+        # with comments between them, which a line-oriented scan of the source misses.
+        for name in ("j2_notes", "alert_predicates", "inbound_alert_tokens", "watchlists",
+                     "ais_saved", "wisdom_archive_calls", "study_profile"):
+            assert name in found, f"the census did not see {name}"
+        assert _auth_db_cascaded("watchlists", found["watchlists"])
+        missing = unaccounted(found)
+>       assert not missing, (
+            "member-keyed tables an account deletion neither purges nor names: add each to the purge "
+            "(account_purge._DIRECT_USER_TABLES for auth.db, a store's erasure module otherwise) or "
+            f"to KNOWN_UNPURGED with the reason:\n  " + "\n  ".join(missing))
+E       AssertionError: member-keyed tables an account deletion neither purges nor names: add each to the purge (account_purge._DIRECT_USER_TABLES for auth.db, a store's erasure module otherwise) or to KNOWN_UNPURGED with the reason:
+E           agent_conversation_state (api/services/uct_agent/store.py: user_id)
+E           chart_iq_feedback (api/services/chart_iq/feedback.py: user_id)
+E           j2_note_tweet_captures (api/services/journal_two/db.py: user_id)
+E       assert not ['agent_conversation_state (api/services/uct_agent/store.py: user_id)', 'chart_iq_feedback (api/services/chart_iq/feedback.py: user_id)', 'j2_note_tweet_captures (api/services/journal_two/db.py: user_id)']
+
+tests/test_alert_erasure.py:627: AssertionError
+___________________ test_the_other_thirty_are_not_comparable ___________________
+
+    def test_the_other_thirty_are_not_comparable():
+        census = proj.comparability_census()
+        assert census["n_comparable"] == 1, census["comparable"]
+>       assert census["n_not_comparable"] == 31, sorted(census["not_comparable"])  # 2026-11-04: +ma_cross
+E       AssertionError: ['adx.adx', 'adx.minusDI', 'adx.plusDI', 'atr', 'bb', 'bb.lower', ...]
+E       assert 47 == 31
+
+tests/test_alert_taxonomy_indicator_condition_projection.py:48: AssertionError
+______ test_the_callers_of_the_type_module_are_exactly_the_declared_four _______
+
+    def test_the_callers_of_the_type_module_are_exactly_the_declared_four():
+        """§2a item 3: *what calls this, and which test fails if that wire is cut?*
+    
+        ⚰️ UPDATED BY NAMING, 2026-09-13. This asserted the harness was the ONLY
+        caller, which was true and load-bearing at CP1-CP2. CP3 adds exactly two
+        more by design — the projection, and `main.py`'s registration — so the set
+        is WIDENED TO A DECLARED ONE rather than loosened to a `>=`. A membership
+        test that only ever grows is not a test.
+    
+        ⭐ The projection is what the sweep calls; `main.py` is where `register()`
+        lives. A FOURTH name appearing here is a wire nobody classified, and that is
+        exactly what this fails on.
+    
+        ⭐⭐ UPDATED AGAIN, 2026-09-19, D2 §4-CP3 (a DIFFERENT "CP3" than the one
+        above — this file's CP1-CP3 is `indicator-condition`'s own taxonomy build
+        sequence; D2 §4-CP3 is the canonical-data-model packet retiring the
+        timeframe-map duplicates). `indicator_alert_evaluator.py` now imports
+        `timeframe_labels()` from this module instead of carrying its own
+        `_LEDGER_TIMEFRAME` dict — a declared FOURTH name, classified here rather
+        than discovered by this rail failing silently elsewhere.
+        """
+        naming = _modules_naming("indicator_condition")
+        # ⚠️ The type module does NOT appear here and that is correct: it names
+        # itself only through `__name__`, which carries no literal.
+>       assert naming == {"indicator_alert_evaluator.py",
+                          "indicator_condition_compare.py",
+                          "indicator_condition_projection.py",
+                          "main.py"}, (
+            f"the caller set changed: {sorted(naming)}")
+E       AssertionError: the caller set changed: ['alert_erasure.py', 'dark_report.py', 'indicator_alert_evaluator.py', 'indicator_condition_compare.py', 'indicator_condition_projection.py', 'main.py']
+E       assert {'alert_erasu...y', 'main.py'} == {'indicator_a...y', 'main.py'}
+E         
+E         Extra items in the left set:
+E         'alert_erasure.py'
+E         'dark_report.py'
+E         
+E         Full diff:
+E           {
+E         +     'alert_erasure.py',
+E         +     'dark_report.py',
+E               'indicator_alert_evaluator.py',
+E               'indicator_condition_compare.py',
+E               'indicator_condition_projection.py',
+E               'main.py',
+E           }
+
+tests/test_alert_taxonomy_indicator_condition_schema.py:840: AssertionError
+________ test_aggregate_heat_has_NO_scheduled_or_delivering_legacy_path ________
+
+    def test_aggregate_heat_has_NO_scheduled_or_delivering_legacy_path():
+        """⛔⛔ THE MEASUREMENT THE SCHEMA'S THIRD SEVERITY RESTS ON.
+    
+        An anchored, comment-and-docstring-stripped AST sweep over `api/**` for
+        calls to `portfolio_heat(`. Every hit must be a REQUEST-TIME reader, the
+        module itself, or its sibling test — nothing scheduled, nothing delivering.
+    
+        ⚠️ The anchor matters. A naive substring adds `api/routers/intelligence.py`,
+        which calls `calculate_portfolio_heat` — a different function, from the
+        brain engine. A search that counts its own near-miss is how a "sixth call
+        site" gets reported.
+        """
+        rx = re.compile(r"(?<![A-Za-z0-9_])portfolio_heat\s*\(")
+        naive = re.compile(r"portfolio_heat\s*\(")
+        hits, naive_hits, scanned = [], [], 0
+        for p in (_REPO / "api").rglob("*.py"):
+            try:
+                code = _code_only(p)
+            except SyntaxError:
+                continue
+            scanned += 1
+            rel = str(p.relative_to(_REPO)).replace("\\", "/")
+            if rx.search(code):
+                hits.append(rel)
+            if naive.search(code):
+                naive_hits.append(rel)
+    
+        assert scanned > 100, f"the module walk found almost nothing ({scanned}) — it is broken"
+>       assert sorted(hits) == [
+            # A14 CP1 (feb018022): GET /api/portfolio-heat, the member-facing door -- a
+            # request-time reader like the others, nothing scheduled or delivering.
+            "api/routers/portfolio_heat.py",
+            "api/services/ai_search_personal.py",
+            "api/services/journal_two/coach_chat_tools.py",
+            # Notebook widget myPositionsRisk: built per GET /api/j2/notebook-widgets/{kind} (and the
+            # journal-styles render of the same builder), a request-time reader. Read-only since
+            # 2026-10-23: it passes its own size, so heat's migrating default reader never runs.
+            "api/services/journal_two/notebook_widgets.py",
+            "api/services/portfolio_heat.py",
+            "api/services/test_portfolio_heat.py",
+            "api/services/voice_tool_impls.py",
+        ], f"the portfolio_heat call sites moved: {sorted(hits)}"
+E       AssertionError: the portfolio_heat call sites moved: ['api/routers/portfolio_heat.py', 'api/services/ai_search_personal.py', 'api/services/journal_two/coach_chat_tools.py', 'api/services/journal_two/notebook_widgets.py', 'api/services/journal_two/shelf_discipline.py', 'api/services/portfolio_heat.py', 'api/services/test_portfolio_heat.py', 'api/services/voice_tool_impls.py']
+E       assert ['api/routers...heat.py', ...] == ['api/routers...heat.py', ...]
+E         
+E         At index 4 diff: 'api/services/journal_two/shelf_discipline.py' != 'api/services/portfolio_heat.py'
+E         Left contains one more item: 'api/services/voice_tool_impls.py'
+E         
+E         Full diff:
+E           [
+E               'api/routers/portfolio_heat.py',
+E               'api/services/ai_search_personal.py',
+E               'api/services/journal_two/coach_chat_tools.py',
+E               'api/services/journal_two/notebook_widgets.py',
+E         +     'api/services/journal_two/shelf_discipline.py',
+E               'api/services/portfolio_heat.py',
+E               'api/services/test_portfolio_heat.py',
+E               'api/services/voice_tool_impls.py',
+E           ]
+
+tests/test_alert_taxonomy_position_risk_schema.py:289: AssertionError
+____________ test_flow_worker_does_not_reach_d3_price_level_wiring _____________
+
+    def test_flow_worker_does_not_reach_d3_price_level_wiring():
+        """§3 / §5 non-risk, re-verified as a REGRESSION GUARD rather than trusted
+        from the proposal's own one-time measurement: none of the four modules
+        this checkpoint touches are in flow-worker's static import closure."""
+        from tools import flow_worker_watch_coverage as wc
+    
+        root = wc.repo_root()
+        reachable = wc.reachable_paths(root)
+        touched = {
+            "api/services/alert_taxonomy/price_level_projection.py",
+            "api/services/alert_taxonomy/price_level_compare.py",
+            "api/services/bar_broadcaster.py",
+            "api/services/bar_stream.py",
+        }
+        hit = touched & reachable
+>       assert not hit, f"flow-worker's import closure now reaches: {sorted(hit)}"
+E       AssertionError: flow-worker's import closure now reaches: ['api/services/alert_taxonomy/price_level_compare.py', 'api/services/alert_taxonomy/price_level_projection.py', 'api/services/bar_broadcaster.py', 'api/services/bar_stream.py']
+E       assert not {'api/services/alert_taxonomy/price_level_compare.py', 'api/services/alert_taxonomy/price_level_projection.py', 'api/services/bar_broadcaster.py', 'api/services/bar_stream.py'}
+
+tests/test_alert_taxonomy_price_level_projection.py:1388: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at /tmp/pytest-of-runner/pytest-0/test_flow_worker_does_not_reac0/auth.db
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_alert_taxonomy_price_level_projection.py:968
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_alert_taxonomy_price_level_projection.py:968: SyntaxWarning: invalid escape sequence '\d'
+    incident reached `C:\data\auth.db` while reporting a clean start. A tool
+
+tests/test_a8_primary_mention.py: 1 warning
+tests/test_account_size_authority.py: 1 warning
+tests/test_address_space.py: 2 warnings
+tests/test_alert_destination.py: 3 warnings
+tests/test_alert_erasure.py: 2 warnings
+tests/test_alert_ledger_admission.py: 3 warnings
+tests/test_alert_taxonomy_catalyst_match_compare.py: 1 warning
+tests/test_alert_taxonomy_event_proximity_schema.py: 1 warning
+tests/test_alert_taxonomy_indicator_condition_schema.py: 1 warning
+tests/test_alert_taxonomy_position_risk_compare.py: 1 warning
+tests/test_alert_taxonomy_position_risk_schema.py: 1 warning
+tests/test_alert_taxonomy_price_level_projection.py: 1 warning
+tests/test_alert_taxonomy_price_level_schema.py: 1 warning
+tests/test_alert_taxonomy_regime_change_compare.py: 1 warning
+tests/test_alert_taxonomy_regime_change_schema.py: 1 warning
+tests/test_alert_taxonomy_scan_membership_change_compare.py: 1 warning
+tests/test_alert_taxonomy_scan_membership_change_schema.py: 1 warning
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_a8_primary_mention.py::test_every_reader_of_the_join_is_tweet_store_or_a_recorded_mention_lister
+tests/test_alert_ledger_admission.py::test_the_door_has_EXACTLY_ONE_production_call_site
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_ai_doors_census.py::test_every_module_that_calls_a_model_is_described_in_the_door_table
+  api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+tests/test_ai_meters.py: 23 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/voice_usage.py:20: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return datetime.utcnow().strftime("%Y-%m")
+
+tests/test_alpha_gold_eod.py::test_render_card_returns_png
+tests/test_alpha_gold_eod.py::test_render_card_empty_day_ok
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/alpha_gold_eod.py:478: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    for (r, g, b, a) in _logo.getdata()])
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_alert_replay.py:625: walks 1,845 bars; set ALERT_REPLAY_FULL=1 (or run `python tools/alert_replay.py --check`)
+SKIPPED [1] tests/test_alert_taxonomy_price_level_projection.py:982: no live data root on this box to test the refusal against
+FAILED tests/test_a12_s6_consistency_rail.py::test_column_presets_have_a_typed_store_now - AssertionError: the write side is gone
+assert 'setPref(WATCHLIST_PERF_COLS_KEY, serialized)' in '// app/src/pages/Watchlists.jsx\n//\n// ⚠️ READ BEFORE CHANGING THE LAYOUT OF THIS FILE.\n//\n// This component has T...        onUnavailable={() => setWlHistoryId(null)}\n          />\n        </Sheet>\n      )}\n\n    </div>\n  )\n}\n\n'
+FAILED tests/test_a8_taxonomy.py::test_no_new_cashtag_grammar_and_the_baseline_only_shrinks - AssertionError: api/services/social_polarity.py:193 introduces a cashtag grammar '(?<![A-Za-z0-9])\\$[A-Za-z]{1,6}(?:[.-][A-Za-z]{1,2})?\\b' - read a8_taxonomy.CASHTAG_RE
+  api/services/tx_headline_match.py:63 introduces a cashtag grammar '\\$([A-Z]{1,5}(?:\\.[A-Z])?)\\b' - read a8_taxonomy.CASHTAG_RE
+  api/services/uct_agent/turn.py:1892 introduces a cashtag grammar '\\$[A-Za-z]{1,6}\\b|(?<![A-Za-z0-9])[A-Z]{1,5}(?![A-Za-z0-9])' - read a8_taxonomy.CASHTAG_RE
+  tools/agent_v2_corpus_cost.py:79 introduces a cashtag grammar '^\\$([A-Za-z]+)(?:\\[(\\d+)\\])?(?:\\{\\w+\\})?$' - read a8_taxonomy.CASHTAG_RE
+assert not ["api/services/social_polarity.py:193 introduces a cashtag grammar '(?<![A-Za-z0-9])\\\\$[A-Za-z]{1,6}(?:[.-][A-Za-z]{...uces a cashtag grammar '^\\\\$([A-Za-z]+)(?:\\\\[(\\\\d+)\\\\])?(?:\\\\{\\\\w+\\\\})?$' - read a8_taxonomy.CASHTAG_RE"]
+FAILED tests/test_account_size_enforcement_parity.py::test_scenario_simulator_size[A] - KeyError: 'account_size'
+FAILED tests/test_account_size_enforcement_parity.py::test_scenario_simulator_size[B] - KeyError: 'account_size'
+FAILED tests/test_account_size_enforcement_parity.py::test_scenario_simulator_size[D] - KeyError: 'account_size'
+FAILED tests/test_account_size_enforcement_parity.py::test_scenario_simulator_size[E] - KeyError: 'account_size'
+FAILED tests/test_account_size_enforcement_parity.py::test_scenario_simulator_size[F] - KeyError: 'account_size'
+FAILED tests/test_account_size_readers.py::test_scenario_simulator_runs_and_sizes_on_the_authority - KeyError: 'account_size'
+FAILED tests/test_account_tombstones.py::test_the_default_store_is_NEVER_the_real_bucket_unless_the_backups_are_armed - AssertionError: assert False
+ +  where False = isinstance(None, <class 'api.services.account_tombstones.R2ObjectStore'>)
+ +    where None = <function default_store at 0x7a96865da520>()
+ +      where <function default_store at 0x7a96865da520> = at.default_store
+ +    and   <class 'api.services.account_tombstones.R2ObjectStore'> = at.R2ObjectStore
+FAILED tests/test_address_space.py::test_every_owned_named_table_is_an_address_kind_or_exempt_with_a_reason - AssertionError: owned + named tables with no address and no exemption: ['agent_conversations', 'j2_obsidian_attachments', 'j2_routines', 'j2_trackers', 'j2_widget_definitions', 'tsdr_lessons', 'txn_collections'] -- give each an address kind in KINDS, or an EXEMPT line with its reason
+assert not ['agent_conversations', 'j2_obsidian_attachments', 'j2_routines', 'j2_trackers', 'j2_widget_definitions', 'tsdr_lessons', ...]
+FAILED tests/test_ai_doors_census.py::test_every_module_that_calls_a_model_is_described_in_the_door_table - AssertionError: these modules call a model API and api/services/ai_doors.py does not say what reaches them or what bounds their spend:
+    api/services/earnings_preview_warm.py  <- api/services/earnings_preview_warm.py:509 via:api/services/llm_batch.py llm_batch.submit (in _PreviewBatch), api/services/earnings_preview_warm.py:527 invoke .messages.create (in _live_preview)
+    api/services/pattern_vision/orchestrator.py  <- api/services/pattern_vision/orchestrator.py:141 via:api/services/llm_batch.py llm_batch.submit (in JudgeBatch)
+  
+  Add a Door: kind, surface, budget, and for a member door the meter it reads through and the module wiring the population cap (or `gap=` saying why not).
+assert not ['api/services/earnings_preview_warm.py', 'api/services/pattern_vision/orchestrator.py']
+FAILED tests/test_alert_destination.py::test_the_importers_of_this_module_are_EXACTLY_the_converted_roster - AssertionError: step 3's consumer roster has moved.
+    pinned but no longer importing : []
+    importing but not pinned       : ['api/services/llm_budget.py']
+assert {'api/auth_su...erts.py', ...} == {'api/auth_su...erts.py', ...}
+  
+  Extra items in the left set:
+  'api/services/llm_budget.py'
+  
+  Full diff:
+    {
+        'api/auth_surface_check.py',
+        'api/event_loop_watchdog.py',
+        'api/flow_backup.py',
+        'api/flow_gap_autofill.py',
+        'api/services/alerts.py',
+        'api/services/breadth_alerts.py',
+        'api/services/catalyst/digest.py',
+        'api/services/chart_health_alerts.py',
+        'api/services/chart_iq/pack.py',
+        'api/services/desk_daily_session.py',
+        'api/services/desktop_events.py',
+        'api/services/journal_two/books_audit.py',
+        'api/services/journal_two/broker/mirror_check.py',
+        'api/services/journal_two/broker/notifications.py',
+        'api/services/journal_two/notebook_slo.py',
+        'api/services/liveflow_monitor.py',
+  +     'api/services/llm_budget.py',
+        'api/services/measurement_window.py',
+        'api/services/session_guard.py',
+        'api/services/trade_exchange_news/ops_alerts.py',
+        'api/terminal_next_monitor_main.py',
+        'api/worker_main.py',
+    }
+FAILED tests/test_alert_erasure.py::test_THE_CENSUS_every_member_keyed_table_is_purged_cascaded_or_named_with_its_reason - AssertionError: member-keyed tables an account deletion neither purges nor names: add each to the purge (account_purge._DIRECT_USER_TABLES for auth.db, a store's erasure module otherwise) or to KNOWN_UNPURGED with the reason:
+    agent_conversation_state (api/services/uct_agent/store.py: user_id)
+    chart_iq_feedback (api/services/chart_iq/feedback.py: user_id)
+    j2_note_tweet_captures (api/services/journal_two/db.py: user_id)
+assert not ['agent_conversation_state (api/services/uct_agent/store.py: user_id)', 'chart_iq_feedback (api/services/chart_iq/feedback.py: user_id)', 'j2_note_tweet_captures (api/services/journal_two/db.py: user_id)']
+FAILED tests/test_alert_taxonomy_indicator_condition_projection.py::test_the_other_thirty_are_not_comparable - AssertionError: ['adx.adx', 'adx.minusDI', 'adx.plusDI', 'atr', 'bb', 'bb.lower', ...]
+assert 47 == 31
+FAILED tests/test_alert_taxonomy_indicator_condition_schema.py::test_the_callers_of_the_type_module_are_exactly_the_declared_four - AssertionError: the caller set changed: ['alert_erasure.py', 'dark_report.py', 'indicator_alert_evaluator.py', 'indicator_condition_compare.py', 'indicator_condition_projection.py', 'main.py']
+assert {'alert_erasu...y', 'main.py'} == {'indicator_a...y', 'main.py'}
+  
+  Extra items in the left set:
+  'alert_erasure.py'
+  'dark_report.py'
+  
+  Full diff:
+    {
+  +     'alert_erasure.py',
+  +     'dark_report.py',
+        'indicator_alert_evaluator.py',
+        'indicator_condition_compare.py',
+        'indicator_condition_projection.py',
+        'main.py',
+    }
+FAILED tests/test_alert_taxonomy_position_risk_schema.py::test_aggregate_heat_has_NO_scheduled_or_delivering_legacy_path - AssertionError: the portfolio_heat call sites moved: ['api/routers/portfolio_heat.py', 'api/services/ai_search_personal.py', 'api/services/journal_two/coach_chat_tools.py', 'api/services/journal_two/notebook_widgets.py', 'api/services/journal_two/shelf_discipline.py', 'api/services/portfolio_heat.py', 'api/services/test_portfolio_heat.py', 'api/services/voice_tool_impls.py']
+assert ['api/routers...heat.py', ...] == ['api/routers...heat.py', ...]
+  
+  At index 4 diff: 'api/services/journal_two/shelf_discipline.py' != 'api/services/portfolio_heat.py'
+  Left contains one more item: 'api/services/voice_tool_impls.py'
+  
+  Full diff:
+    [
+        'api/routers/portfolio_heat.py',
+        'api/services/ai_search_personal.py',
+        'api/services/journal_two/coach_chat_tools.py',
+        'api/services/journal_two/notebook_widgets.py',
+  +     'api/services/journal_two/shelf_discipline.py',
+        'api/services/portfolio_heat.py',
+        'api/services/test_portfolio_heat.py',
+        'api/services/voice_tool_impls.py',
+    ]
+FAILED tests/test_alert_taxonomy_price_level_projection.py::test_flow_worker_does_not_reach_d3_price_level_wiring - AssertionError: flow-worker's import closure now reaches: ['api/services/alert_taxonomy/price_level_compare.py', 'api/services/alert_taxonomy/price_level_projection.py', 'api/services/bar_broadcaster.py', 'api/services/bar_stream.py']
+assert not {'api/services/alert_taxonomy/price_level_compare.py', 'api/services/alert_taxonomy/price_level_projection.py', 'api/services/bar_broadcaster.py', 'api/services/bar_stream.py'}
+17 failed, 3415 passed, 2 skipped, 54 warnings in 940.12s (0:15:40)
