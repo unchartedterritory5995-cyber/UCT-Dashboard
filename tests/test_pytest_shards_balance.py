@@ -221,3 +221,55 @@ def test_workflow_passes_the_timing_file_by_path_everywhere():
     calls = [ln for r in runs for ln in r.splitlines() if "tools/pytest_shards.py" in ln]
     assert len(calls) >= 4, calls
     assert all("--timings %s" % TIMINGS in ln for ln in calls), calls
+
+
+# ------------------------------------------------------------------ collection errors
+
+def _run_pytest(tmp_path, *extra):
+    """A real pytest session over a tree with one un-importable file and one passing test."""
+    import subprocess
+    import sys
+    import xml.etree.ElementTree as ET
+    d = tmp_path / "tree"
+    d.mkdir()
+    (d / "test_broken.py").write_text("import a_module_that_does_not_exist_xyz\n",
+                                      encoding="utf-8")
+    (d / "test_ok.py").write_text("def test_passes():\n    assert True\n", encoding="utf-8")
+    junit = tmp_path / ("junit%s.xml" % len(extra))
+    p = subprocess.run(
+        [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "--rootdir", str(d),
+         *extra, "--junitxml", str(junit), str(d / "test_broken.py"), str(d / "test_ok.py")],
+        cwd=str(d), capture_output=True, text=True, timeout=120)
+    cases = []
+    if junit.is_file():
+        for tc in ET.parse(str(junit)).getroot().iter("testcase"):
+            bad = [c.tag for c in tc if c.tag in ("error", "failure")]
+            cases.append((tc.get("classname") or "", tc.get("name") or "", bad))
+    last = [ln for ln in p.stdout.splitlines() if ln.strip()][-1]
+    return p.returncode, last, cases
+
+
+def test_continue_on_collection_errors_runs_the_rest_and_still_reports_the_error(tmp_path):
+    rc, last, cases = _run_pytest(tmp_path, "--continue-on-collection-errors")
+    assert ("test_ok", "test_passes", []) in cases, cases          # the passing test RAN
+    errs = [c for c in cases if c[2] == ["error"] and "test_broken" in c[1]]
+    assert errs, cases                                             # the error is BY FILE in junit
+    assert "1 passed" in last and "1 error" in last, last          # and in the totals line
+    assert rc != 0, rc                                             # and the exit is non-zero
+
+
+def test_control_without_the_flag_the_passing_test_never_runs(tmp_path):
+    """The measured old-tests-07 shape: one bad import interrupts the whole session."""
+    rc, last, cases = _run_pytest(tmp_path)
+    assert not any(c[1] == "test_passes" for c in cases), cases
+    assert "Interrupted" in last or "1 error" in last, last
+    assert rc != 0
+
+
+def test_workflow_run_step_continues_on_collection_errors():
+    jobs = _pytest_job()
+    run = [str(s.get("run") or "") for s in jobs["pytest"]["steps"]
+           if isinstance(s, dict) and s.get("name") == "Run"][0]
+    cmd = run[run.index("xargs -a shard_files.txt"):]
+    cmd = cmd[:cmd.index("--junitxml")]
+    assert "--continue-on-collection-errors" in cmd, cmd

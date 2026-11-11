@@ -370,7 +370,13 @@ jobs:
         run: |
           python tools/pytest_shards.py --timings tools/pytest_shard_timings.json --files "${{ matrix.shard }}" > shard_files.txt
           wc -l < shard_files.txt | xargs echo "files in this shard:"
+          # 2026-11-10: --continue-on-collection-errors. Without it ONE file that cannot import
+          # (3 playwright files: No module named 'playwright') INTERRUPTS the whole session; old
+          # tests-07 ran 3 testcases in ~90 s and ~220 files never ran, every night. With it the
+          # collection error is still an ERROR by file (junit <error>, the totals line, non-zero
+          # exit) and the shard's other files still run. Rail: tests/test_pytest_shards_balance.py
           xargs -a shard_files.txt python -m pytest -q -p no:cacheprovider \
+            --continue-on-collection-errors \
             --timeout=120 --timeout-method=signal \
             --junitxml=pytest-junit.xml 2>&1 | tee pytest.log
           # ⛔ CAPTURE PIPESTATUS WITH NOTHING IN BETWEEN. `${PIPESTATUS[0]}` is reset by the
