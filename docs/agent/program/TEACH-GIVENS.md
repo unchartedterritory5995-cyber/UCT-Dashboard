@@ -46,7 +46,7 @@ Held-out first (`4001ec8cd0`), BEFORE raw (`ea3689276a`), fixes in `c5586a7b1c` 
 | the 14 pre-state rows | `4111ddec2a` | **13/14**. C3-219 is still failing: its last step shows the fallback "View Holdings shows on a chart of an ETF or an index", so the harness chart is not one. It needs an ETF-chart given, not built. | `final/inventory.results.json` |
 | held-out (`cases.givens.heldout.json`) | `4111ddec2a` | **24/27**. HG-14, HG-15 and HG-17 are why-questions about an alert. They reach no walkthrough (a routing family, not givens). | `final/heldout.results.json` |
 | the runner change: the 24 cases with a typing step that last passed (runs 11-07..11-09, matched by id) | `4111ddec2a` | **24/24**. None missing, none extra. | `final/runner-regression-typing.results.json` |
-| the runner change: the whole inventory (318 cases) | `4111ddec2a` | **308/318**. **0 newly failing** against `runs/2026-11-09.cov5b`, compared by id. 13 newly passing: C1-045, C2-007, C2-070, C2-071, C2-091, C2-092, C2-100, C3-122, C3-198, C3-199, C3-200, C3-203, C3-210. | `final/inventory-full-318.results.json` |
+| the runner change: the whole inventory (318 cases) | `4111ddec2a` | **308/318, local, simulated, unpaired.** No comparison against master and no regression claim (AUDIT T1 ruling, 2026-11-11). The 10 failing rows: C1-152, C1-153, C3-023, C3-058, C3-120, C3-136, C3-146, C3-183, C3-184, C3-219. | `final/inventory-full-318.results.json` |
 
 **Known failures, all pre-existing** (failing in every run since 2026-11-07, from `final` through `cov5b`): C1-152 and C1-153 (no point of the named region opens the row), C3-023, C3-058, C3-120, C3-136, C3-146, C3-183, C3-184 and C3-219.
 
