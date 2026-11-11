@@ -36,9 +36,14 @@ describe('isIntradayTailStale', () => {
       // frontier is fresh on every timeframe; two missing bars is behind on every one.
       const preOpen = sec('2026-08-19T13:00:00Z')  // today 09:00 ET (pre-market bar)
       expect(isIntradayTailStale(preOpen, '5')).toBe(true)
+      // 60m is the TradingView grid (09:30, 10:30 …): at 11:00 only the 09:30-10:30 bar
+      // has completed, so a 09:00 tail is ONE bucket behind (fresh) and 09:30 is the frontier.
+      expect(isIntradayTailStale(preOpen, '60')).toBe(false)
+      expect(isIntradayTailStale(sec('2026-08-19T13:30:00Z'), '60')).toBe(false)  // 09:30: the frontier
+      // …and at 11:35 (09:30 AND 10:30 completed) the 09:00 tail is two missing bars: behind.
+      vi.setSystemTime(new Date('2026-08-19T15:35:00Z'))
       expect(isIntradayTailStale(preOpen, '60')).toBe(true)
       expect(isIntradayTailStale(sec('2026-08-19T13:30:00Z'), '60')).toBe(false)  // 09:30: 1 bucket behind
-      expect(isIntradayTailStale(sec('2026-08-19T14:00:00Z'), '60')).toBe(false)  // 10:00: the frontier
     })
   })
 

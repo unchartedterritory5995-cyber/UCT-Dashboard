@@ -21,6 +21,8 @@
 // Bar shape here is the chart's: { time, open, high, low, close, volume, sym?, tradeTs? }
 // where `time` is the chart-series time (already ET-offset — the caller converts).
 
+import { bucketEndChartTime } from '../components/chart/barTime'
+
 const finitePos = (v) => Number.isFinite(v) && v > 0
 
 /** True when every OHLC field is a finite positive number and low <= high. */
@@ -43,17 +45,9 @@ export const LIVE_PERIOD_SECONDS = Object.freeze({ '1': 60, '5': 300, '15': 900,
  * (04:00 … 19:00), no anchors — matches /api/stream/bars?session=eth.
  */
 export function bucketEndTime(barTime, tf, session = 'rth') {
-  const period = LIVE_PERIOD_SECONDS[String(tf)] || 300
-  let end = barTime + period
-  if (String(tf) === '60' && session !== 'eth') {
-    const tod = ((barTime % 86400) + 86400) % 86400
-    const day = barTime - tod
-    for (const anchor of [570 * 60, 960 * 60]) {
-      const a = day + anchor
-      if (a > barTime && a < end) end = a
-    }
-  }
-  return end
+  // ⭐ ONE implementation: chart/barTime.js (twin of bar_rollup.tv_bucket_bounds),
+  // which also knows the 13:00 half-day close.
+  return bucketEndChartTime(barTime, String(tf), session)
 }
 
 /**
@@ -66,7 +60,8 @@ export function bucketEndTime(barTime, tf, session = 'rth') {
  * @param {boolean} [opts.final] server says this bar is the FINAL closed bar for its bucket
  * @param {number} [opts.tradeTs] unix ms of the newest trade folded into `inc`
  * @param {string} [opts.tf]   chart timeframe code (for the trade_ts bucket check)
- * @param {number} [opts.timeOffsetSec] chart time = unix seconds + this (to compare trade_ts)
+ * @param {number} [opts.timeOffsetSec] chart time = unix seconds + this (legacy constant; prefer toChart)
+ * @param {function} [opts.toChart] unix seconds -> chart time (barTime.toChartTime, per-instant ET offset)
  * @param {string} [opts.session] 'rth' | 'eth' (60m alignment, see bucketEndTime)
  * @returns {{kind:'new'|'update'|'stale'|'correct'|'drop', bar?:object}}
  *   new    — inc opens a later bucket than prev (or there is no usable prev): paint inc as is
@@ -78,14 +73,15 @@ export function bucketEndTime(barTime, tf, session = 'rth') {
  *   drop   — malformed / inconsistent frame
  */
 export function mergePushBar(prev, inc, opts = {}) {
-  const { sym = null, final = false, tradeTs = null, tf = null, timeOffsetSec = 0, session = 'rth' } = opts
+  const { sym = null, final = false, tradeTs = null, tf = null, timeOffsetSec = 0, session = 'rth', toChart = null } = opts
   if (!inc || !Number.isFinite(inc.time) || !isCompleteOhlc(inc)) return { kind: 'drop' }
   // I4 by trade time: when the server tells us WHEN the newest trade in this bar
   // printed, it must fall inside the bar's own bucket. A frame whose trade lies
   // outside it is a mis-bucketed partial — painting it would fuse prints across
   // the boundary. (Absent field ⇒ trust the bucket, the pre-existing contract.)
   if (Number.isFinite(tradeTs) && tf != null) {
-    const tradeChart = Math.floor(tradeTs / 1000) + timeOffsetSec
+    const _sec = Math.floor(tradeTs / 1000)
+    const tradeChart = typeof toChart === 'function' ? toChart(_sec) : _sec + timeOffsetSec
     if (tradeChart < inc.time || tradeChart >= bucketEndTime(inc.time, tf, session)) return { kind: 'drop' }
   }
   const usable = prev && Number.isFinite(prev.time) && (sym == null || prev.sym == null || prev.sym === sym)

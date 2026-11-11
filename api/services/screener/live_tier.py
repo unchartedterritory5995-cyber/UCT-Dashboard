@@ -158,6 +158,25 @@ LIVE_COLUMNS = (
     # "by now", and faking one from `vol_ratio` would be a second quantity
     # under this column's name.
     "rvol_live",                # 29 today_vol / (avg_volume_30d * share_by_now)
+    # ── multi-day change, market cap and MINV3.1 (owner ask, 2026-11-10: "all scans
+    # should be immediately live") ─────────────────────────────────────────
+    # ⛔ THE BASES ARE STORED, NOT RECOVERED. `_recover_level` on `chg_pct_1w` gives the
+    # close 5 sessions before the NEWEST COMPLETED one, but during the session today's
+    # bar is bar 0, so c/c5 means the live price over the close 4 sessions before it:
+    # one session later. Recovering would silently publish a 6-day change under a
+    # 5-day name. The build stores the shifted bases (`technicals.scan_primitives`,
+    # `live_base_*`); a NULL base keeps the nightly value. 3m/6m come from the RS
+    # ranking job, which stores no base, and stay nightly.
+    "chg_pct_1w",               # 30 live / live_base_close_1w
+    "chg_pct_1m",               # 31 live / live_base_close_1m
+    "chg_pct_1y",               # 32 live / live_base_close_1y
+    # MINV3.1 does not move during a session, but WHICH sessions it reads does: at 03:00
+    # it is the 3 before the newest completed bar, during the session the 3 newest
+    # completed ones. Restated from the stored base so a 10:42 scan matches TC2000's.
+    "min_volume_3d_prior",      # 33 live_base_min_volume_3d
+    # The provider's figure is dated last night's price; shares do not move intraday,
+    # so cap scales with price. An ESTIMATE in the way every live screener's is.
+    "market_cap",               # 34 market_cap * P1/P0
 )
 
 #: ⭐ COLUMNS THAT NEED THE SESSION CLOCK AND THE NIGHTLY VOLUME CURVE, on top of
@@ -211,7 +230,9 @@ FEED_FIELD_DEPENDENCIES = {
 # ⭐ `avg_volume_30d` is the denominator level of `rvol_live`: the mean of the 30
 # sessions through `bars_asof` (`snapshot_builder`), i.e. completed sessions only.
 ANCHOR_COLUMNS = ("bars_asof", "atr_pct", "pt_target",
-                  "candle_trend", "avg_body", "avg_range", "avg_volume_30d")
+                  "candle_trend", "avg_body", "avg_range", "avg_volume_30d",
+                  "live_base_close_1w", "live_base_close_1m", "live_base_close_1y",
+                  "live_base_min_volume_3d")
 
 #: The one SELECT the sweep runs against `screener_rows`. Derived from the two
 #: lists above so a 23rd live column cannot be forgotten here.
@@ -764,6 +785,23 @@ def derive_row(anchor_row: dict, quote, ymd: int, live_asof: float,
             # is the difference between a description and a claim, and it is
             # the same word the weekly and monthly columns already use.
             put("candle_label", candle_catalog.label_for(shape) + " (forming)")
+
+    # 30-32 — the stored, session-shifted bases (see `LIVE_COLUMNS`). A missing or
+    # non-positive base keeps the nightly value; `pct` refuses a zero base anyway.
+    for col, base_col in (("chg_pct_1w", "live_base_close_1w"),
+                          ("chg_pct_1m", "live_base_close_1m"),
+                          ("chg_pct_1y", "live_base_close_1y")):
+        base = _num(anchor_row.get(base_col))
+        if base is not None and base > 0:
+            put(col, pct(p1, base))
+    # 33 — constant through the session; only which three sessions it names moved.
+    minv3 = _num(anchor_row.get("live_base_min_volume_3d"))
+    if minv3 is not None:
+        put("min_volume_3d_prior", minv3)
+    # 34 — shares x price, with shares implied by last night's cap over last night's price.
+    mcap = _num(anchor_row.get("market_cap"))
+    if mcap is not None and mcap > 0:
+        put("market_cap", round(mcap * p1 / p0, 2))
 
     row = {
         "ticker": anchor_row.get("ticker"),

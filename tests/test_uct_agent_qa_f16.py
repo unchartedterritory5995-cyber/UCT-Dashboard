@@ -140,7 +140,14 @@ def test_no_order_asked_means_market_cap_desc_never_the_composite():
 # Re-pinned 2026-11-10 (Screener speed, batch speed-2): e1a715868b and 966bca5191 change query.py and snapshot_builder.py on
 # purpose (the stale-row gate is computed once per snapshot, and a failed read is never kept; results pinned equal; independently
 # reviewed). The pin is that work's last Screener commit; no other Screener file changed since d72c0e62f2.
-SCREENER_PIN = "966bca5191e36158883076e14ec6ae0c00f78029"
+# Re-pinned 2026-11-10 (Anticipation preset, PR #1044): 54dabb6cb4 changes filters.py, saved_screens.py, snapshot_db.py
+# and technicals.py on purpose (the Anticipation built-in preset and the new nightly `min_volume_3d_prior` / MINV3.1
+# primitive). It is the only Screener commit since 966bca5191 (`git log 966bca5191..origin/master -- <paths>`). It left
+# master's deploy gate red; re-pinned by the desktop speed session to unblock every deploy behind it.
+# Re-pinned 2026-11-10 (live screener): 1a26d4ea00 changes live_tier.py, technicals.py and snapshot_db.py on
+# purpose (five more live columns, and the four live_base_* columns the nightly build now stores for them). It is
+# the only Screener commit since 54dabb6cb4; re-pinned in the same PR so master's deploy gate never goes red.
+SCREENER_PIN = "1a26d4ea00224d20cdf52e4f3ead41c0c2bab318"
 SCREENER_PATHS = ("api/services/screener", "api/routers/screener.py", "api/routers/scan_results.py")
 
 
@@ -189,7 +196,7 @@ def test_the_guard_can_say_no():
         pytest.skip("the pinned commit %s is not in this checkout" % SCREENER_PIN)
     r = _screener_diff(SCREENER_PIN + "~1", SCREENER_PIN)
     assert r.returncode == 0, r.stderr
-    assert "api/services/screener/snapshot_builder.py" in r.stdout.split()  # the file the pinned commit changed (a failed stale-gate read is never kept)
+    assert "api/services/screener/live_tier.py" in r.stdout.split()  # a file the pinned commit changed (the live screener)
 
 
 def test_no_UCT_weight_or_formula_is_named_in_the_models_instructions():

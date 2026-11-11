@@ -240,3 +240,24 @@ describe('N1: "next bucket ahead" expires after the bucket ends + grace', () => 
     expect(o(at(10, 16, 0))).toBe(false)      // past grace: server tail wins
   })
 })
+
+describe('bucketEndTime delegates to barTime (half-day + per-instant offset) — W-E', () => {
+  it('a 13:00 half-day: the 12:30 RTH bar ends at 13:00, the 13:00 post bar at 14:00', async () => {
+    const { bucketEndTime: end } = await import('./liveBarMerge')
+    const { toChartTime } = await import('../components/chart/barTime')
+    const at = (h, m) => toChartTime(Date.UTC(2026, 10, 27, h + 5, m) / 1000)   // Nov 27: EST
+    expect(end(at(12, 30), '60', 'rth')).toBe(at(13, 0))
+    expect(end(at(13, 0), '60', 'rth')).toBe(at(14, 0))
+    expect(end(at(12, 0), '60', 'eth')).toBe(at(13, 0))
+  })
+  it('mergePushBar compares trade time through toChart, not a constant offset', async () => {
+    const { mergePushBar } = await import('./liveBarMerge')
+    const { toChartTime } = await import('../components/chart/barTime')
+    const u = Date.UTC(2026, 9, 30, 14, 30) / 1000             // 10:30 EDT (pre-DST-change bar)
+    const inc = { time: toChartTime(u), open: 1, high: 2, low: 1, close: 1.5, volume: 1 }
+    const tradeTs = (u + 120) * 1000
+    expect(mergePushBar(null, inc, { tf: '60', tradeTs, toChart: toChartTime }).kind).toBe('new')
+    // a constant EST offset puts that trade an hour early → outside its own bucket
+    expect(mergePushBar(null, inc, { tf: '60', tradeTs, timeOffsetSec: -18000 }).kind).toBe('drop')
+  })
+})

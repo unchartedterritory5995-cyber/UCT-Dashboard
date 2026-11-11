@@ -10,6 +10,7 @@
  */
 
 import { classifyIntradayTail } from './marketSession'
+import { isOnSixtyMinGrid } from '../components/chart/barTime'
 
 const DB_NAME    = 'uct_bars_v1'
 // Stay at v2. The v3 bump caused a deadlock: existing v2 connections held by
@@ -59,6 +60,11 @@ const STORE      = 'bars'
 // time with a heal-on-mismatch guard in the RENDER path too (StockChart _idbBasisMismatch),
 // not just the pack importer — so a chart rendering straight from IDB before any pack
 // re-ingest also self-heals a future re-basis without another bump.
+//
+// ⛔ NOT bumped for the 2026-11-10 60m grid move (TradingView 09:30, 10:30 …
+// 15:30; was 09:30 then clock hours). A bump would drop EVERY timeframe in
+// every browser at once — the 2026-05-24 herd below. Old-layout 60m entries
+// are discarded individually on read instead (`_hasOldSixtyMinGrid`).
 const CACHE_LOGIC_VERSION = 7
 
 // Intraday freshness is judged by BAR-DATA age against the last CLOSED trading session
@@ -123,6 +129,27 @@ async function _open() {
 
 function _key(sym, tf) {
   return `${sym.toUpperCase()}_${tf}`
+}
+
+/**
+ * A 60m entry written before the 2026-11-10 grid move (09:30, 10:00, 11:00 …)
+ * carries off-grid bucket starts; merging a new-grid delta into it would put
+ * 10:00 AND 10:30 candles side by side. Such an entry is treated as absent →
+ * ONE full 60m refetch for that chart, spread over chart opens (no herd).
+ * Probes both ends (an entry is wholly one layout: a mixed one is discarded
+ * the first time it is read).
+ */
+export function _hasOldSixtyMinGrid(bars, tf) {
+  if (String(tf) !== '60' || !Array.isArray(bars) || !bars.length) return false
+  const n = bars.length
+  const idx = []
+  for (let i = Math.max(0, n - 120); i < n; i++) idx.push(i)
+  for (let i = 0; i < Math.min(40, n); i++) idx.push(i)
+  for (const i of idx) {
+    const t = bars[i]?.t
+    if (typeof t === 'number' && !isOnSixtyMinGrid(t, false)) return true
+  }
+  return false
 }
 
 // Detect mid-session gaps in cached intraday bar series. mergeDelta can only
@@ -248,6 +275,8 @@ export async function idbGet(sym, tf) {
         // starts: the chart asks `since=<repairFromT-1>`, which returns every row after
         // it — the hole's bars if they exist, an empty stretch if the name simply did not
         // trade. `lastT` stays the TRUE tail so currentness is judged on what we hold.
+        // 60m grid move (2026-11-10): an old-layout entry is refetched, per chart, never in bulk.
+        if (_hasOldSixtyMinGrid(entry.bars, tf)) return resolve(null)
         const repairFromT = _intradayGapStart(bars, tf)
         const out = (bars === entry.bars && repairFromT == null)
           ? entry

@@ -166,9 +166,13 @@ def pending(surface: Optional[str] = None) -> list[dict]:
     return [r for r in rows if surface is None or r.get("surface") == surface]
 
 
-def reap(surface: str, handle: Callable[[str, Any, dict], None]) -> dict[str, Any]:
+def reap(surface: str, handle: Callable[[str, Any, dict], None], *,
+         door: Optional[str] = None) -> dict[str, Any]:
     """Collect every ENDED batch for `surface`, calling
     `handle(custom_id, message_or_None, meta)` once per result.
+
+    `door` is the module the spend belongs to in the AI-spend ledger (and so the
+    budget it counts against); without it every batch lands on this module.
 
     `message` is the Anthropic Message on success and None on any error /
     expiry / cancellation — a consumer that writes nothing for None keeps the
@@ -227,7 +231,7 @@ def reap(surface: str, handle: Callable[[str, Any, dict], None]) -> dict[str, An
                 # response hook as a Message, so they are recorded here, at the batch rate.
                 try:
                     from api.services import llm_usage
-                    llm_usage.record_message(message, door="api/services/llm_batch.py",
+                    llm_usage.record_message(message, door=door or "api/services/llm_batch.py",
                                              func=str(surface), kind="batch")
                 except Exception:  # noqa: BLE001 -- metering never drops a result
                     pass

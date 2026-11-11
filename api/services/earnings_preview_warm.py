@@ -435,6 +435,126 @@ _COST_CAP_ENV = "EARNINGS_WARM_COST_CAP_DAILY"
 _COST_SURFACE = "earnings_warm"
 
 
+# -- The Batch lane (2026-11-10 AI-spend audit) ------------------------------------
+# A preview is warmed days before the print and read later, so its one Claude call
+# goes to the Message Batches API at half price. Pool jobs hand their request to a
+# per-pass collector (engine.EARNINGS_BATCH_COLLECTOR) instead of calling live; the
+# collector submits in chunks and `reap_preview_batches` (every 10 min) finishes
+# each result through engine.finish_earnings_preview, the same cache + persist the
+# live path does. Only PREVIEWS: the post-print analysis has a reader within
+# minutes, and a live click on top of a pending batch would pay twice.
+# Rollback, no code change: EARNINGS_WARM_BATCH=0 (or LLM_BATCH_ENABLED=0).
+_BATCH_SURFACE = "earnings_preview"
+_BATCH_CHUNK = 10          # a redeploy can strand at most one unsubmitted chunk
+
+
+def preview_batch_enabled() -> bool:
+    from api.services import llm_batch
+    return (llm_batch.enabled()
+            and os.environ.get("EARNINGS_WARM_BATCH", "1").strip().lower() not in ("0", "false", "no"))
+
+
+def _json_safe(obj):
+    """The batch ledger refuses an unserializable row (and with it the batch id), so
+    the meta is round-tripped through JSON before it gets there."""
+    import json
+    return json.loads(json.dumps(obj, default=str))
+
+
+class _PreviewBatch:
+    """Collects deferred preview calls for ONE warm pass and submits them in chunks.
+    Thread-safe: the pool's workers call it concurrently. After close() it declines,
+    so a straggler generates live rather than queueing into a batch nobody submits."""
+
+    def __init__(self, chunk: int = _BATCH_CHUNK):
+        self._lock = threading.Lock()
+        self._items: list = []
+        self._taken: set = set()
+        self._closed = False
+        self.chunk = max(1, int(chunk))
+        self.queued = self.batches = self.live_fallback = 0
+
+    def __call__(self, kind: str, sym: str, request: dict, meta: dict) -> bool:
+        if kind != "preview":
+            return False
+        from api.services import llm_batch
+        try:
+            item = (llm_batch.custom_id(kind, sym, taken=self._taken), _json_safe(request), _json_safe(meta))
+        except Exception as e:  # noqa: BLE001
+            _logger.warning("[earn-warm] %s cannot be batched (%s); calling live", sym, e)
+            return False
+        with self._lock:
+            if self._closed:
+                return False
+            self._items.append(item)
+            self.queued += 1
+            ready = None
+            if len(self._items) >= self.chunk:
+                ready, self._items = self._items, []
+        if ready:
+            self._submit(ready)
+        return True
+
+    def close(self) -> None:
+        with self._lock:
+            self._closed = True
+            ready, self._items = self._items, []
+        if ready:
+            self._submit(ready)
+
+    def _submit(self, items: list) -> None:
+        from api.services import llm_batch
+        requests = [{"custom_id": cid, "params": req} for cid, req, _ in items]
+        meta = {cid: m for cid, _, m in items}
+        if llm_batch.submit(_BATCH_SURFACE, requests, meta):
+            self.batches += 1
+            return
+        # The batch never left: generate these live, at full price, rather than leave
+        # them cold for the day with their warm attempt already spent.
+        _logger.warning("[earn-warm] batch submit failed; generating %d preview(s) live", len(items))
+        for _cid, req, m in items:
+            self.live_fallback += 1
+            _live_preview(req, m)
+
+
+def _live_preview(request: dict, meta: dict) -> None:
+    from api.services import engine, narrative_cost_guard
+    sym = str(meta.get("sym") or "")
+    try:
+        with _door():
+            client = engine._get_anthropic_client()
+            with narrative_cost_guard.charge_if_failed(_COST_SURFACE, request):
+                msg = client.messages.create(**request)
+        engine.finish_earnings_preview(msg, meta, discount=1.0)
+    except Exception as e:  # noqa: BLE001
+        _logger.warning("[earn-warm] live fallback failed %s: %s", sym, e)
+        try:
+            engine._release_unbilled_attempt("preview", sym, e)
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def _close_after(futures: list, batch: "_PreviewBatch") -> None:
+    from concurrent.futures import wait
+    try:
+        wait(futures, timeout=6 * 3600)
+    finally:
+        batch.close()
+        _logger.info("[earn-warm] batch lane: queued=%d batches=%d live_fallback=%d",
+                     batch.queued, batch.batches, batch.live_fallback)
+
+
+def reap_preview_batches() -> dict:
+    """Collect finished preview batches (scheduler thread). Spend is credited to the
+    warm's own line in the AI-spend ledger, so its budget sees it."""
+    from api.services import engine, llm_batch
+
+    def handle(_cid, message, meta):
+        engine.finish_earnings_preview(message, meta, discount=llm_batch.BATCH_DISCOUNT)
+
+    return llm_batch.reap(_BATCH_SURFACE, handle, door=_WARM_DOOR)
+
+
 def _cost_cap_reached() -> bool:
     """The warm's dollar gate, OFF until `EARNINGS_WARM_COST_CAP_DAILY` is set. There is deliberately no
     default: the amount is the owner's decision, so setting one is config only. Unset, zero or
@@ -504,6 +624,8 @@ def _run(kind: str, generator, reported: bool) -> dict:
         board = board[:max(top_n, _companion_top_n())]
 
         submitted = fresh = companions = 0
+        batch = _PreviewBatch() if (kind == "preview" and preview_batch_enabled()) else None
+        brief_futures: list = []
         for row in board:
             sym = row["sym"]
             brief_row = brief_rows.get(sym)
@@ -514,11 +636,16 @@ def _run(kind: str, generator, reported: bool) -> dict:
                 else:
                     # force_fresh_check=True → the generator re-checks the
                     # signals_hash and only calls Claude if the inputs changed.
-                    _POOL.submit(_safe_gen, generator, sym, brief_row)
+                    brief_futures.append(_POOL.submit(_safe_gen, generator, sym, brief_row, batch))
                     submitted += 1
             if want_companions and _needs_companion(sym):
                 _POOL.submit(_safe_companions, sym)
                 companions += 1
+
+        if batch is not None:
+            # The pass returns now, as before; this closes the collector once its jobs drain.
+            threading.Thread(target=_close_after, args=(brief_futures, batch),
+                             name=f"earn-warm-batch-{kind}", daemon=True).start()
 
         # COVERED is measured from the artifacts, not from what this pass just
         # queued — see `is_covered`. It is the number that makes a silently
@@ -558,7 +685,7 @@ def _run(kind: str, generator, reported: bool) -> dict:
         lock.release()
 
 
-def _safe_gen(generator, sym: str, row: dict) -> None:
+def _safe_gen(generator, sym: str, row: dict, batch=None) -> None:
     try:
         if _cost_cap_reached():             # a queued job re-asks: a pass can queue hundreds of names
             return
@@ -569,7 +696,15 @@ def _safe_gen(generator, sym: str, row: dict) -> None:
         # separate budgets. A thread-pool job does not inherit the caller's context,
         # so the label is set here, inside the job.
         with _door():
-            generator(sym, row, force_fresh_check=True)
+            if batch is None:
+                generator(sym, row, force_fresh_check=True)
+                return
+            from api.services import engine
+            token = engine.EARNINGS_BATCH_COLLECTOR.set(batch)
+            try:
+                generator(sym, row, force_fresh_check=True)
+            finally:
+                engine.EARNINGS_BATCH_COLLECTOR.reset(token)
     except Exception as e:
         _logger.warning("[earn-warm] gen failed %s: %s", sym, e)
 
