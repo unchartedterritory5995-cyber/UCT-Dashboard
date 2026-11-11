@@ -244,7 +244,10 @@ export function routeManifestV2(manifest, message, opts = {}, extra = []) {
   // decisively (best ≥ STRONG) is routed on that evidence plus its entities, as v1 routes a message its words recognise
   const doubt = sel.uncertain || !sel.matched
   const fillOn = k.FILL_WHEN === 'uncertain' ? doubt : v1Fill
-  const fill = fillOn ? [...(sel.v1Soft || sel.soft || []), 'charts', ...GROUPS.map(g => g.id).filter(id => id !== 'charts').sort(fillOrder)] : []
+  // `wordsOnly` (routing.js, #1027): a niche group is never filler. As in v1's own fallback (selectGroups `filler`), it is
+  // packed only when its own words name the message (and then v1 recognised it, so the fill is off anyway)
+  const filler = GROUPS.filter(g => g.id !== 'charts' && (!g.wordsOnly || wordsSelect(g.id, message))).map(g => g.id)
+  const fill = fillOn ? [...(sel.v1Soft || sel.soft || []), 'charts', ...filler.sort(fillOrder)] : []
 
   // 3b. LIKELY (D1.1, context-aware candidate expansion — never an all-tool fallback): what the message's ENTITIES make
   //     likely, packed right after its own groups — a ticker: its chart, its data, an alert on it; a price: an alert or a
