@@ -2,7 +2,7 @@
 
 The monitor lives on the worker; a process cannot report its own death. So after every cycle it
 POSTs a heartbeat ({at, next_due_s, phase, ...}) to ``POST /api/internal/chart-monitor/heartbeat``
-on this pod (service bearer, ``require_bars_service``), which ``record`` stores on the web volume.
+on this pod (PUSH_SECRET service bearer), which ``record`` stores on the web volume.
 A web scheduler job (``register``) runs ``check`` every 5 minutes: when the newest beat is older
 than ``max(STALE_FACTOR × next_due_s, MIN_STALE_S)`` it pages the ops channel ONCE (hysteresis via
 ``alerting.step``) and posts a resolve when beats resume.
