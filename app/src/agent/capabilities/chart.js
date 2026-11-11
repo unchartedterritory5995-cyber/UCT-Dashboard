@@ -46,6 +46,9 @@ import { MAX_COMPARISONS } from '../../components/chart/chartCeilings'
 import { isPronounToken, isReservedWord, groundSymbols, groundingOf, resolvedTicker, candidatesText, suggestionText } from '../nl/tickers'
 import { plainSymbolWord } from '../nl/lexicon'
 import { matchName } from '../nl/match'
+import { whenVisible } from '../frames'
+// C1-178: as app.js NAV_DELAY_MS — the receipt is on screen before Ask AI leaves Charts
+const ASK_AI_DELAY_MS = 900
 
 // The chart types and the timeframes UCT charts natively are the PRODUCT's lists
 // (chartDefaults.CHART_TYPE_OPTIONS, timeframes.NATIVE_TFS) — imported, never copied, so a new
@@ -340,7 +343,9 @@ export const chartKind = {
     watermarkPos: snap.watermarkPos ?? null, volPanePref: snap.volPanePref ?? null, volPanePct: snap.volPanePct, prefsWritable: !!snap.prefsWritable,
     canvasTheme: snap.canvasTheme ?? null, view: snap.view ?? null, viewDo: null,
     // C1-127: the chart's own Chart Settings door — may it open here (absent = no door: false), and is it open now
-    canOpenSettings: snap.canOpenSettings === true, settingsOpen: !!snap.settingsOpen, openSettings: null }),
+    canOpenSettings: snap.canOpenSettings === true, settingsOpen: !!snap.settingsOpen, openSettings: null,
+    // C1-178: the right-click "Ask AI about {sym}" door (absent = none)
+    canAskAi: snap.canAskAi === true, askAi: null }),
   patch(before, after) {
     const p = {}
     if (after.cs !== before.cs) p.settings = after.cs
@@ -352,13 +357,14 @@ export const chartKind = {
     if (after.volPanePref !== before.volPanePref) p.volPanePref = after.volPanePref
     if (after.viewDo != null) p.viewDo = after.viewDo
     if (after.openSettings === true) p.openSettings = true
+    if (after.askAi === true) p.askAi = true
     return Object.keys(p).length ? p : null
   },
   // Settings / timeframe / ticker in ONE write through the widget; a date jump (a VIEW) through
   // the Time Navigator's own goToDate, then wait for the view to arrive (a jump past the loaded
   // history loads it first) — the receipt only claims what the chart then shows.
   async commit(host, ref, patch) {
-    const { goto, replay, volPanePref, viewDo, openSettings, ...rest } = patch
+    const { goto, replay, volPanePref, viewDo, openSettings, askAi, ...rest } = patch
     let ok = true
     if (Object.keys(rest).length) ok = host.charts.commit(ref, rest)
     // The drag's own pref (setPref → true only once the server accepted it); '' clears it, as Reset does (ChartsWorkspace)
@@ -390,6 +396,13 @@ export const chartKind = {
       const t0 = Date.now()
       while (Date.now() - t0 < 2000 && !host.charts.read(ref)?.settingsOpen) await new Promise(r => setTimeout(r, 50))
     }
+    // C1-178: the chart's own right-click "Ask AI about {sym}" (ChartWidget openAskAi → /research/:sym?section=ai). It leaves
+    // Charts, so — as app.open — it runs AFTER the receipt is on screen (and from a hidden tab only once the member is back).
+    // The door must be there now; what it opens is the chart's symbol at that moment, exactly as the menu item would.
+    if (askAi && ok) {
+      if (typeof host.charts.askAi !== 'function' || !host.charts.read(ref)?.canAskAi) return false
+      setTimeout(() => whenVisible(() => host.charts.askAi(ref)), ASK_AI_DELAY_MS)
+    }
     return ok
   },
   landed(snap, patch) {
@@ -403,12 +416,15 @@ export const chartKind = {
     if ('volPanePref' in patch && (snap.volPanePref ?? null) !== (patch.volPanePref ?? null)) return false
     if ('viewDo' in patch && !viewDone(snap.view, patch.viewDo)) return false
     if ('openSettings' in patch && !snap.settingsOpen) return false
+    // C1-178: leaving the page happens after the receipt (app.open's rule): there is nothing on the chart to read back
     return true
   },
   undoPatch(item) {
     // C1-127: opening Chart Settings changed nothing, so on its own there is nothing to undo (chartSetup.openSettings,
     // undo 'none'); asked together with a real change, that change keeps its own Undo — the dialog is not part of it
     if ('openSettings' in item.patch && Object.keys(item.patch).length === 1) return null
+    // C1-178: Ask AI opens a page; nothing on the chart changed, and leaving the page has no Undo (as app.open)
+    if ('askAi' in item.patch && Object.keys(item.patch).length === 1) return null
     const p = {}
     if ('settings' in item.patch) p.settings = item.before.stored ?? null
     if ('tf' in item.patch) p.tf = item.before.tf

@@ -282,6 +282,8 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // (`onOptsChange` for settings + tf in ONE call, `setGroupSym` for the ticker,
   // exactly what a search pick does). The Agent writes no indicator state.
   const agentRef = useRef(null)
+  // the right-click "Ask AI about {sym}" opener (openAskAi, below), for the Agent adapter
+  const askAiRef = useRef(null)
   agentRef.current = {
     chartId, tabId: isMainTab ? null : (activeExtra?.id || null),
     opts, isMainTab, activeExtra, onOptsChange, setGroupSym, activeColor,
@@ -344,6 +346,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         // INDICATORS M3 (AGENT-M3-CONTRACT §3.3): the tab's one authoring preview on THIS chart.
         showAuthoringPreview: (def, o) => paneRef.current?.showAuthoringPreview?.(def, o) ?? { ok: false, reason: 'readonly' },
         clearAuthoringPreview: () => !!paneRef.current?.clearAuthoringPreview?.(),
+        // C1-178: right-click → "Ask AI about {sym}": the menu's own opener (openAskAi below), never a second route
+        canAskAi: () => !!askAiRef.current?.can?.(),
+        askAi: () => !!askAiRef.current?.open?.(),
         // ONE onOptsChange for settings + tf; the ticker through the colour group.
         // `settings` present (even null) means "store exactly this blob".
         // `watermarkPos` is the widget's own (every tab shows it), in the shape endWatermarkAdjust / resetWatermark write.
@@ -628,10 +633,17 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // in the app, exactly like the earlier TickerActions.jsx fix. No context
   // beyond the symbol is threaded through: canonical Ask AI has no query
   // pre-fill mechanism today, and inventing one is out of scope here.
+  // C1-178: ONE opener: the menu item below and the Agent adapter's askAi both call it
+  const openAskAi = useCallback(() => {
+    if (!sym) return false
+    navigate(`/research/${sym}?section=ai`)
+    return true
+  }, [sym, navigate])
+  askAiRef.current = { can: () => !!sym, open: openAskAi }
   const handleAiSearch = useCallback(() => {
     closeCtx()
-    navigate(`/research/${sym}?section=ai`)
-  }, [sym, navigate, closeCtx])
+    openAskAi()
+  }, [openAskAi, closeCtx])
 
   return (
     <>
