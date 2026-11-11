@@ -52,7 +52,7 @@ import { serverServesScan, serverDataKinds, activeConversationId } from '../agen
 import { readData } from '../marketdata/client'
 import { currentTurnId } from '../trace'
 import { isHidden, refusalFor, DEFAULT_SORT, DEFAULT_ORDER_WORDS, hiddenPhraseIn } from './scanHidden'
-import { composeRefine, refineRefusal, persistLastScreen, restoreLastScreen, NO_LAST_SCREEN, UNIVERSE_KEYS } from './scanRefine'
+import { composeRefine, refineRefusal, persistLastScreen, restoreLastScreen, NO_LAST_SCREEN, UNIVERSE_KEYS, LAST_SCREEN_FAILED, LAST_SCREEN_UNREAD, _forgetUnsavedScreens } from './scanRefine'
 
 // W1.1 R-05: a message shaped like a screen or a refinement of one (a screen verb, "only / just", a universe noun, a
 // "which stocks" question) — the gate for claiming a hidden-field PHRASE before the planner (screener.run `fast`)
@@ -119,13 +119,14 @@ async function json(r, what) {
   return r.json()
 }
 
-const cache = { meta: null, metaAt: 0, metaP: null, options: null, optionsAt: 0, optionsP: null, saved: null, savedAt: 0, last: null, lastConv: null, restoreP: null, said: null }
-export function _resetScreenerCache() { cache.said = null; cache.meta = null; cache.metaAt = 0; cache.metaP = null; cache.options = null; cache.optionsAt = 0; cache.optionsP = null; cache.saved = null; cache.savedAt = 0; cache.last = null; cache.lastConv = null; cache.restoreP = null }
+const cache = { unreadConv: null, meta: null, metaAt: 0, metaP: null, options: null, optionsAt: 0, optionsP: null, saved: null, savedAt: 0, last: null, lastConv: null, restoreP: null, said: null }
+export function _resetScreenerCache() { cache.said = null; cache.meta = null; cache.metaAt = 0; cache.metaP = null; cache.options = null; cache.optionsAt = 0; cache.optionsP = null; cache.saved = null; cache.savedAt = 0; cache.last = null; cache.lastConv = null; cache.restoreP = null; cache.unreadConv = null; _forgetUnsavedScreens() }
 
 // ── the LAST SCREEN, per conversation (W1-C C-01) ──
 /** Record the screen just run as the conversation's last screen and persist it server-side (fire-and-forget). */
 function setLast(last) {
   cache.last = last
+  cache.unreadConv = null
   cache.lastConv = activeConversationId()
   persistLastScreen(last)
 }
@@ -149,6 +150,10 @@ export function ensureLast() {
   if (!cache.restoreP) {
     cache.restoreP = restoreLastScreen().then(l => {
       if (activeConversationId() !== conv) return lastIsCurrent() ? cache.last : null    // the chat changed meanwhile
+      // TERM-033: an UNREADABLE last screen is not "no last screen": remembered for this chat, so the refinement says it
+      // is starting fresh (LAST_SCREEN_UNREAD); the next refinement reads again
+      if (l === LAST_SCREEN_FAILED) { cache.last = null; cache.lastConv = null; cache.unreadConv = conv; return null }
+      cache.unreadConv = null
       cache.last = l
       cache.lastConv = conv
       return l
@@ -910,7 +915,7 @@ function buildSpec({ filters, sort_field: sortField, sort_dir: sortDir, mode, wi
     // SC-2 §3 (W1-C C-01): a follow-up is a DELTA on the last screen — add / narrow replace by key, a sector or
     // industry replaces the universe slot, a sort replaces only the sort — and a hidden UCT field is refused with
     // the F-16 sentence + one public alternative (scanRefine.js). No last screen: ask, never guess.
-    if (!lastIsCurrent()) return { error: NO_LAST_SCREEN.replace(/\.$/, '') }
+    if (!lastIsCurrent()) return { error: (cache.unreadConv && cache.unreadConv === activeConversationId() ? LAST_SCREEN_UNREAD : NO_LAST_SCREEN).replace(/\.$/, '') }
     const c = composeRefine(cache.last.spec, { wire: wire.filter(f => f.key !== 'list'), post: postF, sort, logic, rank })
     if (c.error) return { error: c.error.replace(/\.$/, '') }
     const listF = wire.find(f => f.key === 'list')

@@ -98,6 +98,9 @@ function pageInit(cfg) {
     return out
   }
   const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } })
+  // TERM-033 named sentinel: a body that is not JSON is handed back as the real response, never read as an empty one
+  const PASS_THROUGH = Symbol('not JSON: the real response is handed back')
+  const jsonOrPass = (res) => res.clone().json().catch(() => PASS_THROUGH)
   const wrapped = async (input, init) => {
     const url = typeof input === 'string' ? input : (input && input.url) || ''
     const method = ((init && init.method) || (input && input.method) || 'GET').toUpperCase()
@@ -135,17 +138,19 @@ function pageInit(cfg) {
       if (new RegExp(f.match).test(`${method} ${path}`)) return json(f.body, f.status || 200)
     }
     const res = await inner(input, init)
+    // TERM-033: a body the rig cannot read as JSON is a NAMED outcome: the real response is handed back untouched
+    // (never reshaped, never treated as an empty answer)
     if (p0.startsWith('/api/bars/') || p0.startsWith('/api/bars-history/')) {
       const u = new URL(url, location.origin)
       const sym = decodeURIComponent(p0.split('/')[3] || '').toUpperCase()
       const tf = u.searchParams.get('tf') || u.searchParams.get('timeframe') || 'D'
       BA.bars.push({ sym, tf, kind: p0.split('/')[2], url: path, at: Date.now() })
-      const j = await res.clone().json().catch(() => null)
-      if (j && Array.isArray(j.bars)) return json({ ...j, bars: shape(j.bars, sym, tf) })
+      const j = await jsonOrPass(res)
+      if (j !== PASS_THROUGH && j && Array.isArray(j.bars)) return json({ ...j, bars: shape(j.bars, sym, tf) })
     }
     if (p0 === '/api/auth/preferences' && method === 'GET' && cfg.prefs) {
-      const j = await res.clone().json().catch(() => null)
-      if (j) { const o = { ...j }; for (const [k, v] of Object.entries(cfg.prefs)) if (!(k in BA.written)) o[k] = v; return json(o) }
+      const j = await jsonOrPass(res)
+      if (j !== PASS_THROUGH && j) { const o = { ...j }; for (const [k, v] of Object.entries(cfg.prefs)) if (!(k in BA.written)) o[k] = v; return json(o) }
     }
     return res
   }

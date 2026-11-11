@@ -1,0 +1,206 @@
+# pl-widget no lock, BelowNormal, label focused-head 
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+6a1bd84649
+
+ RUN  v4.0.18 C:/w/pl-nsf/app
+
+ ❯ src/lib/swallowedFetch.census.test.js (5 tests | 1 failed) 41ms
+     ✓ the scan sees the population (a broken walk would pass everything) 5ms
+     × no file gains a site, and no new file adopts the idiom 31ms
+     ✓ a migrated site is taken off the baseline in the same change (it cannot be re-added silently) 1ms
+     ✓ the stated total is the sum of the per-file counts 1ms
+     ✓ counts code only: the idiom inside a comment is not a site, and spacing variants are 0ms
+ ✓ src/agent/agentNoSwallowedFetch.test.js (2 tests) 12ms
+ ✓ src/agent/agentScanRefine.test.jsx (11 tests) 108ms
+ ✓ src/agent/agentPageCalendar.test.jsx (6 tests) 373ms
+stderr | src/agent/agentHonestStatus.test.jsx > 2 · the panel reports what UCT did, never what the model said it did > FAILED: when the write is refused, the member is told it did not happen — no receipt
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentHonestStatus.test.jsx > 2 · the panel reports what UCT did, never what the model said it did > FAILED: when the write is refused, the member is told it did not happen — no receipt
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/agent/agentHonestStatus.test.jsx (10 tests) 1006ms
+     ✓ FAILED: when the write is refused, the member is told it did not happen — no receipt  331ms
+ ✓ src/agent/agentRankingIntegrity.test.jsx (4 tests) 810ms
+     ✓ "put the 10 best 3-month performers in Momentum" with every 3M % missing: refusal, no receipt, list unchanged  323ms
+ ✓ src/agent/agentCompose.test.jsx (10 tests) 1684ms
+     ✓ NEW LIST: proposal names the query + rule (no symbols); Apply screens fresh, creates and fills with the actual top 20 in order — 0 model calls on Apply  330ms
+     ✓ FEWER than N: all the matches are used, said honestly; ZERO: nothing created  320ms
+ ✓ src/agent/agentFlagshipV2.test.jsx (2 tests) 3823ms
+     ✓ screen → new list (card) → top five on it → top two charted with the 9/20 EMAs → saved as Momentum Review (card); Undo after the save is refused honestly  1843ms
+     ✓ …and when the save is declined, "undo all of that" reverts every reversible step of the turn (the five on the list, the two charts)  1978ms
+ ✓ src/agent/agentFlagshipScan.test.jsx (3 tests) 395ms
+     ✓ scripted model → ONE proposal card (no symbols guessed, no scan yet); "do it" → one fresh scan, the list made and filled with the top five in the engine's order, 0 model calls  331ms
+ ✓ src/agent/agentScanCompose.test.jsx (129 tests) 90ms
+ ✓ src/agent/agentScreener.test.jsx (13 tests) 188ms
+ ✓ src/agent/agentSavedScreens.test.jsx (6 tests) 422ms
+ ✓ src/agent/agentDataQuote.test.js (24 tests) 43ms
+ ✓ src/agent/qa/md2Quote.test.js (34 tests) 50ms
+ ✓ src/agent/agentScanGrounding.test.js (6 tests) 5ms
+stderr | src/agent/agentScanInit.test.jsx > F-SAT-3: after the catalog has loaded, behaviour is unchanged > non-screener text still goes to the planner
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/agent/agentDataFacts.test.js (12 tests) 27ms
+ ✓ src/agent/agentScanGateway.test.jsx (13 tests) 28ms
+ ✓ src/agent/agentScanRelevance.test.js (6 tests) 3ms
+ ✓ src/agent/agentScreenerSortCoverage.test.jsx (8 tests | 1 skipped) 11ms
+stderr | src/agent/agentScanInit.test.jsx > F-SAT-3: after the catalog has loaded, behaviour is unchanged > with the catalog loaded, the strongest phrase is still claimed and refused locally (F-16), never the planner's
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/agent/agentScanInit.test.jsx (8 tests) 11008ms
+     ✓ waits for the catalog and answers locally: 0 model turns (F-16: the strongest phrase is the §2d refusal)  1043ms
+     ✓ a catalog that FAILS to load is a local answer: no model turn, no scan, nothing applied  993ms
+     ✓ a catalog that never arrives times out (≤ 3000 ms) into the same local answer  4005ms
+     ✓ a saved screen named before the saved list loads is resolved by name: 0 model turns  974ms
+     ✓ an unknown saved-screen name before the list loads is a local sentence naming the real screens  993ms
+     ✓ non-screener text still goes to the planner  1025ms
+     ✓ with the catalog loaded, the strongest phrase is still claimed and refused locally (F-16), never the planner's  979ms
+     ✓ "show me AAPL" before the saved list loads is NOT claimed as a saved screen  995ms
+ ✓ src/agent/agentSymbolCharts.test.jsx (32 tests) 11488ms
+     ✓ proposal first (query + rule, no symbols); Apply screens fresh and builds 4 EQUAL 5-minute charts in the engine order — 0 model / 0 research calls on Apply; one Undo  513ms
+     ✓ each new chart is BORN unlinked on its own ticker and timeframe — no default (yellow group / SPY) symbol is ever loaded first; a plain "add a chart" keeps the product default  441ms
+     ✓ an explicit SORT decides the order; bars type applied to every new chart  335ms
+     ✓ FEWER results than asked: uses what matched; EXACT: refuses, nothing created; ZERO: nothing created  406ms
+     ✓ a write failing MIDWAY is compensated: no new chart remains, the existing one is untouched  5237ms
+     ✓ the production model's measured shapes (2026-10-07): from = the LIST's own ref, or the consumer listed BEFORE its producer — both read the list fresh  509ms
+     ✓ PROVENANCE is narrow: explicit tickers stay literal, and a near-miss of a named list is not rebound  356ms
+     ✓ Apply clicked while a model reply is still coming does nothing; a double click applies once  499ms
+ ✓ src/agent/agentScanPanel.test.jsx (27 tests) 27807ms
+     ✓ a screen reads ONE envelope in the member's turn and says coverage and the data's own time — never "live"  1128ms
+     ✓ DISABLED FLAGS: with the server not serving scans the panel uses the Screener route, and nothing reaches the gateway  1014ms
+     ✓ KIND NOT LISTED (#621, ["screen.saved"]: screen.run not activated): flags on, but the Screener route is used and nothing reaches the gateway  1012ms
+     ✓ KIND NOT LISTED (#621, []: nothing activated): flags on, but the Screener route is used and nothing reaches the gateway  1048ms
+     ✓ KIND NOT LISTED (#621, null: an older server with no data_kinds): flags on, but the Screener route is used and nothing reaches the gateway  1044ms
+     ✓ KIND NOT LISTED (#621): "my saved screens" without screen.saved reads the Screener route, not the gateway  980ms
+     ✓ MALFORMED CRITERIA: an unknown field is refused before any read; a spec the server refuses shows its sentence  1062ms
+     ✓ ZERO MATCHES reads as "no names matched", dated, with no table  999ms
+     ✓ SAVED-SCREEN ISOLATION: "run my Leaders screen" sends only the id — the server resolves it among THIS member's screens  965ms
+     ✓ SAVED-SCREEN ISOLATION: an id the server does not find among the member's screens is refused, never run  982ms
+     ✓ listing saved screens reads screen.saved through the gateway  973ms
+     ✓ BUDGET: two screens in ONE message share one turn id — the second is refused; the next message gets a new turn and scans again  1086ms
+     ✓ POSITIVE: "show me my strongest stocks" (a screen or ranking BY strength) is refused locally, 0 model turns  976ms
+     ✓ POSITIVE: "rank them by RS" (a screen or ranking BY strength) is refused locally, 0 model turns  980ms
+     ✓ POSITIVE: "sort by relative strength" (a screen or ranking BY strength) is refused locally, 0 model turns  971ms
+     ✓ NEGATIVE: "Put the strongest five on my watchlist" is never refused: it is the planner's (a false refusal is a correctness failure)  1077ms
+     ✓ NEGATIVE: "the strongest one" is never refused: it is the planner's (a false refusal is a correctness failure)  1091ms
+     ✓ NEGATIVE: "the strongest of those" is never refused: it is the planner's (a false refusal is a correctness failure)  1074ms
+     ✓ NEGATIVE: "Find me some stocks that are looking really strong today" is never refused: it is the planner's (a false refusal is a correctness failure)  1062ms
+     ✓ NEGATIVE: "Which is stronger today, NVDA or AMD?" is never refused: it is the planner's (a false refusal is a correctness failure)  1092ms
+     ✓ "show me my strongest stocks" is refused LOCALLY: 0 model turns, the sentence, no read, nothing substituted  981ms
+     ✓ a planner FILTER on a rating is refused before any read, with the sentence  998ms
+     ✓ a planner SORT on a rating or a flow field is refused before any read  1086ms
+     ✓ a SAVED screen that uses a rating is refused (never run with its criteria stripped)  1009ms
+     ✓ a FOLLOW-UP cannot add a rating to the last screen: refused, the last screen unchanged  1069ms
+     ✓ the planner's Screener catalog lists no hidden field  976ms
+     ✓ NO ORDER ASKED: market cap, largest first, said on the receipt (gateway and route)  1068ms
+ ✓ src/agent/agentScanSat1Requests.test.jsx (62 tests) 30917ms
+     ✓ d01: top RS names near 52-week highs  1136ms
+     ✓ d02: stocks with RS rank above 90  990ms
+     ✓ d03: show me the leaders making new highs  1011ms
+     ✓ d04: what's ripping this month  998ms
+     ✓ d05: best 3-month performers over $10  970ms
+     ✓ d06: unusual volume in semis  995ms
+     ✓ d07: stocks trading at least 3x their average volume  971ms
+     ✓ d08: names trading over $50M a day  996ms
+     ✓ d09: volume dried up to a 4-week low  995ms
+     ✓ d10: high ADR stocks, above 5%  996ms
+     ✓ d11: movers with real range, ADR 4 to 8 percent  993ms
+     ✓ d12: tight consolidations above the 50-day  995ms
+     ✓ d13: NR7 days in strong stocks  989ms
+     ✓ d14: pullbacks to the 20 EMA in uptrends  995ms
+     ✓ d15: EMA stack intact and RS line trending up  989ms
+     ✓ d16: stocks within 3% of their 20-day high  998ms
+     ✓ d17: gapping up more than 4% today  995ms
+     ✓ d18: RSI over 70  983ms
+     ✓ d19: oversold large caps  1010ms
+     ✓ d20: EPS growth above 25% and revenue growth above 20%  1004ms
+     ✓ d21: fast growers in software  1015ms
+     ✓ d22: small caps under $2B with short float over 20%  982ms
+     ✓ d23: reporting earnings in the next 5 days  978ms
+     ✓ d24: energy stocks above the 50-day  995ms
+     ✓ d25: strongest sectors' leaders  977ms
+     ✓ d26: chip stocks up today  993ms
+     ✓ r01: EMA 9 crossing above EMA 20  976ms
+     ✓ r02: run my custom squeeze indicator as a scan  990ms
+     ✓ r03: stocks where MACD just turned positive  954ms
+     ✓ r04: screen on put/call ratio above 2  1010ms
+     ✓ r05: dark pool prints over $10M  1007ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/swallowedFetch.census.test.js > TERM-033: `.catch(() => null)` is a shrink-only census > no file gains a site, and no new file adopts the idiom
+AssertionError: use sectionFetcher (throws on failure) instead of swallowing it: expected [ …(3) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "components/StockChart.jsx: 0 -> 1",
++   "pages/breadth/drill/longHistory.js: 0 -> 1",
++   "pages/journal-2-0/tabs/NotebookTab.jsx: 0 -> 1",
++ ]
+
+ ❯ src/lib/swallowedFetch.census.test.js:64:85
+     62|       .filter(([f, n]) => n > (baseline.files[f] || 0))
+     63|       .map(([f, n]) => `${f}: ${baseline.files[f] || 0} -> ${n}`)
+     64|     expect(grew, 'use sectionFetcher (throws on failure) instead of sw…
+       |                                                                                     ^
+     65|   })
+     66| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 22 passed (23)
+      Tests  1 failed | 431 passed | 1 skipped (433)
+   Start at  21:40:25
+   Duration  39.67s (transform 36.84s, setup 4.65s, import 68.56s, tests 90.34s, environment 15.41s)
+
+RUN-DONE 

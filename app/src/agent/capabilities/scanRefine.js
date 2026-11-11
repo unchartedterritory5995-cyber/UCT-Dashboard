@@ -83,22 +83,42 @@ const slim = (last) => ({
   symbols: (last.symbols || []).slice(0, ROW_CAP), total: Number.isFinite(last.total) ? last.total : null,
   asOf: last.asOf || null, name: last.name || null, savedId: last.savedId != null ? String(last.savedId) : null,
 })
+// TERM-033: the write and the read used to end in `.catch(() => null)` and ignore a failed result, so an UNREADABLE last
+// screen read exactly like NO last screen, and a failed write was dropped without a word (a chat switched away and back
+// then refined the OLDER server copy). Both are logged now; a read that fails, or that would return a copy this session
+// failed to overwrite, is LAST_SCREEN_FAILED, and the refinement says it is starting fresh (LAST_SCREEN_UNREAD).
+export const LAST_SCREEN_FAILED = Object.freeze({ lastScreenFailed: true })
+/** conversations whose newest screen this session could NOT save: the server holds an older one (or none) */
+const unsaved = new Set()
+export function _forgetUnsavedScreens() { unsaved.clear() }
+const causeOf = (r) => (r?.status ? `HTTP ${r.status}` : (r?.error || r?.message || 'error'))
+const warnScreen = (msg) => console.warn(`[uct-agent] screener: ${msg}`)
 /** Persist the screener's last screen for the member's current conversation. Never throws, never awaited by answers. */
 export function persistLastScreen(last) {
   const id = activeConversationId()
   if (!id || !last?.spec) return null
-  return agentConversationStateSet(id, STATE_KEY, slim(last)).catch(() => null)
+  const failed = (cause) => {
+    unsaved.add(id)
+    warnScreen(`this chat's last screen was not saved (${cause}); a chat switch or reload starts fresh`)
+    return { ok: false, error: cause }
+  }
+  return agentConversationStateSet(id, STATE_KEY, slim(last))
+    .then(r => { if (!r?.ok) return failed(causeOf(r)); unsaved.delete(id); return r }, e => failed(causeOf(e)))
 }
-/** The last screen stored for the current conversation → the screener's `last` shape, or null. */
+/** The last screen stored for the current conversation → the screener's `last` shape; null when there is none;
+ *  LAST_SCREEN_FAILED when it could not be read (or the stored copy is older than a screen this session failed to save). */
 export async function restoreLastScreen() {
   const id = activeConversationId()
   if (!id) return null
-  const r = await agentConversationState(id, STATE_KEY).catch(() => null)
-  const v = r && r.ok ? r.data?.value : null
+  if (unsaved.has(id)) { warnScreen("this chat's last screen could not be read back (its newest save failed; the stored copy is older)"); return LAST_SCREEN_FAILED }
+  const r = await agentConversationState(id, STATE_KEY)          // never rejects: a failure is { ok: false, … }
+  if (!r?.ok) { warnScreen(`this chat's last screen could not be read back (${causeOf(r)})`); return LAST_SCREEN_FAILED }
+  const v = r.data?.value
   if (!v || typeof v !== 'object' || !v.spec || !Array.isArray(v.spec.filters)) return null
   return { spec: { filters: v.spec.filters, post: Array.isArray(v.spec.post) ? v.spec.post : [], sort: v.spec.sort || null,
     ...(v.spec.logic ? { logic: v.spec.logic } : {}), ...(v.spec.rank ? { rank: v.spec.rank } : {}) },
     name: v.name || null, savedId: v.savedId || null, total: Number.isFinite(v.total) ? v.total : 0, asOf: v.asOf || null,
     live: null, symbols: Array.isArray(v.symbols) ? v.symbols : [], ms: 0, restored: true, conversation: id }
 }
+export const LAST_SCREEN_UNREAD = "I couldn't read this chat's last screen back from UCT, so I'm starting fresh: run the screen again first, e.g. “stocks above their 20-day EMA with volume at least twice average”."
 export const NO_LAST_SCREEN = "Which screen should I narrow? Run one first, e.g. “stocks above their 20-day EMA with volume at least twice average”."

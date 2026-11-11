@@ -1,0 +1,105 @@
+# pl-widget no lock, BelowNormal, label mut-MR1 
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+6a1bd84649
+ M src/agent/capabilities/scanRefine.js
+
+ RUN  v4.0.18 C:/w/pl-nsf/app
+
+ ✓ src/agent/agentNoSwallowedFetch.test.js (2 tests) 12ms
+ ❯ src/agent/agentScanRefine.test.jsx (11 tests | 2 failed) 109ms
+     ✓ a screen run here is written to the conversation state (spec + result ids), fire-and-forget 22ms
+     ✓ after a reload, a refinement composes onto the SERVER copy of the last screen (one GET), and is persisted again 20ms
+     ✓ "now only technology" replaces the universe slot; "sort by three-month change" replaces only the sort 3ms
+     ✓ a chat switch: the other conversation's screen is restored; a brand-new chat has none and asks 1ms
+     ✓ a screen run before the chat had an id is adopted by the chat on its first id, and persisted then 21ms
+     × the server unreachable: the answer is unaffected; the failed write and read are logged; the refinement says it is starting fresh 19ms
+     × a FAILED write is not silently lost: switching away and back does not refine the OLDER server copy, it starts fresh 15ms
+     ✓ a read that succeeds with NO stored screen is still the plain question (empty is not unavailable) 1ms
+     ✓ adding a hidden field to the last screen is refused before any scan; the alternative is a public field 1ms
+     ✓ pure: refineRefusal / publicAlternative for the whole hidden set (scanHidden.js); the wording never names a weight or formula 4ms
+     ✓ composeRefine: add / narrow replace by key, universe replaces the slot, sort replaces only the sort (the server mirror has the same rules) 1ms
+ ✓ src/agent/agentPageCalendar.test.jsx (6 tests) 334ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/agent/agentScanRefine.test.jsx > persisted per conversation > the server unreachable: the answer is unaffected; the failed write and read are logged; the refinement says it is starting fresh
+AssertionError: expected "warn" to be called with arguments: [ StringMatching{…} ]
+
+Number of calls: 0
+
+ ❯ src/agent/agentScanRefine.test.jsx:121:18
+    119|     expect(a.text).toMatch(/^2 stocks match/)
+    120|     await flush()
+    121|     expect(warn).toHaveBeenCalledWith(expect.stringMatching(/^\[uct-ag…
+       |                  ^
+    122|     _resetScreenerCache()
+    123|     expect(await run({ mode: 'refine', filters: [F('price', 'gte', 10)…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/agent/agentScanRefine.test.jsx > persisted per conversation > a FAILED write is not silently lost: switching away and back does not refine the OLDER server copy, it starts fresh
+AssertionError: expected { …(3) } to be 'I didn\'t run it: I couldn\'t read th…' // Object.is equality
+
+- Expected: 
+"I didn't run it: I couldn't read this chat's last screen back from UCT, so I'm starting fresh: run the screen again first, e.g. “stocks above their 20-day EMA with volume at least twice average”."
+
++ Received: 
+{
+  "link": {
+    "href": "/screener?s=eyJmIjp7InByaWNlIjp7Im9wIjoiZ3RlIiwibWluIjo1MH0sInZvbF9yYXRpbyI6eyJvcCI6Imd0ZSIsIm1pbiI6Mn19fQ",
+    "label": "Open in Screener",
+  },
+  "table": {
+    "columns": [
+      {
+        "key": "ticker",
+        "label": "Symbol",
+      },
+      {
+        "key": "price",
+        "label": "Price",
+      },
+      {
+        "key": "vol_ratio",
+        "label": "Volume Ratio",
+      },
+      {
+        "key": "chg_pct_1d",
+        "label": "Chg 1D",
+      },
+    ],
+    "rows": [
+      {
+        "chg_pct_1d": "1.00%",
+        "price": "$12.00",
+        "ticker": "AAA",
+        "vol_ratio": "—",
+      },
+      {
+        "chg_pct_1d": "2.00%",
+        "price": "$40.00",
+        "ticker": "BBB",
+        "vol_ratio": "—",
+      },
+    ],
+  },
+  "text": "2 stocks match (Price ≥ $50 · Volume Ratio ≥ 2). Showing the first 2, ordered by market cap, largest first (no other order was asked for). Data: 2026-10-30 snapshot.",
+}
+
+ ❯ src/agent/agentScanRefine.test.jsx:136:80
+    134|     noteConversation('ac_2'); await ensureLast()
+    135|     noteConversation('ac_1')
+    136|     expect(await run({ mode: 'refine', filters: [F('vol_ratio', 'gte',…
+       |                                                                                ^
+    137|     expect(scans().map(s => s[2].filters)).toEqual([[{ key: 'pct_vs_em…
+    138|     expect(warn).toHaveBeenCalledWith(expect.stringMatching(/^\[uct-ag…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  2 failed | 17 passed (19)
+   Start at  21:43:18
+   Duration  8.86s (transform 15.42s, setup 1.67s, import 20.58s, tests 455ms, environment 2.34s)
+
+RUN-DONE 

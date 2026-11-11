@@ -1,0 +1,47 @@
+# pl-widget no lock, BelowNormal, label mut-MR2 
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+6a1bd84649
+ M src/agent/capabilities/scanRefine.js
+
+ RUN  v4.0.18 C:/w/pl-nsf/app
+
+ ✓ src/agent/agentNoSwallowedFetch.test.js (2 tests) 10ms
+ ❯ src/agent/agentScanRefine.test.jsx (11 tests | 1 failed) 88ms
+     ✓ a screen run here is written to the conversation state (spec + result ids), fire-and-forget 13ms
+     ✓ after a reload, a refinement composes onto the SERVER copy of the last screen (one GET), and is persisted again 35ms
+     ✓ "now only technology" replaces the universe slot; "sort by three-month change" replaces only the sort 4ms
+     ✓ a chat switch: the other conversation's screen is restored; a brand-new chat has none and asks 1ms
+     ✓ a screen run before the chat had an id is adopted by the chat on its first id, and persisted then 20ms
+     × the server unreachable: the answer is unaffected; the failed write and read are logged; the refinement says it is starting fresh 6ms
+     ✓ a FAILED write is not silently lost: switching away and back does not refine the OLDER server copy, it starts fresh 1ms
+     ✓ a read that succeeds with NO stored screen is still the plain question (empty is not unavailable) 1ms
+     ✓ adding a hidden field to the last screen is refused before any scan; the alternative is a public field 1ms
+     ✓ pure: refineRefusal / publicAlternative for the whole hidden set (scanHidden.js); the wording never names a weight or formula 4ms
+     ✓ composeRefine: add / narrow replace by key, universe replaces the slot, sort replaces only the sort (the server mirror has the same rules) 1ms
+ ✓ src/agent/agentPageCalendar.test.jsx (6 tests) 347ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/agent/agentScanRefine.test.jsx > persisted per conversation > the server unreachable: the answer is unaffected; the failed write and read are logged; the refinement says it is starting fresh
+AssertionError: expected 'I didn\'t run it: Which screen should…' to be 'I didn\'t run it: I couldn\'t read th…' // Object.is equality
+
+Expected: "I didn't run it: I couldn't read this chat's last screen back from UCT, so I'm starting fresh: run the screen again first, e.g. “stocks above their 20-day EMA with volume at least twice average”."
+Received: "I didn't run it: Which screen should I narrow? Run one first, e.g. “stocks above their 20-day EMA with volume at least twice average”."
+
+ ❯ src/agent/agentScanRefine.test.jsx:123:77
+    121|     expect(warn).toHaveBeenCalledWith(expect.stringMatching(/^\[uct-ag…
+    122|     _resetScreenerCache()
+    123|     expect(await run({ mode: 'refine', filters: [F('price', 'gte', 10)…
+       |                                                                             ^
+    124|     expect(warn).toHaveBeenCalledWith(expect.stringMatching(/^\[uct-ag…
+    125|     expect(scans()).toHaveLength(1)                            // noth…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  1 failed | 18 passed (19)
+   Start at  21:43:29
+   Duration  8.79s (transform 16.09s, setup 1.08s, import 21.36s, tests 445ms, environment 1.83s)
+
+RUN-DONE 
