@@ -24,14 +24,20 @@ import { REPO_ROOT } from './railSupport'
 const BASELINE_REL = 'app/src/components/chart/rails/oneKey.baseline.json'
 const BASELINE_PATH = path.join(REPO_ROOT, BASELINE_REL)
 const now = oneKeyCensus()
+// ⭐ THE OWNING MODULES are not sites — they are where the one key is built. Their builders
+// are exempt from the shrink-only allowlist (and must exist: see 'the scan sees the owning
+// modules'). data/barStore/types.js: BarStore key owner (keyOf + the P1 server cache_key
+// mirror expectedServerCacheKey); P3 retires the inline copies listed in the baseline.
+const KEY_OWNER_FILES = ['data/barStore/types.js']
+for (const f of KEY_OWNER_FILES) delete now.keyBuilders[f]
 
 const OWNERS = {
-  keyBuilders: 'utils/barsMemCache.js + utils/barsIDB.js (cacheKey) -> P1: server-issued key',
+  keyBuilders: 'data/barStore/types.js (BarStore key owner) + utils/barsMemCache.js + utils/barsIDB.js (cacheKey) -> P1: server-issued key',
   barsUrls: 'utils/prefetchBars.js (_url) -> P2: BarStore',
   freshness: 'utils/marketSession.js',
 }
 
-if (process.env.RAILS_WRITE_BASELINE === '1') {
+if (globalThis.process?.env?.RAILS_WRITE_BASELINE === '1') {
   const withAt = (cat) => Object.fromEntries(Object.entries(now[cat]).map(([f, items]) =>
     [f, Object.fromEntries(Object.entries(items).map(([k, n]) => [k, { n, at: `${f}:${lineOf(f, k)}` }]))]))
   fs.writeFileSync(BASELINE_PATH, JSON.stringify({
@@ -48,6 +54,7 @@ const baseline = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'))
 describe('one key / one url / one freshness (shrink-only allowlists)', () => {
   it('the scan sees the owning modules (it is not blind)', () => {
     expect(now.keyBuilders['utils/barsMemCache.js']).toBeTruthy()
+    for (const f of KEY_OWNER_FILES) expect(fs.existsSync(path.join(REPO_ROOT, 'app/src', f)), f).toBe(true)
     expect(now.barsUrls['utils/prefetchBars.js']).toBeTruthy()
     expect(Object.keys(now.freshness['utils/marketSession.js'] || {})).toContain('classifyIntradayTail')
   })
