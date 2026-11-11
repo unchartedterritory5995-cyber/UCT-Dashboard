@@ -10709,6 +10709,13 @@ export default function StockChart({
     return cs.heikinAshi ? toHeikinAshi(sessionAppliedBars) : sessionAppliedBars
   }, [sessionAppliedBars, cs.heikinAshi])
   barCountRef.current = displayBars?.length || 0
+  // ⛔ The drawing overlay maps BY INDEX (future points `bars.length-1+futureBars`,
+  // the nearestIndex→logicalToCoordinate fallback, toChart's logical→bar), so it must
+  // see the exact array the candle series is built from — index-aligned with
+  // `displayBars`, real OHLC for the magnet/measure. The raw `bars` still carry
+  // pre/post-market rows in the RTH-only view, which shifted every index-mapped point
+  // by that many slots.
+  const drawingBars = sessionAppliedBars
 
   // ── Hide price-axis labels when the latest bar is scrolled off-screen ──────
   // When today's / the most-recent bar is not visible, strip ALL right-axis tags
@@ -22702,7 +22709,7 @@ export default function StockChart({
             chartRef={chartRef}
             seriesRef={candleSeriesRef}
             volumeSeriesRef={volumeSeriesRef}
-            bars={bars}
+            bars={drawingBars}
             activeTool={null}
             setActiveTool={NOOP}
             color={drawColor}
@@ -22728,7 +22735,7 @@ export default function StockChart({
             chartRef={chartRef}
             seriesRef={candleSeriesRef}
             volumeSeriesRef={volumeSeriesRef}
-            bars={bars}
+            bars={drawingBars}
             activeTool={activeTool}
             setActiveTool={setActiveTool}
             color={drawColor}
