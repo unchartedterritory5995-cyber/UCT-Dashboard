@@ -813,7 +813,47 @@ def expected_completed_bucket(tf: str, now: float | None = None):
         return None
 
 
-def intraday_tail_status(ticker: str, tf: str, tail_ts, now: float | None = None) -> dict:
+def expected_completed_rth_bucket(tf: str, now: float | None = None):
+    """Start (unix s) of the latest REGULAR-session bucket that has CLOSED: today's once
+    its first RTH bucket has closed, else the FINAL RTH bucket of the previous trading
+    session (half-day aware). The RTH twin of `expected_completed_ext_bucket` and the
+    frontier an RTH-only chart (`session=rth`) is judged against (review #1051 F2: a
+    thin name with no post-market prints is complete at its close for a chart that
+    never shows post-market). None for a non-intraday tf or an unreadable clock."""
+    if tf not in ("1", "5", "15", "30", "60"):
+        return None
+    today = expected_completed_bucket(tf, now)
+    if today is not None:
+        return today
+    try:
+        et = _ZI("America/New_York")
+        now_ts = float(now if now is not None else _time.time())
+        d = datetime.fromtimestamp(now_ts, et).replace(hour=0, minute=0, second=0, microsecond=0)
+        d -= timedelta(days=1)
+        for _ in range(14):
+            if _is_trading_day_ymd(d):
+                ymd = int(d.strftime("%Y%m%d"))
+                midnight = int(datetime(d.year, d.month, d.day, tzinfo=et).timestamp())
+                return _ext_bucket_start(tf, midnight + _session_close_minutes(ymd) * 60 - 1)
+            d -= timedelta(days=1)
+        return None
+    except Exception:                      # noqa: BLE001 — abstain, never guess
+        return None
+
+
+def normalize_session(session) -> str | None:
+    """The `/api/bars` `session` param: 'rth' | 'eth', else None (= the pre-param
+    behaviour: RTH 60m grid, tails judged against the extended frontier)."""
+    s = str(session or "").strip().lower()
+    if s in ("rth", "regular"):
+        return "rth"
+    if s in ("eth", "ext", "extended"):
+        return "eth"
+    return None
+
+
+def intraday_tail_status(ticker: str, tf: str, tail_ts, now: float | None = None,
+                         session: str | None = None) -> dict:
     """Machine-readable currentness for an intraday response.
 
     Returns {"tail_status": "current" | "verified" | "unverified",
@@ -836,7 +876,14 @@ def intraday_tail_status(ticker: str, tf: str, tail_ts, now: float | None = None
     # RTH that is the same bucket as before; pre-market, post-market and after 20:00
     # it is the bucket the RTH-only rule could not see (a 16:53 tail at 20:22 was
     # `current`). Same one-bucket tolerance; beyond it only provider proof counts.
-    ext_frontier = expected_completed_ext_bucket(tf, now)
+    # ⭐ THE CHART'S OWN SESSION (2026-11-10, review #1051 F2): an RTH-only chart
+    # (`session=rth`) never shows post/pre-market, so its tail is judged against the
+    # REGULAR frontier — a thin name with no after-hours prints is current at its
+    # close, not `unverified` + fast polls all evening. Absent/eth = extended frontier.
+    if normalize_session(session) == "rth":
+        ext_frontier = expected_completed_rth_bucket(tf, now)
+    else:
+        ext_frontier = expected_completed_ext_bucket(tf, now)
     if ext_frontier is not None:
         tolerance_floor = _ext_bucket_start(tf, ext_frontier - 1)
         if tail is not None and tail >= tolerance_floor:

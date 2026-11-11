@@ -12,8 +12,10 @@
 import { preload } from 'swr'
 import { SWRGlobalState, cache as _swrCache } from 'swr/_internal'
 import { prefetchTickerMeta } from '../hooks/useTickerMeta'
-import { idbGet, idbPut, mergeDelta } from './barsIDB'
-import { memHas, memPut, memPeek, memPeekSavedAt } from './barsMemCache'
+import { idbGet as _idbGetRaw, idbPut as _idbPutRaw, mergeDelta } from './barsIDB'
+import { memHas as _memHasRaw, memPut as _memPutRaw, memPeek as _memPeekRaw, memPeekSavedAt as _memPeekSavedAtRaw } from './barsMemCache'
+import { seriesCacheTf, barsSessionQuery, barsGridQuery } from '../components/chart/barTime'
+import { setViewShowExtended } from './viewSession'
 import { FIRST_PAINT_BARS, firstPaintBarsFor, fullBarsFor } from './barsBackfill'
 import { isDailyTailStale, isDailyTodayCloseProvisionalForPaint, isCurrentEnoughForPaint, classifyIntradayTail } from './marketSession'
 
@@ -148,7 +150,35 @@ export function joinPendingBars(url) { return _pendingBars.get(url) || null }
 // extended-hours viewer every intraday warm filled a server key + URL the chart never
 // requested. The chart now TELLS the warmer its session (`setPrefetchShowExtended`).
 let _prefetchShowExtended = false
-export function setPrefetchShowExtended(on) { _prefetchShowExtended = !!on }
+export function setPrefetchShowExtended(on) { _prefetchShowExtended = !!on; setViewShowExtended(on) }
+// ⭐ (2026-11-10) …AND THE SESSION DECIDES WHICH 60m SERIES A WARM FILLS. With EXT on the
+// chart reads the clock-grid 60m under its own cache key ('60e', `seriesCacheTf`) and
+// asks `&session=eth`; a warm must fill THAT key with THAT series. Every cache call in
+// this module goes through these wrappers so no site can write one grid under the
+// other's key. Other tfs map to themselves (one key across sessions).
+function _ck(tf) { return seriesCacheTf(tf, _prefetchShowExtended) }
+function idbGet(sym, tf) { return _idbGetRaw(sym, _ck(tf)) }
+function idbPut(sym, tf, bars) { return _idbPutRaw(sym, _ck(tf), bars) }
+function memHas(sym, tf) { return _memHasRaw(sym, _ck(tf)) }
+function memPut(sym, tf, bars, opts) { return _memPutRaw(sym, _ck(tf), bars, opts) }
+function memPeek(sym, tf) { return _memPeekRaw(sym, _ck(tf)) }
+function memPeekSavedAt(sym, tf) { return _memPeekSavedAtRaw(sym, _ck(tf)) }
+// The chart's own URL tail: `&session=` on intraday (StockChart's `_primaryBase` adds
+// the same, so a warm and the chart's request are ONE SWR key / one in-flight join).
+function _sessQ(tf) { return barsSessionQuery(tf, _prefetchShowExtended) }
+// ⛔ THE KEY IS PINNED PER JOB, NEVER RE-READ AT WRITE TIME (#1061 review F3). A job
+// decides its cache key ONCE (`_ck` at its start, or from the URL it was queued with)
+// and writes only under that key — and only when the SERVER's answer is on that key's
+// grid (`session: 'eth'` is stamped on every clock-grid 60m answer). Toggling EXT while
+// a 60m warm is in flight can then never land one grid under the other's key.
+function _urlCk(url, tf) {
+  if (String(tf) !== '60') return String(tf)
+  return /[?&]session=eth(?:&|$)/.test(String(url)) ? '60e' : '60'
+}
+function _gridOk(k, json) {
+  if (k !== '60' && k !== '60e') return true
+  return (json?.session === 'eth') === (k === '60e')
+}
 const _INTRADAY_COUNT_TFS = new Set(['1', '5', '15', '30', '60'])
 function _barsFor(tf) {
   if (_INTRADAY_COUNT_TFS.has(String(tf))) return firstPaintBarsFor(String(tf), _prefetchShowExtended)
@@ -190,16 +220,17 @@ function _startFetch(url) {
   })
 }
 async function _fillUrgent(url, sym, tf) {
+  const k = _urlCk(url, tf)   // the key this URL's answer belongs to
   if (_memUsable(sym, tf)) return
   let have = null
-  try { have = await idbGet(sym, tf) } catch { /* IDB unavailable: fetch instead */ }
-  if (have?.bars?.length && _memPromoteFresh(tf, have.lastT, have.savedAt)) { memPut(sym, tf, have.bars, { savedAt: have.savedAt ?? null }); return }
+  try { have = await _idbGetRaw(sym, k) } catch { /* IDB unavailable: fetch instead */ }
+  if (have?.bars?.length && _memPromoteFresh(tf, have.lastT, have.savedAt)) { _memPutRaw(sym, k, have.bars, { savedAt: have.savedAt ?? null }); return }
   const json = _noteWarmResult(await _warmLoad(url))
-  if (json?.bars?.length && !json.delta) {
+  if (json?.bars?.length && !json.delta && _gridOk(k, json)) {
     const staleDaily = tf === 'D' && have?.bars?.length && _dailyNeedsRefresh(have.lastT, have.savedAt)
     const next = (staleDaily && have.bars.length > json.bars.length) ? mergeDelta(have.bars, json.bars) : json.bars
-    memPut(sym, tf, next)
-    await idbPut(sym, tf, next)
+    _memPutRaw(sym, k, next)
+    await _idbPutRaw(sym, k, next)
   }
 }
 function _drainUrgentWhileHeld() {
@@ -278,7 +309,7 @@ export function _url(sym, tf, warm = true) {
   // IDB warming is keyed by (sym,tf), not the URL, so the extra param never breaks it.
   // The hover/focus intent-warm passes warm=false so it isn't shed AND its SWR-cache key
   // matches the visible chart's (no `&warm`), letting the imminent click paint from cache.
-  return `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${_barsFor(tf)}${warm ? '&warm=1' : ''}`
+  return `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${_barsFor(tf)}${_sessQ(tf)}${warm ? '&warm=1' : ''}`
 }
 
 // The native intraday codes. Declared ABOVE its first use on purpose: this file
@@ -322,7 +353,7 @@ export function _resetRepairCooldown() { _repairAt.clear() }
 // `warm=1` keeps it shed-able under load exactly like the full warm — a repair is
 // still a background nicety and must never outrank the chart the member clicked.
 function _sinceUrl(sym, tf, lastT) {
-  return `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${_barsFor(tf)}`
+  return `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${_barsFor(tf)}${_sessQ(tf)}`
        + `&since=${encodeURIComponent(String(Math.max(0, lastT - 1)))}&warm=1`
 }
 
@@ -354,12 +385,13 @@ function _sinceUrl(sym, tf, lastT) {
 export async function prepareForDisplay(sym, tf) {
   if (!sym || !tf) return 'error'
   try {
-    const have = await idbGet(sym, tf)
+    const k = _ck(tf)   // pinned for this job (see _gridOk)
+    const have = await _idbGetRaw(sym, k)
     const lastT = have?.lastT
     const hasBars = !!have?.bars?.length
     if (hasBars && _INTRADAY_TFS.has(String(tf)) && typeof lastT === 'number'
         && isCurrentEnoughForPaint(lastT, tf)) {
-      memPut(sym, tf, have.bars, { savedAt: have.savedAt ?? null })
+      _memPutRaw(sym, k, have.bars, { savedAt: have.savedAt ?? null })
       return 'current'
     }
     // Ask for exactly what is missing: the tail when we have a sound base to
@@ -378,14 +410,15 @@ export async function prepareForDisplay(sym, tf) {
     // committed as though it had been verified. A non-answer is not an answer.
     const answered = _isAuthoritativeAnswer(json, sym, tf)
     if (!answered.ok) return 'error'
+    if (!_gridOk(k, json)) return 'error'   // the view flipped grids mid-request
 
     const rows = json.bars
     if (!rows.length && !hasBars) return 'nodata'
     const next = (hasBars && json.delta) ? mergeDelta(have.bars, rows)
       : (rows.length ? rows : have.bars)
     if (!next?.length) return 'nodata'
-    await idbPut(sym, tf, next)
-    memPut(sym, tf, next)
+    await _idbPutRaw(sym, k, next)
+    _memPutRaw(sym, k, next)
     const newestT = next[next.length - 1]?.t
     if (!_INTRADAY_TFS.has(String(tf))) return 'current'
     if (typeof newestT === 'number' && isCurrentEnoughForPaint(newestT, tf)) return 'current'
@@ -550,7 +583,7 @@ const REPLAY_WARM_TFS = ['5', '15', '30', '60']
 export function prefetchReplayTimeframes(sym, cutoffIso, { bars = 4000 } = {}) {
   if (!sym || !cutoffIso) return
   for (const tf of REPLAY_WARM_TFS) {
-    _enqueue(`/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bars}&to=${encodeURIComponent(cutoffIso)}&warm=1`, false)
+    _enqueue(`/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bars}${barsGridQuery(tf, _prefetchShowExtended)}&to=${encodeURIComponent(cutoffIso)}&warm=1`, false)
   }
 }
 
@@ -588,7 +621,8 @@ function _idbPump() {
 
 async function _idbWarmOne({ sym, tf, visible = false }) {
   try {
-    const have = await idbGet(sym, tf)
+    const k = _ck(tf)   // pinned for this job (see _gridOk)
+    const have = await _idbGetRaw(sym, k)
     // A DAILY entry missing recent sessions is NOT fresh: the chart's daily
     // staleness gate refuses to paint it, so leaving it here is what makes the
     // NEXT click cold-load on a black screen. Refresh it so scanning keeps the
@@ -621,10 +655,10 @@ async function _idbWarmOne({ sym, tf, visible = false }) {
       if (!_repairCooldownOk(sym, tf)) return
       const tail = _noteWarmResult(
         await _warmLoad(_sinceUrl(sym, tf, have.lastT)))
-      if (tail?.bars?.length) {
+      if (tail?.bars?.length && _gridOk(k, tail)) {
         const merged = mergeDelta(have.bars, tail.bars)
-        await idbPut(sym, tf, merged)
-        memPut(sym, tf, merged)
+        await _idbPutRaw(sym, k, merged)
+        _memPutRaw(sym, k, merged)
       }
       return
     }
@@ -639,15 +673,15 @@ async function _idbWarmOne({ sym, tf, visible = false }) {
     // (measured on production 2026-10-17: the first three rows of every screener open).
     if (_urgent.has(_url(sym, tf, false)) || _urgentRunning.has(`${sym}_${tf}`)) return
     const json = _noteWarmResult(await _warmLoad(_url(sym, tf)))
-    if (json?.bars?.length && !json.delta) {
+    if (json?.bars?.length && !json.delta && _gridOk(k, json)) {
       // On a stale-daily refresh, PRESERVE any deeper history already in IDB and
       // heal only the recent tail (fresh wins on overlap) — idbPut REPLACES, so a
       // bare shallow write would truncate a deep-warmed series back to ~600 bars.
       const next = (staleDaily && have?.bars?.length > json.bars.length)
         ? mergeDelta(have.bars, json.bars)
         : json.bars
-      await idbPut(sym, tf, next)
-      memPut(sym, tf, next)   // also warm the synchronous mem cache
+      await _idbPutRaw(sym, k, next)
+      _memPutRaw(sym, k, next)   // also warm the synchronous mem cache
     }
   } catch { /* best-effort; the chart's own fetch remains the source of truth */ }
 }
@@ -779,10 +813,11 @@ export function warmMemFromIDB(tickers, tfs = SCAN_WARM_TFS) {
   for (const sym of tickers) {
     if (!sym) continue
     for (const tf of tfs) {
-      if (memHas(sym, tf)) continue        // already hot — pure no-op per press
-      idbGet(sym, tf).then(entry => {
-        if (entry?.bars?.length && !memHas(sym, tf) && _memPromoteFresh(tf, entry.lastT, entry.savedAt)) {
-          memPut(sym, tf, entry.bars, { savedAt: entry.savedAt ?? null })   // the SOURCE stamp, never now
+      const k = _ck(tf)                    // pinned: read and write the SAME key
+      if (_memHasRaw(sym, k)) continue        // already hot — pure no-op per press
+      _idbGetRaw(sym, k).then(entry => {
+        if (entry?.bars?.length && !_memHasRaw(sym, k) && _memPromoteFresh(tf, entry.lastT, entry.savedAt)) {
+          _memPutRaw(sym, k, entry.bars, { savedAt: entry.savedAt ?? null })   // the SOURCE stamp, never now
         }
       }).catch(() => { /* best-effort accelerator; IDB stays the fallback */ })
     }
@@ -862,12 +897,13 @@ let _deepKick = null
 
 function _deepUrl(sym, tf) {
   // Deep background warm — best-effort, so it sheds under load like the shallow prefetch.
-  return `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${fullBarsFor(tf)}&warm=1`
+  return `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${fullBarsFor(tf)}${_sessQ(tf)}&warm=1`
 }
 async function _deepWarmOne(sym, tf) {
   try {
     const target = fullBarsFor(tf)
-    const have = await idbGet(sym, tf)
+    const k = _ck(tf)   // pinned for this job (see _gridOk)
+    const have = await _idbGetRaw(sym, k)
     // Already deep enough in IDB → nothing to do (a short-history name never
     // reaches `target`, but the 5-min _deepSeen window keeps it from re-fetching).
     if (have?.bars?.length >= target * 0.9) return
@@ -876,9 +912,9 @@ async function _deepWarmOne(sym, tf) {
     // shedding server. Holds during pack-ingest OR while backed off (_holdBackgroundWarm).
     if (_holdBackgroundWarm()) return
     const json = _noteWarmResult(await _warmLoad(_deepUrl(sym, tf))) // dedupes + warms SWR + server
-    if (json?.bars?.length && !json.delta) {
-      await idbPut(sym, tf, json.bars)   // durable: the click paints deep from IDB
-      memPut(sym, tf, json.bars)
+    if (json?.bars?.length && !json.delta && _gridOk(k, json)) {
+      await _idbPutRaw(sym, k, json.bars)   // durable: the click paints deep from IDB
+      _memPutRaw(sym, k, json.bars)
     }
   } catch { /* best-effort; the chart's own dwell-warm remains the fallback */ }
 }
@@ -943,20 +979,21 @@ async function _warmIntentNow(sym, tf) {
     // IDB-first: a durable, fresh-enough entry promotes to mem with zero
     // network — the hover/focus click then paints same-frame. Only a cold or
     // stale-intraday miss pays the fetch.
-    const have = await idbGet(sym, tf)
+    const k = _ck(tf)   // pinned for this job (see _gridOk)
+    const have = await _idbGetRaw(sym, k)
     if (have?.bars?.length && _memPromoteFresh(tf, have.lastT, have.savedAt)) {
-      memPut(sym, tf, have.bars, { savedAt: have.savedAt ?? null })
+      _memPutRaw(sym, k, have.bars, { savedAt: have.savedAt ?? null })
       return
     }
     const json = await _warmLoad(_url(sym, tf, false), fetcher) // intent warm: not shed, matches the chart's SWR key
-    if (json?.bars?.length && !json.delta) {
+    if (json?.bars?.length && !json.delta && _gridOk(k, json)) {
       // Preserve deeper history on a stale-daily refresh (see _idbWarmOne).
       const staleDaily = tf === 'D' && have?.bars?.length && _dailyNeedsRefresh(have.lastT, have.savedAt)
       const next = (staleDaily && have?.bars?.length > json.bars.length)
         ? mergeDelta(have.bars, json.bars)
         : json.bars
-      memPut(sym, tf, next)
-      await idbPut(sym, tf, next)                       // durable too
+      _memPutRaw(sym, k, next)
+      await _idbPutRaw(sym, k, next)                       // durable too
     }
   } catch { /* best-effort; the chart's own fetch remains source of truth */ }
 }

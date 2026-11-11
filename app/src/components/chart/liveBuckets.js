@@ -4,14 +4,13 @@
 // carry code only the chart's live writers use (notebook first-open bytes budget).
 import {
   bucketStartUnix, etMinuteOfDay, fromChartTime, rthCloseMinuteOf, sixtyMinGridFor, toChartTime,
-  RTH_OPEN_MIN, SIXTY_MIN_GRID_BY_SESSION, _GRID_ALIAS,
+  RTH_OPEN_MIN, SIXTY_MIN_GRID_BY_SESSION, DEFAULT_SIXTY_MIN_GRID, _GRID_ALIAS,
 } from './barTime'
 
 /** The /api/stream/bars `session` (wire name 'rth' | 'eth') whose 60m buckets
- *  match the series this chart view FETCHES. Follows the grid policy, NOT the
- *  view: while the server stores one 'session' grid, an extended-hours chart
- *  must still ask the stream for 'rth' buckets, or live 60m candles land on
- *  clock hours between the fetched 09:30/10:30… bars. */
+ *  match the series this chart view FETCHES. Follows the grid policy: the
+ *  extended view fetches (`/api/bars?session=eth`) and so streams the clock
+ *  grid, the RTH view the session grid. */
 export function liveStreamSession(showExtended, policy = SIXTY_MIN_GRID_BY_SESSION) {
   return sixtyMinGridFor(showExtended ? 'extended' : 'rth', policy) === 'clock' ? 'eth' : 'rth'
 }
@@ -28,7 +27,8 @@ export function bucketEndUnix(unixSec, tfMin, { grid } = {}) {
   const tf = Number(tfMin)
   const start = bucketStartUnix(unixSec, tf, { grid })
   if (tf !== 60) return start + (tf > 0 ? tf : 5) * 60
-  const g = _GRID_ALIAS[grid || sixtyMinGridFor('extended')] || 'session'
+  // No grid named → the grid /api/bars serves by default (NOT the policy's extended view).
+  const g = _GRID_ALIAS[grid || DEFAULT_SIXTY_MIN_GRID] || 'session'
   if (g === 'clock') return start + 3600
   const m0 = etMinuteOfDay(start)
   const close = rthCloseMinuteOf(start)
