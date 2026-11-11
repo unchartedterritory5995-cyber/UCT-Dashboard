@@ -251,23 +251,11 @@ export async function executeDefinitionAction(plan, ctx = {}, deps = {}) {
   const before = await read(plan.defId, { withSource: true })
   if (!before.ok || !before.row.definition) return { status: REASONS.UNCONFIRMED, reason: REASONS.UNCONFIRMED, receipt: receiptOf(plan, REASONS.UNCONFIRMED), error: before.error || 'Could not read the definition before deleting it; nothing was deleted.' }
   const pineSource = scriptOf(before.row)
-  // ⛔ EXACT OR NOTHING: a row that holds a script we did not get back, or a stamped
-  // document with no script to carry the stamp, could not be restored exactly — so it is
-  // not deleted either.
-  if ((before.row.has_pine_source === true || engineStampOf(before.row.definition) !== null) && !pineSource) {
-    return { status: REASONS.UNCONFIRMED, reason: REASONS.UNCONFIRMED, receipt: receiptOf(plan, REASONS.UNCONFIRMED),
-      error: 'Could not read this indicator’s saved script, so it could not be restored exactly after a delete; nothing was deleted.' }
-  }
-  // ⛔ F-15 (ruling 2026-11-10) — A LEGACY PINE IMPORT: script-shaped (`isScriptDocument`)
-  // with no stored script and, past the check above, no engine stamp. Its Undo could only
-  // save it back WITHOUT a script, and the save door then marks it `meta.scriptEdited` (L2):
-  // a different document, never offered its upgrade again. That restore cannot be exact, so
-  // it is not deleted. One ALREADY marked `scriptEdited` comes back unchanged, and a
-  // document that is not script-shaped is never marked, so both delete exactly as before.
-  if (!pineSource && isScriptDocument(before.row.definition) && before.row.definition.meta.scriptEdited !== true) {
-    return { status: REASONS.UNCONFIRMED, reason: REASONS.UNCONFIRMED, receipt: receiptOf(plan, REASONS.UNCONFIRMED),
-      error: 'This indicator was imported from Pine before its script was kept, so a delete could not be undone exactly; nothing was deleted.' }
-  }
+  const refused = deleteRefusal(before.row, pineSource)
+  // ⛔ EXACT OR NOTHING — and said as a REFUSAL (nothing was written), in the sentence that
+  // is true of THIS row. An `unconfirmed` status here reached the member as "could not read
+  // it back" plus "some changes could not be reversed", neither of which was true.
+  if (refused) return refuse(REASONS.UNSUPPORTED_DEFINITION, { why: refused })
   const remove = deps.remove || deleteUserDefinition
   const gone = await remove(plan.defId)
   if (!gone.ok) return { status: REASONS.NOT_LANDED, reason: REASONS.NOT_LANDED, receipt: receiptOf(plan, REASONS.NOT_LANDED), error: gone.error }
@@ -285,6 +273,63 @@ export async function executeDefinitionAction(plan, ctx = {}, deps = {}) {
 /** The stored Pine script on a row read with `{withSource: true}`, or null. */
 function scriptOf(row) {
   return row && typeof row.pine_source === 'string' && row.pine_source.trim() ? row.pine_source : null
+}
+
+/** Is this document marked as hand-edited by the save door (L2, `meta.scriptEdited`)? */
+const editedMark = (def) => !!(isObj(def) && isObj(def.meta) && def.meta.scriptEdited === true)
+
+/** Would a save WITHOUT a script mark this document `scriptEdited` (the save door's L2)? */
+const wouldMarkEdited = (def) => isScriptDocument(def) && !editedMark(def)
+
+/** Why a delete of this row could not be undone exactly — each sentence true of the row it
+ *  names — so the Agent refuses it. Exported for the tests that rail the words.
+ *  ⛔ Each is a CAUSE clause, said once: the Agent shows it as "That can’t be done: <why>" and
+ *  the runtime then adds "nothing was left changed", so "nothing was deleted" is not repeated. */
+export const DELETE_REFUSALS = Object.freeze({
+  scriptUnread: 'could not read this indicator’s saved script, so a delete could not be undone exactly',
+  sharedCopy: 'this indicator is a copy shared with you, and a shared copy never carries the author’s Pine script, so a delete could not be undone exactly',
+  stampWithoutScript: 'this indicator is marked as translated from a Pine script that is not stored with it, so a delete could not be undone exactly',
+  legacyImport: 'this indicator was imported from Pine before its script was kept, so a delete could not be undone exactly',
+})
+
+/**
+ * ⛔ F-15 — the sentence for a delete whose Undo could not be exact, or null.
+ *
+ * Undo re-saves the deleted document through `saveUserDefinition`. Without a script, that
+ * door drops the engine stamp (`withoutEngineStamp`) and marks a script-shaped document
+ * `meta.scriptEdited` (L2). So a row that changes under either rule, or one that holds a
+ * script we did not get back, is not deleted. Which sentence is true depends on the row:
+ *   • it HOLDS a script (`has_pine_source`) that the read did not return;
+ *   • it is a copy installed from someone else's share (`origin`): `install_share` never
+ *     stores the author's script, so there is none to read — "could not read" would be false;
+ *   • it carries a stamp with no script beside it (no other door writes this today);
+ *   • a LEGACY Pine import (ruling 2026-11-10): script-shaped, unstamped, no script, not yet
+ *     marked — the restore would come back marked and never be offered its upgrade again.
+ * ⭐ Decided 2026-11-11 (N1): an `origin` copy is still REFUSED, with its own sentence, not
+ * restored without its stamp. Today that restore would behave the same (`upgradeKindOf` gives
+ * 'current' or 'none', both drawn as stored; the server reads the stamp only on a row holding
+ * a script), but it would not be the stored document, and "confirmed" here means exact.
+ */
+function deleteRefusal(row, pineSource) {
+  if (pineSource) return null
+  const def = row.definition
+  if (row.has_pine_source === true) return DELETE_REFUSALS.scriptUnread
+  const stamped = engineStampOf(def) !== null
+  if (!stamped && !wouldMarkEdited(def)) return null
+  if (isObj(def.origin)) return DELETE_REFUSALS.sharedCopy
+  return stamped ? DELETE_REFUSALS.stampWithoutScript : DELETE_REFUSALS.legacyImport
+}
+
+/** What came back different after an Undo save, in words; empty when it is exact. */
+function restoreDifferences(back, undo, pineSource) {
+  const out = []
+  const script = scriptOf(back.row)
+  if (script !== pineSource) out.push(script === null ? 'without its saved script' : (pineSource === null ? 'with a script it did not have' : 'with a different saved script'))
+  const stamp = engineStampOf(back.row.definition)
+  if (stamp !== engineStampOf(undo.definition)) out.push(stamp === null ? 'without its engine version' : 'with a different engine version')
+  const marked = editedMark(back.row.definition)
+  if (marked !== editedMark(undo.definition)) out.push(marked ? 'marked as hand-edited' : 'no longer marked as hand-edited')
+  return out
 }
 
 /**
@@ -307,7 +352,14 @@ export async function undoDefinitionAction(undo, ctx = {}, deps = {}) {
     // this fix, or edited) cannot be exact, so it is refused before anything is written.
     const pineSource = typeof undo.pineSource === 'string' && undo.pineSource.trim() ? undo.pineSource : null
     if (engineStampOf(undo.definition) !== null && !pineSource) {
-      return refuse(REASONS.RESTORE_CONFLICT, { why: 'the indicator’s saved script was not kept, so it cannot be restored exactly' })
+      return refuse(REASONS.RESTORE_CONFLICT, { why: 'the indicator’s saved script was not kept' })
+    }
+    // ⛔ F-15 N2 — the delete's own legacy rule, asked again of the RECORD: without a script
+    // the save door marks a script-shaped document `scriptEdited` (L2), so this restore
+    // could not be exact either. Refused before anything is written. (The delete never
+    // makes such a record; this guards one made before F-15, or edited.)
+    if (!pineSource && wouldMarkEdited(undo.definition)) {
+      return refuse(REASONS.RESTORE_CONFLICT, { why: 'it was imported from Pine before its script was kept' })
     }
     const save = deps.save || saveUserDefinition
     const options = {
@@ -318,11 +370,13 @@ export async function undoDefinitionAction(undo, ctx = {}, deps = {}) {
     if (!res.ok) return { status: REASONS.NOT_LANDED, reason: REASONS.NOT_LANDED, receipt: { ...base, status: REASONS.NOT_LANDED }, error: res.error }
     const back = await read(undo.defId, { withSource: true })
     if (!back.ok) return { status: REASONS.UNCONFIRMED, reason: REASONS.UNCONFIRMED, receipt: { ...base, status: REASONS.UNCONFIRMED } }
-    // ⛔ CONFIRMED MEANS EXACT. The read-back must hold the same script and the same engine
-    // stamp the deleted row held; anything else is reported, never called confirmed.
-    if (scriptOf(back.row) !== pineSource || engineStampOf(back.row.definition) !== engineStampOf(undo.definition)) {
+    // ⛔ CONFIRMED MEANS EXACT. The read-back must hold the same script, the same engine
+    // stamp and the same hand-edited mark (`meta.scriptEdited`, N2) the deleted row held;
+    // anything else is reported, in words that name what differs, never called confirmed.
+    const differs = restoreDifferences(back, undo, pineSource)
+    if (differs.length) {
       return { status: REASONS.NOT_LANDED, reason: REASONS.NOT_LANDED, receipt: { ...base, status: REASONS.NOT_LANDED },
-        error: 'The indicator came back, but without its saved script or engine version, so it is not exactly as it was.' }
+        error: `The indicator came back, but ${differs.join(' and ')}, so it is not exactly as it was.` }
     }
     return { status: 'confirmed', receipt: { ...base, status: 'confirmed', version: back.row.version ?? null }, undo: null }
   }

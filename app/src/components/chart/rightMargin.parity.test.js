@@ -2,11 +2,10 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { LAST_CANDLE_POS, MIN_RIGHT_GAP_PX, MAX_RIGHT_GAP_FRAC, lastCandlePos, pinNewestRange, rightMarginBars } from './rightMargin'
+import { frameAfterKeyChange } from '../../data/barStore/framing'
 
 // ONE right-margin policy. rightMargin.js is the owner and StockChart IMPORTS it (W-R,
 // charts/symbol-switch-pinned) — this rail fails if StockChart grows its own copy again.
-// (Brought over from charts/p2-adapter-renderer #1108; that branch's K1 framing case is added
-// back when data/barStore/framing.js lands.)
 
 const SC = fs.readFileSync(path.resolve(globalThis.process.cwd(), 'src/components/StockChart.jsx'), 'utf8')
 
@@ -31,11 +30,12 @@ describe('right-margin policy parity', () => {
     expect(lastCandlePos(150)).toBeCloseTo(0.84, 12)
   })
 
-  it('pinNewestRange keeps the width and puts the newest bar + reserve a constant margin from the edge', () => {
+  it('framing K1 ≡ pinNewestRange for every tf incl. the D/W/M developing-slot reserve', () => {
     for (const reserve of [0, 1, 2]) {
       for (const [W, px] of [[390, 900], [65, 600], [126, 420], [52, 300], [36, 160]]) {
         for (const newestIndex of [0, 64, 4999]) {
           const pin = pinNewestRange(newestIndex, W, px, reserve)
+          expect(frameAfterKeyChange({ newestIndex, prevRange: { from: 10, to: 10 + W }, plotWidthPx: px, reserve })).toEqual(pin)
           expect(pin.to - pin.from).toBe(W)
           expect(pin.to).toBeCloseTo(newestIndex + reserve + rightMarginBars(W, px), 12)
         }
