@@ -145,7 +145,8 @@ export function createSeriesPainter(series) {
  *   opts.candleField — 'candles' (OHLC types) | 'closes' (line/area)
  *   opts.allowEmpty  — paint an empty series on a key change (status 'unavailable')
  */
-export function createDiffRenderer({ timeScale, candle, volume = null, defaultVisibleBars = null, rightPadBars } = {}) {
+// plotWidthPx: number | () => number — the candle plot width (right margin policy, framing.js).
+export function createDiffRenderer({ timeScale, candle, volume = null, defaultVisibleBars = null, plotWidthPx = null, rightPadBars = null } = {}) {
   const main = createSeriesPainter(candle)
   const vol = volume ? createSeriesPainter(volume) : null
   const overlays = new Map()
@@ -162,7 +163,8 @@ export function createDiffRenderer({ timeScale, candle, volume = null, defaultVi
       const v = vol ? vol.paint({ ...ids, base: result.base.volume, tail: result.tail.volume }, { allowEmpty: true }) : null
       let range = null
       if (c.keyChange && c.n > 0) {
-        range = frameAfterKeyChange({ n: c.n, prevRange: hadFrame ? prevRange : null, defaultVisibleBars, ...(rightPadBars != null ? { rightPadBars } : {}) })
+        const px = typeof plotWidthPx === 'function' ? plotWidthPx() : plotWidthPx
+        range = frameAfterKeyChange({ n: c.n, prevRange: hadFrame ? prevRange : null, defaultVisibleBars, plotWidthPx: px, rightPadBars })
       } else if (c.op === 'prepend') {
         range = frameAfterPrepend(prevRange, c.added)
       }

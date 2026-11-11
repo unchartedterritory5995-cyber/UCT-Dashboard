@@ -48,12 +48,15 @@ describe('A1 chart time', () => {
       expect(((chartTimeOf(t) % 86400) + 86400) % 86400).toBe(9.5 * 3600)
     }
   })
-  it('D/W/M strings pass through; a unix D bar is labelled by its ET date', () => {
+  it('D/W/M strings pass through; a unix D/W/M bar (store unit: 00:00 UTC of the label date) keeps its label', () => {
     expect(chartTimeOf('2026-11-10')).toBe('2026-11-10')
     const r = rng(1)
-    const t = etUnix(2026, 11, 10, 0, 0) + 12 * 3600
-    const s = toSeries(snap('X_D', [bar(t, r)], null), { tf: 'D' })
-    expect(s.base.candles[0].time).toBe(etDateOf(t))
+    for (const [tf, label] of [['D', '2026-11-10'], ['W', '2026-11-13'], ['M', '2026-11-01']]) {
+      const t = Date.UTC(...label.split('-').map((x, i) => Number(x) - (i === 1 ? 1 : 0))) / 1000
+      const s = toSeries(snap('X_' + tf, [bar(t, r)], null), { tf })
+      expect(s.base.candles[0].time).toBe(label)
+      expect(legacyBars(snap('X_' + tf, [bar(t, r)], null))[0].t).toBe(label)
+    }
   })
 })
 

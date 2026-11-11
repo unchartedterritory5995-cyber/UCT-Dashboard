@@ -24,7 +24,7 @@
 // The store bumps baseRev on every change to sealed bars, so a stale entry can never be
 // served; the LRU bound (BASE_MEMO_MAX) only limits memory. Tested in adapter.test.js.
 
-import { toChartTime, etDateOf, computeBarTime } from '../../components/chart/barTime'
+import { toChartTime } from '../../components/chart/barTime'
 import { foldOffGridBars } from '../../components/chart/offGridBars'
 import { applySessionCandle } from '../../components/chart/sessionPreview'
 import { toHeikinAshi } from '../../components/chart/indicators'
@@ -59,20 +59,23 @@ export function viewTransformId(view = {}) {
 
 // ── legacy shape ──────────────────────────────────────────────────────────────
 // Today's downstream bar shape: {t,o,h,l,c,v}; intraday t = unix seconds; D/W/M t =
-// 'YYYY-MM-DD'. A store that already holds date strings for D/W/M passes through
-// untouched (the golden path); a unix D/W/M t is labelled by the same functions the
-// live writers use today (etDateOf / computeBarTime).
+// 'YYYY-MM-DD'. The store (P2a types.js TIME UNIT) holds a D/W/M t as UNIX SECONDS at
+// 00:00 UTC of the server's label date (D session date, W Friday, M the 1st), so the
+// label is the UTC date of t — NOT the ET date (00:00 UTC is the previous ET evening).
+// ⚠ Same rule as types.unixToDateLabel (P2a, not on master yet): at integration import
+// it from './types' so there is one owner. A date-string t passes through untouched.
 function legacyT(t, tf) {
   if (typeof t !== 'number' || !DWM.has(tf)) return t
-  return tf === 'D' ? etDateOf(t) : computeBarTime(tf, t)
+  return new Date(t * 1000).toISOString().slice(0, 10)
 }
 function toLegacyBar(b, tf) {
   const t = legacyT(b.t, tf)
-  if (t === b.t && !('rev' in b) && !('src' in b)) return b
+  if (t === b.t && !('rev' in b) && !('src' in b) && !('fin' in b)) return b
   return { t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v }
 }
 function tfOfSnapshot(snapshot, view) {
   if (view?.tf != null) return String(view.tf)
+  if (snapshot?.tf != null) return String(snapshot.tf)
   const k = String(snapshot?.key ?? '')
   const m = /_([^_@]+)(?:@|$)/.exec(k)
   return m ? (m[1] === '60e' ? '60' : m[1]) : ''

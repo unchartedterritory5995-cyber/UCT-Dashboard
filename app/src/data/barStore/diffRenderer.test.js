@@ -3,7 +3,7 @@ import { createFakeChart } from './fakeLwc.testutil'
 import { createDiffRenderer, createSeriesPainter, MAX_HISTORICAL_UPDATES } from './diffRenderer'
 import { toSeries, composePoints, _resetAdapterMemos } from './adapter'
 import { toChartTime } from '../../components/chart/barTime'
-import { RIGHT_PAD_BARS, frameAfterKeyChange, frameAfterPrepend, xOfLogical } from './framing'
+import { rightMarginBars, lastCandlePos, frameAfterKeyChange, frameAfterPrepend, xOfLogical } from './framing'
 
 // ─── INVARIANTS (property style, seeded) ───────────────────────────────────────
 //  P1  After every render the series hold EXACTLY adapter(base ⊕ tail) — candle + volume.
@@ -109,7 +109,7 @@ function setup() {
   const chart = createFakeChart()
   const candle = chart.addSeries('candle')
   const volume = chart.addSeries('volume')
-  const renderer = createDiffRenderer({ timeScale: chart.timeScale(), candle, volume, defaultVisibleBars: 65 })
+  const renderer = createDiffRenderer({ timeScale: chart.timeScale(), candle, volume, defaultVisibleBars: 65, plotWidthPx: chart.width })
   return { chart, candle, volume, renderer }
 }
 const strip = (d) => d.map(p => ({ ...p }))
@@ -144,9 +144,9 @@ describe('diffRenderer × fake LWC: random snapshot sequences', () => {
           const d = candle.data(); oldTime = d[Math.floor(d.length / 2)]?.time; oldX = chart.xOfTime(oldTime)
         } else if (roll < 0.73) kind = store.refresh(key(), tf)
         else if (roll < 0.76) { view = { ...view, heikinAshi: !view.heikinAshi }; kind = 'vtid' }
-        else if (roll < 0.79) {   // user zoom, right-anchored at the policy pad
+        else if (roll < 0.79) {   // user zoom, right-anchored at the policy margin
           const n = candle.data().length, W = 20 + Math.floor(r() * 200)
-          chart.timeScale().setVisibleLogicalRange({ from: n - 1 + RIGHT_PAD_BARS - W, to: n - 1 + RIGHT_PAD_BARS })
+          chart.timeScale().setVisibleLogicalRange({ from: n - 1 + rightMarginBars(W, chart.width) - W, to: n - 1 + rightMarginBars(W, chart.width) })
           kind = 'zoom'
         } else {
           let next
@@ -216,13 +216,13 @@ describe('diffRenderer × fake LWC: random snapshot sequences', () => {
     expect(candle.data()).toEqual([])
   })
 
-  it('first paint frames at defaultVisibleBars with RIGHT_PAD_BARS of right margin', () => {
+  it('first paint frames at defaultVisibleBars with the policy right margin (newest candle at lastCandlePos of the plot)', () => {
     const r = rng(9)
     const store = makeStore(r)
     const { chart, candle, renderer } = setup()
     const out = renderer.render(toSeries(store.get('AAA_1', '1'), { tf: '1', showExtended: true }))
     const n = candle.data().length
-    expect(out.range).toEqual({ from: n - 1 + RIGHT_PAD_BARS - 65, to: n - 1 + RIGHT_PAD_BARS })
+    expect(out.range).toEqual({ from: n - 1 + rightMarginBars(65, 600) - 65, to: n - 1 + rightMarginBars(65, 600) })
     expect(chart.timeScale().getVisibleLogicalRange()).toEqual(out.range)
   })
 })
@@ -265,6 +265,18 @@ describe('series painter edge rules', () => {
 })
 
 describe('framing contract (pure)', () => {
+  it('right-margin policy: the W-R pinNewestRange margin, StockChart lastCandlePos values', () => {
+    // StockChart: LAST_CANDLE_POS 0.95, MIN_RIGHT_GAP_PX 34, MAX_RIGHT_GAP_FRAC 0.16.
+    expect(lastCandlePos(null)).toBe(0.95)
+    expect(lastCandlePos(1200)).toBeCloseTo(0.95, 12)       // wide: the 5% fraction wins
+    expect(lastCandlePos(400)).toBeCloseTo(1 - 34 / 400, 12) // narrow: the 34px minimum wins
+    expect(lastCandlePos(150)).toBeCloseTo(0.84, 12)         // thin: capped at 16%
+    for (const [W, px] of [[65, 900], [390, 600], [52, 300], [120, 180]]) {
+      const n = 500
+      const pin = { from: (n - 1) + W * (1 - lastCandlePos(px)) - W, to: (n - 1) + W * (1 - lastCandlePos(px)) }   // W-R pinNewestRange(n-1, W, px)
+      expect(frameAfterKeyChange({ n, prevRange: { from: 0, to: W }, plotWidthPx: px })).toEqual(pin)
+    }
+  })
   it('K1: newest x is a function of (W, pad, width) only — invariant over n', () => {
     const r = rng(3)
     for (let k = 0; k < 200; k++) {
@@ -273,10 +285,10 @@ describe('framing contract (pure)', () => {
       const xs = new Set()
       for (let j = 0; j < 5; j++) {
         const n = 1 + Math.floor(r() * 30000)
-        const range = frameAfterKeyChange({ n, prevRange })
+        const range = frameAfterKeyChange({ n, prevRange, plotWidthPx: 600 })
         xs.add(Math.round(xOfLogical(range, n - 1, 600) * 1e9))
         expect(range.to - range.from).toBe(W)
-        expect(range.to).toBe(n - 1 + RIGHT_PAD_BARS)
+        expect(range.to).toBe(n - 1 + rightMarginBars(W, 600))
       }
       expect(xs.size).toBe(1)
     }

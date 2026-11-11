@@ -192,6 +192,13 @@ describe('golden part 1: adapter ≡ the real StockChart (barsOverride)', () => 
       })
       expect(got.candles).toEqual(golden.candles)
       expect(got.volume).toEqual(golden.volume)
+      // P2a store unit: a D/W/M t is UNIX at 00:00 UTC of the label date — same output.
+      if (c.tf === 'D') {
+        const unixBars = bars.map(b => ({ ...b, t: Date.parse(b.t + 'T00:00:00Z') / 1000 }))
+        const gotU = adapterPoints(snapshotOf('SYN_D', unixBars, 7), { tf: 'D', showExtended: c.ext, heikinAshi: c.settings.heikinAshi, replayCutoff: c.replayCutoff })
+        expect(gotU.candles).toEqual(golden.candles)
+        expect(gotU.volume).toEqual(golden.volume)
+      }
       // The comparison discriminates: each view input the case sets, flipped, no longer matches.
       const view = { tf: c.tf, showExtended: c.ext, heikinAshi: c.settings.heikinAshi, replayCutoff: c.replayCutoff }
       const snap = snapshotOf(`SYN_${c.tf}`, bars)
