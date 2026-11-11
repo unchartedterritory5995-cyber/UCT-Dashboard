@@ -4,27 +4,26 @@ import path from 'node:path'
 import { LAST_CANDLE_POS, MIN_RIGHT_GAP_PX, MAX_RIGHT_GAP_FRAC, lastCandlePos, pinNewestRange, rightMarginBars } from './rightMargin'
 import { frameAfterKeyChange } from '../../data/barStore/framing'
 
-// ONE right-margin policy. rightMargin.js is the owner; StockChart still declares its own
-// copies until it imports from here (W-R / P3-S3). This rail reads StockChart's SOURCE so
-// the copies cannot drift — delete the source check the day StockChart imports the module.
+// ONE right-margin policy. rightMargin.js is the owner and StockChart IMPORTS it (W-R,
+// charts/symbol-switch-pinned) — this rail fails if StockChart grows its own copy again.
 
 const SC = fs.readFileSync(path.resolve(globalThis.process.cwd(), 'src/components/StockChart.jsx'), 'utf8')
-const constOf = (name) => {
-  const m = new RegExp(`^const ${name} = ([0-9.]+)\\s*$`, 'm').exec(SC)
-  return m ? Number(m[1]) : undefined
-}
 
 describe('right-margin policy parity', () => {
-  it('StockChart\'s copies equal the owner\'s values (or StockChart imports the owner)', () => {
-    const imports = /from '\.\/chart\/rightMargin'/.test(SC)
-    if (imports) return
-    expect({ LAST_CANDLE_POS: constOf('LAST_CANDLE_POS'), MIN_RIGHT_GAP_PX: constOf('MIN_RIGHT_GAP_PX'), MAX_RIGHT_GAP_FRAC: constOf('MAX_RIGHT_GAP_FRAC') })
-      .toEqual({ LAST_CANDLE_POS, MIN_RIGHT_GAP_PX, MAX_RIGHT_GAP_FRAC })
-    // …and StockChart's lastCandlePos body is the owner's formula.
-    expect(SC).toMatch(/const gap = Math\.min\(MAX_RIGHT_GAP_FRAC, Math\.max\(1 - LAST_CANDLE_POS, MIN_RIGHT_GAP_PX \/ plotWidthPx\)\)/)
+  it('StockChart imports the owner and declares no copy of the policy', () => {
+    expect(SC).toMatch(/from '\.\/chart\/rightMargin'/)
+    for (const name of ['LAST_CANDLE_POS', 'MIN_RIGHT_GAP_PX', 'MAX_RIGHT_GAP_FRAC']) {
+      expect({ name, declared: new RegExp(`^\\s*(export\\s+)?const ${name}\\s*=`, 'm').test(SC) }).toEqual({ name, declared: false })
+    }
+    for (const fn of ['lastCandlePos', 'pinNewestRange', 'rightMarginBars']) {
+      expect({ fn, declared: new RegExp(`^\\s*(export\\s+)?function ${fn}\\s*\\(`, 'm').test(SC) }).toEqual({ fn, declared: false })
+    }
   })
 
   it('lastCandlePos regimes: wide fraction, narrow pixel minimum, thin cap, unknown width', () => {
+    expect(LAST_CANDLE_POS).toBe(0.95)
+    expect(MIN_RIGHT_GAP_PX).toBe(34)
+    expect(MAX_RIGHT_GAP_FRAC).toBe(0.16)
     expect(lastCandlePos(null)).toBe(0.95)
     expect(lastCandlePos(1200)).toBeCloseTo(0.95, 12)
     expect(lastCandlePos(400)).toBeCloseTo(1 - 34 / 400, 12)
