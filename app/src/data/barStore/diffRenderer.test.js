@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { createFakeChart } from './fakeLwc.testutil'
+import { createFakeChart } from './testing/fakeLwc'
 import { createDiffRenderer, createSeriesPainter, MAX_HISTORICAL_UPDATES } from './diffRenderer'
 import { toSeries, composePoints, _resetAdapterMemos } from './adapter'
 import { toChartTime } from '../../components/chart/barTime'
