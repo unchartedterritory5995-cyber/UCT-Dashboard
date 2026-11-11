@@ -3202,6 +3202,14 @@
       "values": ["0", "1"],
       "note": "DEFAULT ON (today's behaviour): unset or 1 keeps Cache-Control no-transform on every /assets response. 0 drops no-transform from hashed JS/CSS ONLY so Cloudflare may compress them: with it on, Cloudflare decompresses our precompressed response and may not re-compress it, so members got every JS/CSS file uncompressed (measured 2026-11-10: main script 573 KB vs 157 KB Brotli). Safe only while the zone's Compression Rule limits /assets/* to brotli or gzip, never zstd (zstd truncated the ECharts chunk, 72f1c438f8), and only after every hashed asset is verified byte-for-byte through the edge. Read per request in api/services/static_assets.py (no_transform_enabled). Rails: tests/test_precompressed_static_assets.py. Rollback: railway variables --service web --set ASSETS_NO_TRANSFORM_ENABLED=1 (a delete stages but does not restart: redeploy), then PURGE /assets AT CLOUDFLARE."
     },
+    "DESKTOP_TELEMETRY_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-10",
+      "where": [],
+      "default": "1",
+      "values": ["0", "1"],
+      "note": "Desktop plan 5.1 (v2 Task 30): the KILL SWITCH for the desktop app's telemetry door, POST /api/desktop/event (api/routers/desktop_events.py, mounted in api/main.py). SHIPS ON BY DEFAULT as a rollback switch: unset or any value but 0/false/no/off means the web service stores reports; 0/false/no/off answers {enabled: false}, writes nothing, and the hourly alert job (desktop_events_alerts) posts nothing. Read per request in api/services/desktop_events.py::enabled(). Turning it off stops COLLECTION and never deletes a stored row. ENUM-ONLY: every stored field is a fixed set or a digits-and-dots pattern (event, shell_version, os, error_code), an optional random install id stored only as a salted hash, and a signed-in flag; never a message, URL, path, member id or IP. Session optional because launch and crash events happen before sign-in. Own store DESKTOP_EVENTS_DB_PATH (default /data/desktop_events.db), 90-day retention, hard cap 100,000 rows. Halt triggers (same crash or update_error on 2+ machines in 24 h, or a launch-failure loop) post once to the OPS destination; one digest a day after 07:00 ET. Rails: tests/test_desktop_events.py."
+    },
     "PRECOMPRESSED_ASSETS_ENABLED": {
       "status": "dark",
       "since": "2026-11-10",
