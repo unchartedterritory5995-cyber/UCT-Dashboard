@@ -187,3 +187,59 @@ def test_model_safe_schema_keeps_the_same_values():
     s = turn.model_safe_schema({"type": ["string", "null"], "enum": ["asc", "desc"]})
     assert s == {"anyOf": [{"type": "string", "enum": ["asc", "desc"]}]}
     assert turn.model_safe_schema({"type": "string", "enum": ["a"]}) == {"type": "string", "enum": ["a"]}
+
+
+# ── schema-subset rail (2026-11-11, #1076): the server leaves out any capability whose args schema uses a keyword
+# outside its structured-output subset (minItems, maxItems, minimum, pattern…). That must fail HERE, by name and
+# keyword, never reach production as an action the model silently can't call.
+def _outside_subset(caps):
+    return {c["name"]: turn.schema_problems(c["args"]) for c in caps if turn.schema_problems(c["args"])}
+
+
+def test_every_manifest_capability_is_inside_the_server_schema_subset():
+    assert _outside_subset(CAPS) == {}, "these actions would be dropped by the server (bounds belong in code)"
+
+
+def _planted(name="drawing.plantedControl"):
+    planted = json.loads(json.dumps(BY["agent.capabilities"]))
+    planted["name"] = name
+    planted["args"] = {"type": "object", "additionalProperties": False, "required": ["levels"],
+                       "properties": {"levels": {"type": "array", "minItems": 1, "maxItems": 3,
+                                                 "items": {"type": "string", "enum": ["stop", "target"]}}}}
+    return planted
+
+
+def test_control_a_planted_minitems_capability_fails_the_rail_and_is_dropped_loudly(caplog, monkeypatch):
+    monkeypatch.setattr(turn, "_SCHEMA_DROP_LOGGED", set())
+    base = BY["agent.capabilities"]
+    planted = _planted()
+    assert _outside_subset(CAPS + [planted]) == {
+        "drawing.plantedControl": ["args.levels: unsupported keyword(s) maxItems, minItems"]}
+    with caplog.at_level("ERROR", logger=turn.__name__):
+        kept = turn.validate_manifest([base, planted])
+    assert [c["name"] for c in kept] == [base["name"]]
+    msg = " ".join(r.getMessage() for r in caplog.records if r.levelname == "ERROR")
+    assert "drawing.plantedControl left out" in msg and "minItems" in msg
+
+
+def test_schema_problems_names_each_kind_of_violation():
+    assert turn.schema_problems({"type": "object", "properties": {}, "required": [], "additionalProperties": False}) == []
+    assert turn.schema_problems({"type": "object", "properties": {"a": {"type": "string"}},
+                                 "required": [], "additionalProperties": False}) == ["args: required is not every property"]
+    assert turn.schema_problems({"type": "object", "properties": {"n": {"type": "integer", "minimum": 0}},
+                                 "required": ["n"], "additionalProperties": False}) == [
+        "args.n: unsupported keyword(s) minimum"]
+    assert turn.schema_problems({"type": "object", "properties": {"x": {"anyOf": [{"type": "null"}, {"type": "string", "pattern": "^a"}]}},
+                                 "required": ["x"], "additionalProperties": False}) == [
+        "args.x.anyOf[1]: unsupported keyword(s) pattern"]
+
+
+def test_a_dropped_capability_is_logged_once_per_process_but_dropped_every_turn(caplog, monkeypatch):
+    monkeypatch.setattr(turn, "_SCHEMA_DROP_LOGGED", set())
+    base, planted = BY["agent.capabilities"], _planted("drawing.plantedOnce")
+    with caplog.at_level("ERROR", logger=turn.__name__):
+        first = turn.validate_manifest([base, planted])
+        second = turn.validate_manifest([base, planted])
+    assert [c["name"] for c in first] == [c["name"] for c in second] == [base["name"]]
+    errors = [r for r in caplog.records if r.levelname == "ERROR" and "drawing.plantedOnce" in r.getMessage()]
+    assert len(errors) == 1
