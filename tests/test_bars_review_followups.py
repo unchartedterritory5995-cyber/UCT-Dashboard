@@ -124,3 +124,53 @@ def test_N1_bars_prewarm_worker_marks_itself_background():
     from api.services import bars_prewarm
     src = inspect.getsource(bars_prewarm)
     assert "_set_background_caller(True)" in src and "_set_background_caller(False)" in src
+
+
+# ── N2: gap-fill queue race ─────────────────────────────────────────────────
+
+class _HookSem:
+    """Semaphore whose first release runs `hook` first (the race window)."""
+
+    def __init__(self, n, hook):
+        self._s = threading.Semaphore(n)
+        self._hook = hook
+
+    def acquire(self, blocking=True, timeout=None):
+        return self._s.acquire(blocking, timeout) if timeout is not None else self._s.acquire(blocking)
+
+    def release(self):
+        h, self._hook = self._hook, None
+        if h:
+            h()
+        self._s.release()
+
+
+def test_N2_a_key_queued_while_the_last_runner_exits_is_still_healed(monkeypatch):
+    monkeypatch.setattr(bars_fetch, "_gapfill_disabled_in_tests", lambda: False)
+    monkeypatch.setattr(bars_fetch, "_tail_gapfill_pending", {})
+    monkeypatch.setattr(bars_fetch, "_TAIL_GAPFILL_MAX", 1)
+    monkeypatch.setattr(bars_fetch._sqlite, "get_last_ts", lambda s, tf: int(time.time()) - 60)
+    healed = []
+
+    def _heal(t, tf, lt, tail_only=False):
+        healed.append(t)
+        bars_fetch._mark_tail_verified(t, tf, time.time() + 1)
+        return []
+    monkeypatch.setattr(bars_fetch, "_heal_intraday_tail", _heal)
+
+    def _kick_in_the_window():
+        # a request kicks LATE while the runner is about to give its slot back
+        th = threading.Thread(target=bars_fetch._kick_tail_gapfill, args=("LATE", "15"))
+        th.start()
+        th.join(0.3)          # (after the fix the kick waits on the lock until release)
+    sem = _HookSem(1, _kick_in_the_window)
+    monkeypatch.setattr(bars_fetch, "_tail_gapfill_sem", sem)
+
+    assert sem.acquire(blocking=False)
+    bars_fetch._tail_gapfill_at[("FIRST", "15")] = time.monotonic() + 60
+    assert bars_fetch._start_tail_gapfill(("FIRST", "15")) is True
+    assert _until(lambda: "LATE" in healed), \
+        "a key queued in the runner's exit window must not be stranded"
+    assert _until(lambda: not bars_fetch._tail_gapfill_pending)
+    assert _until(lambda: sem.acquire(blocking=False))      # the slot came back
+    sem.release()

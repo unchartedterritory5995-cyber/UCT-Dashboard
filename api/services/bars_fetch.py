@@ -3744,7 +3744,14 @@ def _start_tail_gapfill(key) -> bool:
                         _tail_gapfill_at[nk] = now + _TAIL_GAPFILL_RETRY_S
                         k = nk
                         break
-        _tail_gapfill_sem.release()
+                if k is None:
+                    # ⛔ RELEASE UNDER THE LOCK (review #1034 N2). Released after the
+                    # lock, a kick landing in between saw the pool still full, queued
+                    # its key, and this runner then exited without draining it — the
+                    # key waited for some unrelated future kick. `_kick_tail_gapfill`
+                    # acquires under this same lock, so it now sees either a runner
+                    # that will drain its queued key or a free slot.
+                    _tail_gapfill_sem.release()
 
     try:
         _threading.Thread(target=_run, daemon=True,
