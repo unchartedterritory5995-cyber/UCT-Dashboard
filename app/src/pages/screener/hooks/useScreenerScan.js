@@ -1,8 +1,23 @@
 import { useEffect, useRef, useState } from 'react'
+import { sessionState } from '../../../lib/marketClock/marketClock'
 
 // Debounced POST /api/screener/scan whenever the spec changes. A null spec
-// skips fetching. Filtering uses the nightly snapshot (live prices overlay
-// the result rows for display only).
+// skips fetching. Filtering reads the server's live overlay during the session
+// (`live_tier`, the price-anchored columns recomputed every sweep) over the
+// nightly snapshot.
+//
+// LIVE REFRESH (2026-11-10, owner: "people should be able to see the lists and scans
+// move in real time"). With `refreshMs` set, the CURRENT spec is asked again every
+// `refreshMs` while `isLive()` says so (the regular session, tab visible), so a
+// ticker enters or leaves the list without the member touching anything. A refresh
+// is QUIET: no loading state (the rows stay on screen and are swapped in place),
+// and a failed refresh keeps the answer already shown instead of raising an error
+// over a list that was fine a moment ago. It never fires while a request is in
+// flight or while an edit is waiting on the debounce: that request owns the screen,
+// and only for page 1 (see the interval below).
+// ⛔ The server recomputes its overlay about once a minute (a sweep takes 20-60 s on
+// production), so refreshing faster than ~15 s buys nothing and costs a scan query
+// per member per tick.
 //
 // `answeredSpec` is the spec object the current `result` was asked for (the same
 // reference the caller passed), so a caller can tell an answer for an earlier spec
@@ -21,7 +36,21 @@ import { useEffect, useRef, useState } from 'react'
 export const ANSWER_FRESH_MS = 15_000
 const ANSWER_KEEP_MS = 10 * 60_000
 const ANSWER_MAX = 24
-export default function useScreenerScan(spec, { debounce = 300, leading = false } = {}) {
+export { LIVE_REFRESH_MS } from './liveRefresh'
+
+// Is a live refresh due right now? The regular session on the real NYSE calendar, with the tab visible
+// (a hidden tab refreshing is a scan query nobody sees).
+// ⛔ NEVER UNDER VITEST: a refresh that reads the wall clock makes every test that renders a screen a
+// function of the HOUR it runs in (extra fetches during 9:30-16:00 ET only). The refresh's own tests
+// inject `isLive`.
+export function defaultIsLive(now = new Date()) {
+  if (import.meta.env?.MODE === 'test') return false
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return false
+  try { return !!sessionState(now).isOpen } catch { return false }
+}
+
+export default function useScreenerScan(spec, { debounce = 300, leading = false, refreshMs = 0,
+                                               isLive = defaultIsLive } = {}) {
   const [answer, setAnswer] = useState({ result: null, spec: null })
   const [isLoading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -30,13 +59,21 @@ export default function useScreenerScan(spec, { debounce = 300, leading = false 
   const firedKey = useRef(null)
   const trailing = useRef(false) // leading mode: the pending timer will fire a request
   const kept = useRef(new Map()) // key -> { result, at }: this mount's page-1 answers
+  const inFlight = useRef(0)
+  const specRef = useRef(spec) // the caller's CURRENT object, so `answeredSpec` stays its reference
+  specRef.current = spec
+  const isLiveRef = useRef(isLive)
+  isLiveRef.current = isLive
   const key = spec ? JSON.stringify(spec) : null
 
-  const run = async (asked, askedKey) => {
+  const run = async (asked, askedKey, { quiet = false } = {}) => {
     firedKey.current = askedKey
     const mySeq = ++seq.current
-    setLoading(true)
-    setError(null)
+    inFlight.current += 1
+    if (!quiet) {
+      setLoading(true)
+      setError(null)
+    }
     try {
       const r = await fetch('/api/screener/scan', {
         method: 'POST',
@@ -61,12 +98,31 @@ export default function useScreenerScan(spec, { debounce = 300, leading = false 
       }
       if (mySeq !== seq.current) return
       setAnswer({ result: json, spec: asked })
+      if (quiet) setError(null) // a refresh that succeeded clears an earlier failure
     } catch (e) {
-      if (mySeq === seq.current) setError(e)
+      if (mySeq === seq.current && !quiet) setError(e)
     } finally {
-      if (mySeq === seq.current) setLoading(false)
+      inFlight.current -= 1
+      if (mySeq === seq.current && !quiet) setLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (!key || !(refreshMs > 0)) return undefined
+    const id = setInterval(() => {
+      if (inFlight.current > 0) return // a request owns the screen
+      // ⛔ PAGE 1 ONLY. Both screens ACCUMULATE pages (a later page appends tickers not yet listed and
+      // marks paging exhausted when it adds none), so re-asking page 3 would never drop a ticker that
+      // left and would stop load-more. A member scrolled past page 1 keeps the list they are reading.
+      if ((specRef.current?.page ?? 1) > 1) return
+      // An edit waiting on the debounce: `firedKey` still names the spec before it (and in leading mode
+      // `trailing` says a queued edit will fire). That request is the next answer, not this refresh.
+      if (trailing.current || firedKey.current !== key) return
+      if (!isLiveRef.current()) return
+      run(specRef.current, key, { quiet: true })
+    }, refreshMs)
+    return () => clearInterval(id)
+  }, [key, refreshMs]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!key) {
