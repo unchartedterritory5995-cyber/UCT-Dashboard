@@ -69,9 +69,12 @@ SAMPLER_JS = """
         if (!p || p.ro !== f.ro || p.w !== f.w || p.sym !== f.sym || p.tf !== f.tf) window.__wrFrames.push(f);
       }
     }
-    requestAnimationFrame(tick);
+    requestAnimationFrame(after);
   };
-  requestAnimationFrame(tick);
+  // Read AFTER the frame's paint (rAF callbacks, lightweight-charts' own paint among them,
+  // then this task) — what the member saw, not an intermediate between setData and paint.
+  const after = () => setTimeout(tick, 0);
+  requestAnimationFrame(after);
 }
 """
 NAV = ("(u) => { window.history.pushState({}, '', u); "
