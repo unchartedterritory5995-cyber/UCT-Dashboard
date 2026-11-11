@@ -143,7 +143,8 @@ Totals: `Tests 5 failed | 150 passed (155)`. Each mutation was caught by its own
 - **PARTIAL (2):**
   - C3-103: logos, tint, solid canvas, text, gain and loss colours are covered. Gradient, fonts, grid colour and tint colours are not.
   - C3-180: the Journal half only. Fundamentals appearance is a global preference with no door row.
-- **Counts: VOID, pending re-measure.** They were taken on the stale 11-06 install (pl-auto 3eb7b5d8ba lists the affected runs). Old figures, kept only so the change is traceable: VERIFIED 225 → 242 of 484 (50.0%). PARTIAL 9 → 11. IMPL 69 → 68. MISSING 126 → 108.
+- **Counts: the 242/484 figure is VOID.** It was taken on the stale 11-06 install (pl-auto 3eb7b5d8ba lists the affected runs) and is kept only so the change is traceable: VERIFIED 225 → 242 of 484 (50.0%). PARTIAL 9 → 11. IMPL 69 → 68. MISSING 126 → 108.
+- **Counts on the current base:** master's re-measured base is **225/484** (re-measurement 2026-11-11, verified install), plus #1029's C3-166 = 226 on master `70dd3a375c`. This PR's 19 rows on top of that: **243 / 11 / 68 / 107 / 43 / 12 = 484** (VERIFIED 50.2%), by `recount-widget-actions.mjs`, which first reproduces master's table (226 / 9 / 69 / 125 / 43 / 12) from master's rows. See "Post-#988 / #1079 re-merge" below.
 
 Notes:
 
@@ -436,3 +437,84 @@ Master now has a guard: #1029's in-file `whichWidget` on `widget.setOption` and 
 
 - **Real pytest at `f26d527eca`** (pl-grid venv, BelowNormal, no lock). 20 files: the 18 from before, plus #1029's `test_uct_agent_f16_calls_control.py` and `test_uct_agent_f16_flow_chips.py`, which read `manifest.golden.json`. Result: **`883 passed, 1 warning`**. That is 499 (the 18 files, as before) + 384 (the two f16 files, `--collect-only`). The warning is the same starlette/anyio deprecation as before.
   - Log: `pytest-post1029-f26d527eca.txt`.
+
+### Post-#988 / #1079 re-merge (origin/master `70dd3a375c`)
+
+Evidence class: LOCAL, vitest (jsdom / node) and real pytest, scripted plans, invented fixture data. Not a real browser and not the real model. Logs under `docs/agent/program/evidence/exec-widget-actions/post988-*` and `pytest-post988-799fb22964.txt`.
+
+Master moved 190 commits past `4dacc81529`: #988 (wrong-chart safety: the excluded-chart gate in `execute`, `proposedWords` on approval, `checkSpatialConstraints` on the model path), #1078 (server schema-drop log), #1079 (the routeReachability rail), #617, #1075 (Pine) and others. Merge commit `cd66cf1f27`; rail fixes `799fb22964`.
+
+#### The merge: two files conflicted
+
+1. **`app/src/agent/useAgent.js`**: two textual hunks, both resolved "keep both". Everything else in the file auto-merged untouched, including all of #988's approval-path work (`proposedWords`, `gateWords`, the excluded-chart gate, the approved-card refusal, the follow-up check). The resolution, as `git show --cc cd66cf1f27` prints it (` +` = #1027's side, `+ ` = master's side; full text in `post988-useAgent-merge-cc.diff`):
+
+   ```diff
+     import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts } from './deixis'
+    +import { screenWatchlistWidget } from './watchlistTarget'
+    +import { whichListView, LIST_VIEW_WHICH } from './whichWidget'
+   + import { checkSpatialConstraints, excludedCharts, spatialConstraints, UNPLACED, withoutExcludedCharts, everyExceptSet } from './spatialCheck'
+   @@@ (model path, right after the unnamed-chart question)
+    +      // watchlist group A (Lead 2026-11-09): which Watchlist widget a showList acts on is decided by the WORDS ...
+    +      const wlTarget = screenWatchlistWidget({ host, ops: screened.ops, text })
+    +      if (wlTarget?.ask) { push(...); record(... 'clarify-watchlist-widget' ...); return }
+    +      if (wlTarget?.ops) screened.ops = wlTarget.ops
+   +       // ⛔ #988 (AUDIT probe 17): the LAST safety net behind the resolvers — every spatial constraint the words state ...
+   +       const spatial = onSubject ? null : checkSpatialConstraints({ host, ops: screened.ops, text, pickedRefs: answeredRefs, getTargetKind, getCapability })
+   +       if (spatial?.ask && askEveryExcept(disposition)) return
+   +       if (spatial?.ask) { ... 'clarify-spatial' ...; return }
+   ```
+
+   The watchlist widget pick runs first; #988's spatial check then sees the final targets, so it stays the last net before the plan runs. `git diff origin/master cd66cf1f27 -- app/src/agent/useAgent.js` (`post988-useAgent-vs-master.diff`) is exactly #1027's own additions: the two imports, the F2 `r?.refuse` branch after `resolveArgs`, the F1 `whichListView` loop, and the `screenWatchlistWidget` block. No master line is removed or changed.
+
+   **How approval behaves now, in plain words.**
+   - *A chart the request excludes (#988's rule, unchanged).* When a proposal card is made, the words it was proposed from are stored with it. When the member approves ("do it", "yes", the Apply button), `execute` runs with `path: 'approved'` and `proposedWords` set to those stored words, so #988's gate re-reads the original request ("…except the TSLA one"), not "yes". If the approved plan would still touch an excluded chart, nothing runs and the member is told it includes a chart their request excludes. `agentExcludedApproved` passes 27/27 on this head. AUDIT's mutant (that refusal switched off) still fails 24 of 27 with #1027 in.
+   - *#1027's widget F2 refusal.* It runs after #988's gate, in the argument-resolution step. It fires only when the member's own words set a widget aside and no other widget of that type is named, e.g. "don't touch the period sort, just reload the scanner" planned on the Period Sort. The request is refused, nothing runs, and the reply names both widgets and says it won't guess. On an approved card the which-widget module gets `approved: true` and returns nothing (`whichWidget.js`: `if (approved) return null`), so it never asks or refuses a second time. The card was only built after the same check passed when it was proposed. So on approval the only re-check is #988's excluded-chart gate, reading the proposal's words. #1027 adds no approval-time behaviour and changes none of #988's.
+   - The two never share an option name. #988 reads `proposedWords` (an array). #1027 / #1029 read `words` (the turn's message string). This is unchanged from the #988 × #1029 resolution already on master.
+2. **`docs/agent/CHARTS_EXECUTION_STATUS.md`**: master's file was taken whole (it carries the 2026-11-11 re-measurement: 225/484 confirmed, plus C3-166 = 226), then `recount-widget-actions.mjs --write` was run. The script reproduced master's table (226 / 9 / 69 / 125 / 43 / 12), then applied this PR's 19 rows: **243 / 11 / 68 / 107 / 43 / 12 = 484**. The script had a broken quote (`#1029's` inside a single-quoted string, from the post-#1029 note edit) that stopped it parsing. It was escaped; nothing else changed.
+
+#### Regenerated files
+
+- `manifest.golden.json` (`UPDATE_AGENT_GOLDEN=1`, agentContracts 14/14): **no change**. Then, in its own run, `nl1_assemble_parity.json` (`UPDATE_NL1_PARITY=1`, agentNl1Selection 13/13): **no change**.
+- capreg (`UPDATE_CAPREG=1` inventory.test.js, 682/682) and `tests/test_uct_agent_capreg_baseline.py --update` ("locked 167 intents, 42 refusals, 31 workflows"): **no change** to contract.json, coverage.json, COVERAGE.md or baseline.lock.json, both before and after the reachPhrasings edit below.
+- **`section_b_requests.json` (SAT-1 captured requests): not regenerated, and the merge did not move it.** `git diff origin/master HEAD` on it is 30 hunks, and every one is the same 4 added lines: the `watchlistShow` group entry (`"id": "watchlistShow"`, the group that owns #1027's `watchlist.showList`) in a captured request's group list. `git diff 4dacc81529 6b0c3da5f0` (this PR against its previous base) is the same 30 hunks with the same lines. There is no other hunk.
+
+#### Two master rails, and what this PR changed for them (`799fb22964`)
+
+- **routeReachability (#1079)** failed on the merge: "actions with NO phrasing: watchlist.arrangeColumns, watchlist.exportList". `baseline/reachPhrasings.json` gains one plain phrasing for each (board `WATCH`): "move the price column in the watchlist widget to the left of the change column" and "export this watchlist as a csv file". `watchlist.showList` already had phrasings. Result: 8/8, and all 3 of #1027's actions are reached under v2 and v1. **The frozen UNREACHABLE set is untouched** (no name added).
+- **agentNoLookbehindEquivalence** failed on `routing` only. 2 corpus inputs differ, and each differs only by the added `watchlistShow` group in `selected` / `priority`. With that group removed, each digest equals the baseline's; the check found 0 unexplained diffs.
+  - [69] "a Flagged widget: its rows are the flags, and flagging from the Agent shows up in them": `workspace,agent` → `workspace,agent,watchlistShow`
+  - [146] "only one of them, then put NVDA on my watchlist, draw a level and set an alert": `charts,drawings,lists,alerts,agent` → `charts,drawings,lists,alerts,agent,watchlistShow`
+
+  As #988 did for deixis, ONLY `digests.routing` is re-recorded, from `cd66cf1f27`'s routing.js, under a new key `routingRecordedOn`. `recordedOn` (96230b5598), `deixisRecordedOn`, the corpus and the other four digest sets are byte-identical, and the test file is unchanged. RELATIVE and the lookbehind rewrite are not involved. `noRegexLookbehind` passes (no lookbehind in product code).
+
+#### Count pins
+
+Master `70dd3a375c` adds no action (its manifest is still 157). Head has 160; the only names added are `watchlist.showList`, `watchlist.exportList` and `watchlist.arrangeColumns`. `agentRouting` `FULL.length` is **160** (master 157) and `agentScreener` `manifestFor(CTX).length` is **154** (master 151). Each pin's comment names the three actions; the comments were already in place and this merge did not change the values. `agentNl1Selection` core stays **37** and `agentIndicatorsM2` indicators stays **12**: none of the three routes to a core group (they ride `lists` or the words-only `watchlistShow` group). Both files pass.
+
+#### Size, from git
+
+`git diff --stat origin/master...HEAD -- app/src ':!*.test.*' ':!app/src/testing/**' ':!**/__fixtures__/**'`: **27 files changed, 1216 insertions(+), 114 deletions(-)**. Compared with the post-#1029 figure (26 files, +1214/-114), the one new file is `reachPhrasings.json` (+2 lines).
+
+#### Tests on `799fb22964` (focused runs of ≤25 files each, no lock; NOT a full run)
+
+| run | files | result |
+|---|---:|---|
+| A: agentExcludedApproved, agentWhichWidget.rail, whichWidget.rules.rail, whichWatchlist.outcome, listColsUndo.outcome, routeReachability, agentNoLookbehindEquivalence, noRegexLookbehind, agentNoLookbehind988 / Oracle / Strings, agentRouting, agentScreener, agentNl1Selection, agentIndicatorsM2, agentContracts, capreg inventory | 17 | 17 passed, 872/872 |
+| B: the 116 set (watchlistTarget.rail 10, widgetActionKeys 5, agentWatchlistShow 35, agentWatchlistOut 29, widgetActions.outcome 24, settingsLiveness 13 = **116/116**), the rest of the earlier scoped list, #1029's rails | 20 | 20 passed, 592/592 |
+| C1 + C2: #988's other 26 rail files (spatial, every-except, negated anchors, lines, …) | 14 + 12 | 1435/1435 + 2044/2044 |
+
+Total: 63 files, 4943 tests, 0 failed. `[routing] 43/43 routed; mean 23.7 of 160 capabilities; 0 full`.
+
+**#1029's 8 rail files are byte-identical to master** (`git diff origin/master HEAD` is empty for each): agentWhichWidget.test.js, agentFlowChipsParity, agentFlowFiltersHeldOut, flowFilters.outcome, agentExecReach, agentWidgetControls, test_uct_agent_f16_calls_control.py, test_uct_agent_f16_flow_chips.py. These are also unchanged against master: agentExcludedApproved, agentNoLookbehindEquivalence.test.js, noRegexLookbehind, routeReachability.test.js.
+
+#### Mutants on `799fb22964` (each applied alone, run, then `git checkout` of that file; the tree was clean after)
+
+- base (F1 rail, whichWatchlist.outcome, listColsUndo.outcome): 14/14.
+- **(i) pick-first**: `3 failed | 7 passed (10)`, exactly (a) u18-refresh-10, (b) u18-look-07, (c) u18-cols-07.
+- **(ii) no excluded-word check**: `2 failed | 8 passed (10)`, exactly the two (d) u18-refresh-06 tests.
+- **F6 `?? {}`**: `3 failed | 1 passed (4)` (the three nothing-saved Undo cases).
+- **AUDIT's approved-refusal mutant** (useAgent.js: `if (false && g.dropped && path === 'approved')`): agentExcludedApproved `24 failed | 3 passed (27)`. The 3 that pass are its controls (a card without the excluded chart is applied). This matches #988's own record on master.
+
+#### Server tests (real pytest, pl-grid venv, no lock)
+
+23 files: every `tests/*.py` that reads `manifest.golden.json`, `nl1_assemble_parity.json`, the capreg lock / corpus or `section_b_requests.json` (including `test_uct_agent_scan_sat_section_b.py` and `test_uct_agent_spend_protection.py`), plus the 20 from before. Result: **`978 passed, 1 warning`** (the same starlette/anyio deprecation as before). `test_gate_shards`' read-set is a known master red and was not run. Log: `pytest-post988-799fb22964.txt`.
