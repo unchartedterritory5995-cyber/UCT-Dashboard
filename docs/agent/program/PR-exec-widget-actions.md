@@ -518,3 +518,28 @@ Total: 63 files, 4943 tests, 0 failed. `[routing] 43/43 routed; mean 23.7 of 160
 #### Server tests (real pytest, pl-grid venv, no lock)
 
 23 files: every `tests/*.py` that reads `manifest.golden.json`, `nl1_assemble_parity.json`, the capreg lock / corpus or `section_b_requests.json` (including `test_uct_agent_scan_sat_section_b.py` and `test_uct_agent_spend_protection.py`), plus the 20 from before. Result: **`978 passed, 1 warning`** (the same starlette/anyio deprecation as before). `test_gate_shards`' read-set is a known master red and was not run. Log: `pytest-post988-799fb22964.txt`.
+
+### Post-#1080 / #1072 re-merge (origin/master `7cd14dca6f`)
+
+Evidence class: LOCAL, vitest (jsdom / node) and real pytest, scripted plans, invented fixture data. Not a real browser and not the real model. Logs: `evidence/exec-widget-actions/post1080-runA.txt`, `post1080-runB.txt`, `pytest-post1080.txt`. Merge commit `9b8926dbcd`.
+
+Master moved from `70dd3a375c` to `7cd14dca6f`: #1080 (routing v2's tie rule, `routingV2.js` / `routing.js`) and #1072 (`chartSetup.openSettings`, one new action). Four files conflicted; no product file did.
+
+- **Count pins** (master's actual values read from master's test files, plus #1027's 3 actions; each comment names them): `agentRouting` `FULL.length` **161** (master 158), `agentScreener` `manifestFor(CTX).length` **155** (master 152). The added names are `watchlist.showList`, `watchlist.exportList`, `watchlist.arrangeColumns`. `agentNl1Selection` (13/13) and `agentIndicatorsM2` (28/28) pass unchanged, so their pins were not affected.
+- **COVERAGE.md / coverage.json**: master's files taken, then regenerated (`UPDATE_CAPREG=1` inventory.test.js 685/685; `tests/test_uct_agent_capreg_baseline.py --update`: "locked 168 intents, 42 refusals, 31 workflows"). This PR's delta against master in each capreg file is the same size as it was against `70dd3a375c` (lock +30, contract.json +39, COVERAGE.md +14/-11, coverage.json +158/-22): only the 3 rows of #1027's actions; the catalog moves 177 → 180.
+- **Golden** (`UPDATE_AGENT_GOLDEN=1`, agentContracts 14/14) and then, in its own run, **parity** (`UPDATE_NL1_PARITY=1`, agentNl1Selection 13/13): **no change** from the auto-merge.
+- **CHARTS_EXECUTION_STATUS.md**: master's file taken, `recount-widget-actions.mjs --write` re-run. It reproduced master's table (226 / 9 / 69 / 125 / 43 / 12) and wrote **243 / 11 / 68 / 107 / 43 / 12 = 484**, byte-identical to the previous head's file.
+- **#1080's tie rule**: `routeReachability` 8/8 (no new unreachable action; frozen UNREACHABLE set untouched). `agentNoLookbehindEquivalence` 6/6 **without** any re-record: the `digests.routing` recorded from `cd66cf1f27` still matches under #1080, so #1080 changed no routing output on the corpus and `baseline.json` is not touched by this merge. `[routing] 43/43 routed; mean 23.7 of 161 capabilities; 0 full`.
+- **section_b_requests.json**: not moved by master; `git diff origin/master HEAD` is still exactly 30 hunks, each the same 4 added `watchlistShow` group lines. No other hunk.
+- **Size**: `git diff --stat origin/master...HEAD -- app/src ':!*.test.*' ':!app/src/testing/**' ':!**/__fixtures__/**'`: 27 files, +1216 / -114 (unchanged). The PR's file set against master is the previous one plus the 3 new evidence logs.
+
+#### Tests (focused runs, ≤25 files each, no lock; NOT a full run)
+
+| run | files | result |
+|---|---:|---|
+| A: routeReachability, agentNoLookbehindEquivalence, noRegexLookbehind, agentRouting, agentScreener, agentExcludedApproved (27/27), agentWhichWidget.rail, whichWidget.rules.rail, whichWatchlist.outcome, listColsUndo.outcome, agentNl1Selection, agentIndicatorsM2, agentContracts, capreg inventory, corpus.routing, corpus.routingV2, agentOpenChartSettings (#1072) | 17 | 17 passed, 2181 passed + 1 todo |
+| B: the 116 set (watchlistTarget.rail 10, widgetActionKeys 5, agentWatchlistShow 35, agentWatchlistOut 29, widgetActions.outcome 24, settingsLiveness 13 = **116/116**), #1029's 6 vitest rails, the other 12 capreg files | 24 | 24 passed, 1833/1833 |
+
+Together with run A, all 16 files of the capreg directory ran. **#1029's 8 rail files are byte-identical to master** (empty `git diff origin/master HEAD`), as are agentExcludedApproved, agentNoLookbehindEquivalence.test.js, noRegexLookbehind and routeReachability.test.js.
+
+**Server tests (real pytest, pl-grid venv, no lock):** the same 23 files as the post-#988 run (every reader of the golden, the parity fixture, the capreg lock / corpus and `section_b_requests.json`): **`980 passed, 1 warning`** (978 before; the 2 new ones come from master).
