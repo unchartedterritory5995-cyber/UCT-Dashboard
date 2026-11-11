@@ -2141,7 +2141,7 @@
     "A reason to widen stops next time"
    ],
    "answer": "A planned loss at a smaller size",
-   "why": "A planned loss. A stop wider than about 3% means a smaller position or a pass. You took the smaller size and the stop did its job. In our scan stops within 3% did better.",
+   "why": "A planned loss. By our current default, volume only grades a pop, and this one was above the base days. A stop wider than about 3% means a smaller position or a pass. You took the smaller size and the stop did its job. In our scan stops within 3% did better.",
    "lesson_line": "A wide stop is a reason for a small size. The loss stays small too.",
    "facts": [
     "c19",
@@ -2151,10 +2151,10 @@
    ],
    "wrong": {
     "A mistake: never buy a wide stop": "The rule is a smaller position or a pass. A smaller position is allowed.",
-    "A reason to widen stops next time": "The stop never gets wider. It sat a few cents under the pop day's low, as planned."
+    "A reason to widen stops next time": "The card says never tighten the stop to fit, and a wider stop only adds risk. The answer is a smaller size."
    },
    "house": true,
-   "story": "A 13-day base after a 41% decline. The pop closes at the high, on 1.24x the base days' volume, with a 4.7% stop. You took it smaller. Day 2 takes the stop."
+   "story": "A 13-day base after a 41% decline. The pop closes at the high, on 1.24x the base days' volume. The honest stop is 4.7% below your fill. You took it smaller. Day 2 takes the stop."
   },
   {
    "key": "q46",
@@ -2731,7 +2731,8 @@
   "The chart questions (q65 TGT asof 2021-03-18, q66 TSLA asof 2023-11-13) show the day before the pop as the last bar on the member's own chart with their averages; the keys rest on the dossier's reads (d01, d02, d13, d14) and the proposed tight test (c06), never on reading the picture. If the member's chart does not draw short averages, the question still reads.",
   "UNITS-method's SET.16 row says the stop goes 'under the coil low'; the card's default (and the rulebook's A3) is a few cents under the pop day's low, with the base low only an option under D-008. The unit follows the card.",
   "The short mirror is the Wedge Drop (SET.17). q61 teaches only the difference in direction; a first Wedge Drop above the 200-day is a sell signal, not a short (B26, D47), as SET.17 teaches.",
-  "Cold check 2026-11-10: 62 pass (10 fixed), 1 fix, 3 cut of 66 questions; 3 walk-throughs pass. q32, q49, q57 cut as duplicates (q05, q08/q13, q43 kept); q45 (COIN) held as fix on D-006. Numbers corrected: q64 (1.5% risk on a 1.8% stop is an 83% position, over the 40% cap, A7; stop distance removed from the story). Owner should look first at: (1) D-006, the volume gate, which decides whether COIN 2024-08-23 was a planned loss (q45); (2) the card lists 'index still falling' both as a no-buy invalidation and as a B- cue, and q37 keys the stricter one; (3) a 1.5% A+ risk with a stop inside 3% always hits the 40% cap (it needs a stop of 3.75% or wider), so the risk-by-grade table and the cap need one sentence in the lesson."
+  "Cold check 2026-11-10: 62 pass (10 fixed), 1 fix, 3 cut of 66 questions; 3 walk-throughs pass. q32, q49, q57 cut as duplicates (q05, q08/q13, q43 kept); q45 (COIN) held as fix on D-006. Numbers corrected: q64 (1.5% risk on a 1.8% stop is an 83% position, over the 40% cap, A7; stop distance removed from the story). Owner should look first at: (1) D-006, the volume gate, which decides whether COIN 2024-08-23 was a planned loss (q45); (2) the card lists 'index still falling' both as a no-buy invalidation and as a B- cue, and q37 keys the stricter one; (3) a 1.5% A+ risk with a stop inside 3% always hits the 40% cap (it needs a stop of 3.75% or wider), so the risk-by-grade table and the cap need one sentence in the lesson.",
+  "Keyed on the adopted default of D-006 (provisional, 2026-11-10): volume on the trigger day is a grading cue, not a gate, so q45 (COIN 2024-08-23, 1.24x the base days) is a valid pop whatever the volume option, and its key rests on the stop width (A13) alone."
  ],
  "verify": {
   "q14": {
@@ -2789,10 +2790,10 @@
    "by": "checker"
   },
   "q45": {
-   "status": "fix",
-   "notes": "The key 'a planned loss at a smaller size' needs the pop to pass the volume gate, and wp.volume is pending-owner (D-006). 1.24x the base days passes the card's 'above the base days' option but COIN's 1.04x the 50-day fails the app's 1.05x option, and the card files COIN's failure under wp.volume, not the stop. The story does not give the prior day's volume. Hold until D-006 is settled.",
-   "fixed": false,
-   "by": "checker"
+   "status": "pass",
+   "notes": "Story now gives the volume (1.24x the base days) and says the honest stop is 4.7% below the fill, so the key needs no volume gate: under D-006's adopted default volume only grades. Wrong note on widening no longer claims the stop sat under the pop day's low, which the story never stated. Key unchanged: a planned loss at a smaller size (A13).",
+   "fixed": true,
+   "by": "resolver"
   },
   "q49": {
    "status": "cut",

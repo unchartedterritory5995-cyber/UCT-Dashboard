@@ -1122,23 +1122,24 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "gs.post_gap_high_trim",
-   "q": "Where is the first place to sell a third?",
+   "q": "What does the post-gap high do to the first third?",
    "choices": [
-    "The post-gap high, if it comes before 3R",
-    "The gap-up low",
-    "The prior day's high",
-    "Only at 5R"
+    "A cue to sell it early; 3R is the rule",
+    "It replaces 3R as the first-third spot",
+    "It moves the first third out to 5R",
+    "Nothing; it is not part of the plan"
    ],
-   "answer": "The post-gap high, if it comes before 3R",
-   "why": "The post-gap high, if it comes before 3R. The first third is sold there when it comes before 3R, else at 3R.",
-   "lesson_line": "The post-gap high is the first place to take some off.",
+   "answer": "A cue to sell it early; 3R is the rule",
+   "why": "A cue to sell early. By our current default, the first third is a third at 3R. The post-gap high can tell you to take that third early.",
+   "lesson_line": "A third at 3R is the rule. The post-gap high is a cue to take it early.",
    "facts": [
-    "g20"
+    "h05",
+    "h20"
    ],
    "wrong": {
-    "The gap-up low": "The gap-up low is the line we defend, not a place to sell.",
-    "The prior day's high": "The prior day's high is the gap-fill spot, below the buy.",
-    "Only at 5R": "The first third comes off before 5R."
+    "It replaces 3R as the first-third spot": "By our current default the plan stays a third at 3R. The post-gap high does not replace it.",
+    "It moves the first third out to 5R": "The second third is at 5R. The post-gap high does not push the first one out.",
+    "Nothing; it is not part of the plan": "It is a cue. When it comes before 3R, you may take the first third early."
    },
    "house": true
   },
@@ -1324,27 +1325,36 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "gs.post_gap_high_trim",
-   "q": "Where does the first third go?",
-   "story": "You bought a test at 53.27 with the stop at 52.40, so 3R is 55.88. The post-gap high is 55.63.",
+   "q": "What is the plan for the first third?",
+   "story": "You bought a test at 53.27 with the stop at 52.40. The post-gap high is 55.63, just under 3R.",
    "choices": [
-    "At the post-gap high, 55.63",
-    "At 3R, 55.88",
-    "At 5R",
+    "A third at 3R, 55.88; 55.63 is a cue",
+    "A third at the post-gap high, always",
+    "At 5R; skip the first third",
     "Hold everything for the trail"
    ],
-   "answer": "At the post-gap high, 55.63",
-   "why": "At the post-gap high, 55.63. It comes before 3R, so the first third is sold there. The 5R third and the trail are unchanged.",
-   "lesson_line": "The post-gap high first, when it comes before 3R.",
+   "answer": "A third at 3R, 55.88; 55.63 is a cue",
+   "why": "A third at 3R, 55.88. By our current default, 3R is the rule and the post-gap high at 55.63 is a cue to take that third early.",
+   "lesson_line": "A third at 3R. The post-gap high is a cue to take it early.",
    "facts": [
-    "g20",
+    "h05",
     "e04"
    ],
    "wrong": {
-    "At 3R, 55.88": "3R is above the post-gap high; the post-gap high comes first.",
-    "At 5R": "The first third comes off well before 5R.",
-    "Hold everything for the trail": "The first third is sold at a named spot, not held."
+    "A third at the post-gap high, always": "By our current default the rule stays a third at 3R. The post-gap high is a cue, not a new rule.",
+    "At 5R; skip the first third": "The first third comes off at 3R. The 5R third is the second one.",
+    "Hold everything for the trail": "The first third is sold at 3R. Only the last third rides the trail."
    },
-   "house": true
+   "house": true,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 3 * (a - b)",
+     "a": 53.27,
+     "b": 52.4
+    },
+    "round": 2
+   }
   },
   {
    "key": "q27",
@@ -2122,7 +2132,7 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "gs.post_gap_high_trim",
-   "q": "Where does the first third go?",
+   "q": "By our plan, where does the first third go?",
    "story": "LLY, 2021. A news gap. The test is bought at 231.13 with the stop at 228.43. The post-gap high is 239.37.",
    "choices": [
     "At 3R, 239.23",
@@ -2140,15 +2150,15 @@
     },
     "round": 2
    },
-   "why": "At 3R, 239.23. One R is the fill minus the stop. Three of those above 231.13 is 239.23, a hair under the post-gap high of 239.37, so 3R comes first.",
-   "lesson_line": "The lower of the post-gap high and 3R.",
+   "why": "At 3R, 239.23. One R is the fill minus the stop. Three of those above 231.13 is 239.23, a hair under the post-gap high of 239.37. The post-gap high is no earlier cue here.",
+   "lesson_line": "A third at 3R. The post-gap high only helps when it comes first.",
    "facts": [
-    "g20",
+    "h05",
     "e30",
     "e31"
    ],
    "wrong": {
-    "At the post-gap high, 239.37": "The post-gap high is a little higher than 3R, so 3R comes first.",
+    "At the post-gap high, 239.37": "The post-gap high sits above 3R. It is a cue only when it comes before 3R.",
     "At 5R": "The first third comes off before 5R.",
     "Only after the close above 240": "There is no rule to wait for 240."
    },
@@ -2451,7 +2461,8 @@
   "The chart questions (q61 GPN asof 2013-10-09, the test day; q62 DE asof 2026-02-25, the test day) show the member's own chart; the keys rest on the dossier's reads (e01, e02, e03, e21, e22). The importer resolves the bars from our own history. Ticker is never named in the question.",
   "The short mirror (gap resistance, a retest short) is not taught here (D-001); the Bear gap lesson owns gap-down setups (q34).",
   "The UNITS-method row for SET.22 ('The Level the Tape Remembers: High Volume Edge & Gap Support') pairs this unit with the High Volume Edge; the criteria card is Gap Support only, so the HVE appears here as a lookalike tell (q33), not as content. The unit id SET.22 is as the card gives it.",
-  "Cold check 2026-11-10: 51 pass (10 fixed), 3 fix, 14 cut. Post-gap-high trim (brief point 1): not safe as a key. The card's 'settled' rests on the owner's 'yes add those stops too' about Trade Story stopping at the post-gap high, which the dossier reads as a game stop only; B19 makes a third at 3R the hard rule, so q18, q26 and q55 are held as fix on D-013 and w1, w2 and the unit's teaches line now say 3R and 5R. Our current default, in conflicts only: the lower of the post-gap high and 3R. 40% cap (A7): q40 is the only sizing question; 287 shares is 30.6%, under the cap. Cut as duplicates: q02, q04, q09, q10, q13, q22, q25, q39, q47, q51 (DE story; chart q62 kept), q58, q60; q50 cut (AMD 2020 risk was 3.2%, past the card's 3%, and the market reading is not stated); q64 cut (opinion key; Bulkowski's two quotes and sources s4, s5 removed because his site bars use of its content to train AI). q38 changed because the card gates on an upper-half close and also lists a lower-part close as a B- cue, as in the News Gapper card; the second stock now closes at 60%. w1 '0.9% away' is 0.96% from its own levels, so the percent is dropped. Look at first: (1) D-013, the post-gap-high trim; (2) D-003, 'buy the close' against a trade over the test day's high, which every test-day story assumes; (3) the card's clash on the test-day close position (upper-half gate against lower-part B- cue)."
+  "Cold check 2026-11-10: 51 pass (10 fixed), 3 fix, 14 cut. Post-gap-high trim (brief point 1): not safe as a key. The card's 'settled' rests on the owner's 'yes add those stops too' about Trade Story stopping at the post-gap high, which the dossier reads as a game stop only; B19 makes a third at 3R the hard rule, so q18, q26 and q55 are held as fix on D-013 and w1, w2 and the unit's teaches line now say 3R and 5R. Our current default, in conflicts only: the lower of the post-gap high and 3R. 40% cap (A7): q40 is the only sizing question; 287 shares is 30.6%, under the cap. Cut as duplicates: q02, q04, q09, q10, q13, q22, q25, q39, q47, q51 (DE story; chart q62 kept), q58, q60; q50 cut (AMD 2020 risk was 3.2%, past the card's 3%, and the market reading is not stated); q64 cut (opinion key; Bulkowski's two quotes and sources s4, s5 removed because his site bars use of its content to train AI). q38 changed because the card gates on an upper-half close and also lists a lower-part close as a B- cue, as in the News Gapper card; the second stock now closes at 60%. w1 '0.9% away' is 0.96% from its own levels, so the percent is dropped. Look at first: (1) D-013, the post-gap-high trim; (2) D-003, 'buy the close' against a trade over the test day's high, which every test-day story assumes; (3) the card's clash on the test-day close position (upper-half gate against lower-part B- cue).",
+  "Keyed on the adopted default of D-013 (provisional, 2026-11-10): B19 and E51 are the plan (a third at 3R, another at 5R, the last third on the trail), and the post-gap high is a cue to take the 3R third early, not a change to the thirds (q18, q26, q55). The card's gs.post_gap_high_trim line (first third sold at the post-gap high when it comes before 3R) and its 'settled' status are not followed; the owner's 'yes add those stops too' was about the Trade Story game stop."
  ],
  "verify": {
   "w1": {
@@ -2557,22 +2568,22 @@
    "by": "checker"
   },
   "q18": {
-   "status": "fix",
-   "notes": "Held as fix on D-013: the post-gap-high trim is marked settled on the card but rests on the owner's 2026-11-09 'yes add those stops too' about Trade Story stopping at the post-gap high, which the dossier reads as approving a game stop only. B19 makes a third at 3R the hard rule (ideally 3R to 6R, mostly 5R), E51 the second third at 5R, and D-013's own default is only 'a cue to take the 3R third early'; the dossier's recommendation was a third at the higher of the two, and the post-gap high sits under 3R in about 41% of trades. Three readings, none ruled, so no key may teach it as ours. Our current default (conflicts only): the lower of the post-gap high and 3R.",
-   "fixed": false,
-   "by": "checker"
+   "status": "pass",
+   "notes": "Keyed on D-013's adopted default: B19 (a third at 3R, the hard rule) and E51 (another third at 5R) are the plan, and the post-gap high is a cue to take the 3R third early, not a change to the thirds. Asks what the post-gap high does; no longer says the first third is sold there. Dropped the card's g20 sentence as the fact, since it states the post-gap-high sale as the rule.",
+   "fixed": true,
+   "by": "resolver"
   },
   "q26": {
-   "status": "fix",
-   "notes": "Held as fix on D-013: the post-gap-high trim is marked settled on the card but rests on the owner's 2026-11-09 'yes add those stops too' about Trade Story stopping at the post-gap high, which the dossier reads as approving a game stop only. B19 makes a third at 3R the hard rule (ideally 3R to 6R, mostly 5R), E51 the second third at 5R, and D-013's own default is only 'a cue to take the 3R third early'; the dossier's recommendation was a third at the higher of the two, and the post-gap high sits under 3R in about 41% of trades. Three readings, none ruled, so no key may teach it as ours. Our current default (conflicts only): the lower of the post-gap high and 3R. ILMN arithmetic checks: R = 0.87, 3R = 55.88, post-gap high 55.63.",
-   "fixed": false,
-   "by": "checker"
+   "status": "pass",
+   "notes": "Keyed on D-013's adopted default exactly: a third at 3R (55.88 by calc, R = 0.87), with the post-gap high at 55.63 as a cue to take it early. The old key (sell at the post-gap high) was the card's 'settled' line, which rests on a Trade Story stop ruling the dossier reads as a game stop only. Added a calc.",
+   "fixed": true,
+   "by": "resolver"
   },
   "q55": {
-   "status": "fix",
-   "notes": "Held as fix on D-013: the post-gap-high trim is marked settled on the card but rests on the owner's 2026-11-09 'yes add those stops too' about Trade Story stopping at the post-gap high, which the dossier reads as approving a game stop only. B19 makes a third at 3R the hard rule (ideally 3R to 6R, mostly 5R), E51 the second third at 5R, and D-013's own default is only 'a cue to take the 3R third early'; the dossier's recommendation was a third at the higher of the two, and the post-gap high sits under 3R in about 41% of trades. Three readings, none ruled, so no key may teach it as ours. Our current default (conflicts only): the lower of the post-gap high and 3R. LLY arithmetic checks: 231.13 + 3 x 2.70 = 239.23, post-gap high 239.37; the question also repeats q17's 3R arithmetic.",
-   "fixed": false,
-   "by": "checker"
+   "status": "pass",
+   "notes": "Keyed on D-013's adopted default: the third at 3R (239.23), the post-gap high (239.37) above it so there is no earlier cue. Key unchanged; the 'lower of the two' wording is gone because it states the post-gap high as a sale point. Still repeats q17's 3R arithmetic in part, but now teaches the other half of the cue (it only helps if it comes first).",
+   "fixed": true,
+   "by": "resolver"
   },
   "q01": {
    "status": "pass",

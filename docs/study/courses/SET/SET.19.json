@@ -2616,7 +2616,8 @@
   "Short mirror (dossier 8.8): not taught here (D-001); the owner calls a one-day earnings collapse 'just an earnings breakdown'.",
   "Chart questions: q64 (META, asof 2022-04-28, the PEG day is the last bar) and q65 (AMZN, asof 2017-11-03, the fifth pause day; the buy was the next session, 2017-11-06) show the member's own chart; the keys rest on the dossier's reads (d26, d27, d01, d02, d03). The importer resolves the bars from our own history.",
   "Cross-unit tell with the sibling Episodic Pivot (SET.18): the PEG-versus-EP split is keyed on the months before the report (an established leader in a base against a neglected name flat or down for six months), never on the gap size, because both gap floors wait on D-033.",
-  "Cold check 2026-11-10: 56 pass (10 fixed), 1 fix, 13 cut. Cut as duplicates: q02, q04, q08, q10, q12, q19, q24, q27, q54, q55 (q55 repeats q16's 3R arithmetic), q62, q66; q48 cut because the NVDA loss is not shown to come from the 30% run (the dossier's own cut finds no effect) and the card names the 0.5% stop as the lesson. q32 held as fix on D-025. Numbers corrected: q40 sized 242 shares at 1% risk, 43.7% of the account, over the 40% cap (A7); now 0.5% risk, 121 shares, 21.8%. w1 and w2 dropped stop percents that contradict their own levels (the dossier table measures them from the buy-day fill: BIDU 2.1% is from the 49.25 open, 1.5% from 48.93; AMZN 1.4% is 1.3% from 56.14); q16 no longer says BIDU 'ran 27.7R from these levels'. q63 said A gets 'full size' in a Yellow market (F65 says smaller and fewer); q44 and q61 overclaims softened. Quotes removed: none from facts; q66's Bulkowski mention went with the cut. Look at first: (1) D-025, whether a no-report news gap on a major name is a PEG (q32, BA); (2) D-085, the pause buy as the trigger (q31, q65, w1 to w3 rest on option a); (3) the dossier's stop-percent column and the NVDA failure, which blends two lessons (the 0.5% stop and the 36% run)."
+  "Cold check 2026-11-10: 56 pass (10 fixed), 1 fix, 13 cut. Cut as duplicates: q02, q04, q08, q10, q12, q19, q24, q27, q54, q55 (q55 repeats q16's 3R arithmetic), q62, q66; q48 cut because the NVDA loss is not shown to come from the 30% run (the dossier's own cut finds no effect) and the card names the 0.5% stop as the lesson. q32 held as fix on D-025. Numbers corrected: q40 sized 242 shares at 1% risk, 43.7% of the account, over the 40% cap (A7); now 0.5% risk, 121 shares, 21.8%. w1 and w2 dropped stop percents that contradict their own levels (the dossier table measures them from the buy-day fill: BIDU 2.1% is from the 49.25 open, 1.5% from 48.93; AMZN 1.4% is 1.3% from 56.14); q16 no longer says BIDU 'ran 27.7R from these levels'. q63 said A gets 'full size' in a Yellow market (F65 says smaller and fewer); q44 and q61 overclaims softened. Quotes removed: none from facts; q66's Bulkowski mention went with the cut. Look at first: (1) D-025, whether a no-report news gap on a major name is a PEG (q32, BA); (2) D-085, the pause buy as the trigger (q31, q65, w1 to w3 rest on option a); (3) the dossier's stop-percent column and the NVDA failure, which blends two lessons (the 0.5% stop and the 36% run).",
+  "q32 (BA, a no-report gap on a mega-cap) cut 2026-11-10: D-025's adopted default (provisional) files a major company news gap as a PEG, which contradicts the card's own 'a PEG day is a report's reaction day' (peg.catalyst). The unit teaches only the report-day rule (q13); whether major-news gaps are PEGs is left unkeyed until the owner rules on D-025."
  ],
  "verify": {
   "w1": {
@@ -2716,10 +2717,10 @@
    "by": "checker"
   },
   "q32": {
-   "status": "fix",
-   "notes": "Rests on a pending-owner line: D-025's default (21:2 b) files a major company news gap as a PEG, and BA is a mega-cap with no report that day, so the key 'News Gapper' is exactly what the owner has not settled (peg.news_gap). The story also never says a headline occurred, though the why does. Needs the owner's call on D-025, then a story that names the headline.",
+   "status": "cut",
+   "notes": "Cut under D-025. Its key (a no-report gap on BA, a mega-cap, is a News Gapper, not a PEG) is exactly what D-025's adopted default (21:2 b: earnings or major company news is a PEG) would flip, and the card's own line (c33: a PEG day is a report's reaction day) says the opposite, so no key holds under both. 'Major company news' has no measure to key on, and the story never names a headline. The report-day fact is still taught by q13.",
    "fixed": false,
-   "by": "checker"
+   "by": "resolver"
   },
   "q01": {
    "status": "pass",

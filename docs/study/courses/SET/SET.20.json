@@ -1561,7 +1561,7 @@
    "format": "scenario",
    "criterion": "ng.entry_day1",
    "q": "Buy, or wait for the pullback?",
-   "story": "The stock gapped 9% on a report. At 9:50 it trades over the 5-minute high, still above its open, with the day's average volume already traded.",
+   "story": "The stock gapped 9% on a report. At 9:50 it trades over the 5-minute high, still above its open, with the day's average volume already traded. The day's low is 2% under the price.",
    "choices": [
     "Buy at market; stop under the day's low",
     "Wait; the pullback is the only entry",
@@ -1569,7 +1569,7 @@
     "Buy at tomorrow's open"
    ],
    "answer": "Buy at market; stop under the day's low",
-   "why": "Buy at market. Day one over the opening-range high, with volume running hot and the stock above its open, is the A+ form. The stop goes a few cents under the day's low at the buy.",
+   "why": "Buy at market. By our current default, day one over the opening-range high is the A+ form, and the pullback is the other way in. The stop goes a few cents under the day's low, 2% away.",
    "lesson_line": "Day one over the opening-range high is the A+ form.",
    "facts": [
     "c12",
@@ -1579,7 +1579,7 @@
     "u04"
    ],
    "wrong": {
-    "Wait; the pullback is the only entry": "Day one over the opening-range high is the A+ form; the pullback is the other way in.",
+    "Wait; the pullback is the only entry": "By our current default we teach both. Day one over the opening-range high is the A+ form; the pullback is the other way in.",
     "Buy half now, half at the close": "Half now and half later is two prices, not one buy.",
     "Buy at tomorrow's open": "Waiting for tomorrow's open gives up the trigger."
    },
@@ -2121,13 +2121,13 @@
    "q": "Is it an earnings gapper?",
    "story": "GE, 2015. A 5.4% gap on 10.0x volume closes at 90% of its range. The earnings calendar shows no report that day.",
    "choices": [
-    "A news gap; find the headline",
+    "Not earnings; find the headline first",
     "An earnings gapper; volume says so",
-    "A PEG; it closed near the high",
+    "An earnings gapper; the close says so",
     "No setup; it was not earnings"
    ],
-   "answer": "A news gap; find the headline",
-   "why": "A news gap. The earnings calendar shows no report that day, so this is a headline gap, not an earnings gap. Calling every big gap earnings without checking is a mistake: a quarter are not.",
+   "answer": "Not earnings; find the headline first",
+   "why": "Not earnings. The calendar shows no report that day, so this is a news gap and you need the headline. Calling every big gap earnings without checking is a mistake: a quarter are not.",
    "lesson_line": "Check the calendar. A quarter of big gaps are not earnings.",
    "facts": [
     "c34",
@@ -2135,8 +2135,8 @@
    ],
    "wrong": {
     "An earnings gapper; volume says so": "Volume does not tell you the catalyst. The calendar does.",
-    "A PEG; it closed near the high": "A PEG is a report reaction day, and there was no report.",
-    "No setup; it was not earnings": "A news gap is a valid setup; it just needs the headline."
+    "An earnings gapper; the close says so": "A strong close shows strength, not the catalyst. The calendar does.",
+    "No setup; it was not earnings": "A gap with no report is not thrown out. It needs a named headline."
    },
    "house": true
   },
@@ -2608,7 +2608,9 @@
   "The dossier's example numbers (d1) are a Tier 3 repo source: read off our own daily bars by the research scan (dossier sections 12 and 13), split-adjusted, no delisted names, not yet reviewed by the owner. The pullback-buy levels are the scan's trigger (a cent over the prior day's high) and stop, not a live fill. The criteria card (c1) is cited for its proposed criteria (volume, the gap holds, not late, the pullback entry, the invalidations, the lookalike tells, the grading rows); every question keyed on them carries house: true and the owner's review is the gate.",
   "The chart questions (q62 ULTA asof 2016-03-18, the fifth session after the gap; q63 URI asof 2024-01-25, the gap day) show the member's own chart; the keys rest on the dossier's reads (d01, d02, d03, d27, d28). The importer resolves the bars from our own history.",
   "The short mirror (the earnings breakdown, dossier 8.6) is not taught here (D-001). The owner's words quoted (u01, u04, u05) are from his published Sunday Scans, with the Substack links as given in the dossier.",
-  "Cold check 2026-11-10: 54 pass (14 fixed), 3 fix, 13 cut. Cut as duplicates: q04, q08, q09, q10, q11, q13, q22, q27, q42, q54 (the URI story; the chart q63 kept), q55 (repeats q16's 3R arithmetic), q56, q65. Held as fix: q31 (D-086, day one), q49 (a 'fails most often' claim from four losers), q51 (D-025, a no-report news gap on a major name). Numbers corrected: q40 sized 209 shares at 1% risk, 54.9% of the account, over the 40% cap (A7); now 0.5% risk, 104 shares, 27.3%. q38 and q53: the card does say a lower-half close is a B- (ng.gap_holds), but the same line and the pattern line also gate on the upper half and the dossier's NFLX near-miss calls a 35% close 'not a gapper', so q38 now uses a 60% close and q53 keys only 'not a News Failure'. q24 and q39 gap sizes moved to 12% so no key touches the pending gap floor; q47 and q58 stories fixed; q67 'most buys end at the stop' softened. Quotes removed: none. Look at first: (1) D-086, day one against the reclaim (q31, and the day-one stop); (2) D-025, who owns a no-report news gap on a major name (q51 here, q32 in SET.19); (3) the card's gap-holds line, which says both 'upper half' and 'lower half is a B-' (ng.gap_holds)."
+  "Cold check 2026-11-10: 54 pass (14 fixed), 3 fix, 13 cut. Cut as duplicates: q04, q08, q09, q10, q11, q13, q22, q27, q42, q54 (the URI story; the chart q63 kept), q55 (repeats q16's 3R arithmetic), q56, q65. Held as fix: q31 (D-086, day one), q49 (a 'fails most often' claim from four losers), q51 (D-025, a no-report news gap on a major name). Numbers corrected: q40 sized 209 shares at 1% risk, 54.9% of the account, over the 40% cap (A7); now 0.5% risk, 104 shares, 27.3%. q38 and q53: the card does say a lower-half close is a B- (ng.gap_holds), but the same line and the pattern line also gate on the upper half and the dossier's NFLX near-miss calls a 35% close 'not a gapper', so q38 now uses a 60% close and q53 keys only 'not a News Failure'. q24 and q39 gap sizes moved to 12% so no key touches the pending gap floor; q47 and q58 stories fixed; q67 'most buys end at the stop' softened. Quotes removed: none. Look at first: (1) D-086, day one against the reclaim (q31, and the day-one stop); (2) D-025, who owns a no-report news gap on a major name (q51 here, q32 in SET.19); (3) the card's gap-holds line, which says both 'upper half' and 'lower half is a B-' (ng.gap_holds).",
+  "Keyed on the adopted default of D-086 (provisional, 2026-11-10): the course teaches both entries, with day one over the opening-range high as the A+ form and the pullback and reclaim as the other way in (q31). If the owner picks 'never the open', q31 is cut.",
+  "q51 (GE 2015, no report that day) asks only whether the gap is an earnings gap, which holds under every D-025 option. Whether a major company's news gap is a PEG (D-025's adopted default, provisional, 2026-11-10) or a News Gapper is deliberately not keyed here. q49 cut 2026-11-10 (the early-reclaim claim rests on four hand-picked losers)."
  ],
  "verify": {
   "w1": {
@@ -2708,22 +2710,22 @@
    "by": "checker"
   },
   "q31": {
-   "status": "fix",
-   "notes": "Rests on ng.entry_day1, pending-owner (D-086: teach both, day one first, or never the open, always the reclaim). The unit's own conflicts line says q31 is cut if the owner picks the second. The A+ day-one form, its volume pace and the day's-low stop (also pending, ng.stop_day1) are not settled. Needs the owner's call on D-086.",
-   "fixed": false,
-   "by": "checker"
+   "status": "pass",
+   "notes": "Keyed on D-086's adopted default (teach both, day one as the A+ form). Story now gives the day's low 2% under the price so the day-one stop is inside every D-005 option; why says 'By our current default' and the 'pullback is the only entry' distractor is explained as the other way in, not as a rule. The unit's earlier note that q31 is cut if the owner picks 'never the open' still applies.",
+   "fixed": true,
+   "by": "resolver"
   },
   "q49": {
-   "status": "fix",
-   "notes": "The key ('fails most often') is drawn from four hand-picked losers (AVAV day 8, SEDG, PEN and GE day 4): three of four on day 4. The dossier gives no failure rate for early reclaims against all 1,200 pullback buys, and its own near-miss scan finds that only the late window (session 12 to 20) separates. Teaching a pattern from n = 4 as fact breaks 'when in doubt, leave it out'. Needs a count over the full pullback sample.",
+   "status": "cut",
+   "notes": "Cut: the key 'fails most often after an early reclaim on a very wide day-one bar' comes from four hand-picked losers (AVAV, SEDG, PEN, GE); the dossier has no failure rate for early reclaims against the 1,200 pullback buys, and its near-miss scan finds only the late window separates. Asking the card's sentence instead would teach the same n = 4 claim as ours. No honest rewrite onto a source.",
    "fixed": false,
-   "by": "checker"
+   "by": "resolver"
   },
   "q51": {
-   "status": "fix",
-   "notes": "Rests on a pending-owner line: D-025's default (21:2 b) files a major company news gap as a PEG, and GE is a major company with no report that day, so the wrong note 'a PEG is a report reaction day' is exactly what the owner has not settled (peg.news_gap). The 5.4% gap also sits under two of the four pending gap-floor options (ng.gap_floor). Same fix as SET.19 q32.",
-   "fixed": false,
-   "by": "checker"
+   "status": "pass",
+   "notes": "Rewritten so the key holds under every D-025 option: it asks only whether the GE gap is an earnings gap (no report that day, so no), not whether a no-report news gap on a major name is a PEG or a News Gapper. The 'a PEG is a report reaction day' wrong note and the PEG choice are gone. The 5.4% gap size is not keyed, so the pending gap floor (D-033) does not touch it.",
+   "fixed": true,
+   "by": "resolver"
   },
   "q01": {
    "status": "pass",

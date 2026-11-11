@@ -1188,7 +1188,8 @@
   "Comment-reply quotes from Bonde's blog (b11, b12, b13 on the 2007-03-20 post; b22, b23 on the 2007-02-26 post are in the post body) sit in Blogger's comment section; the quote checker reads the page's HTML and may not see dynamically loaded comments. If it reports them MISSING the checker should confirm with a browser.",
   "The short mirror (the bearish EP, dossier 8.6) is not taught here (D-001).",
   "Bulkowski's site states it must not be used to train AI systems; two short quotes with links are cited as the dossier did (s14), never as a key on their own.",
-  "Cold check 2026-11-10: 62 pass (30 fixed; the 3 walk-throughs are in the pass count), 1 fix, 4 cut. Look first at: (1) q11/q39: the card gates a second EP and a stock up 50%+ (ep.first_ep, ep.neglect) and also only grades them down (ep.inv_late, the B- row); pick one. (2) q40's size broke A7's 40% cap at 1% risk (784 shares, 62% of the account); now 0.5% risk, 392 shares. (3) The day-one buy (q05, q18, w2) rests on D-005, whose option c would cut all three; and q49's gap-over-25% cue runs against the scan (68% to 3R over 30%)."
+  "Cold check 2026-11-10: 62 pass (30 fixed; the 3 walk-throughs are in the pass count), 1 fix, 4 cut. Look first at: (1) q11/q39: the card gates a second EP and a stock up 50%+ (ep.first_ep, ep.neglect) and also only grades them down (ep.inv_late, the B- row); pick one. (2) q40's size broke A7's 40% cap at 1% risk (784 shares, 62% of the account); now 0.5% risk, 392 shares. (3) The day-one buy (q05, q18, w2) rests on D-005, whose option c would cut all three; and q49's gap-over-25% cue runs against the scan (68% to 3R over 30%).",
+  "Resolved from dossier 8.1 (item 6, First EP; 'all must be true at the buy'), no D-id: ep.first_ep is a gate, so a second EP inside 126 sessions is not our EP (card pattern line: 'Not a second EP'). The 'graded down hard' line (ep.inv_late, the B- row) is read as the grade for a stock up 50% or more, which q39 keys. The dossier's own near-miss scan shows a second EP did about as well (36.5% to 3R against 37.9%), so the gate rests on the originators' rule and Kullamagi's avoidance, not on a measured edge. Provisional pick, 2026-11-10; the owner may prefer grade-down."
  ],
  "questions": [
   {
@@ -1442,27 +1443,26 @@
    "rung": 2,
    "format": "scenario",
    "criterion": "ep.first_ep",
-   "q": "How does this one grade?",
+   "q": "Does this one count as our Episodic Pivot?",
    "choices": [
-    "A second EP; graded down hard",
+    "Not our EP; it fails the first-EP test",
     "A fresh EP; buy the opening range",
     "An A+; two surprises in a row",
-    "Not an EP; wait for a third"
+    "An EP, but only on a delayed entry"
    ],
-   "story": "A stock gapped 14% on earnings in March and ran. Now, in August, it gaps 12% again on the next report.",
-   "answer": "A second EP; graded down hard",
-   "why": "A second EP, graded down hard. Our card wants no qualifying EP in the prior 126 sessions. Kullamagi: a second EP can work, but the failure rate is higher and the move smaller.",
-   "lesson_line": "First time is the charm. The second gap has already told the crowd.",
+   "story": "A stock gapped 14% on 4x volume after earnings in March. About 100 trading days later it gaps 12% on 4x volume after the next report.",
+   "answer": "Not our EP; it fails the first-EP test",
+   "why": "Not our EP. Our card wants no qualifying EP in the prior 126 sessions, and March's gap sits inside that window. Kullamagi says these can work, but the failure rate is higher and the move smaller.",
+   "lesson_line": "First time is the charm. A second gap inside 126 sessions is not our EP.",
    "facts": [
     "c06",
-    "c23",
     "k07",
     "b19"
    ],
    "wrong": {
     "A fresh EP; buy the opening range": "March's gap was inside the prior 126 sessions. This is the second, not the first.",
     "An A+; two surprises in a row": "Bonde: the third and fourth surprises are priced in and often reverse. The count works against you.",
-    "Not an EP; wait for a third": "A third is later still. The grade falls with each one; waiting for more is backwards."
+    "An EP, but only on a delayed entry": "A delayed entry is a later way to buy a first EP. It does not fix a failed first-EP test."
    },
    "house": true
   },
@@ -3001,10 +3001,10 @@
    "by": "checker"
   },
   "q11": {
-   "status": "fix",
-   "notes": "The card disagrees with itself: ep.first_ep is a gate (no qualifying EP in 126 sessions, and dossier 8.1 says all must be true), while ep.inv_late and the B- grading row grade a second EP down, not out. The key 'graded down hard' and the why's 'Our card wants no qualifying EP' cannot both hold, and the distractor 'Not an EP' is half right under the gate. Owner: gate or grade-down for a second EP?",
-   "fixed": false,
-   "by": "checker"
+   "status": "pass",
+   "notes": "The card contradicted itself (ep.first_ep gate against ep.inv_late grade-down). Dossier 8.1 says all listed conditions must be true and item 6 is the first-EP gate, so the key follows the gate: not our EP. Story now gives the 4x volume and about 100 sessions between gaps (inside 126). Dropped the c23 fact and the 'wait for a third' distractor, which was half right under a gate; replaced with a delayed-entry distractor.",
+   "fixed": true,
+   "by": "resolver"
   },
   "q12": {
    "status": "pass",
