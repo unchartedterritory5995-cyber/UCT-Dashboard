@@ -17,10 +17,10 @@
 //   lib/realtimeCandle.js (applyTick / applyBarClose registry)
 //   lib/barsStreamManager.js (per-key ordering + throttled dispatch)
 //
-// Known gaps on current master are pinned with `it.fails` + TODO: they flip red the day
+// Any still-open gap is pinned with `it.fails` + TODO: it flips red the day
 // the gap is closed, so the TODO cannot outlive the fix.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mergePushBar, foldPrice, reconcileWithServerTail } from '../../../lib/liveBarMerge'
+import { mergePushBar, foldPrice, reconcileWithServerTail, provisionalOpen } from '../../../lib/liveBarMerge'
 import * as rc from '../../../lib/realtimeCandle'
 import * as bars from '../../../lib/barsStreamManager'
 import { bucketStartUnix, toChartTime, fromChartTime, etOffsetSec } from '../barTime'
@@ -252,43 +252,65 @@ describe('developing bar — mergePushBar over random authoritative push sequenc
   })
 })
 
-describe('developing bar — provisional values must not LOCK (known gaps on master)', () => {
-  // TODO(P2 BarStore, "applyLive is the only merge path"): the developing bar carries no
-  // provenance, so an OPEN / extreme seeded by a fallback writer (Writer A/C tick) is
-  // indistinguishable from an authoritative one. When push engages mid-bucket,
-  // mergePushBar keeps the provisional open (I2 "first writer wins") and the provisional
-  // high/low (I1) until the bucket's FINAL. Contract: the first AUTHORITATIVE frame for
-  // a bucket replaces provisional O/H/L. Flip to `it` when the store tags provenance.
-  it.fails('KNOWN GAP: the first authoritative push frame replaces a provisional open / extremes', () => {
-    forSeeds(50, 20000, (r) => {
+describe('developing bar — provisional values must not LOCK (liveBarMerge I6-I8, PR #1100)', () => {
+  // Was a KNOWN GAP (it.fails) until #1100: the bar carried no provenance. Now a
+  // writer-guessed bucket is `provisional: true` (provisionalOpen) and fallback prints
+  // (foldPrice) never touch `authHigh/authLow`, so these are real invariants.
+  it('I6: the first authoritative push frame REPLACES a provisional open / extremes', () => {
+    forSeeds(SEEDS, 20000, (r) => {
       const sc = scenario(r)
       const first = sc.frames.find((f) => !f.final)
-      const ghost = Math.round(first.open * (1 + r.float(0.01, 0.05)) * 100) / 100
-      const provisional = { time: first.time, open: ghost, high: ghost, low: first.low, close: ghost, volume: 0, sym: 'X' }
-      const res = mergePushBar(provisional, first, { sym: 'X', tradeTs: first.tradeTs, tf: sc.tf, session: sc.session, toChart: toChartTime })
+      const ghost = Math.round(first.open * (1 + r.float(-0.05, 0.05)) * 100) / 100
+      let prov = { ...provisionalOpen(first.time, ghost), volume: 0, sym: 'X' }
+      for (let i = 0, n = r.int(0, 6); i < n; i++) {
+        const px = Math.round(ghost * (1 + r.float(-0.05, 0.05)) * 100) / 100
+        prov = foldPrice(prov, px, first.time, sc.tf, sc.session).bar
+      }
+      const res = mergePushBar(prov, first, { sym: 'X', tradeTs: first.tradeTs, tf: sc.tf, session: sc.session, toChart: toChartTime })
+      check(res.kind === 'update', `provisional + same-bucket frame -> ${res.kind}`)
       check(res.bar.open === first.open, 'provisional open locked')
-      check(res.bar.high === first.high, 'provisional high locked')
+      check(res.bar.high === first.high && res.bar.low === first.low, 'provisional extremes locked')
+      check(!res.bar.provisional, 'bar still provisional after an authoritative frame')
     })
   })
 
-  // TODO(P2/P3, audit D5 "ghost wicks kept by Writer D max/min"): reconcileWithServerTail
-  // keeps max(live.high, server.high) / min(live.low, server.low) even after the bucket
-  // has ENDED and the server tail is that bucket's complete bar — so an unfiltered
-  // fallback print outside the true range stays painted for the bucket's lifetime as the
-  // tail. Contract: once the bucket is closed, the server's bar is the truth.
-  it.fails('KNOWN GAP (D5): a closed bucket reconciled with the server tail drops provisional ghost extremes', () => {
-    forSeeds(50, 21000, (r) => {
+  it('I7: a fallback print outside the authoritative range never survives the next authoritative frame', () => {
+    forSeeds(SEEDS, 20500, (r) => {
+      const sc = scenario(r)
+      const frames = sc.frames.filter((f) => !f.final)
+      const t = frames[0].time
+      const same = frames.filter((f) => f.time === t)
+      if (same.length < 2) return
+      let bar = mergePushBar(null, same[0], { sym: 'X', tradeTs: same[0].tradeTs, tf: sc.tf, session: sc.session, toChart: toChartTime }).bar
+      const ghostHi = Math.round(sc.truth.get(t).high * (1 + r.float(0.01, 0.05)) * 100) / 100
+      const ghostLo = Math.round(sc.truth.get(t).low * (1 - r.float(0.01, 0.05)) * 100) / 100
+      bar = foldPrice(bar, r.chance(0.5) ? ghostHi : ghostLo, t, sc.tf, sc.session).bar
+      const nxt = same[same.length - 1]
+      const res = mergePushBar(bar, nxt, { sym: 'X', tradeTs: nxt.tradeTs, tf: sc.tf, session: sc.session, toChart: toChartTime })
+      const authHi = Math.max(same[0].high, nxt.high), authLo = Math.min(same[0].low, nxt.low)
+      check(res.bar.high === authHi && res.bar.low === authLo, 'fallback ghost extreme survived an authoritative frame')
+    })
+  })
+
+  it('I8 (D5): a bucket the server PROVES sealed (a later bucket in the response) is the server bar exactly', () => {
+    forSeeds(SEEDS, 21000, (r) => {
       const sc = scenario(r)
       const t0 = sc.frames[0].time
       const server = sc.truth.get(t0)
-      const live = { ...server, high: Math.round(server.high * 1.03 * 100) / 100, sym: 'X' }
-      const endChart = toChartTime(bucketStartUnix(fromChartTime(t0), Number(sc.tf), { grid: GRID[sc.session] })) + 4 * 3600
-      const { bar } = reconcileWithServerTail(live, server, {
-        sym: 'X', periodSec: Number(sc.tf) * 60, nowChart: endChart, tf: sc.tf, session: sc.session,
+      const live = { ...server, high: Math.round(server.high * (1 + r.float(0.01, 0.05)) * 100) / 100,
+        low: Math.round(server.low * (1 - r.float(0, 0.05)) * 100) / 100, volume: server.volume + r.int(0, 50),
+        sym: 'X', provisional: r.chance(0.5) || undefined }
+      const { bar, ahead } = reconcileWithServerTail(live, server, {
+        sym: 'X', periodSec: Number(sc.tf) * 60, tf: sc.tf, session: sc.session, serverHasLater: true,
       })
-      check(bar.high === server.high, 'ghost high survived a closed-bucket reconcile')
+      check(!ahead && barEq(bar, server), 'live ghost value survived a server-sealed bucket')
+      check(!bar.provisional, 'sealed bar still provisional')
     })
   })
+
+  // NOT a gap (by design, I8): WITHOUT proof of sealing (no later bucket, no push final) the
+  // H/L union stands — the client clock is not proof (the REST tail lags the stream). The
+  // window is bounded by the next poll that carries a later bucket.
 
   it('reconcileWithServerTail: the server open is authoritative over a provisional open (I2)', () => {
     forSeeds(SEEDS, 22000, (r) => {

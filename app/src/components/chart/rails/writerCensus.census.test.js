@@ -10,13 +10,13 @@
 //   barCacheImports / swrCaches / idbOpen  — independent bar-cache usages
 //   pctConstants                           — `const *_PCT = 0|100` rollout gates
 //
-// against `writerCensus.baseline.json`. SHRINK-ONLY:
+// against `writerCensus.baseline.json`. ONE-DIRECTIONAL RATCHET:
 //   * a count above its baseline FAILS (a new writer / cache / gate needs a design decision,
 //     not a quiet addition — route it through the BarStore instead);
-//   * a count below its baseline also fails until you LOWER the baseline in the same change,
-//     so the ratchet tightens and cannot silently regrow to the old number.
-// Edit the baseline by hand (or run with RAILS_WRITE_BASELINE=1 ONLY after a reduction, and
-// review the diff: every line must go down).
+//   * a count below its baseline PASSES and prints a reminder to lower the baseline, so
+//     parallel cleanup PRs (BarStore P3) are never blocked. Lower it soon after: until you
+//     do, that slack is room for a writer to regrow unnoticed.
+// How to update: see ./README.md.
 import fs from 'node:fs'
 import path from 'node:path'
 import { describe, it, expect } from 'vitest'
@@ -34,8 +34,8 @@ const totals = Object.fromEntries(Object.keys(WRITER_METRICS).map((k) =>
 if (process.env.RAILS_WRITE_BASELINE === '1') {
   fs.writeFileSync(BASELINE_PATH, JSON.stringify({
     '//': [
-      'P0 single-writer census ratchet. SHRINK-ONLY: lower a count (or delete a row) when the BarStore',
-      'refactor removes a writer / cache / gate; never raise one. See writerCensus.census.test.js.',
+      'P0 single-writer census ratchet. Growth FAILS; a drop passes with a reminder. Lower a count (or delete',
+      'a row) when a writer / cache / gate is removed; never raise one. How to update: rails/README.md.',
     ],
     totals, files: now, pctConstants: pct,
   }, null, 2) + '\n')
@@ -57,21 +57,23 @@ describe('single-writer census (shrink-only ratchet)', () => {
     expect(grew, 'new bar writer / cache sites — route them through the BarStore, do not add another:').toEqual([])
   })
 
-  it('a removed site is taken off the baseline in the same change (the ratchet tightens)', () => {
+  it('a removed site passes, with a reminder to lower the baseline', () => {
     const { shrank } = diffMultisets(now, baseline.files)
-    expect(shrank, `lower these counts in ${BASELINE_REL}:`).toEqual([])
+    if (shrank.length) console.warn(`[rails] writer census went DOWN — lower ${BASELINE_REL} (see rails/README.md):`, shrank)
+    expect(Array.isArray(shrank)).toBe(true)
   })
 
-  it('totals match the per-file rows', () => {
+  it('baseline totals match its per-file rows, and no total grew', () => {
     expect(baseline.totals).toEqual(Object.fromEntries(Object.keys(WRITER_METRICS).map((k) =>
       [k, Object.values(baseline.files).reduce((a, r) => a + (r[k] || 0), 0)])))
-    expect(totals).toEqual(baseline.totals)
+    const grewTotals = Object.keys(totals).filter((k) => totals[k] > (baseline.totals[k] || 0))
+    expect(grewTotals, 'these totals grew past the baseline').toEqual([])
   })
 
-  it('no NEW rollout-percentage gate (`const *_PCT = 0|100`); removed ones leave the list', () => {
+  it('no NEW rollout-percentage gate (`const *_PCT = 0|100`); a removed one only warns', () => {
     const added = pct.filter((x) => !baseline.pctConstants.includes(x))
     const gone = baseline.pctConstants.filter((x) => !pct.includes(x))
     expect(added, 'new rollout PCT gate — owner policy is ship ON, no new dark flags').toEqual([])
-    expect(gone, `remove these from pctConstants in ${BASELINE_REL}`).toEqual([])
+    if (gone.length) console.warn(`[rails] rollout gates removed — delete from pctConstants in ${BASELINE_REL}: ${gone.join(', ')}`)
   })
 })

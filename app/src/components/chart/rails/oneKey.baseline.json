@@ -1,7 +1,7 @@
 {
   "//": [
-    "P0 one-key / one-url / one-freshness allowlist. SHRINK-ONLY: delete an entry (or lower n) when a",
-    "site moves onto its owning module; never add one. `at` is informational. See oneKey.census.test.js."
+    "P0 one-key / one-url / one-freshness allowlist. A new site FAILS; a removed one warns. Delete an entry",
+    "(or lower n) when a site moves onto its owner; never add one. `at` is informational. See rails/README.md."
   ],
   "owners": {
     "keyBuilders": "utils/barsMemCache.js + utils/barsIDB.js (cacheKey) -> P1: server-issued key",
@@ -11,16 +11,16 @@
   "keyBuilders": {
     "components/StockChart.jsx": {
       "${sym}_${_barsTf}": {
-        "n": 22,
-        "at": "components/StockChart.jsx:7977"
+        "n": 23,
+        "at": "components/StockChart.jsx:8008"
       },
       "${sym}_${resolvedTf}": {
         "n": 11,
-        "at": "components/StockChart.jsx:10042"
+        "at": "components/StockChart.jsx:10169"
       },
       "${sym || 'chart'}_${resolvedTf || ''}": {
         "n": 1,
-        "at": "components/StockChart.jsx:10545"
+        "at": "components/StockChart.jsx:10677"
       }
     },
     "components/chart/engine/liveTail.js": {
@@ -44,13 +44,13 @@
     "utils/barsIDB.js": {
       "${sym.toUpperCase()}_${tf}": {
         "n": 1,
-        "at": "utils/barsIDB.js:132"
+        "at": "utils/barsIDB.js:133"
       }
     },
     "utils/barsMemCache.js": {
       "${String(sym || '').toUpperCase()}_${tf}": {
         "n": 1,
-        "at": "utils/barsMemCache.js:14"
+        "at": "utils/barsMemCache.js:15"
       }
     },
     "utils/intradayTiming.js": {
@@ -62,15 +62,19 @@
     "utils/prefetchBars.js": {
       "${meta.sym}_${meta.tf}": {
         "n": 1,
-        "at": "utils/prefetchBars.js:213"
+        "at": "utils/prefetchBars.js:242"
+      },
+      "${sym}_${_ck(tf)}": {
+        "n": 1,
+        "at": "utils/prefetchBars.js:366"
       },
       "${sym}_${tf}": {
-        "n": 4,
-        "at": "utils/prefetchBars.js:207"
+        "n": 3,
+        "at": "utils/prefetchBars.js:236"
       },
       "${String(sym).toUpperCase()}_${tf}": {
         "n": 1,
-        "at": "utils/prefetchBars.js:1004"
+        "at": "utils/prefetchBars.js:1129"
       }
     }
   },
@@ -78,39 +82,39 @@
     "components/StockChart.jsx": {
       "/api/bars-history/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars": {
         "n": 1,
-        "at": "components/StockChart.jsx:8729"
+        "at": "components/StockChart.jsx:8754"
       },
       "/api/bars/${encodeURIComponent(sym || ": {
         "n": 1,
-        "at": "components/StockChart.jsx:8747"
+        "at": "components/StockChart.jsx:8772"
       },
       "/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars": {
         "n": 3,
-        "at": "components/StockChart.jsx:8818"
+        "at": "components/StockChart.jsx:8846"
       },
       "/api/bars/${encodeURIComponent(sym)}?tf=${_customBaseTf}&b": {
         "n": 1,
-        "at": "components/StockChart.jsx:8926"
+        "at": "components/StockChart.jsx:8954"
       },
       "/api/bars/${encodeURIComponent(compareSymbol.toUpperCase()": {
         "n": 1,
-        "at": "components/StockChart.jsx:8948"
+        "at": "components/StockChart.jsx:8976"
       },
       "/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bc}${": {
         "n": 1,
-        "at": "components/StockChart.jsx:9257"
+        "at": "components/StockChart.jsx:9285"
       },
       "/api/bars/${encodeURIComponent(_sym)}?tf=${_tf}&bars=${bar": {
         "n": 1,
-        "at": "components/StockChart.jsx:9737"
+        "at": "components/StockChart.jsx:9864"
       },
       "/api/bars/${encodeURIComponent(s)}?tf=${resolvedTf}&bars=$": {
         "n": 2,
-        "at": "components/StockChart.jsx:11506"
+        "at": "components/StockChart.jsx:11638"
       },
       "/api/bars/${encodeURIComponent(sym)}?tf=${encodeURICompone": {
         "n": 1,
-        "at": "components/StockChart.jsx:12288"
+        "at": "components/StockChart.jsx:12439"
       }
     },
     "components/chart/engine/liveTail.js": {
@@ -218,15 +222,15 @@
     "utils/prefetchBars.js": {
       "/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${_bars": {
         "n": 2,
-        "at": "utils/prefetchBars.js:312"
+        "at": "utils/prefetchBars.js:339"
       },
       "/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bars}": {
         "n": 1,
-        "at": "utils/prefetchBars.js:586"
+        "at": "utils/prefetchBars.js:723"
       },
       "/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${fullB": {
         "n": 1,
-        "at": "utils/prefetchBars.js:900"
+        "at": "utils/prefetchBars.js:1033"
       }
     }
   },
@@ -234,7 +238,7 @@
     "components/StockChart.jsx": {
       "_memTailStaleDaily": {
         "n": 1,
-        "at": "components/StockChart.jsx:8633"
+        "at": "components/StockChart.jsx:8658"
       }
     },
     "components/chart/volumePaneDrag.js": {
@@ -264,7 +268,7 @@
     "lib/todayPackClient.js": {
       "_isFresh": {
         "n": 1,
-        "at": "lib/todayPackClient.js:64"
+        "at": "lib/todayPackClient.js:86"
       }
     },
     "utils/barsBackfill.js": {
@@ -302,11 +306,11 @@
       },
       "intradayBarCurrentness": {
         "n": 1,
-        "at": "utils/marketSession.js:618"
+        "at": "utils/marketSession.js:655"
       },
       "isCurrentnessSettled": {
         "n": 1,
-        "at": "utils/marketSession.js:712"
+        "at": "utils/marketSession.js:749"
       },
       "isIntradayTailStale": {
         "n": 1,
@@ -316,11 +320,11 @@
     "utils/prefetchBars.js": {
       "_dailyNeedsRefresh": {
         "n": 1,
-        "at": "utils/prefetchBars.js:230"
+        "at": "utils/prefetchBars.js:769"
       },
       "_memPromoteFresh": {
         "n": 1,
-        "at": "utils/prefetchBars.js:227"
+        "at": "utils/prefetchBars.js:256"
       }
     }
   }

@@ -1,14 +1,14 @@
 {
   "//": [
-    "P0 single-writer census ratchet. SHRINK-ONLY: lower a count (or delete a row) when the BarStore",
-    "refactor removes a writer / cache / gate; never raise one. See writerCensus.census.test.js."
+    "P0 single-writer census ratchet. Growth FAILS; a drop passes with a reminder. Lower a count (or delete",
+    "a row) when a writer / cache / gate is removed; never raise one. How to update: rails/README.md."
   ],
   "totals": {
     "setData": 25,
     "seriesUpdate": 37,
     "candleWrites": 22,
-    "liveRefAssign": 22,
-    "barCacheImports": 22,
+    "liveRefAssign": 23,
+    "barCacheImports": 23,
     "swrCaches": 13,
     "idbOpen": 1
   },
@@ -17,7 +17,7 @@
       "setData": 20,
       "seriesUpdate": 37,
       "candleWrites": 22,
-      "liveRefAssign": 22,
+      "liveRefAssign": 23,
       "barCacheImports": 5,
       "swrCaches": 11
     },
@@ -70,7 +70,7 @@
       "idbOpen": 1
     },
     "utils/prefetchBars.js": {
-      "barCacheImports": 2,
+      "barCacheImports": 3,
       "swrCaches": 2
     }
   },

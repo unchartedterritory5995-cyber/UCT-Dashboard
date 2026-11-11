@@ -38,6 +38,7 @@ _LABELS: dict[str, tuple[str, str]] = {
     "warm-sqlite":      ("warm",     "warm-path SQLite hit"),
     "yf-only":          ("warm",     "index symbols served from yfinance-only path"),
     "delta":            ("warm",     "since= delta poll served from local rows"),
+    "derived-local":    ("warm",     "30m/60m tail rebuilt from the stored 15m base before any provider call (#1090)"),
     "delta-async-heal": ("deadline", "delta served now, tail heal running in background"),
     "delta-deadline":   ("deadline", "delta/date-delta heal hit its ceiling; served what is held"),
     "deep-deadline":    ("deadline", "deep-history fetch hit its ceiling"),
