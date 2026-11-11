@@ -1,4 +1,5 @@
 // app/src/components/chart/ChartDrawingOverlay.jsx — Canvas overlay for chart annotations
+import { watchChartView } from './chartViewWatcher'
 import React, { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { isHiddenDeskKey } from '../../pages/charts/deskKeyGate'
 import { createPortal } from 'react-dom'
@@ -30,6 +31,7 @@ import {
   resolveLevels, withBand, withLevel,
 } from './drawingFib'
 import { parseBoundId, POSITION_LEVELS, positionLevelDirection, positionSide } from './drawingAlertAnchors'
+import { toRawUnixView, stampTimeBase, pointChartTime } from './drawingTimeBase'
 import { sectionsFor, defaultsPayloadFor, newDrawingProps, isRetired } from './drawingSettingsSchema'
 import {
   PRICE, VOLUME, resolveZones, paneKeyAtY, rectForKey, inferPaneKey,
@@ -358,7 +360,7 @@ export default function ChartDrawingOverlay({
   color, lineWidth,
   lineStyle = 'solid',
   magnet = false,
-  drawings, addDrawing, updateDrawing, removeDrawing,
+  drawings: drawingsIn, addDrawing: addDrawingIn, updateDrawing: updateDrawingIn, removeDrawing,
   // ⛔ `reorderDrawing` IS GONE FROM THIS SIGNATURE. It arrived from StockChart
   // solely to feed the menu's `canReorder` / `onBringFront` / `onSendBack`
   // props — which this component never read (eslint has flagged all three as
@@ -398,6 +400,12 @@ export default function ChartDrawingOverlay({
   quickBarInset = 10,        // px above the chart's bottom edge for the touch quick-action
                              //   bar — the phone shell raises it above its docked draw bar.
 }) {
+  // ⭐ ONE TIME BASE (drawingTimeBase.js): every numeric point time this overlay reads or writes is
+  // RAW UNIX — the raw bars' own `t`. Legacy Agent points (chart time) are re-expressed on the way in;
+  // every write is stamped `tb:'unix'`; LWC (keyed by CHART time) is only ever asked via pointChartTime.
+  const drawings = useMemo(() => toRawUnixView(drawingsIn), [drawingsIn])
+  const addDrawing = useCallback((d, ...rest) => addDrawingIn?.(stampTimeBase(d), ...rest), [addDrawingIn])
+  const updateDrawing = useCallback((id, upd, ...rest) => updateDrawingIn?.(id, stampTimeBase(upd), ...rest), [updateDrawingIn])
   // ⭐ LIVE, not frozen. Every touch affordance below (auto-select after placing,
   // the touch pointer-routing effect, the coach chip, the quick bar, sheet-vs-
   // popover) reads THIS, so attaching or detaching an iPad keyboard re-renders
@@ -769,7 +777,8 @@ export default function ChartDrawingOverlay({
       }
     }
     if (x == null && time != null) {
-      try { x = chart.timeScale().timeToCoordinate(time) } catch {}
+      // the series is keyed by CHART time; stored points are raw unix (drawingTimeBase.js)
+      try { x = chart.timeScale().timeToCoordinate(pointChartTime(time)) } catch {}
       // Fallback: extrapolate from logical index. Uses the CONTAINING bar so a
       // daily-anchored drawing maps onto the right weekly/monthly bar (and vice
       // versa) instead of disappearing when the exact date isn't a bar.
@@ -1063,56 +1072,35 @@ export default function ChartDrawingOverlay({
     // nothing else triggers a repaint, so the first view change (Setup ⇄ Result
     // flip) re-framed the candles while the canvas kept its STALE pixels — the
     // "trendline doesn't stay where I put it" bug.
-    const onRange = () => redrawRef.current?.()
-    let subscribedChart = null
-    // A rAF loop samples the time range AND the price→pixel mapping each frame,
-    // so drawings track VERTICAL price-scale changes too — the autoscale settling
-    // after a focus zoom, or axis drags — not just horizontal range moves. (The
-    // old time-only 200ms poll left annotations stuck at stale price levels for a
-    // beat after the first zoom — the "2.70/5.42 in the wrong spot" glitch.)
-    let raf = null
+    // The view (time range AND the price->pixel mapping) is sampled by watchChartView, so drawings
+    // track VERTICAL price-scale changes too: the autoscale settling after a focus zoom, or axis
+    // drags, not just horizontal range moves. (The old time-only 200ms poll left annotations stuck
+    // at stale price levels for a beat after the first zoom: the "2.70/5.42 in the wrong spot"
+    // glitch.) It runs every frame while the view moves and rests when it is still (2026-11-10:
+    // the unconditional loop cost every chart 60 ticks a second all day).
     let lastKey = ''
-    const tick = () => {
-      const chart = chartRef?.current
-      const series = seriesRef?.current
-      // (Re)subscribe whenever the chart instance appears or is replaced, so the
-      // synchronous same-frame redraw on setVisibleLogicalRange is never lost.
-      if (chart !== subscribedChart) {
-        try { subscribedChart?.timeScale().unsubscribeVisibleLogicalRangeChange(onRange) } catch { /* gone */ }
-        subscribedChart = null
-        if (chart) {
-          try { chart.timeScale().subscribeVisibleLogicalRangeChange(onRange); subscribedChart = chart } catch { /* older API */ }
+    const watcher = watchChartView({
+      chartRef,
+      seriesRef,
+      onRange: () => redrawRef.current?.(),
+      // Include the text-fade value so the fade renders frame-by-frame even at the very end of the
+      // zoom, where the range barely changes.
+      extraKey: () => (textFadeRef ? (textFadeRef.current ?? 1).toFixed(3) : ''),
+      sample: ({ key, y0 }) => {
+        // Snap settled? Once the price mapping moves off its pre-snap sample, LWC has repainted at
+        // the new scale (which equals our target range), so drop the override and hand back to
+        // priceToCoordinate: no visible jump.
+        if (snapActiveRef.current && y0 != null && snapBaseYRef.current != null
+            && Math.abs(y0 - snapBaseYRef.current) > 0.5) {
+          snapActiveRef.current = false
+          if (snapSafetyRef.current) { clearTimeout(snapSafetyRef.current); snapSafetyRef.current = null }
         }
-      }
-      if (chart) {
-        try {
-          const range = chart.timeScale().getVisibleLogicalRange()
-          // A disposed series must not kill range-keyed redraws — sample it
-          // separately and fall back to blank mapping values.
-          let y0 = null, y1 = null
-          try { y0 = series?.priceToCoordinate(1); y1 = series?.priceToCoordinate(100) } catch { /* disposed series */ }
-          // Snap settled? Once the price mapping moves off its pre-snap sample,
-          // LWC has repainted at the new scale (which equals our target range), so
-          // drop the override and hand back to priceToCoordinate — no visible jump.
-          if (snapActiveRef.current && y0 != null && snapBaseYRef.current != null
-              && Math.abs(y0 - snapBaseYRef.current) > 0.5) {
-            snapActiveRef.current = false
-            if (snapSafetyRef.current) { clearTimeout(snapSafetyRef.current); snapSafetyRef.current = null }
-          }
-          // Include the text-fade value so the fade renders frame-by-frame even at
-          // the very end of the zoom, where the range barely changes.
-          const tf = textFadeRef ? (textFadeRef.current ?? 1).toFixed(3) : ''
-          const key = `${range ? `${range.from.toFixed(2)}_${range.to.toFixed(2)}` : ''}|${y0 ?? ''}|${y1 ?? ''}|${tf}`
-          if (key !== lastKey) { lastKey = key; redrawRef.current?.() }
-        } catch { /* chart torn down mid-frame */ }
-      }
-      raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => {
-      if (raf) cancelAnimationFrame(raf)
-      try { subscribedChart?.timeScale().unsubscribeVisibleLogicalRangeChange(onRange) } catch { /* already removed */ }
-    }
+        if (key !== lastKey) { lastKey = key; redrawRef.current?.() }
+        // A snap waiting to land keeps the watcher on every frame.
+        return snapActiveRef.current ? null : undefined
+      },
+    })
+    return () => watcher.stop()
   }, [chartRef, seriesRef, textFadeRef])
 
   // ── Request redraw (debounced via rAF, uses ref for latest redraw) ──

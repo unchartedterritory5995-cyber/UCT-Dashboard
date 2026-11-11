@@ -422,9 +422,17 @@ def rs_fields(rs_row) -> dict:
     ``rs_score`` -> ``rs_return`` is not a rename of convenience: it is the
     40%·3m + 20%·6m + 20%·1m + 20%·1w weighted return
     (``rs_ranking._compute_returns``), which is the same quantity
-    ``research.ratings._weighted_rs_return`` computes and the same number
-    ``rs_rank`` is the universe percentile OF. Writing both from one entry is
-    what makes the rank and the return beside it consistent by construction.
+    ``research.ratings._weighted_rs_return`` computes and, with
+    ``RS_RANK_IBD_ENABLED`` off, the same number ``rs_rank`` is the universe
+    percentile OF. Writing both from one entry is what makes the rank and the
+    return beside it consistent by construction.
+
+    Under ``RS_RANK_IBD_ENABLED`` (RS split unit U5a) the entry's ``rs_rank`` is
+    already the nightly IBD-style rating (``rs_ranking.cached_rank_map`` lays it
+    over the hourly map), so ``rs_rank`` equals ``rs_rating_ibd`` on the same
+    row and is no longer the percentile of ``rs_return``; the entry says which
+    in ``rs_rank_source`` and ``run_build`` counts it into the receipt. Nothing
+    here changes: the column takes whatever the authority hands it.
     """
     if not rs_row:
         return {}
@@ -1120,6 +1128,7 @@ _RS_HISTORY_COLUMNS = {
     "rs_rating_1m": "m1",         # component percentiles of the plain
     "rs_rating_3m": "m3",         #   21/63/126/252-bar returns (item 19)
     "rs_rating_6m": "m6",
+    "rs_rating_9m": "m9",         # S1 (2026-11-10): the 189-bar window the chart ranks strip prints
     "rs_rating_12m": "m12",
 }
 
@@ -1881,6 +1890,14 @@ def _run_build_locked(max_tickers=None) -> dict:
                 sources.setdefault("rs_ranking", {})
                 sources["rs_ranking"]["no_rank"] = \
                     sources["rs_ranking"].get("no_rank", 0) + 1
+            elif rs_row.get("rs_rank_source"):
+                # U5a: under RS_RANK_IBD_ENABLED the entry says whether `rs_rank`
+                # is the nightly rating or the hourly fallback. Counted so the
+                # receipt shows how much of the universe the rating covered (the
+                # arm rule is 99 %); flag off there is no key and nothing is added.
+                k = f"source_{rs_row['rs_rank_source']}"
+                sources.setdefault("rs_ranking", {})
+                sources["rs_ranking"][k] = sources["rs_ranking"].get(k, 0) + 1
             bulk_row = bulk_map.get(t.upper())
             if not bulk_row:
                 # Counted for the same reason as `no_rank`: an empty bulk map

@@ -254,8 +254,9 @@ describe('the catalog covers every settings section, and nothing else', () => {
     // volume's ladder would flatten the bars it sits over. See its definition.
     // ⭐ 2026-10-01 — the Technical library's thirty own-pane Tier 1 studies follow
     // `dollarVolume` in registration order, ahead of the server lane's `rsLine`.
+    // ⭐ U6 (2026-11-09): the RS split's three server definitions follow `rsLine`, in registration order.
     expect(oscillatorIds()).toEqual(['rsi', 'macd', 'stoch', 'atr', 'mfi', 'cci', 'williamsR', 'adx', 'obv', 'dataSeries', 'dollarVolume',
-      ...TIER1_IDS.filter((id) => !['superTrend', 'keltner', 'envelope'].includes(id)), 'rsLine'])
+      ...TIER1_IDS.filter((id) => !['superTrend', 'keltner', 'envelope'].includes(id)), 'rsLine', 'rsRating', 'rsPhases', 'rsVsEma'])
     expect(priceOverlayIds()).toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap',
       // ⭐ `movingAverage` declares `onPrice` and lands last, in registration order.
       'atrBands', 'movingAverage',
@@ -691,6 +692,13 @@ describe('the library needs a sentence per indicator, and the schema already all
       avwap: 'non-repainting',
       atrBands: 'non-repainting',
       rsLine: 'non-repainting',
+      // ⭐ UCT RS split, U6 (2026-11-09) — JUDGED: the three server definitions draw
+      // columns the server computes from closed bars (a stored nightly rating; EMAs
+      // and a trailing 63-bar z-score of closes; an EMA distance and its EMAs). Nothing
+      // indexes forward, so each is `non-repainting` in the sense rsLine is.
+      rsRating: 'non-repainting',
+      rsPhases: 'non-repainting',
+      rsVsEma: 'non-repainting',
       // ⭐ 2026-10-01 — JUDGED, NOT DEFAULTED: the Technical library's Tier 1. Each was
       // read for forward data: none indexes past its own bar (no centred DPO, no
       // forward-displaced plot), the recursions (SuperTrend, the EMAs) advance on

@@ -158,6 +158,8 @@ export function presetSubmenu(presets, currentId, onPreset, instanceId) {
  * @param {object} [caps] what the CALLER knows and this file cannot:
  *   `{alertsRefusal, displayOptions, displayCurrent, canDuplicate}`
  *   ⭐ PHASE 4 — `{definitionKind: 'user'|'builtin'|'other', canModify, copyRefusal}`
+ *   ⭐ RS split U3 — `paneSizeStored: true` when the instance's host pane carries a
+ *   stored member size; with `h.onResetPaneSize` it offers "Reset pane height"
  * @returns {Array} rows for `mobile/ContextPopover`
  */
 export function chipMenuItems(chip, def, h, caps = {}) {
@@ -206,6 +208,21 @@ export function chipMenuItems(chip, def, h, caps = {}) {
       submenu,
     },
   ]
+  // ⭐ RS split U3 — RESET PANE HEIGHT, right under Display in (the other
+  // placement verb). Offered ONLY when the caller says this instance's host pane
+  // carries a stored member size (`caps.paneSizeStored`) and wires the handler:
+  // a pane on its computed default has nothing to reset, and a row that does
+  // nothing is the control this file refuses to offer. The caller resolves the
+  // host pane key and calls `paneSizes.clearPaneSize` — "return to automatic";
+  // this file reads no settings and names no pane.
+  if (caps.paneSizeStored === true && typeof h.onResetPaneSize === 'function') {
+    rows.push({
+      key: 'pane-size-reset',
+      label: 'Reset pane height',
+      icon: 'refresh',
+      onClick: () => h.onResetPaneSize(chip.instanceId),
+    })
+  }
   // ⭐ PHASE 2a (A6) — PRESET ▸, right after Display in, for a definition that
   // declares `meta.presets`. Offered only when the caller wires `h.onPreset` and
   // hands the presets in (`caps.presets`, the `presetsOf(def)` list) — this file

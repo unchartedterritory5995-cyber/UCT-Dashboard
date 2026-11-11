@@ -5,11 +5,13 @@
  * After the server responds with fresh/delta bars, we update IDB and the
  * chart reflects the latest data — identical to how TradingView works.
  *
- * Key format:  "{SYM}_{tf}"  (e.g. "AAPL_D", "NVDA_5")
+ * Key format:  "{SYM}_{tf}"  (e.g. "AAPL_D", "NVDA_5"; "NVDA_60e" = the extended-
+ *               hours 60m series on the clock grid — barTime.seriesCacheTf)
  * Value shape: { bars: [...], lastT: <last bar's t value>, savedAt: <ms> }
  */
 
 import { classifyIntradayTail } from './marketSession'
+import { isOnSixtyMinGrid, logicTfOf } from '../components/chart/barTime'
 
 const DB_NAME    = 'uct_bars_v1'
 // Stay at v2. The v3 bump caused a deadlock: existing v2 connections held by
@@ -59,6 +61,11 @@ const STORE      = 'bars'
 // time with a heal-on-mismatch guard in the RENDER path too (StockChart _idbBasisMismatch),
 // not just the pack importer — so a chart rendering straight from IDB before any pack
 // re-ingest also self-heals a future re-basis without another bump.
+//
+// ⛔ NOT bumped for the 2026-11-10 60m grid move (TradingView 09:30, 10:30 …
+// 15:30; was 09:30 then clock hours). A bump would drop EVERY timeframe in
+// every browser at once — the 2026-05-24 herd below. Old-layout 60m entries
+// are discarded individually on read instead (`_hasOldSixtyMinGrid`).
 const CACHE_LOGIC_VERSION = 7
 
 // Intraday freshness is judged by BAR-DATA age against the last CLOSED trading session
@@ -125,6 +132,31 @@ function _key(sym, tf) {
   return `${sym.toUpperCase()}_${tf}`
 }
 
+/**
+ * A 60m entry written before the 2026-11-10 grid move (09:30, 10:00, 11:00 …)
+ * carries off-grid bucket starts; merging a new-grid delta into it would put
+ * 10:00 AND 10:30 candles side by side. Such an entry is treated as absent →
+ * ONE full 60m refetch for that chart, spread over chart opens (no herd).
+ * Probes both ends (an entry is wholly one layout: a mixed one is discarded
+ * the first time it is read).
+ */
+export function _hasOldSixtyMinGrid(bars, tf) {
+  const _t = String(tf)
+  if ((_t !== '60' && _t !== '60e') || !Array.isArray(bars) || !bars.length) return false
+  // '60' holds the session grid, '60e' the clock grid: an entry on the OTHER grid
+  // (or a mixed one) is absent, never merged into.
+  const _ext = _t === '60e'
+  const n = bars.length
+  const idx = []
+  for (let i = Math.max(0, n - 120); i < n; i++) idx.push(i)
+  for (let i = 0; i < Math.min(40, n); i++) idx.push(i)
+  for (const i of idx) {
+    const t = bars[i]?.t
+    if (typeof t === 'number' && !isOnSixtyMinGrid(t, _ext)) return true
+  }
+  return false
+}
+
 // Detect mid-session gaps in cached intraday bar series. mergeDelta can only
 // ADD bars and cannot fill a gap older than the latest cached timestamp, so
 // any gap that slipped in (FMP-shifted ts, dropped write, network failure
@@ -144,9 +176,12 @@ function _key(sym, tf) {
 // window outage (verified 2026-05-24 incident, reverted in dd5ce85).
 // Without the bump, this detector heals affected users gradually on each
 // chart open instead of all at once.
-function _hasIntradayGap(bars, tf) {
-  if (!['1','5','15','30','60'].includes(tf)) return false
-  if (!bars || bars.length < 2) return false
+// ⭐ (2026-11-10) RETURNS WHERE THE HOLE STARTS (unix sec of the bar before it), or null.
+// The caller no longer discards the cache on a hole — see idbGet.
+export function _intradayGapStart(bars, tf) {
+  tf = logicTfOf(tf)
+  if (!['1','5','15','30','60'].includes(tf)) return null
+  if (!bars || bars.length < 2) return null
 
   // Max acceptable in-session gap. Tuned to catch a real interior hole without
   // false-flagging normal spacing or the 30-min open-bar adjustment on hourly
@@ -174,15 +209,26 @@ function _hasIntradayGap(bars, tf) {
     const currEtDate = new Date(bars[i].t * 1000)
       .toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
     if (prevEtDate !== currEtDate) continue
-    return true
+    return bars[i - 1].t
   }
-  return false
+  return null
 }
 
 /**
  * Read cached bars for (sym, tf).
  * Returns { bars, lastT, savedAt } or null if not found / stale.
  */
+export { INTRADAY_MAX_BARS }
+
+/** The bars idbPut persists: intraday capped to the newest INTRADAY_MAX_BARS (what
+ *  idbGet reads back); D/W/M untouched. */
+export function _capForWrite(tf, bars) {
+  if (Array.isArray(bars) && ['1','5','15','30','60'].includes(logicTfOf(String(tf))) && bars.length > INTRADAY_MAX_BARS) {
+    return bars.slice(bars.length - INTRADAY_MAX_BARS)
+  }
+  return bars
+}
+
 export async function idbGet(sym, tf) {
   try {
     const db = await _open()
@@ -195,7 +241,7 @@ export async function idbGet(sym, tf) {
         // Logic-version invalidation: a stale schema/logic record is
         // treated as absent so the caller refetches fresh.
         if (entry.v !== CACHE_LOGIC_VERSION) return resolve(null)
-        const isIntraday = ['1','5','15','30','60'].includes(tf)
+        const isIntraday = ['1','5','15','30','60'].includes(logicTfOf(tf))
         if (isIntraday) {
           // Bar-data freshness vs the last CLOSED session (weekend/holiday-aware). A
           // pre-seeded pack ending at the prior session is FRESH (today's bars fill via
@@ -210,7 +256,7 @@ export async function idbGet(sym, tf) {
           // (tools/intraday_tail_harness.py): FRESH sent `since=`, BEHIND did not.
           // A BEHIND entry is structurally SOUND; handing it back is what lets the
           // chart paint history instantly and ask only for the gap.
-          if (classifyIntradayTail(entry.lastT, tf) === 'gapped') return resolve(null)
+          if (classifyIntradayTail(entry.lastT, logicTfOf(tf)) === 'gapped') return resolve(null)
         } else if ((Date.now() - (entry.savedAt || 0)) > DAILY_MAX_AGE_MS) {
           // D/W/M: save-time bound catches corrupted historical bars delta can't heal
           // (wrong company / pre-split); refetched within DAILY_MAX_AGE_MS.
@@ -226,11 +272,22 @@ export async function idbGet(sym, tf) {
         if (isIntraday && bars.length > INTRADAY_MAX_BARS) {
           bars = bars.slice(bars.length - INTRADAY_MAX_BARS)
         }
-        // Mid-session gap guard: delta-merge cannot heal interior gaps, so a cached series
-        // with one is permanently broken until a full refetch. Treat as absent → caller
-        // refetches without `since`.
-        if (_hasIntradayGap(bars, tf)) return resolve(null)
-        resolve(bars === entry.bars ? entry : { ...entry, bars, lastT: bars[bars.length - 1]?.t })
+        // Mid-session gap guard: a `since=<tail>` delta cannot heal an interior hole.
+        // ⛔⛔ BUT A HOLE IS NOT A REASON TO THROW THE CACHE AWAY (2026-11-10). On a thin
+        // name a same-day hole is usually LEGITIMATE (no prints for 20 minutes), and
+        // nulling the entry made every open of that name a cold full refetch with nothing
+        // on screen — forever, because the hole comes straight back from the server. Keep
+        // the bars (the tail may well be current and paintable) and report where the hole
+        // starts: the chart asks `since=<repairFromT-1>`, which returns every row after
+        // it — the hole's bars if they exist, an empty stretch if the name simply did not
+        // trade. `lastT` stays the TRUE tail so currentness is judged on what we hold.
+        // 60m grid move (2026-11-10): an old-layout entry is refetched, per chart, never in bulk.
+        if (_hasOldSixtyMinGrid(entry.bars, tf)) return resolve(null)
+        const repairFromT = _intradayGapStart(bars, tf)
+        const out = (bars === entry.bars && repairFromT == null)
+          ? entry
+          : { ...entry, bars, lastT: bars[bars.length - 1]?.t, ...(repairFromT != null ? { repairFromT } : {}) }
+        resolve(out)
       }
       req.onerror = () => resolve(null)
     })
@@ -254,7 +311,7 @@ export async function idbDeleteIntraday() {
     const req = store.getAllKeys()
     req.onsuccess = () => {
       for (const k of req.result || []) {
-        if (/_(1|5|15|30|60)$/.test(String(k))) { try { store.delete(k) } catch { /* ignore */ } }
+        if (/_(1|5|15|30|60|60e)$/.test(String(k))) { try { store.delete(k) } catch { /* ignore */ } }
       }
     }
     tx.oncomplete = () => resolve()
@@ -269,6 +326,13 @@ export async function idbDeleteIntraday() {
  */
 export async function idbPut(sym, tf, bars) {
   if (!bars?.length) return
+  // ⛔ WRITE WHAT idbGet CAN READ BACK (2026-11-10). idbGet hands the chart only the
+  // newest INTRADAY_MAX_BARS, so persisting a 9k-32k scroll-back series bought nothing
+  // on the next open — yet every 30s poll merge rewrote all of it (a multi-MB
+  // structured clone per poll), and the deep warmer, comparing a 3000-bar read against
+  // a 30000 target, re-downloaded deep history on every pass. Persist the window that
+  // is read; deep scroll-back is a network fetch by design.
+  bars = _capForWrite(tf, bars)
   try {
     const db  = await _open()
     const lastT = bars[bars.length - 1]?.t

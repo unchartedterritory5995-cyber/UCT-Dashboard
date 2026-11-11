@@ -152,11 +152,11 @@ describe('⛔ THE INVARIANT, swept minute by minute across whole sessions', () =
     }, 60_000)
   }
 
-  it('1h 09:30 anchoring: no hourly bucket has completed at 09:45, one has at 10:05', () => {
+  it('1h 09:30 anchoring: no hourly bucket has completed at 10:05, one has at 10:35', () => {
     const fri = at('2026-09-25 15:00')
-    setNow('2026-09-28 09:45')
-    expect(classifyIntradayTail(fri, '60')).toBe('fresh')
     setNow('2026-09-28 10:05')
+    expect(classifyIntradayTail(fri, '60')).toBe('fresh')
+    setNow('2026-09-28 10:35')
     expect(classifyIntradayTail(fri, '60')).toBe('behind')
   })
 })
@@ -180,9 +180,9 @@ describe('observed tolerance vs server-verified absence', () => {
     const t = at('2026-09-28 10:00')
     expect(intradayBarCurrentness({ tf: '5', tailT: t, verifiedThrough: t })).toBe(CURRENTNESS.UPDATING)
   })
-  it('1h: the 09:30 bucket is proven by a 10:01 check (it ends at 10:00, not 10:30)', () => {
-    setNow('2026-09-28 10:20')
-    expect(intradayBarCurrentness({ tf: '60', tailT: at('2026-09-25 15:00'), verifiedThrough: at('2026-09-28 10:01') }))
+  it('1h: the 09:30 bucket is proven by a 10:31 check (it ends at 10:30, TradingView-aligned)', () => {
+    setNow('2026-09-28 10:50')
+    expect(intradayBarCurrentness({ tf: '60', tailT: at('2026-09-25 15:00'), verifiedThrough: at('2026-09-28 10:31') }))
       .toBe(CURRENTNESS.CURRENT)
   })
   it('terminal no-data is UNAVAILABLE; no tail yet is UPDATING', () => {

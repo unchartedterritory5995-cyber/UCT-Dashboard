@@ -20,16 +20,21 @@ import { findTarget, exists, startIndex, unclip } from '../guide/targets'
 import { stepsFor, titleFor } from '../guide/slots'
 import { readControl, askWhich } from '../guide/controls'
 import { catalogRows } from '../../components/chart/indicatorCatalog'
+import { isCatalogRowOffered } from '../../components/chart/engine/serverCompute'
 import { namedChart } from '../guide/namedChart'
 import { releasedOnly } from '../guide/releases'
 import { splitParts, carried } from '../guide/sequence'
 import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
 
 /** The first few studies of the chart's own quick set (its right-click "Indicators" toggles: `meta.quickMenu` not
- *  false), pane studies first — the catalog's order, its names. Never a hand-written list. */
+ *  false), pane studies first — the catalog's order, its names. Never a hand-written list.
+ *  ⭐ RS split U1 — and never a `meta.requiresServer` definition the live server has not listed. */
 function quickIndicators(n = 4) {
   let rows = []
-  try { rows = catalogRows(nativeRegistry).filter(r => !r.userDefined && !r.carvedOut && nativeRegistry.getDefinition(r.id)?.meta?.quickMenu !== false) } catch { rows = [] }
+  try {
+    rows = catalogRows(nativeRegistry).filter(r => !r.userDefined && !r.carvedOut
+      && nativeRegistry.getDefinition(r.id)?.meta?.quickMenu !== false && isCatalogRowOffered(r, nativeRegistry))
+  } catch { rows = [] }
   const pane = rows.filter(r => r.target === 'pane')
   return [...pane, ...rows.filter(r => r.target !== 'pane')].slice(0, n).map(r => [r.id, r.shortName || r.name])
 }

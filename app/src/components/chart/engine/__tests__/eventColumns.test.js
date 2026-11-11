@@ -223,6 +223,12 @@ const SHIPPED_COLUMNS = Object.freeze({
   // Rating Reading); `ratingGuides` is a guide and returns none.
   rsLine: ['rsLine', 'rsAbove', 'rsMa', 'mansfield', 'rsRatio', 'rsMomentum', 'clenowScore', 'vars', 'varsMa',
     'ratingLine', 'ratingMa', 'dotNH', 'dotCrossUp', 'dotCrossDown', 'dotNHred', 'dotNHbeforePx', 'dotNHpartial', 'dotNL', 'dotMansfieldCross', 'dotClenowGap'],
+  // ⭐ UCT RS split, unit U6 (2026-11-09): the three server definitions cut out of
+  // rsLine, each the wire columns of its Python row (`registry_defs.RS_*_WIRE_COLUMNS`);
+  // `ratingGuides` and the two `zero` guides return no column.
+  rsRating: ['ratingLine', 'ratingMa'],
+  rsPhases: ['phase', 'divergence'],
+  rsVsEma: ['dist', 'fast', 'slow'],
   // ⭐⭐ ONE COLUMN, AND IT IS THE SOURCE ITSELF. `dataSeries` computes nothing:
   // `value` carries whatever it was pointed at, unchanged. Written here like any
   // other definition because `columnKeys` is a pure read of the DECLARATION — who

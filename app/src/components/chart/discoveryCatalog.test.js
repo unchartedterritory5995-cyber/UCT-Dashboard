@@ -20,6 +20,7 @@ import {
   knownCapabilityOf, createFromResult, createDirectSeries, lastCreatedInstance,
 } from './discoveryCatalog'
 import { clearSecondaryBars, primeSecondaryBars } from './engine/secondaryBars'
+import { isDefinitionOffered } from './engine/serverCompute'
 import { removeInstance, setInstanceHidden, setInstanceDisplayTarget, setInstanceInput } from './engine/instanceControls'
 import { parseSource, instanceLabel } from './engine/sourceRef'
 import { engineChips } from './engine/readout'
@@ -64,7 +65,11 @@ describe('§24 · local discovery — the shipped catalogues, projected', () => 
 
   it('⭐ every shipped definition is discoverable — except the substrate', () => {
     const ids = technicalResults(registry).map((r) => r.id).sort()
-    const shipped = registry.listDefinitions().map((d) => d.id)
+    // ⭐ RS split U1 — and except a `meta.requiresServer` definition the live
+    // server has not listed (`isDefinitionOffered`; nothing lands under vitest).
+    // Read from the same gate the facade reads, so the day U6 ships one this
+    // equality still says what it says: everything OFFERABLE is offered.
+    const shipped = registry.listDefinitions().filter(isDefinitionOffered).map((d) => d.id)
       .filter((id) => id !== DIRECT_SERIES_DEF_ID).sort()
     // ⛔ AN EQUALITY. A definition that stops being discoverable is an indicator
     // nobody can find, and no pixel gate can see that.

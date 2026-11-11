@@ -3,11 +3,17 @@
 Both mounts hold files whose names change when their content does (Vite's content
 hash; the upstream version in a font filename), so a year of `immutable` is safe.
 
-`no-transform` is NOT a cache setting and must never be dropped. Commit 72f1c438f8:
-Cloudflare re-encoded the origin response to zstd on the fly and deterministically
-lost 668 bytes of the 1.1 MB ECharts vendor chunk, so every page that mounted a
-chart died with "SyntaxError: Unexpected end of input". `no-transform` is what stops
-the edge from re-encoding these responses.
+`no-transform` is NOT a cache setting. Commit 72f1c438f8: Cloudflare re-encoded the
+origin response to zstd on the fly and deterministically lost 668 bytes of the 1.1 MB
+ECharts vendor chunk, so every page that mounted a chart died with "SyntaxError:
+Unexpected end of input". `no-transform` is what stops the edge from re-encoding.
+
+⛔ It may come off hashed JS/CSS ONLY through `ASSETS_NO_TRANSFORM_ENABLED=0`, and only while the
+zone's Compression Rule limits `/assets/*` to brotli or gzip (never zstd), after a
+byte-for-byte check of every asset through the edge (see `no_transform_enabled`). The
+reason to want it off, measured 2026-11-10: with it on, Cloudflare decompresses our
+precompressed responses and is then forbidden to re-compress them, so members get every
+JS/CSS file uncompressed. Fonts and everything else keep `no-transform` always.
 
 Why compression happens at build time. Commit 0e62823 took `/assets/*` out of the
 runtime GZip middleware because streaming gzip of the large vendor chunks was also
@@ -49,6 +55,21 @@ _NEGOTIATED_SUFFIXES = (".js", ".css")
 # Server preference, used to break a tie in the client's q-values.
 _SIDECAR_SUFFIX = {"br": ".br", "gzip": ".gz"}
 _CACHE_CONTROL = "public, max-age=31536000, immutable, no-transform"
+# Without `no-transform`: only for hashed JS/CSS, and only when ASSETS_NO_TRANSFORM_ENABLED=0 (see below).
+_CACHE_CONTROL_EDGE_COMPRESSES = "public, max-age=31536000, immutable"
+
+
+def no_transform_enabled() -> bool:
+    """`ASSETS_NO_TRANSFORM_ENABLED` (default ON, i.e. today's behaviour). Measured 2026-11-10: Cloudflare always
+    decompresses a compressed origin response so it can re-encode it, and `no-transform` forbids the
+    re-encode, so members received every JS/CSS file UNCOMPRESSED (main script 573 KB instead of 157 KB
+    Brotli; ~6 MB first load instead of ~2 MB). Setting this to `0` drops `no-transform` from hashed
+    JS/CSS only, letting Cloudflare compress them. That is safe ONLY together with the zone's Compression
+    Rule restricting `/assets/*` to brotli or gzip (never zstd: zstd truncated the ECharts chunk,
+    72f1c438f8), and only after every hashed asset has been verified byte-for-byte through the edge.
+    Rollback: set it back to 1 (or unset), redeploy, then purge /assets at Cloudflare."""
+    value = os.environ.get("ASSETS_NO_TRANSFORM_ENABLED", "1")
+    return value.strip().lower() not in ("0", "false", "no")
 _VARY = "Accept-Encoding"
 
 
@@ -125,7 +146,9 @@ class ImmutableStaticFiles(StaticFiles):
 
     @staticmethod
     def _stamp(response, negotiated: bool) -> None:
-        response.headers["Cache-Control"] = _CACHE_CONTROL
+        # `negotiated` is exactly the hashed JS/CSS set; everything else always keeps no-transform.
+        edge_compresses = negotiated and not no_transform_enabled()
+        response.headers["Cache-Control"] = _CACHE_CONTROL_EDGE_COMPRESSES if edge_compresses else _CACHE_CONTROL
         if negotiated:
             response.headers["Vary"] = _VARY
 

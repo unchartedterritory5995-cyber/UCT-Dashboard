@@ -4,6 +4,7 @@ import { clearIntroSeen } from '../components/intro/introStorage'
 import { latchNotebookFlags, FLAG_FALLBACKS } from '../pages/journal-2-0/lib/offline/notebookFlags'
 import { latchRuntimePanePermission } from '../lib/runtimePanePermission'
 import { setUnauthorizedHandler } from '../hooks/livePriceStore'
+import { setRecoveryAuthCheck } from '../lib/recoveryRegistry'
 import { publishPrefsUser } from '../lib/prefsSession'
 import { readFeatureStatus } from '../components/featureStatus/featureStatus'
 import { readResearchDepth } from '../pages/research/depth/researchDepthFlags'
@@ -349,6 +350,19 @@ export function AuthProvider({ children }) {
       window.removeEventListener('storage', onStorage)
       document.removeEventListener('visibilitychange', onVisible)
     }
+  }, [recheckIdentity])
+
+  // Recovery after a wake or a network return (lib/recovery.js, desktop plan 6.4): sign-in is
+  // re-checked FIRST (the same identity check as above: a dropped session signs out, the same member
+  // costs one GET and re-renders nothing), then the live streams reconnect. For every member.
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+    setRecoveryAuthCheck(recheckIdentity)
+    // The coordinator loads after boot, so it is not on the page's first-open bytes.
+    let uninstall = null
+    let gone = false
+    import('../lib/recovery').then((m) => { if (!gone) uninstall = m.appRecovery().install() }).catch(() => {})
+    return () => { gone = true; uninstall?.(); setRecoveryAuthCheck(null) }
   }, [recheckIdentity])
 
   const login = async (email, password) => {

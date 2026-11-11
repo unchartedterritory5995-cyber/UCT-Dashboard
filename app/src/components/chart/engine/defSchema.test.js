@@ -684,6 +684,15 @@ describe('plots[].legend', () => {
     expect(validateDefinition(withLegend({ hide: 'yes' })).ok).toBe(false)
   })
 
+  // UCT RS split, F3 (2026-11-10): `showValue: false` keeps the chip and withholds its number.
+  it('accepts a boolean showValue and refuses anything else', () => {
+    expect(validateDefinition(withLegend({ decimals: 4, showValue: false })).ok).toBe(true)
+    expect(validateDefinition(withLegend({ showValue: true })).ok).toBe(true)
+    const r = validateDefinition(withLegend({ showValue: 'no' }))
+    expect(r.ok).toBe(false)
+    expect(r.errors.join(' ')).toMatch(/legend\.showValue: expected true or false/)
+  })
+
   it('rejects a legend that is not an object at all', () => {
     expect(validateDefinition(withLegend('RSI')).ok).toBe(false)
     expect(validateDefinition(withLegend([1])).ok).toBe(false)

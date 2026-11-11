@@ -68,6 +68,14 @@ def _nightly_row(ticker="AAA", price=100.0, **over):
         "chg_from_open_pct": 0.25,
         # the `rvol_live` level: 30 completed sessions through `bars_asof`
         "avg_volume_30d": 2_000_000.0,
+        # the multi-day bases, STORED session-shifted (the build cannot be recovered from):
+        # nightly chg_pct_1w reads 100/90 but tomorrow's c/c5 base is 88, a different day
+        "chg_pct_1w": 11.11, "live_base_close_1w": 88.0,
+        "chg_pct_1m": 25.0, "live_base_close_1m": 80.0,
+        "chg_pct_1y": 100.0, "live_base_close_1y": 55.0,
+        # MINV3.1 at 03:00 (the 3 before the newest bar) vs tomorrow's (the 3 newest)
+        "min_volume_3d_prior": 700_000.0, "live_base_min_volume_3d": 900_000.0,
+        "market_cap": 5_000_000_000.0,
     })
     row.update(over)
     return row
@@ -530,9 +538,10 @@ def test_the_receipt_names_the_carried_forward_columns_never_only_a_count(
     with caplog.at_level("INFO"):
         r = live_tier.sweep_job()
     # 18 price-anchored columns + `rvol_live` (the fixture stores a curve and it is
-    # 10:42). Derived from the declarations, not retyped: every live column except
+    # 10:42) + the five stored-base columns (1w/1m/1y, MINV3.1, market cap, 2026-11-10).
+    # Derived from the declarations, not retyped: every live column except
     # the feed-dependent ones this feed cannot answer for.
-    assert r["cols_recomputed_total"] == 19 == (
+    assert r["cols_recomputed_total"] == 24 == (
         len(live_tier.LIVE_COLUMNS) - len(live_tier.FEED_FIELD_DEPENDENCIES))
     assert "not_live=" in caplog.text
     for col in ("gap_pct", "new_ath"):

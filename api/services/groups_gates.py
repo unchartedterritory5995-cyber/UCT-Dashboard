@@ -138,6 +138,11 @@ def swing_metrics(syms: list, rs: dict, today: dict) -> dict:
     fallback to the close when there is no live pct. rs_rank comes from `rs`
     (the rs_ranking cache) ONLY. A screener row older than _STALE_SECS is
     treated as missing (guards a silently-stalled nightly build).
+
+    When the `rs` entry says where its rank came from (`rs_rank_source`, set by
+    `rs_ranking` under RS_RANK_IBD_ENABLED: the nightly rating or the hourly
+    fallback, RS split unit U5a) the metric carries it through; a plain entry
+    adds nothing, so the flag-off shape is unchanged.
     """
     syms = [s.upper() for s in syms if s]
     if not syms:
@@ -156,10 +161,13 @@ def swing_metrics(syms: list, rs: dict, today: dict) -> dict:
         pct = _num((today or {}).get(hy))
         cur_price = (prev_close * (1 + pct / 100.0)) if (prev_close is not None and pct is not None) else prev_close
         dvol = (cur_price * avg_vol) if (cur_price is not None and avg_vol is not None) else None
+        rs_entry = (rs or {}).get(hy) or {}
         out[hy] = {
-            "rs_rank": ((rs or {}).get(hy) or {}).get("rs_rank"),
+            "rs_rank": rs_entry.get("rs_rank"),
             "dollar_vol": dvol,
             "adr_pct": adr,
             "price": cur_price,
         }
+        if rs_entry.get("rs_rank_source"):
+            out[hy]["rs_rank_source"] = rs_entry["rs_rank_source"]
     return out

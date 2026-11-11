@@ -28,6 +28,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { memPeek } from '../utils/barsMemCache'
 import { prefetchBarsToIDB, prepareForDisplay, prepareDailyForDisplay } from '../utils/prefetchBars'
+import { viewCacheTf } from '../utils/viewSession'
 import { isCurrentEnoughForPaint } from '../utils/marketSession'
 import { isNativeTf, fetchTf } from '../components/chart/timeframes'
 
@@ -51,7 +52,8 @@ export function peekDisplayable(sym, tf) {
   if (!sym || !tf) return false
   // Anything the handoff does not govern is displayable by definition.
   if (!isNativeTf(tf) || !INTRADAY.has(String(tf))) return true
-  return seriesDisplayable(memPeek(sym, tf), tf)
+  // The key the chart in this view reads ('60e' = 60m on the extended clock grid).
+  return seriesDisplayable(memPeek(sym, viewCacheTf(tf)), tf)
 }
 
 /**
@@ -112,7 +114,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true } = 
     // A pseudo symbol (`$IDX:…`) has no bars lane and commits straight through.
     if (isNativeTf(tf) && !INTRADAY.has(String(tf))
         && /^[A-Z0-9.^-]{1,12}$/i.test(String(requestedSym))
-        && !memPeek(requestedSym, tf)?.length) {
+        && !memPeek(requestedSym, viewCacheTf(tf))?.length) {
       let live = true
       const land = (outcome) => {
         if (!live || genRef.current !== gen) return

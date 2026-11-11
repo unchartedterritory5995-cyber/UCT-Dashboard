@@ -8,7 +8,7 @@ import {
 } from '../../lib/widgetEmbedCore'
 import { widgetMeta, isTraderBlock, paramsPlainText } from '../../../../widgets/registry'
 import { chartsLinkPath } from '../../../../lib/chartDeepLink'
-import { peekDrawings } from '../../../../components/chart/drawingsStore'
+import { peekDrawings } from '../../../../components/chart/drawingsPeek' // not drawingsStore: keeps it off Notebook first open
 import { useCoarsePointer } from '../../../../components/chart/coarsePointer'
 import { captureElementPng, storeFallbackImage, kickSnapshotWarm } from '../../lib/embedArchive'
 import { RENDER_UNAVAILABLE, showsUnavailableFrame } from '../../../../lib/captureSafety'

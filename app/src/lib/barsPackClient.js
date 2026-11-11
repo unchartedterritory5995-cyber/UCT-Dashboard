@@ -31,7 +31,17 @@
  * pins this; `'omit'` here reads as a cacheability optimisation and is a
  * total outage.
  */
-import { idbImportPack, idbApplyDelta, idbCountKeys } from '../utils/barsIDB'
+import { idbApplyDelta, idbCountKeys } from '../utils/barsIDB'
+import { decodeShardPayload } from './barsPackShard'
+// The worker client loads on the first pack job, so it stays off the page's first-open bytes.
+let _packClientP = null
+const _packClient = () => (_packClientP ||= import('./barsPackWorkerClient').then((m) => m.packWorkerClient()))
+
+// The decoder lives with the shard job (barsPackShard.js) so the worker and the page share it.
+export { decodeShardPayload }
+
+// Shard and hot-set ingests run in a Web Worker when one can start (barsPackWorkerClient.js):
+// on a new member's first visit they held the main thread 65-95% busy for a minute (2026-11-10).
 
 const SHARD_CONCURRENCY = 2
 
@@ -95,9 +105,13 @@ export function initBarsPack() {
   // and it's fully redundant with the packs (D/W/M pack + intraday pack already
   // cover the popular names, edge-cached). The edge hot shard is the heal; racing
   // the origin was the bandage.
-  _ingestHotPack(PACK_DAILY).catch(() => {})
-  _whenIdle(() => { _run(PACK_DAILY).catch(() => {}) })
-  _whenIdle(() => { _run(PACK_BREADTH).catch(() => {}) })
+  // Under its own lock, like the full packs (see _oneWindowAtATime): it reads its stamp first, so a
+  // window that waited finds the hot set already ingested and skips.
+  Promise.resolve(_oneWindowAtATime('uct-barspack:hot', () => _ingestHotPack(PACK_DAILY))).catch(() => {})
+  // Each pack under its own lock (one window at a time, see _oneWindowAtATime), and only after the
+  // page's first chart has drawn (see afterFirstChartPaint).
+  afterFirstChartPaint(() => _whenIdle(() => { Promise.resolve(_oneWindowAtATime(packLock(PACK_DAILY), () => _run(PACK_DAILY))).catch(() => {}) }))
+  afterFirstChartPaint(() => _whenIdle(() => { Promise.resolve(_oneWindowAtATime(packLock(PACK_BREADTH), () => _run(PACK_BREADTH))).catch(() => {}) }))
   // Intraday pack RE-ENABLED (2026-08-19). An offline Playwright harness
   // (tools/intraday_repro.py) proved the client path is sound: the prior-session pack
   // paints in ~200ms (render cap slices any bloat to 3k), the since-fetch fills today,
@@ -105,7 +119,7 @@ export function initBarsPack() {
   // — it was the server 5m serve hanging under Massive saturation from over-aggressive
   // prewarming (PREWARM_5M_CAP), now dialed back so 5m serves ~0.15s. The non-blocking
   // ingest below keeps a fresh full ingest from write-locking the store.
-  _whenIdle(() => { _run(PACK_INTRADAY).catch(() => {}) })
+  afterFirstChartPaint(() => _whenIdle(() => { Promise.resolve(_oneWindowAtATime(packLock(PACK_INTRADAY), () => _run(PACK_INTRADAY))).catch(() => {}) }))
 }
 
 // Eagerly ingest the server HOT SHARD — one small edge-cached gzipped file
@@ -129,21 +143,53 @@ export async function _ingestHotPack(cfg) {
   if (!manifest || !manifest.version || !manifest.hot || !manifest.hot.name) return
   if (hotV === manifest.version) return  // already have this version's hot set
 
-  let entries
-  try {
-    const r = await fetch(`${cfg.base}/${manifest.version}/hot`, { credentials: 'same-origin' })
-    if (!r.ok) return
-    entries = decodeShardPayload(await r.json())
-  } catch { return }
-  if (!entries.length) return
-
-  try {
-    const res = await idbImportPack(entries, { batchSize: cfg.ingestBatchSize, yieldBetween: cfg.ingestYield, replaceIfNewer: !!cfg.replaceIfNewer })
-    if (!res.aborted) {
-      try { localStorage.setItem(cfg.hotVersionKey, manifest.version) } catch { /* ignore */ }
-    }
-  } catch { /* best-effort; the full pack + serve path remain the fallback */ }
+  // Best-effort; the full pack + serve path remain the fallback. Stamped only on a clean import.
+  const res = await (await _packClient()).run({
+    url: `${cfg.base}/${manifest.version}/hot`,
+    batchSize: cfg.ingestBatchSize, yieldBetween: cfg.ingestYield, replaceIfNewer: !!cfg.replaceIfNewer,
+  })
+  if (res.status === 'ok' && !res.aborted) {
+    try { localStorage.setItem(cfg.hotVersionKey, manifest.version) } catch { /* ignore */ }
+  }
 }
+
+// ⛔ THE FULL PACK INGESTS WAIT FOR THE PAGE'S FIRST CHART (2026-11-10, measured). Idle-deferral
+// alone was not enough: in 20 timed loads of /charts in the desktop app, the 5 loads that downloaded
+// and ingested pack shards drew their first candles in 1.6-3.0 s; the 15 that did not, in 0.43-0.9 s.
+// The shard decode and the bulk IndexedDB writes hold the main thread and the store the chart is
+// reading from. They also restarted on every quick reload, because a page left before an ingest
+// completes never stamps it. So: start after StockChart reports its first chart (markFirstChartPaint)
+// or after PACK_START_MAX_WAIT_MS, whichever is first, then still wait for idle. Pages without a
+// chart start at the time limit.
+export const PACK_START_MAX_WAIT_MS = 15000
+export const FIRST_CHART_PAINT_EVENT = 'uct:first-chart-paint'
+let _firstChartPainted = false
+
+/** Called by StockChart when a page's first chart has been created (its bars are in). Once. */
+export function markFirstChartPaint() {
+  if (_firstChartPainted) return
+  _firstChartPainted = true
+  try { window.dispatchEvent(new Event(FIRST_CHART_PAINT_EVENT)) } catch { /* no window */ }
+}
+
+/** Runs `fn` after the first chart paint, or after `maxWaitMs`, whichever comes first. Once. */
+export function afterFirstChartPaint(fn, { maxWaitMs = PACK_START_MAX_WAIT_MS } = {}) {
+  if (_firstChartPainted) { fn(); return }
+  let done = false
+  let timer = null
+  const go = () => {
+    if (done) return
+    done = true
+    if (timer) clearTimeout(timer)
+    try { window.removeEventListener(FIRST_CHART_PAINT_EVENT, go) } catch { /* no window */ }
+    fn()
+  }
+  timer = setTimeout(go, maxWaitMs)
+  try { window.addEventListener(FIRST_CHART_PAINT_EVENT, go) } catch { /* no window: the timer runs it */ }
+}
+
+/** Test seam: forget that a chart painted. */
+export function __resetFirstChartPaint() { _firstChartPainted = false }
 
 function _whenIdle(fn) {
   try {
@@ -181,7 +227,27 @@ export async function _packDataPresent(cfg, manifest) {
   } catch { return true }
 }
 
-async function _run(cfg) {
+// ⛔ ONE WINDOW AT A TIME PER PACK (2026-11-10, measured). Every separately loaded page of the app (a
+// Terminal pop-out, a second tab, a desk that restores several windows at launch) runs initBarsPack,
+// and the version stamp is written only when an ingest COMPLETES. So windows that start together all
+// saw "not ingested yet" and each wrote the whole universe into the SAME IndexedDB store at once: a
+// trace of 12 Terminal pop-outs showed ~33,000 store reads in 6 s and ~3.5 s spent decoding values,
+// every morning the pack version changes. Under a Web Lock the second window waits, then re-reads
+// the stamp the first one wrote and skips. Where Web Locks are missing it runs unlocked, as before.
+export function _oneWindowAtATime(name, fn) {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.locks && typeof navigator.locks.request === 'function') {
+      return navigator.locks.request(name, () => fn())
+    }
+  } catch { /* fall through to running unlocked */ }
+  return fn()
+}
+
+/** The lock name for one pack. Used at each `_run(PACK_...)` call site in initBarsPack, which keeps
+ *  those calls direct (the persistence census follows `_run(PACK_DAILY)` to its storage keys). */
+export const packLock = (cfg) => `uct-barspack:${cfg.versionKey}`
+
+export async function _run(cfg) {
   if (_connectionTooCostly()) return
 
   let manifest
@@ -251,18 +317,17 @@ export async function _ingestFull(cfg, version, shards) {
       const s = queue[cursor++]
       const shardIdx = _shardIdx(s)
       if (!Number.isFinite(shardIdx)) continue
-      let entries
-      try { entries = await _fetchShard(cfg, version, shardIdx) } catch { shardFailures++; continue }
-      // A real shard carries hundreds of tickers; an empty result here is NOT a valid
-      // empty shard — `_fetchShard` returns [] on a non-ok response, so this is a 404 /
-      // network failure. Count it, so a run that downloaded nothing can never be mistaken
-      // for a complete ingest (the bug that stamped a dead pack during a shard outage).
-      if (!entries.length) { shardFailures++; continue }
-      try {
-        const res = await idbImportPack(entries, { batchSize: cfg.ingestBatchSize, yieldBetween: cfg.ingestYield, replaceIfNewer: !!cfg.replaceIfNewer })
-        totalWritten += (res.written || 0)
-        if (res.aborted) aborted = true
-      } catch { shardFailures++ }
+      const res = await (await _packClient()).run({
+        url: `${cfg.base}/${version}/${shardIdx}`,
+        batchSize: cfg.ingestBatchSize, yieldBetween: cfg.ingestYield, replaceIfNewer: !!cfg.replaceIfNewer,
+      })
+      // A real shard carries hundreds of tickers; an empty result ('empty': a non-ok response or
+      // no series) is NOT a valid empty shard, it is a 404 / network failure. Count it, so a run
+      // that downloaded nothing can never be mistaken for a complete ingest (the bug that stamped
+      // a dead pack during a shard outage). A fetch or import that threw counts the same way.
+      if (res.status !== 'ok') { shardFailures++; continue }
+      totalWritten += (res.written || 0)
+      if (res.aborted) aborted = true
     }
   }
   await Promise.all(Array.from({ length: SHARD_CONCURRENCY }, worker))
@@ -311,40 +376,3 @@ export function _shardIdx(s) {
   return mm ? parseInt(mm[1], 10) : NaN
 }
 
-async function _fetchShard(cfg, version, shardIdx) {
-  const r = await fetch(`${cfg.base}/${version}/${shardIdx}`, { credentials: 'same-origin' })
-  if (!r.ok) return []
-  const obj = await r.json()  // browser transparently gunzips Content-Encoding: gzip
-  return decodeShardPayload(obj)
-}
-
-/**
- * Reconstruct a shard's columnar arrays into [{ sym, tf, bars }] where `bars` is
- * the exact server bar shape [{t,o,h,l,c,v}] that idbImportPack stores verbatim.
- * Pure + defensive (tolerates missing tfs / ragged columns) so it can be unit
- * tested without a network or IDB. Exported for tests.
- */
-export function decodeShardPayload(obj) {
-  const tickers = obj && obj.tickers
-  if (!tickers) return []
-  const out = []
-  for (const sym in tickers) {
-    const tfs = tickers[sym]
-    if (!tfs) continue
-    // Iterate the tf keys the shard actually carries — so this decodes the D/W/M
-    // pack AND the intraday pack ('5'/'60') with the same code (for daily shards
-    // Object.keys is exactly ['D','W','M'], so behaviour is unchanged).
-    for (const tf of Object.keys(tfs)) {
-      const cols = tfs[tf]
-      if (!cols || !cols.t || !cols.t.length) continue
-      const n = cols.t.length
-      const bars = new Array(n)
-      for (let i = 0; i < n; i++) {
-        bars[i] = { t: cols.t[i], o: cols.o[i], h: cols.h[i], l: cols.l[i], c: cols.c[i], v: cols.v[i] }
-        if (cols.ohlc && cols.ohlc[i] === 1) bars[i].ohlc = 1   // breadth's observed-OHLC mark
-      }
-      out.push(cols.sha ? { sym, tf, bars, sha: cols.sha } : { sym, tf, bars })
-    }
-  }
-  return out
-}

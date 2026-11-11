@@ -9,6 +9,7 @@ CANONICAL SYMBOL FORM IS HYPHEN + UPPERCASE (BRK-B) — matches cap_universe,
 ticker-search, and /api/bars. The taxonomy stores dot class-shares (BRK.B);
 convert with to_taxonomy_sym() only for theme_db lookups.
 """
+from api.services import llm_models
 import concurrent.futures as _cf
 import json
 import logging
@@ -30,7 +31,7 @@ _SIZES_TTL = 3600.0
 _ETF_THEME_CACHE = {"map": None, "at": 0.0}
 _ETF_THEME_TTL = 3600.0
 
-_AI_PEERS_MODEL = os.environ.get("GROUPS_AI_PEERS_MODEL", "claude-haiku-4-5")
+_AI_PEERS_MODEL = os.environ.get("GROUPS_AI_PEERS_MODEL", llm_models.HAIKU)
 _AI_PEERS_TTL = 6 * 3600.0            # peers of a ticker barely change — cache 6h
 _AI_PEERS_REFUSAL_TTL = 300.0         # missing name = ticker_meta's yfinance+Finnhub legs
                                        # both blipped OR a genuinely bad ticker — indistin-
@@ -266,10 +267,15 @@ def _today_map(syms: list) -> dict:
 
 
 def _rs_map() -> dict:
-    """{ticker(hyphen upper): rs item}. Cache-only; {} when cold."""
+    """{ticker(hyphen upper): rs item}. Cache-only; {} when cold.
+
+    Through ``unified_rankings`` (RS split unit U5a): under ``RS_RANK_IBD_ENABLED``
+    the swing gate's ``rs_rank`` is the nightly rating the chart and the badge
+    show, not a third number; flag off, the list is untouched."""
     try:
-        from api.services.rs_ranking import compute_rs_scores
-        return {normalize_sym(it["ticker"]): it for it in (compute_rs_scores() or [])}
+        from api.services.rs_ranking import compute_rs_scores, unified_rankings
+        return {normalize_sym(it["ticker"]): it
+                for it in (unified_rankings(compute_rs_scores()) or [])}
     except Exception:
         return {}
 
@@ -441,7 +447,7 @@ def _ai_peer_raw(seed_hy: str, n: int, meta: dict) -> list:
         from api.services.engine import _get_anthropic_client
         client = _get_anthropic_client().with_options(timeout=_AI_PEERS_TIMEOUT)
         msg = client.messages.create(
-            model=_AI_PEERS_MODEL, max_tokens=200,
+            model=_AI_PEERS_MODEL, max_tokens=200, **llm_models.plain(_AI_PEERS_MODEL),
             system=system, messages=[{"role": "user", "content": prompt}],
         )
         text = "".join(getattr(b, "text", "") for b in msg.content)

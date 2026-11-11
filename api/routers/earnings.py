@@ -1,4 +1,5 @@
 import datetime
+from api.services import llm_models
 import logging
 import os
 import threading
@@ -287,12 +288,13 @@ def debug_earnings_sources(sym: str):
             from api.services.engine import _get_anthropic_client
             client = _get_anthropic_client()
             msg = client.messages.create(
-                model="claude-haiku-4-5",
+                model=llm_models.HAIKU,
                 max_tokens=20,
+                **llm_models.plain(llm_models.HAIKU),
                 metadata={"user_id": "earnings_ping_test:global"},
                 messages=[{"role": "user", "content": "Say 'pong' and nothing else."}],
             )
-            out["anthropic"] = f"OK: {msg.content[0].text[:50]}"
+            out["anthropic"] = f"OK: {llm_models.text_of(msg)[:50]}"
         except Exception as e:
             out["anthropic"] = f"exception: {type(e).__name__}: {e}"
 

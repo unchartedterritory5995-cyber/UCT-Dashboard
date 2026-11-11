@@ -34,6 +34,11 @@ from api.services.alert_destination import ops_webhook as _ops_webhook
 from fastapi import FastAPI
 import uvicorn
 
+# ⛔ SECURITY (2026-11-10): redact credential query params (Massive `apiKey=`) in
+# every log record -- this pod runs bars_fetch/httpx, whose URLs carry the key.
+from api.services.log_redaction import install as _install_log_redaction
+_install_log_redaction()
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(name)s] %(message)s",
@@ -1064,6 +1069,11 @@ from api.flow_router_mount import mount_flow_routers as _mount_flow_routers  # n
 
 
 def main():
+    try:  # AI-spend ledger: set LLM_USAGE_FORWARD_URL on this service so rows reach web's ledger
+        from api.services import llm_usage
+        llm_usage.install()
+    except Exception:  # noqa: BLE001
+        logging.getLogger(__name__).warning('llm_usage install failed (non-fatal)', exc_info=True)
     log.info("worker boot starting")
     # An unreadable bars.db makes init_db raise, so repair comes first.
     try:
@@ -1127,6 +1137,15 @@ def main():
     threading.Thread(
         target=_purge_then_start_uploader, name="weekly-purge", daemon=True
     ).start()
+
+    # Off-grid intraday rows (trade-time stamped yfinance live rows, 2026-11-10): this
+    # store is the snapshot source, so repair it here. Background, paced, idempotent;
+    # the merge gate keeps any row it has not reached yet out of the other tiers.
+    try:
+        from api.services import intraday_grid as _grid
+        _grid.sweep_async(delay_s=60)
+    except Exception as e:
+        log.warning(f"off-grid sweep did not start (non-fatal): {e}")
 
     _start_prewarmer()
     _start_universe_crawler()

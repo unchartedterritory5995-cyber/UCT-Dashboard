@@ -10,6 +10,7 @@
 // slot only ever narrows a feature the member has already been matched to.
 
 import { catalogRows } from '../../components/chart/indicatorCatalog'
+import { isCatalogRowOffered } from '../../components/chart/engine/serverCompute'
 import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
 import { menuGroups, labelMap } from '../../widgets/registry'
 import { CHART_SETTING_DESCRIPTORS } from '../../components/chart/chartSettingsDescriptors'
@@ -145,7 +146,9 @@ function afterAdding(hit, q) {
  *  `label` is the one on the chart: "EMA 20" when the words give its length, so the EMA 9 above it is not taken for it. */
 export function readIndicator(text) {
   const q = String(text || '').toLowerCase()
-  const hit = catalog().find(c => c.re.test(q))
+  // ⭐ RS split U1 — the gate is read at LOOKUP, not when the cache is built: a `meta.requiresServer`
+  // definition the live server has not listed yet is skipped here, and found once the answer lands.
+  const hit = catalog().find(c => c.re.test(q) && isCatalogRowOffered({ id: c.id }, nativeRegistry))
   if (!hit) return null
   const n = hit.perLength ? lengthIn(q, hit.word) : null
   const label = n ? `${hit.say} ${n}` : hit.say
