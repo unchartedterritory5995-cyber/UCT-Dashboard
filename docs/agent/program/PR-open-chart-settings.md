@@ -88,4 +88,35 @@ and the Agent's door to its "do it" line. No further tutorial work was done.
 
 ## Files (git diff --stat origin/master...HEAD)
 
-FILES_PLACEHOLDER
+     app/src/agent/agentOpenChartSettings.test.jsx                            |  203 ++++++++++++
+     app/src/agent/agentRouting.test.jsx                                      |    2 +-
+     app/src/agent/capabilities/app.js                                        |    5 +-
+     app/src/agent/capabilities/chart.js                                      |   18 +-
+     app/src/agent/capabilities/chartSetup.js                                 |   31 ++
+     app/src/agent/contract/manifest.golden.json                              |   22 ++
+     app/src/agent/discovery.js                                               |    4 +-
+     app/src/agent/guide/registry.js                                          |    5 +-
+     app/src/agent/host.js                                                    |    9 +
+     app/src/agent/qa/capabilityRegression/baseline/baseline.lock.json        |   25 ++
+     app/src/agent/qa/capabilityRegression/baseline/corpus.json               |   31 ++
+     app/src/agent/qa/capabilityRegression/coverage/COVERAGE.md               |   21 +-
+     app/src/agent/qa/capabilityRegression/coverage/contract.json             |   13 +
+     app/src/agent/qa/capabilityRegression/coverage/coverage.json             |   94 ++++--
+     app/src/agent/qa/capabilityRegression/testing/harness.jsx                |    7 +-
+     app/src/agent/qa/capabilityRegression/testing/run.jsx                    |    2 +
+     app/src/agent/routing.js                                                 |    4 +-
+     app/src/components/chart/pane/ChartPane.jsx                              |    9 +
+     app/src/pages/charts/widgets/ChartWidget.jsx                             |   10 +
+     app/src/pages/charts/widgets/ChartWidget.openSettings.test.jsx           |  131 ++++++++
+     docs/agent/program/PR-open-chart-settings.md                             |   91 ++++++
+     docs/agent/program/evidence/open-chart-settings/focused-1.txt            | 1365 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+     docs/agent/program/evidence/open-chart-settings/focused-2.txt            |  770 ++++++++++++++++++++++++++++++++++++++++++++
+     docs/agent/program/evidence/open-chart-settings/mutant-claims-open.txt   |  557 ++++++++++++++++++++++++++++++++
+     docs/agent/program/evidence/open-chart-settings/mutant-no-door-check.txt |   62 ++++
+     docs/agent/program/evidence/open-chart-settings/mutant-no-readback.txt   |   62 ++++
+     docs/agent/program/evidence/open-chart-settings/pytest.txt               |   20 ++
+     docs/agent/program/evidence/open-chart-settings/red-run.txt              |  637 ++++++++++++++++++++++++++++++++++++
+     tests/fixtures/nl1_assemble_parity.json                                  |    2 +
+     29 files changed, 4171 insertions(+), 41 deletions(-)
+
+Totals: focused vitest batch 1 25 files 3663 passed / 1 todo; batch 2 20 files 2422 passed / 1 todo; mutants 3/3 killed; pytest 13 files 353 passed. Red run 22/28 failed.
