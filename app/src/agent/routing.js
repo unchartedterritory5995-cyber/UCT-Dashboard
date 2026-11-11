@@ -125,9 +125,21 @@ export const GROUPS = [
   // grids, the shared settings dialog, maximize and "Reset to my chart" — its OWN fillLast group (two actions), so neither the
   // NL-1 core nor the workspace / chartGrid groups grow. ADD-ONLY: routing only adds what the model may see.
   { id: 'multiChart', title: 'The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart', domains: ['multiChart'], fillLast: true,
-    words: [/\bmulti[\s-]?charts?\b/, /\bgrids?\b/, /\b\d\s*(?:x|by|×)\s*\d\b/, /\b(?:one|two|three|four)\s+(?:by|x)\s+(?:one|two|three|four)\b/, /\b(?:rows?|columns?)\b/,
-      /\bcross[\s-]?hairs?\b/, /\bsync(?:ed|ing|hroni[sz]e)?\b/, /\bsame (?:dates|time ?range|range)\b/,
-      /\bgroups?(?: mode)?\b/, /\b(?:next|previous|prev) (?:group|theme)\b/,
+    // #1030 re-merge (Lead 2026-11-11): WORDS-ONLY (never v2 filler, as watchlistShow / compareGroups), and every word needs GRID
+    // context: a bare "group(s)", "row(s)", "sync" or "crosshair" never selects it alone (the frozen no-lookbehind rows stay master's)
+    wordsOnly: true,
+    // a bare \"grid\" / \"2x2\" is chartGrid's (charts tiled on the board): this group needs the grid AS a thing the member acts on
+    words: [/\bmulti[\s-]?charts?\b/, /\bsplit (?:my|the) screen\b/,
+      /\b(?:open|save|delete|apply|load|close|exit|leave|restore|fill|refresh|rename) (?:the |this |that |my |a )?(?:[\w’'&-]+ ){0,3}?grids?\b/,
+      /\b(?:show|give) me an? (?:\d\s*(?:x|by|×)\s*\d|(?:one|two|three|four)\s+(?:by|x)\s+(?:one|two|three|four)) grid\b/, /\b(?:in|of|across) the (?:whole )?grid\b/,
+      // a shape said as rows AND columns ("three rows and four columns")
+      /\b(?:\d|one|two|three|four)\s+rows?\b.*\b(?:\d|one|two|three|four)\s+columns?\b|\b(?:\d|one|two|three|four)\s+columns?\b.*\b(?:\d|one|two|three|four)\s+rows?\b/,
+      // sync WITH what it syncs (the crosshair, the time range, the charts / cells); link / lock only the crosshair or time range
+      // ("link the top two charts" is widget.setLink's)
+      /\bsync\w*\s+(?:[\w’'-]+\s+){0,4}?(?:cross[\s-]?hairs?|time[\s-]?ranges?|charts|cells)\b|\b(?:link\w*|lock\w*)\s+(?:[\w’'-]+\s+){0,4}?(?:cross[\s-]?hairs?|time[\s-]?ranges?)\b|\bcross[\s-]?hairs?\s+(?:[\w’'-]+\s+){0,3}?(?:sync\w*|link\w*|across)\b/,
+      /\b(?:every|all(?: the| my)?|each) (?:charts?|cells?) (?:\w+ ){0,3}?(?:to |on )?the same (?:dates|time ?range)\b/,
+      // Groups mode, or stepping the grid's group
+      /\bgroups mode\b|\b(?:next|previous|prev) group\b|\brefresh (?:the |this |my )?group\b|\bswitch (?:over )?to (?:the |my )?[\w&’' -]{1,40}? group\b(?! (?:comparisons?|overlays?|scale))/,
       /\bmaximi[sz]e|\bfull[\s-]?(?:size|screen)\b|\bblow (?:it |that |the \w+ )?up\b|\bwhole grid\b|\bun-?maximi[sz]e\b/,
       /\bshared (?:chart )?settings\b|\bmy (?:own )?(?:chart|normal) settings\b|\breset\b.*\bmy chart\b|\bback to my (?:own )?chart\b/,
       /\bnormal (?:board|charts? board)\b|\bback to (?:the |my )?(?:normal |regular )?(?:board|workspace)\b/] },

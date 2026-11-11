@@ -172,3 +172,23 @@ Numbers on the merged tree:
   - coverage 133/185.
 - Generated files were reset to master and regenerated, each in its own run: golden (+127, the same delta as before), parity, capreg baseline, UPDATE_CAPREG. SAT-1 has 30 hunks, each the same multiChart group listing, in its own commit.
 - CHARTS_EXECUTION_STATUS.md: master's file plus #1030's 16 rows, recounted by script: **259 / 484 VERIFIED (53.5%)**, MISSING 105, BLOCKED 29.
+
+### Lead decisions applied (2026-11-11)
+
+- **Routing.** The `multiChart` group is now `wordsOnly: true`, the same pattern as watchlistShow / compareGroups, with OWN_WORDS phrases in nlm1Routing.test.js. Its words now need grid context:
+  - a grid acted on ("open / save / delete / apply / load / close / exit / restore / fill / refresh / rename … grid", "in / of / across the grid", "show me a 2x3 grid");
+  - "multi chart", or "split my screen";
+  - rows AND columns;
+  - sync WITH crosshair / time range / charts / cells, and link / lock only WITH crosshair / time range;
+  - "groups mode", "next / previous group", "refresh the group", "switch to the … group" (not when followed by comparison / overlay / scale).
+  - A bare "grid", "2x2", "group(s)", "row(s)", "sync", "crosshair" or "link … charts" no longer selects it. Plain alternations plus one negative lookahead; no lookbehind.
+- **Results:**
+  - agentNoLookbehindEquivalence passes with **0 frozen rows changed**.
+  - v2 first calls: **0 of 3635 requests differ from master** (in→out 0).
+  - compareGroups' own phrases still select compareGroups and not multiChart.
+- **Guard.** It is now stricter only: `step|auto|compare|arrange|export` joined the withheld verbs, commented "#1030 ratchet: master actions added by #1077/#1073/#1027". The full `tests/test_uct_agent*.py` run passed 4133, with 1 test deselected (the cap test below), including every knowledge test.
+- **Unchanged files.** Golden, parity, capreg and SAT-1 did not move. Their rails pass without regeneration, and SAT-1's 30 hunks still list the multiChart group in the sent group lists.
+- **Required set.** 18 files / 2438 tests and 31 files / 2364 tests (1 todo), all green.
+  - NL-1 coverage at budget 55: corpus 95.6%, dev 100%, heldout-v1 99.4%, identical to master.
+  - agentExecReach held-out v2 list 8/8.
+- **Expected red, not this PR's.** `tests/test_uct_agent_nl1_selection.py::test_a_routed_nl1_request_is_three_cache_blocks_core_first` fails only because there are 25 routing groups and turn.py's MAX_GROUPS = 24 drops `guide`. The separate MAX_GROUPS 32 PR fixes it. turn.py is untouched.

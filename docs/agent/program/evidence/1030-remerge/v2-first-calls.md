@@ -1,5 +1,15 @@
 # #1030 re-merge: routing v2 first calls, master vs merged
 
+## After the Lead's decisions (2026-11-11): multiChart words-only + grid-context words
+
+Same method and request sets as below (3635 requests), master `64421f770d` vs this branch with `wordsOnly: true` and the narrowed words. The last dump was run on the tree as committed, except one later edit. That edit added a negative lookahead to the "switch to … group" word so it skips "… group comparison / overlay / scale". It only narrows multiChart, so the 0 cannot grow. agentNoLookbehindEquivalence (frozen v1 rows) is green on the final tree.
+
+**0 requests differ** (in→in 0, out→in 0, out→out 0, **in→out 0**). In on master 665/774, merged 665/774. Intermediate run (before link/lock was limited to crosshair / time range): 1 differed, `corpus.json:ws-14` (widget.setLink, in→in), because "link … charts" read as a sync. Fixed, now 0.
+
+v1 frozen no-lookbehind rows (2745): 0 changed. lb.routing[75], [159], [200], [227] are back to master's output.
+
+## Before the decisions (merge `951f7b9419`): STOPPED
+
 Evidence class: LOCAL, node (vitest), deterministic routing only, no model. `routeManifestV2` first calls with the same inputs as `docs/agent/program/evidence/wordsonly-fill/` (charts ctx: surface charts, createIndicator, manageIndicators; production limit / budget; lexicon typo readings; `registerCatalog()`). The dump (that file's `dump.test.js.txt`, reduced to one tree) ran once in a temporary detached worktree of master `64421f770d` and once in the merged #1030 tree `951f7b9419`. Both trees hold the same request sets. Held-out rows are listed by id only.
 
 Requests: 3635. A request "differs" when its selected groups differ: **320**.
