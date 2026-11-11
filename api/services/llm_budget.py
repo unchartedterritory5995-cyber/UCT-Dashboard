@@ -317,3 +317,124 @@ def watch(post=None) -> list[dict]:
     except Exception:  # noqa: BLE001
         log.warning("[llm_budget] watch failed", exc_info=True)
     return sent
+
+
+# -- Daily digest (2026-11-10) ---------------------------------------------------
+# One post a day to the ops channel: where the day's AI money went, by feature and by
+# segment, against the day before and the trailing week. The budget alerts above say
+# "something crossed a line"; this says "here is the whole bill", so a slow creep in a
+# feature nobody budgeted is visible without opening /admin/ai-spend.
+# Off with LLM_SPEND_DIGEST=0.
+def _segment(door: str) -> str:
+    # Site code is always attributed to an `api/` module (or "unattributed"); every other
+    # door comes from outside: the PC meter (tools/pc_llm_meter, `<repo>/<entry script>`),
+    # the sibling repos' sub_claude reporters, tx-recap.
+    if not door.startswith("api/") and door != "unattributed":
+        return "outside site"
+    return "member" if _door_kind(door) in _MEMBER_KINDS else (
+        "unlisted" if _door_kind(door) == "unlisted" else "background")
+
+
+def digest_data(day: str | None = None) -> dict:
+    """The numbers the digest prints, as data (tests and the admin page can read it)."""
+    import datetime as _dt
+    day = day or today()
+    d0 = _dt.date.fromisoformat(day)
+    prev = (d0 - _dt.timedelta(days=1)).isoformat()
+    week0 = (d0 - _dt.timedelta(days=7)).isoformat()
+    llm_usage.flush()
+    with contextlib.closing(llm_usage.connect()) as c:
+        rows = c.execute(
+            "SELECT door, COUNT(*), COALESCE(SUM(cost_usd),0), GROUP_CONCAT(DISTINCT model), "
+            "SUM(CASE WHEN kind='batch' THEN cost_usd ELSE 0 END), "
+            "SUM(CASE WHEN ok=0 THEN cost_usd ELSE 0 END) "
+            "FROM llm_usage_calls WHERE day = ? GROUP BY door", (day,)).fetchall()
+        prev_by = dict(c.execute("SELECT door, COALESCE(SUM(cost_usd),0) FROM llm_usage_calls "
+                                 "WHERE day = ? GROUP BY door", (prev,)).fetchall())
+        week = c.execute("SELECT COUNT(DISTINCT day), COALESCE(SUM(cost_usd),0) FROM llm_usage_calls "
+                         "WHERE day >= ? AND day < ?", (week0, day)).fetchone()
+        models = c.execute("SELECT model, COALESCE(SUM(cost_usd),0) FROM llm_usage_calls WHERE day = ? "
+                           "GROUP BY model ORDER BY 2 DESC", (day,)).fetchall()
+    doors = sorted(({"door": r[0], "calls": int(r[1]), "usd": float(r[2]), "models": r[3] or "",
+                     "batch_usd": float(r[4] or 0), "failed_usd": float(r[5] or 0),
+                     "prev_usd": float(prev_by.get(r[0], 0.0)), "segment": _segment(r[0])}
+                    for r in rows), key=lambda x: -x["usd"])
+    total = sum(x["usd"] for x in doors)
+    segments: dict[str, float] = {}
+    for x in doors:
+        segments[x["segment"]] = segments.get(x["segment"], 0.0) + x["usd"]
+    week_days = int(week[0] or 0)
+    return {"day": day, "total": total, "prev_total": float(sum(prev_by.values())),
+            "week_avg": (float(week[1]) / week_days) if week_days else None, "week_days": week_days,
+            "calls": sum(x["calls"] for x in doors), "doors": doors, "segments": segments,
+            "models": [(m or "?", float(u)) for m, u in models],
+            "batch_usd": sum(x["batch_usd"] for x in doors),
+            "failed_usd": sum(x["failed_usd"] for x in doors),
+            "budgets": [r for r in status(day) if r["level"] != "ok"]}
+
+
+def _money(v: float) -> str:
+    return f"${v:,.2f}"
+
+
+def digest_text(data: dict, top: int = 10) -> str:
+    t = data["total"]
+    lines = [f"**AI spend {data['day']}: {_money(t)}** over {data['calls']:,} calls"]
+    ref = []
+    if data["prev_total"]:
+        ref.append(f"yesterday {_money(data['prev_total'])} ({(t - data['prev_total']) / data['prev_total']:+.0%})")
+    if data["week_avg"] is not None:
+        ref.append(f"{data['week_days']}-day avg {_money(data['week_avg'])}")
+    if ref:
+        lines[0] += " | " + ", ".join(ref)
+    seg = sorted(data["segments"].items(), key=lambda kv: -kv[1])
+    if seg:
+        lines.append("Segments: " + " | ".join(f"{k} {_money(v)} ({v / t:.0%})" if t else f"{k} {_money(v)}"
+                                               for k, v in seg))
+    if data["models"]:
+        lines.append("Models: " + " | ".join(f"{m} {_money(u)}" for m, u in data["models"][:5]))
+    lines.append(f"Top {min(top, len(data['doors']))} features:")
+    for i, x in enumerate(data["doors"][:top], 1):
+        delta = ""
+        if x["prev_usd"]:
+            delta = f", {(x['usd'] - x['prev_usd']) / x['prev_usd']:+.0%} vs yday"
+        elif x["usd"] >= 0.5:
+            delta = ", NEW vs yday"
+        share = f"{x['usd'] / t:.0%}" if t else "-"
+        lines.append(f"{i}. {_label(x['door'])}: {_money(x['usd'])} ({share}, {x['calls']} calls, "
+                     f"{x['segment']}{delta}) [{x['models']}]")
+    rest = data["doors"][top:]
+    if rest:
+        lines.append(f"...{len(rest)} more features: {_money(sum(x['usd'] for x in rest))}")
+    if data["batch_usd"] or data["failed_usd"]:
+        lines.append(f"Batch (half price): {_money(data['batch_usd'])} | paid for failed calls: "
+                     f"{_money(data['failed_usd'])}")
+    for b in data["budgets"]:
+        lines.append(f"Budget {b['level'].upper()}: {_label(b['door'])} {_money(b['spent'])} of "
+                     f"{_money(b['daily_usd'])} ({b['mode']})")
+    lines.append("Details: /admin/ai-spend")
+    return "\n".join(lines)
+
+
+def digest(day: str | None = None, post=None, force: bool = False) -> str | None:
+    """Post the day's digest once (scheduled 23:55 ET). Returns the text sent, else None."""
+    import os
+    if os.environ.get("LLM_SPEND_DIGEST", "1").strip().lower() in ("0", "false", "no"):
+        return None
+    post = post or _post
+    day = day or today()
+    key = f"digest:{day}"
+    try:
+        with contextlib.closing(_conn()) as c:
+            if not force and c.execute("SELECT 1 FROM llm_budget_meta WHERE k = ?", (key,)).fetchone():
+                return None
+        text = digest_text(digest_data(day))
+        if not post(text):
+            return None
+        with contextlib.closing(_conn()) as c:
+            c.execute("INSERT OR REPLACE INTO llm_budget_meta (k, v) VALUES (?, ?)", (key, _now_iso()))
+            c.commit()
+        return text
+    except Exception:  # noqa: BLE001
+        log.warning("[llm_budget] digest failed", exc_info=True)
+        return None

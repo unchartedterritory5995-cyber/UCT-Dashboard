@@ -666,11 +666,6 @@
       ],
       "note": "Part of the edge-deep-history / instant-charts initiative (specs 2026-08-31 onward); recorded 2026-09-02 after a live read. Selects the dedicated bars-SERVING entrypoint via the railway.json dispatcher, so app/partner deploys can never restart chart serving. This entry read pending until now for a reason that was not about the flag: tools/flag_ledger_audit.py hardcoded a three-service roster (web, worker, flow-worker) while the project has five, so a flag armed only on bars-api was invisible to the audit and was reported as undecided. The roster is now derived from the project."
     },
-    "BARS_A_CLOSE_GUARD_ENABLED": {
-      "status": "dark",
-      "note": "Off 2026-09-04 (Phase 2b, api/services/bar_broadcaster.py:41-53), not yet armed on any service. Guards a developing intraday bar's close against a momentary ghost/odd-lot T-tick print winning over the next unfiltered A-aggregate close within BARS_A_CLOSE_GUARD_MS (default 2000ms) -- a display-integrity fix, never touches persisted bars. Shipped dark by design so the byte-identical old behavior stays the default while the guard is proven; own test file tests/test_bar_broadcaster_a_close_guard.py. Arm via the env var alone, no deploy needed.",
-      "where": []
-    },
     "BARS_HISTORY_ORIGIN_ENABLED": {
       "status": "armed",
       "where": [
