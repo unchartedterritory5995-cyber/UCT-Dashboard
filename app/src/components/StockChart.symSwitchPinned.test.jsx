@@ -96,6 +96,7 @@ vi.mock('lightweight-charts', async (importOriginal) => {
     getVisibleLogicalRange: () => range(),
     getVisibleRange: () => null, setVisibleRange: () => {}, fitContent: () => {},
     scrollToPosition: (p) => { ts.rightOffset = p }, scrollPosition: () => ts.rightOffset,
+    timeToIndex: (t) => { const i = ts.points.indexOf(t); return i < 0 ? null : i },
     timeToCoordinate: () => 0, coordinateToTime: () => null, logicalToCoordinate: () => 0, coordinateToLogical: () => 0,
     options: () => ({ ...ts.opts, barSpacing: ts.barSpacing, rightOffset: ts.rightOffset }),
     width: () => W, height: () => 40,
@@ -323,6 +324,50 @@ describe('symbol switch: newest candle locked in place (NVDA -> TZA)', () => {
     expect(drawn.at(-1).time).toBe(toChartTime(agg(truthSym('DDD'), '5').at(-1).t))
     for (const f of drawn) expect(geo(f)).toEqual(geo(before))
   })
+})
+
+// ── LOGICAL vs CANDLE INDEX SPACE (integrator review) ─────────────────────────────
+// A compare/overlay series shares the time axis: its own times add INTERIOR logical slots,
+// and a compare bar NEWER than the candle's newest moves the axis' base past the candle.
+// The pin must still put the newest CANDLE at the outgoing x — the intended frame is
+// converted to logical indices once (timeToIndex of the newest real candle, base read off
+// the time scale), not fed to scrollToPosition in candle-index space.
+describe('symbol switch with a compare series on the shared axis', () => {
+  for (const kind of ['interior times', 'interior times + a NEWER compare bar']) {
+    for (const keep of [false, true]) {
+      it(`${kind}, keepPresent=${keep}: the newest candle keeps the outgoing x, spacing and margin`, async () => {
+        serveSyms({ latency: 30 })
+        const P = { tf: '5', backgroundWarm: false, forceExtendedHours: false, keepPresentOnSymbolChange: keep }
+        const view = render(<StockChart sym="AAA" {...P} />)
+        await wait(400)
+        const geo0 = geo(frame())
+        // A stand-in compare series (as chart.addSeries would make): points 2 min after each of
+        // the last 40 candles, plus optionally one bar 2 min after the newest candle.
+        const c = candle()
+        const times = c.__data.filter(p => p.open !== undefined).map(p => p.time)
+        const pts = times.slice(-41, -1).map(t => ({ time: t + 120, value: 1 }))
+        if (kind.includes('NEWER')) pts.push({ time: times.at(-1) + 120, value: 1 })
+        const cmp = { __ctor: 'compare', __options: {}, __data: pts, setData() {}, update() {}, applyOptions() {}, data: () => pts }
+        T.series.push(cmp)
+        c.setData(c.__data)   // re-merge the axis with the compare series on it
+        // Re-pin the outgoing chart the way a member would see it (the compare bar's own
+        // arrival is not under test) — then every frame after the switch must equal it.
+        const ro0 = T.ts.points.length && (T.ts.base + T.ts.rightOffset - T.ts.points.indexOf(times.at(-1)))
+        T.ts.rightOffset += geo0.ro - ro0
+        const before = frame()
+        expect(geo(before)).toEqual(geo0)
+        seedCache('BBB', '5', 'behind')
+        serveSyms({ latency: 300 })
+        const rec = recorder()
+        view.rerender(<StockChart sym="BBB" {...P} />)
+        await wait(800)
+        rec.stop()
+        const drawn = [...rec.frames, frame()].filter(f => !f.blank)
+        expect(drawn.at(-1).time).toBe(toChartTime(agg(truthSym('BBB'), '5').at(-1).t))
+        for (const f of drawn) expect({ kind, ...geo(f) }).toEqual({ kind, ...geo(before) })
+      })
+    }
+  }
 })
 
 // ── INVARIANT over arbitrary sequences of SYMBOL and TIMEFRAME switches ─────────────

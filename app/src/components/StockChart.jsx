@@ -15673,6 +15673,23 @@ export default function StockChart({
     // tools/intraday_symswitch_framing_harness.py (real lightweight-charts, painted frames).
     let _framedRange = null
     const _newestOf = () => candleSeriesRef.current?.data?.()?.length || filteredBars.length
+    // The framing arms compute in CANDLE-index space (filteredBars / the candle series), but
+    // scrollToPosition is LOGICAL: an offset from the axis' base, which a compare/overlay
+    // series moves (interior times; a compare bar newer than the candle's newest). Convert
+    // ONCE here: the newest real candle `a` sits at logical timeToIndex(its time); the base
+    // is read off the time scale (visible to − rightOffset). null → fall back (no answer).
+    const _logicalOffsetOf = (ts, r) => {
+      const d = candleSeriesRef.current?.data?.() || []
+      let a = d.length - 1
+      while (a >= 0 && isWhitespacePoint(d[a])) a--
+      if (a < 0) return null
+      const la = ts.timeToIndex?.(d[a].time, false)
+      const cur = ts.getVisibleLogicalRange()
+      const rightOffset = ts.scrollPosition?.()
+      if (typeof la !== 'number' || !Number.isFinite(la) || !cur || typeof rightOffset !== 'number' || !Number.isFinite(rightOffset)) return null
+      const base = cur.to - rightOffset
+      return (r.to - a + la) - base
+    }
     const _setFrame = (r) => { chart.timeScale().setVisibleLogicalRange(r); _framedRange = r }
     // View handling on initial load / timeframe change / ticker switch.
     // (NOT on SWR refetches — those keep zoomKey stable so the user never loses position.)
@@ -16158,8 +16175,12 @@ export default function StockChart({
       // re-based range after setData, so comparing with that would miss the very frame at fault.
       const _base = _preUpdateRange || oldRange
       if (_r && _base && (_r.from !== _base.from || _r.to !== _base.to)) {
-        const _n = _newestOf()
-        if (_n > 0) _ts.scrollToPosition(_r.to - (_n - 1), false)
+        const _off = _framedRange ? _logicalOffsetOf(_ts, _framedRange) : null
+        if (_off != null) _ts.scrollToPosition(_off, false)
+        else {
+          const _n = _newestOf()
+          if (_n > 0) _ts.scrollToPosition(_r.to - (_n - 1), false)
+        }
       }
     } catch { /* mid-load: the frame above stands */ }
     // Track current bar count + bars so the next ticker switch can right-anchor the
