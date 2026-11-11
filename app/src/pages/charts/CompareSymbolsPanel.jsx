@@ -153,7 +153,7 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
     try {
       const members = (await fetchGroupMembers(groupType, name))?.symbols || []
       if (!members.length) return
-      // The one list write for a group (compareGroups.withGroupAdded), shared with the Agent's chart.compareGroup.
+      // The one list write for a group (compareGroups.withGroupAdded), shared with the Agent's chartSetup.compareGroup.
       setSymbols(prev => {
         const next = withGroupAdded(prev, name, members, pickComparisonColor)
         if (next === prev) return prev

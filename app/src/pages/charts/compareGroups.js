@@ -29,7 +29,13 @@ export async function readGroupList(type) {
 
 /** `[{ name, count }]` for one group type; `[]` on any failure (the picker says "No matches"). */
 export async function fetchGroupList(type) {
-  return (await readGroupList(type)) || []
+  try {
+    const r = await fetch(`/api/compare/groups?type=${type}`)
+    const j = r.ok ? await r.json() : { groups: [] }
+    return j.groups || []
+  } catch {
+    return []
+  }
 }
 
 /** `{ name, symbols: [SYM], total, truncated }` for one group, upper-cased; `null` when the
@@ -59,12 +65,12 @@ export function withGroupAdded(prev, name, members, pickColor) {
   const additions = []
   for (const s of members) {
     if (have.has(s)) continue
-    have.add(s)
     const color = pickColor(idx++, used)
     used.add(color.toLowerCase())
     additions.push({ sym: s, enabled: true, color, scaleMode: 'new', group: name })
   }
-  return additions.length ? [...prev, ...additions] : prev
+  if (!additions.length) return prev
+  return [...prev, ...additions]
 }
 
 /** The list without group `name` (the group row's ×). */
