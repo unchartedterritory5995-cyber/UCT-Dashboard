@@ -124,9 +124,19 @@ class TestTailStatus:
         assert bars_fetch.intraday_tail_status("THIN", "5", et(2026, 9, 28, 10, 0), now=later)["tail_status"] == "unverified"
 
     def test_weekend_complete_friday_is_current(self, monkeypatch):
+        # "Complete" is the EXTENDED session (the series carries post-market): a tail
+        # through Friday 19:55 is current on Sunday (2026-11-11 extended-tail fix).
         monkeypatch.setattr(bars_fetch, "_expected_latest_session_yyyymmdd", lambda now=None: 20260925)
         sun = et(2026, 9, 27, 12, 0)
-        assert bars_fetch.intraday_tail_status("X", "5", FRI_1555, now=sun)["tail_status"] == "current"
+        assert bars_fetch.intraday_tail_status("X", "5", FRI_1955, now=sun)["tail_status"] == "current"
+
+    def test_weekend_friday_tail_at_the_RTH_close_is_missing_post_market(self, monkeypatch):
+        monkeypatch.setattr(bars_fetch, "_expected_latest_session_yyyymmdd", lambda now=None: 20260925)
+        sun = et(2026, 9, 27, 12, 0)
+        assert bars_fetch.intraday_tail_status("X", "5", FRI_1555, now=sun)["tail_status"] == "unverified"
+        # ...until the provider has been asked after Friday's extended close
+        bars_fetch._mark_tail_verified("X", "5", et(2026, 9, 27, 11, 0))
+        assert bars_fetch.intraday_tail_status("X", "5", FRI_1555, now=sun)["tail_status"] == "verified"
 
     def test_weekend_thursday_tail_is_not(self, monkeypatch):
         monkeypatch.setattr(bars_fetch, "_expected_latest_session_yyyymmdd", lambda now=None: 20260925)

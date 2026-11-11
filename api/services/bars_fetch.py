@@ -597,6 +597,98 @@ def intraday_session_complete(tf: str, last_ts: int | None) -> bool:
         return True
 
 
+# ── EXTENDED-HOURS TAIL (2026-11-11) ─────────────────────────────────────────
+# ⛔⛔ THE SERVED SERIES CARRIES EXTENDED HOURS (04:00-20:00 ET), BUT EVERY
+# "IS THIS TAIL DONE?" RULE MEASURED IT AGAINST THE 16:00 CLOSE. Measured on
+# production 2026-11-11 01:22Z (20:22 ET): AAPL / TSLA / SOFI tf=1 first answers
+# ended at 16:53 ET — three hours of post-market missing — served `sqlite` with
+# `tail_status: current` and no Retry-After, because (a) after 20:00 ET
+# `_needs_fresh` only asks "does the tail reach the REGULAR close?" (16:53 >= 15:59:
+# yes) and (b) `intraday_tail_status` judged it against the final RTH bucket. So the
+# store was never re-asked and the client was told it was current.
+# The extended session ends four hours after the regular close (20:00, or 17:00 on
+# an early-close day) and opens at 04:00.
+_EXT_OPEN_MINUTES_SERVER = 4 * 60
+_EXT_AFTER_CLOSE_MINUTES = 4 * 60
+
+
+def _ext_close_minutes(ymd: int) -> int:
+    """ET minutes-from-midnight when the EXTENDED session for `ymd` ends."""
+    return _session_close_minutes(ymd) + _EXT_AFTER_CLOSE_MINUTES
+
+
+def _is_trading_day_ymd(d) -> bool:
+    return d.weekday() < 5 and not _is_nyse_holiday(int(d.strftime("%Y%m%d")))
+
+
+def _ext_bucket_start(tf: str, t: int) -> int:
+    if tf == "60":
+        return bucket_60_et_unix_seconds(int(t))
+    step = int(tf) * 60
+    return int(t) // step * step
+
+
+def expected_completed_ext_bucket(tf: str, now: float | None = None):
+    """Start (unix s) of the latest EXTENDED-session bucket (04:00-20:00 ET, early-close
+    aware) that has CLOSED — on today's session once its first bucket has closed, else
+    the FINAL bucket of the previous trading session. None only for a non-intraday tf
+    or an unreadable clock. During RTH this equals `expected_completed_bucket`."""
+    if tf not in ("1", "5", "15", "30", "60"):
+        return None
+    try:
+        et = _ZI("America/New_York")
+        now_ts = float(now if now is not None else _time.time())
+        now_dt = datetime.fromtimestamp(now_ts, et)
+        day = now_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+        if _is_trading_day_ymd(now_dt):
+            ymd = int(now_dt.strftime("%Y%m%d"))
+            ext_open = int(day.timestamp()) + _EXT_OPEN_MINUTES_SERVER * 60
+            ext_close = int(day.timestamp()) + _ext_close_minutes(ymd) * 60
+            if now_ts >= ext_close:
+                return _ext_bucket_start(tf, ext_close - 1)
+            cur = _ext_bucket_start(tf, int(now_ts))
+            prev = _ext_bucket_start(tf, cur - 1)
+            if prev >= ext_open:
+                return prev
+        d = day - timedelta(days=1)
+        for _ in range(14):
+            if _is_trading_day_ymd(d):
+                ymd = int(d.strftime("%Y%m%d"))
+                midnight = int(datetime(d.year, d.month, d.day, tzinfo=et).timestamp())
+                return _ext_bucket_start(tf, midnight + _ext_close_minutes(ymd) * 60 - 1)
+            d -= timedelta(days=1)
+        return None
+    except Exception:                      # noqa: BLE001 — abstain, never guess
+        return None
+
+
+def intraday_ext_session_complete(tf: str, last_ts) -> bool:
+    """True when an intraday tail reaches the FINAL bucket of its EXTENDED session."""
+    if tf not in ("1", "5", "15", "30", "60") or last_ts is None:
+        return True
+    try:
+        et = _ZI("America/New_York")
+        dt = datetime.fromtimestamp(int(last_ts), et)
+        ymd = int(dt.strftime("%Y%m%d"))
+        midnight = int(datetime(dt.year, dt.month, dt.day, tzinfo=et).timestamp())
+        final = _ext_bucket_start(tf, midnight + _ext_close_minutes(ymd) * 60 - 1)
+        # same one-bucket tolerance as the RTH rule (`close - tf`)
+        return int(last_ts) >= _ext_bucket_start(tf, final - 1)
+    except Exception:                      # noqa: BLE001
+        return True
+
+
+def _ext_session_end_ts(last_ts) -> int | None:
+    try:
+        et = _ZI("America/New_York")
+        dt = datetime.fromtimestamp(int(last_ts), et)
+        ymd = int(dt.strftime("%Y%m%d"))
+        midnight = int(datetime(dt.year, dt.month, dt.day, tzinfo=et).timestamp())
+        return midnight + _ext_close_minutes(ymd) * 60
+    except Exception:                      # noqa: BLE001
+        return None
+
+
 # ── TAIL CURRENTNESS: OBSERVED vs VERIFIED (2026-09-28) ──────────────────────
 # ⛔⛔ "THE STORE HOLDS ROWS" IS NOT "THE CHART IS CURRENT". On 2026-09-28 the server
 # KNEW AVGO 5m was a whole session stale (`_needs_fresh` and
@@ -633,7 +725,20 @@ def _mark_tail_verified(ticker: str, tf: str, checked_at: float) -> None:
 
 def tail_verified_through(ticker: str, tf: str):
     with _tail_verified_lock:
-        return _tail_verified.get((ticker.upper(), tf))
+        vt = _tail_verified.get((ticker.upper(), tf))
+    # ⭐ A 5m series the universe live stream covers is VERIFIED by the stream itself
+    # through its newest delivered minute (review #1051 F1): a thin covered name never
+    # takes the provider-heal path that writes `_tail_verified`, so without this its
+    # off-hours tail would read `unverified` forever.
+    if tf == "5":
+        try:
+            from api.services import bars_live_store as _bls
+            lv = _bls.proven_through_s(ticker)
+            if lv is not None and (vt is None or lv > vt):
+                vt = lv
+        except Exception:                  # noqa: BLE001
+            pass
+    return vt
 
 
 def _heal_intraday_tail(ticker_up: str, tf: str, last_ts: int, tail_only: bool = False) -> list:
@@ -711,34 +816,25 @@ def intraday_tail_status(ticker: str, tf: str, tail_ts, now: float | None = None
         tail = int(tail_ts) if tail_ts is not None else None
     except (TypeError, ValueError):
         tail = None
-    frontier = expected_completed_bucket(tf, now)
     step = int(tf) * 60 if tf in ("1", "5", "15", "30") else 3600
-    if frontier is not None:
-        if tf == "60":
-            tolerance_floor = bucket_60_et_unix_seconds(frontier - 1)
-        else:
-            tolerance_floor = frontier - step
+    # ⭐ EXTENDED FRONTIER FIRST (2026-11-11): the served series carries 04:00-20:00
+    # ET, so its tail is judged against the latest closed EXTENDED bucket — during
+    # RTH that is the same bucket as before; pre-market, post-market and after 20:00
+    # it is the bucket the RTH-only rule could not see (a 16:53 tail at 20:22 was
+    # `current`). Same one-bucket tolerance; beyond it only provider proof counts.
+    ext_frontier = expected_completed_ext_bucket(tf, now)
+    if ext_frontier is not None:
+        tolerance_floor = _ext_bucket_start(tf, ext_frontier - 1)
         if tail is not None and tail >= tolerance_floor:
             out["tail_status"] = "current"
-        elif vt is not None and tail is not None and vt >= _bucket_end(tf, frontier, step):
+        elif vt is not None and tail is not None and vt >= _bucket_end(tf, ext_frontier, step):
             out["tail_status"] = "verified"
         return out
-    # No bucket of today is expected: the tail must carry the last session to its close.
-    if (tail is not None and not _is_cold_stale_intraday(tf, tail)
-            and intraday_session_complete(tf, tail)):
-        out["tail_status"] = "current"
-    elif tail is not None and vt is not None and vt > tail:
-        # The provider was asked after the tail and had nothing newer (a genuinely thin
-        # name that stopped printing early) — proven, not assumed.
-        try:
-            _ymd = _expected_latest_session_yyyymmdd()
-            et = _ZI("America/New_York")
-            _d = datetime.strptime(str(_ymd), "%Y%m%d").replace(tzinfo=et)
-            _close = int(_d.timestamp()) + _session_close_minutes(_ymd) * 60
-            if vt >= _close:
-                out["tail_status"] = "verified"
-        except Exception:                  # noqa: BLE001
-            pass
+    # The extended frontier exists for every intraday tf at every instant (it falls
+    # back to the previous session's final bucket), so the old RTH-frontier and
+    # "no bucket of today is expected" branches are unreachable and were removed
+    # (review #1051 F4). Reaching here means the clock or calendar was unreadable:
+    # abstain as `unverified` — never claim currentness we could not compute.
     return out
 
 
@@ -789,6 +885,32 @@ def _completeness_heal_allowed(ticker: str, tf: str, last_ts: int) -> bool:
     return True
 
 
+_EXT_COMPLETENESS_COOLDOWN = float(
+    _os.environ.get("BARS_EXT_COMPLETENESS_COOLDOWN_SECONDS", "120"))
+_ext_completeness_attempt: dict[str, float] = {}
+
+
+def _ext_completeness_heal_allowed(ticker: str, tf: str, last_ts: int) -> bool:
+    """At most once per (ticker, tf, tail instant) per `_EXT_COMPLETENESS_COOLDOWN`."""
+    key = f"{ticker}_{tf}_{int(last_ts)}"
+    now = _time.time()
+    with _completeness_lock:
+        prev = _ext_completeness_attempt.get(key)
+        if prev is not None and (now - prev) < _EXT_COMPLETENESS_COOLDOWN:
+            return False
+        if len(_ext_completeness_attempt) >= _COMPLETENESS_MAX_KEYS:
+            _ext_completeness_attempt.clear()
+        _ext_completeness_attempt[key] = now
+    return True
+
+
+def _ext_session_verified(ticker: str, tf: str, last_ts) -> bool:
+    """The provider was asked after the tail's EXTENDED session ended (nothing newer)."""
+    vt = tail_verified_through(ticker, tf)
+    end = _ext_session_end_ts(last_ts)
+    return vt is not None and end is not None and vt >= end
+
+
 def _needs_fresh(last_ts: int | None, tf: str, ticker: str | None = None) -> bool:
     """True if SQLite data is stale enough to warrant a delta fetch.
 
@@ -806,7 +928,12 @@ def _needs_fresh(last_ts: int | None, tf: str, ticker: str | None = None) -> boo
         try:
             from api.services import bars_live_store as _bls
             if _bls.covered(ticker, tf):
-                return False
+                # ⛔ 5m: "covered" is not proof by itself (review #1051 F1). Fresh only
+                # while the stream's proof makes the tail current/verified; otherwise
+                # fall through so the normal rules (incl. the extended re-ask, which
+                # marks verified) can repair it — e.g. a new epoch with no minute yet.
+                if tf == "D" or intraday_tail_status(ticker, tf, last_ts)["tail_status"] != "unverified":
+                    return False
         except Exception:
             pass
     if tf == "W":
@@ -907,6 +1034,19 @@ def _needs_fresh(last_ts: int | None, tf: str, ticker: str | None = None) -> boo
                 and _os.environ.get("BARS_SESSION_COMPLETENESS", "1") == "1"
                 and not intraday_session_complete(tf, last_ts)
                 and _completeness_heal_allowed(ticker, tf, last_ts)):
+            return True
+        # ⭐ EXTENDED completeness (2026-11-11): a tail that reaches the 16:00 close but
+        # not the 20:00 extended close is missing the post-market the series carries
+        # (AAPL 1m at 20:22 ET ended 16:53). Re-ask for it — but only for a member's
+        # INTERACTIVE request (never the prewarm/crawler universe sweep: thousands of
+        # names print nothing after 16:00 and would each cost a provider call), only
+        # while nobody has verified the session through its extended close, and at
+        # most once per tail instant per `_EXT_COMPLETENESS_COOLDOWN` (short, so a
+        # failed attempt is retried on the client's catch-up poll, not hours later).
+        if (ticker and _request_is_interactive()
+                and not intraday_ext_session_complete(tf, last_ts)
+                and not _ext_session_verified(ticker, tf, last_ts)
+                and _ext_completeness_heal_allowed(ticker, tf, last_ts)):
             return True
         return False
     return age > 30 * 3600
