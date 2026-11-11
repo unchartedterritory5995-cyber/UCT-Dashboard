@@ -1,6 +1,13 @@
 # PR: fix the master deploy gate (F16 Screener rail and field-catalog snapshot)
 
-Branch `agent/pl/fix-gate-screener-pins`, cut from origin/master `5830daa80f`.
+Branch `agent/pl/fix-gate-screener-pins`, cut from origin/master `5830daa80f`, then merged with origin/master `ac3ce7ebc9`.
+
+**Merge note:** while this was in flight, #1066 (`ac3ce7ebc9`) re-pinned `SCREENER_PIN` to `7c09a4d303` (the #1021 merge)
+and regenerated the same snapshot. The merge was clean. This branch's `screener-fields.json` is byte-identical to
+#1066's, so after the merge the snapshot is not in this PR's diff. The pin is now master's `7c09a4d303`. It has the same
+merge base with the F16 head (`292983f4bc`) as `1a26d4ea00` did, so the rail reads the same F16 change set. What this PR
+still adds is the end of the rail, fixed at `F16_HEAD` instead of HEAD, so the next Screener PR needs no re-pin.
+The real-history control (`test_the_guard_can_say_no`) runs at `7c09a4d303~1..7c09a4d303` and names filters.py.
 
 ## Cause
 
@@ -43,10 +50,10 @@ Master's deploy gate went red on gate runs 42955187848 (`fd2f9acf2c`) and 429565
 - `pytest tests/test_uct_agent_qa_f16.py tests/test_uct_agent_qa_scan_corpus.py`: 53 passed, 0 skipped. The real
   rail ran because this worktree holds both commits.
 - `vitest src/agent/qa/fastPathCorpus.test.jsx`: 33 passed.
-- `pytest tests/test_uct_agent*.py`: see the PR comment or the Lead's report.
+- `pytest tests/test_uct_agent*.py` (103 files, on the merge with origin/master `ac3ce7ebc9`): **4105 passed, 0 failed**. The pre-merge run had one failure, `test_uct_agent_knowledge.py::test_r751_mentions_mode_only_serve_flagged_re_admits` (policy mode read back as `withhold`). That file is untouched here, its 180 tests pass on their own, and it passed in the merged full run, so the failure is order- or timing-dependent and not caused by this PR.
 
 ## Files (git diff --name-only origin/master...HEAD)
 
-- app/src/agent/__fixtures__/program/scores/screener-fields.json
+- (screener-fields.json: identical to #1066, so it is no longer in the diff after the merge)
 - docs/agent/program/PR-fix-gate-screener-pins.md
 - tests/test_uct_agent_qa_f16.py

@@ -147,11 +147,16 @@ def test_no_order_asked_means_market_cap_desc_never_the_composite():
 # Re-pinned 2026-11-10 (live screener): 1a26d4ea00 changes live_tier.py, technicals.py and snapshot_db.py on
 # purpose (five more live columns, and the four live_base_* columns the nightly build now stores for them). It is
 # the only Screener commit since 54dabb6cb4; re-pinned in the same PR so master's deploy gate never goes red.
-SCREENER_PIN = "1a26d4ea00224d20cdf52e4f3ead41c0c2bab318"
+# Re-pinned 2026-11-11 (UCT RS split, PR #1021): the RS work changes filters.py, snapshot_db.py, snapshot_builder.py,
+# methodology.py, identities.py and rs_history.py on purpose (Rank 9M column, picker-hidden RS columns, one RS Rating
+# everywhere). Every Screener commit since 1a26d4ea00 is that PR; pinned at its merge so master's deploy gate goes green.
+SCREENER_PIN = "7c09a4d303a5a584ad725e576dfc3b5a36fbe64b"
 SCREENER_PATHS = ("api/services/screener", "api/routers/screener.py", "api/routers/scan_results.py")
 # The F16 change set is immutable: #1029's own PR head (merged as 4dacc81529). The rail compares the pin against THIS commit,
 # never HEAD, so a later Screener change by another team (e.g. #1021, the RS split) can no longer turn master's deploy gate
 # red. It asks exactly what it claims: did the F16 work touch the member Screener's server code? Full id, never a ref.
+# `pin...F16_HEAD` diffs from their merge base (292983f4bc for both 1a26d4ea00 and 7c09a4d303), so re-pinning SCREENER_PIN
+# for later Screener PRs is no longer needed and does not change what this rail reads.
 F16_HEAD = "523fa4e0122dc614106c14fed9785395c7dd99cc"
 
 
@@ -237,7 +242,7 @@ def test_the_guard_can_say_no():
         pytest.skip("the pinned commit %s is not in this checkout" % SCREENER_PIN)
     r = _screener_diff(SCREENER_PIN + "~1", SCREENER_PIN)
     assert r.returncode == 0, r.stderr
-    assert "api/services/screener/live_tier.py" in r.stdout.split()  # a file the pinned commit changed (the live screener)
+    assert "api/services/screener/filters.py" in r.stdout.split()  # a file the pinned commit changed (RS split: Rank 9M column)
 
 
 def test_no_UCT_weight_or_formula_is_named_in_the_models_instructions():
