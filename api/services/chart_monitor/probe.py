@@ -15,6 +15,7 @@ deliberately ungated — ``bars_api_main.py``). ``/api/stream/bars`` lives on th
 """
 from __future__ import annotations
 
+import http.client
 import json
 import queue
 import socket
@@ -38,12 +39,72 @@ def service_headers() -> dict:
         return {}
 
 
+CONNECT_TIMEOUT_S = 3.0
+
+
+def _ipv4_connect(host: str, port: int, connect_timeout: float, read_timeout: float) -> socket.socket:
+    """TCP connect over IPv4 only, with its OWN short connect timeout.
+
+    ⛔ urllib has no happy-eyeballs: on a host with a broken IPv6 path every connect first waits
+    out the IPv6 attempt (measured ~20 s on a dev PC), which a browser never sees — that would be
+    reported as member latency. IPv4-only + a 3 s connect bound keeps the measurement honest."""
+    last = None
+    for fam, typ, proto, _cn, addr in socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM):
+        sock = socket.socket(fam, typ, proto)
+        try:
+            sock.settimeout(connect_timeout)
+            sock.connect(addr)
+            sock.settimeout(read_timeout)
+            return sock
+        except OSError as e:
+            last = e
+            sock.close()
+    raise last or OSError("no IPv4 address")
+
+
+class _V4HTTPSConnection(http.client.HTTPSConnection):
+    connect_timeout = CONNECT_TIMEOUT_S
+
+    def connect(self):
+        sock = _ipv4_connect(self.host, self.port, self.connect_timeout, self.timeout)
+        self.sock = self._context.wrap_socket(sock, server_hostname=self.host)
+
+
+class _V4HTTPConnection(http.client.HTTPConnection):
+    connect_timeout = CONNECT_TIMEOUT_S
+
+    def connect(self):
+        self.sock = _ipv4_connect(self.host, self.port, self.connect_timeout, self.timeout)
+
+
+class _V4HTTPSHandler(urllib.request.HTTPSHandler):
+    def https_open(self, req):
+        return self.do_open(_V4HTTPSConnection, req, context=self._context)
+
+
+class _V4HTTPHandler(urllib.request.HTTPHandler):
+    def http_open(self, req):
+        return self.do_open(_V4HTTPConnection, req)
+
+
+def build_opener() -> urllib.request.OpenerDirector:
+    return urllib.request.build_opener(_V4HTTPHandler, _V4HTTPSHandler)
+
+
 class Http:
-    def __init__(self, base: str, rps: float = 3.0, timeout: float = 20.0, auth: bool = True):
+    """Paced client for the public edge.
+
+    ⛔ ``auth`` defaults OFF: REST ``/api/bars`` is probed exactly as a member's browser reaches
+    the edge (no service bearer), so the monitor measures member-path behaviour. Only the SSE
+    sample (web pod, ``require_bars_access``) asks for the bearer, per call (``headers(auth=True)``)."""
+
+    def __init__(self, base: str, rps: float = 3.0, timeout: float = 20.0, auth: bool = False,
+                 opener: Optional[urllib.request.OpenerDirector] = None):
         self.base = base.rstrip("/")
         self.min_iv = 1.0 / max(rps, 0.1)
         self.timeout = timeout
         self.auth = auth
+        self.opener = opener or build_opener()
         self._last = 0.0
         self._lock = threading.Lock()
         self.requests = 0
@@ -56,24 +117,28 @@ class Http:
             self._last = time.monotonic()
             self.requests += 1
 
-    def headers(self, accept: str = "application/json") -> dict:
+    def headers(self, accept: str = "application/json", auth: Optional[bool] = None) -> dict:
         h = {"User-Agent": UA, "Accept": accept, "Cache-Control": "no-cache"}
-        if self.auth:
+        if self.auth if auth is None else auth:
             h.update(service_headers())
         return h
 
-    def get_json(self, path: str, max_retries: int = 2) -> dict:
-        """{status, ms, headers{lower}, body|None, retries, error}. Retries 429/502/503/504 and
-        transport errors honouring Retry-After (<= 10 s); ``ms`` is the FIRST attempt's latency."""
+    def get_json(self, path: str, max_retries: int = 2, deadline: Optional[float] = None) -> dict:
+        """{status, ms, headers{lower}, body|None, retries, error, clean}.
+
+        Retries 429/502/503/504 and transport errors honouring Retry-After (<= 10 s), never past
+        ``deadline`` (a ``time.monotonic()`` instant). ``ms`` is the FINAL attempt's latency and
+        ``clean`` is True only for a 200 answered on the first attempt with no transport error —
+        the ONLY answers whose latency may be counted (a timeout-then-retry is not a latency)."""
         url = self.base + path
-        retries, first_ms = 0, None
+        retries = 0
         while True:
             self._pace()
             t0 = time.perf_counter()
             status, hdrs, raw, err = None, {}, b"", None
             try:
                 req = urllib.request.Request(url, headers=self.headers())
-                with urllib.request.urlopen(req, timeout=self.timeout) as r:
+                with self.opener.open(req, timeout=self.timeout) as r:
                     status = r.status
                     hdrs = {k.lower(): v for k, v in r.headers.items()}
                     raw = r.read()
@@ -87,7 +152,6 @@ class Http:
             except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError, OSError) as e:
                 err = type(e).__name__
             ms = (time.perf_counter() - t0) * 1000
-            first_ms = ms if first_ms is None else first_ms
             body = None
             if raw:
                 try:
@@ -100,11 +164,12 @@ class Http:
                     delay = min(float(hdrs.get("retry-after") or 1.5 * (retries + 1)), 10.0)
                 except ValueError:
                     delay = 2.0
-                retries += 1
-                time.sleep(delay)
-                continue
-            return {"status": status, "ms": first_ms, "headers": hdrs, "body": body,
-                    "retries": retries, "error": err}
+                if deadline is None or time.monotonic() + delay + 1.0 < deadline:
+                    retries += 1
+                    time.sleep(delay)
+                    continue
+            return {"status": status, "ms": ms, "headers": hdrs, "body": body, "retries": retries,
+                    "error": err, "clean": status == 200 and err is None and retries == 0}
 
 
 def _norm_t(t) -> int:
@@ -126,8 +191,8 @@ def sample_stream(http: Http, pairs: list[tuple[str, str]], seconds: float, sett
            "hl_regressions": 0, "max_gap_s": 0.0}
     http._pace()
     try:
-        resp = urllib.request.urlopen(urllib.request.Request(url, headers=http.headers("text/event-stream")),
-                                      timeout=30)
+        resp = http.opener.open(urllib.request.Request(url, headers=http.headers("text/event-stream", auth=True)),
+                               timeout=30)
         out["status"] = resp.status
     except urllib.error.HTTPError as e:
         out["status"] = e.code

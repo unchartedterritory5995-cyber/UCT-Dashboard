@@ -128,7 +128,9 @@ class FakeEdge:
         self.seen_unverified: set = set()
         self.paths: list = []
 
-    def get_json(self, path, max_retries=2):
+    ms, retries = 120, 0
+
+    def get_json(self, path, max_retries=2, deadline=None):
         self.requests += 1
         self.paths.append(path)
         u = urlparse(path)
@@ -148,7 +150,8 @@ class FakeEdge:
             if sym in self.stale:
                 days = days[3:]
             bars = [{"t": x.isoformat(), "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 10} for x in reversed(days)]
-            return {"status": 200, "ms": 80, "headers": hdr, "body": {"bars": bars}, "retries": 0, "error": None}
+            return {"status": 200, "ms": 80, "headers": hdr, "body": {"bars": bars}, "retries": 0, "error": None,
+                    "clean": True}
         fr = C.frontier(self.now, tf, sess, 0)
         sday = fr.session_day
         ts = []
@@ -166,7 +169,8 @@ class FakeEdge:
             self.seen_unverified.add(key)
             body["tail_status"] = "unverified"
             hdr["retry-after"] = "3"
-        return {"status": 200, "ms": 120, "headers": hdr, "body": body, "retries": 0, "error": None}
+        return {"status": 200, "ms": self.ms, "headers": hdr, "body": body, "retries": self.retries,
+                "error": None, "clean": self.retries == 0}
 
 
 def cfg(**kw):

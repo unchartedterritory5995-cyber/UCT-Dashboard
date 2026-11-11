@@ -81,6 +81,8 @@ class Config:
     label_window_s: int = 1800
     stream: bool = True
     stream_seconds: float = 120
+    cycle_deadline_s: float = 240
+    max_transport_fails: int = 5
     stream_settle_s: float = 60
     rps: float = 3.0
     heartbeat_url: str = ""
@@ -100,6 +102,8 @@ class Config:
             latency_p90_ms=_env_num("CHART_MONITOR_LATENCY_P90_MS", 3000),
             label_budget=_env_num("CHART_MONITOR_LABEL_BUDGET", 0.15),
             stream=os.environ.get("CHART_MONITOR_STREAM_ENABLED", "1") != "0",
+            cycle_deadline_s=max(60.0, _env_num("CHART_MONITOR_CYCLE_DEADLINE_S", 240)),
+            max_transport_fails=max(1, int(_env_num("CHART_MONITOR_MAX_TRANSPORT_FAILS", 5))),
             heartbeat_url=(os.environ.get("CHART_MONITOR_HEARTBEAT_URL")
                            or f"{base}/api/internal/chart-monitor/heartbeat"),
         )
@@ -112,12 +116,15 @@ def enabled() -> bool:
 # ───────────────────────────────────────────────────────────── one (ticker, series)
 
 def check_series(http: Http, sym: str, label: str, tf: str, session: Optional[str], now: int,
-                 thin: bool, grace: int, sleep: Callable[[float], None] = time.sleep) -> dict:
+                 thin: bool, grace: int, sleep: Callable[[float], None] = time.sleep,
+                 deadline: Optional[float] = None) -> dict:
     """Probe one (sym, series) and run every per-response check. Returns
-    {sym, label, ms, desc, edge, checks{name: Verdict}} — no prices."""
+    {sym, label, ms, clean, transport_error, desc, edge, checks{name: Verdict}} — no prices.
+    ``deadline`` (monotonic) bounds the retries of this probe."""
     q = f"/api/bars/{sym}?tf={tf}&bars={BARS_N[tf]}" + (f"&session={session}" if session else "")
-    r = http.get_json(q)
+    r = http.get_json(q, deadline=deadline)
     res = {"sym": sym, "label": label, "thin": thin, "ms": r["ms"], "status": r["status"],
+           "clean": bool(r.get("clean")), "transport_error": r["status"] is None,
            "desc": C.server_timing_desc(r["headers"].get("server-timing")),
            "edge": r["headers"].get("x-bars-edge"), "checks": {}}
     ck = res["checks"]
@@ -135,7 +142,7 @@ def check_series(http: Http, sym: str, label: str, tf: str, session: Optional[st
         except (TypeError, ValueError):
             ra = 3.0
         sleep(min(max(ra, 0.5), 10.0))
-        r2 = http.get_json(q)
+        r2 = http.get_json(q, deadline=deadline)
         b2 = r2["body"] if isinstance(r2["body"], dict) else None
         retry = b2.get("tail_status") if b2 else None
         if b2 is not None and r2["status"] == 200:
@@ -186,6 +193,7 @@ class Cycle:
     pairs: int = 0
     requests: int = 0
     duration_s: float = 0.0
+    aborted: Optional[str] = None
 
 
 def fold_pair_results(results: list[dict]) -> dict:
@@ -272,17 +280,38 @@ def run_cycle(http: Http, cfg: Config, labels: C.LabelWindow, now_fn: Callable[[
         th = threading.Thread(target=_stream, daemon=True, name="chart-monitor-stream")
         th.start()
 
+    # ⛔ A CYCLE HAS A DEADLINE. Sequential probes with 20 s timeouts and retries would let a
+    # hanging edge stretch one cycle to hours: the real outage would alert hours late and the
+    # dead-man would page a misleading "monitor not running". So: stop at `cycle_deadline_s`, or
+    # after `max_transport_fails` CONSECUTIVE transport failures, and mark every pair not probed
+    # as an http FAIL (an unreachable/hung edge then opens `http|*` within two cycles).
     results, lat = [], {lab: [] for lab, _, _ in SERIES}
+    mono_deadline = time.monotonic() + cfg.cycle_deadline_s
+    consecutive_transport, abort = 0, None
     for sym in tuple(cfg.liquid) + tuple(cfg.thin):
         thin = sym in cfg.thin
         for lab, tf, sess in SERIES:
+            if abort is None:
+                if now_fn() - t0 >= cfg.cycle_deadline_s or time.monotonic() >= mono_deadline:
+                    abort = f"not probed: cycle deadline {int(cfg.cycle_deadline_s)}s reached"
+                elif consecutive_transport >= cfg.max_transport_fails:
+                    abort = f"not probed: {consecutive_transport} consecutive transport failures"
+            if abort is not None:
+                results.append({"sym": sym, "label": lab, "thin": thin, "ms": None, "status": None,
+                                "clean": False, "transport_error": True, "desc": None, "edge": None,
+                                "checks": {"http": C.Verdict(C.FAIL, abort)}})
+                continue
             n = int(now_fn())
-            r = check_series(http, sym, lab, tf, sess, n, thin, cfg.grace_s, sleep=sleep)
+            r = check_series(http, sym, lab, tf, sess, n, thin, cfg.grace_s, sleep=sleep,
+                             deadline=mono_deadline)
             results.append(r)
-            if r["status"] == 200 and r["ms"] is not None:
+            consecutive_transport = consecutive_transport + 1 if r.get("transport_error") else 0
+            # ⛔ latency only from clean answers: a timeout-then-retry is not a member latency
+            if r.get("clean") and r["ms"] is not None:
                 lat[lab].append(r["ms"])
             if r["status"] == 200 and tf != "D":
                 labels.add(n, r["desc"])
+    cyc.aborted = abort
     cyc.pairs = len(results)
     cyc.observations.update(fold_pair_results(results))
 
@@ -295,7 +324,8 @@ def run_cycle(http: Http, cfg: Config, labels: C.LabelWindow, now_fn: Callable[[
     cyc.verdicts["serve_labels|intraday"] = C.check_label_budget(labels.counts(now_fn()), cfg.label_budget)
 
     if th is not None:
-        th.join(timeout=cfg.stream_seconds + cfg.stream_settle_s + 60)
+        th.join(timeout=max(1.0, min(cfg.stream_seconds + cfg.stream_settle_s + 60,
+                                     mono_deadline - time.monotonic() + 30)))
         cyc.verdicts.update(stream_verdicts(stream_out))
 
     for k, v in cyc.verdicts.items():
@@ -387,13 +417,36 @@ def interval_for(phase: str, cfg: Config) -> float:
     return cfg.interval_s if phase != "closed" else cfg.offhours_interval_s
 
 
+def next_phase_boundary(now: float) -> int:
+    """The next instant the session phase changes (04:00 / open / close / 20:00 ET on the next
+    trading days, half-days included)."""
+    from datetime import timedelta as _td
+    d = C.et_dt(int(now)).date()
+    for _ in range(10):
+        if C.is_trading_day(d):
+            for m in C.session_minutes(d):
+                t = C.et_epoch(d, m)
+                if t > now:
+                    return t
+        d = d + _td(days=1)
+    return int(now + 86400)
+
+
+def sleep_for(phase: str, cfg: Config, started: float, now: float) -> float:
+    """Seconds to sleep after a cycle that started at ``started``: the phase's interval, but never
+    past the next phase boundary (+5 s), so the hourly off-hours cadence cannot skip 04:00."""
+    nominal = interval_for(phase, cfg) - (now - started)
+    to_boundary = next_phase_boundary(now) + 5 - now
+    return max(30.0, min(nominal, to_boundary)) if to_boundary > 0 else max(30.0, nominal)
+
+
 def tick(cfg: Config, labels: C.LabelWindow, http: Optional[Http] = None, *,
          post=alerting.post, heartbeat=push_heartbeat, state_path: Optional[str] = None,
          now_fn: Callable[[], float] = time.time, stream_fn=sample_stream,
          sleep: Callable[[float], None] = time.sleep) -> Cycle:
     """One full monitor iteration: cycle → hysteresis → alerts → summary → heartbeat."""
     path = state_path or alerting.state_path()
-    http = http or Http(cfg.base, rps=cfg.rps)
+    http = http or Http(cfg.base, rps=cfg.rps)   # auth=False: REST probes the member path
     cyc = run_cycle(http, cfg, labels, now_fn=now_fn, stream_fn=stream_fn, sleep=sleep)
     state = alerting.load_state(path)
     keys, events = alerting.step(state.get("keys") or {}, cyc.observations, cyc.at,
@@ -438,8 +491,7 @@ def _loop(cfg: Config) -> None:
             _log.warning("[chart-monitor] cycle failed: %s", type(e).__name__, exc_info=True)
             with _status_lock:
                 _status["last_error"] = type(e).__name__
-        elapsed = time.time() - t0
-        time.sleep(max(30.0, interval_for(phase, cfg) - elapsed))
+        time.sleep(sleep_for(phase, cfg, t0, time.time()))
 
 
 THREAD_NAME = "chart-data-monitor"
