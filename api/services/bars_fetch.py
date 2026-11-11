@@ -1545,8 +1545,8 @@ def _fmt_sqlite_bars(rows: list[tuple], tf: str, ticker: str | None = None) -> l
     if not date_tf and out:
         # ⛔ Grid guard (2026-11-10): an intraday row is keyed on its bucket START. A
         # stored off-grid row (the yfinance live row stamped at a trade time, e.g. SPY
-        # 5m 16:35:50 beside 16:35:00) drew as an extra candle. Fold it into its
-        # bucket (or snap it when the bucket has no row) and queue a repair of the
+        # 5m 16:35:50 beside 16:35:00) drew as an extra candle. Drop it beside its
+        # bucket row (or snap it when the bucket has no row) and queue a repair of the
         # stored pair — `intraday_grid` module doc. No-op (no copy) on a clean series.
         try:
             from api.services import intraday_grid as _grid

@@ -20,10 +20,11 @@ This module is the ONE definition of "aligned" and the ONE fold, used at every d
   * the stored-row repair (`repair_pair` / `sweep_async`).
 
 The fold rule (same everywhere):
-  * a misaligned row whose bucket ALSO has an aligned row (in the same batch / read)
-    is folded into it — open from the earliest, high/low extremes, close from the
-    latest, volume summed: the fold yfinance itself applies to a live row and the one
-    `bars_fetch._aggregate_buckets` uses. (Same-source rows only — one batch, one read.)
+  * a misaligned row whose bucket ALSO has an aligned row is DROPPED at the write,
+    serve and repair doors — the aligned row is the authoritative full-bucket
+    aggregate and already contains those trades. Only at the FETCH door, inside one
+    provider payload, is it merged in (open earliest, H/L extremes, close latest,
+    volume summed — yfinance's own live-row fold).
   * a misaligned row with NO aligned twin is SNAPPED to its bucket start (several
     such rows in one bucket fold together). At the write door a snapped row is
     written INSERT OR IGNORE: it may fill an empty bucket but never replaces a stored
@@ -158,12 +159,20 @@ def _fold_into(acc: dict, b: dict, b_is_later: bool) -> None:
     acc["v"] = int(acc.get("v") or 0) + int(b.get("v") or 0)
 
 
-def fold(tf, bars: list[dict], window_start: Optional[int] = None,
+def fold(tf, bars: list[dict], window_start: Optional[int] = None, twin: str = "drop",
          ) -> tuple[list[dict], list[dict], int]:
     """Apply the fold rule to `bars` (dicts with int `t`).
 
+    ``twin`` decides a misaligned row whose bucket HAS an aligned row:
+      * ``"drop"`` (default — write, serve, repair): the aligned row wins untouched. A
+        stored twin is a full-bucket aggregate (Massive) that already contains the
+        stray's trades; merging would double-count volume, take a possibly-older close
+        and widen H/L with another vendor's prints (integrator review, PR #1062).
+      * ``"merge"`` (fetch door only, ONE provider payload): fold it in — yfinance's own
+        live-row fix (open earlier, H/L extremes, close later, volume summed).
+
     Returns ``(aligned_out, snapped, n_misaligned)``:
-      * ``aligned_out`` — every aligned row (misaligned twins folded in), ascending;
+      * ``aligned_out`` — every aligned row (twins dropped or merged per ``twin``), ascending;
       * ``snapped`` — buckets that had ONLY misaligned rows, re-keyed to the bucket
         start (dropped when ``window_start`` is given and the bucket starts before it);
       * ``n_misaligned`` — how many input rows were off the grid (0 ⇒ input untouched).
@@ -196,10 +205,11 @@ def fold(tf, bars: list[dict], window_start: Optional[int] = None,
     for i in sorted(bad_idx, key=lambda j: bars[j]["t"]):
         b = bars[i]
         start = bucket_start(tf, b["t"])
-        twin = good.get(start)
-        if twin is not None:
-            # A misaligned row is always LATER than its bucket start.
-            _fold_into(twin, b, b_is_later=True)
+        tw = good.get(start)
+        if tw is not None:
+            if twin == "merge":
+                # A misaligned row is always LATER than its bucket start.
+                _fold_into(tw, b, b_is_later=True)
         elif start in lone:
             _fold_into(lone[start], b, b_is_later=True)
         else:
@@ -215,7 +225,7 @@ def fold(tf, bars: list[dict], window_start: Optional[int] = None,
 def normalize(tf, bars: list[dict]) -> list[dict]:
     """A provider payload on the grid: misaligned rows folded/snapped, ascending.
     Used at the fetch door (the yfinance live row)."""
-    out, snapped, n = fold(tf, bars)
+    out, snapped, n = fold(tf, bars, twin="merge")
     if not n:
         return bars
     return sorted(out + snapped, key=_sort_key)
@@ -230,7 +240,7 @@ def fold_for_serve(tf, bars: list[dict], ticker: Optional[str] = None) -> list[d
         return bars
     if snapped:
         out = sorted(out + snapped, key=_sort_key)
-    _bump(serve_folded=n - _count_lone_rows(bars, tf, snapped), serve_snapped=len(snapped))
+    _bump(serve_dropped=n - _count_lone_rows(bars, tf, snapped), serve_snapped=len(snapped))
     if ticker:
         lo = min(int(b["t"]) for b in bars
                  if isinstance(b.get("t"), int) and not is_aligned(tf, b["t"]))
@@ -266,7 +276,7 @@ def fold_for_write(ticker: str, tf, bars: list[dict]) -> tuple[list[dict], list[
         return bars, []
     _bump(write_folded=n - _count_lone_rows(bars, tf, snapped), write_snapped=len(snapped))
     _log.warning("[bars-grid] %s tf=%s: %d off-grid row(s) at the write door "
-                 "(%d folded into their bucket, %d snapped add-only)",
+                 "(%d dropped beside their bucket row, %d snapped add-only)",
                  ticker, tf, n, n - _count_lone_rows(bars, tf, snapped), len(snapped))
     return out, snapped
 
@@ -404,12 +414,15 @@ def sweep(tickers: Optional[Iterable[str]] = None, days: Optional[float] = None)
     to repair, one short transaction each. Idempotent."""
     from api.services import bars_sqlite
     reach = int((SWEEP_DAYS if days is None else days) * 86400)
-    c = bars_sqlite._conn()
     t0 = time.monotonic()
     n_t = deleted = snapped = 0
-    src = tickers if tickers is not None else bars_sqlite.iter_tickers(c)
+    src = tickers if tickers is not None else _iter_tickers_fresh()
     for tkr in src:
         n_t += 1
+        # ⛔ A FRESH connection per ticker: a snapshot install bumps the db epoch and
+        # closes this thread's cached one; a handle held across the walk then fails
+        # every later pair (review #1062, LOW 3).
+        c = bars_sqlite._conn()
         for tf in STEP_S:
             try:
                 mx = c.execute("SELECT MAX(ts) FROM ohlcv WHERE ticker=? AND tf=?",
@@ -430,6 +443,25 @@ def sweep(tickers: Optional[Iterable[str]] = None, days: Optional[float] = None)
     _log.info("[bars-grid] sweep: %d ticker(s), %d off-grid row(s) removed, %d bucket(s) "
               "filled, %.0fs", n_t, deleted, snapped, took)
     return {"tickers": n_t, "deleted": deleted, "snapped": snapped}
+
+
+def _iter_tickers_fresh():
+    """`bars_sqlite.iter_tickers`, but each PK seek on a freshly fetched connection
+    (survives a db replacement mid-walk; resumes after the last ticker seen)."""
+    from api.services import bars_sqlite
+    current = ""
+    while True:
+        try:
+            row = bars_sqlite._conn().execute(
+                "SELECT ticker FROM ohlcv WHERE ticker>? ORDER BY ticker LIMIT 1",
+                (current,)).fetchone()
+        except Exception as e:  # noqa: BLE001
+            _log.warning("[bars-grid] sweep ticker walk stopped at %r: %s", current, e)
+            return
+        if row is None:
+            return
+        current = row[0]
+        yield current
 
 
 _sweep_lock = threading.Lock()

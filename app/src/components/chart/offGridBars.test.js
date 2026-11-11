@@ -8,10 +8,11 @@ const B = Date.UTC(2026, 10, 6, 21, 35) / 1000
 const bar = (t, o = 10, h = 11, l = 9, c = 10, v = 100) => ({ t, o, h, l, c, v })
 
 describe('foldOffGridBars', () => {
-  it('folds a trade-time stamped row into its bucket (no extra candle)', () => {
-    const out = foldOffGridBars([bar(B - 300), bar(B), bar(B + 50, 10, 12, 8, 11, 7), bar(B + 300)], '5')
+  it('drops a trade-time stamped row beside its bucket row — the bucket row wins untouched', () => {
+    const twin = bar(B)
+    const out = foldOffGridBars([bar(B - 300), twin, bar(B + 50, 10, 12, 8, 11, 7), bar(B + 300)], '5')
     expect(out.map(b => b.t)).toEqual([B - 300, B, B + 300])
-    expect(out[1]).toEqual({ t: B, o: 10, h: 12, l: 8, c: 11, v: 107 })
+    expect(out[1]).toBe(twin)   // no double-counted volume, no foreign close / wick
   })
 
   it('re-keys a lone off-grid row to its bucket start', () => {
@@ -24,6 +25,17 @@ describe('foldOffGridBars', () => {
     expect(foldOffGridBars([bar(B - 1200), bar(B - 1200 + 31)], '15').map(b => b.t)).toEqual([B - 1200])
     const H = Date.UTC(2026, 10, 5, 22, 0) / 1000   // 17:00 ET
     expect(foldOffGridBars([bar(H), bar(H + 41)], '60').map(b => b.t)).toEqual([H])
+  })
+
+  it('60m: a minute-aligned stray is caught too (session + clock grid aware)', () => {
+    const et = (h, m) => Date.UTC(2026, 10, 5, h + 5, m) / 1000   // EST
+    // 10:47 is no bucket start; its 10:30 session bucket exists → dropped.
+    expect(foldOffGridBars([bar(et(10, 30)), bar(et(10, 47))], '60').map(b => b.t)).toEqual([et(10, 30)])
+    // 17:30 is not a start on either grid (post-market is clock hours) → 17:00.
+    expect(foldOffGridBars([bar(et(16, 0)), bar(et(17, 30))], '60').map(b => b.t)).toEqual([et(16, 0), et(17, 0)])
+    // Valid starts on both grids are untouched.
+    const ok = [bar(et(9, 0)), bar(et(9, 30)), bar(et(10, 30)), bar(et(15, 30)), bar(et(16, 0))]
+    expect(foldOffGridBars(ok, '60')).toBe(ok)
   })
 
   it('returns the same array for a clean series and ignores daily', () => {

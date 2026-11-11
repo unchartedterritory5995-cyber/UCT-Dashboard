@@ -1460,9 +1460,9 @@ def _writable_bars(ticker: str, tf: str, bars: list[dict]) -> tuple[list[dict], 
 #: 🔴 THE GRID INVARIANT, AT THE SAME DOOR (2026-11-10). An intraday row is keyed on
 #: its BUCKET START. Prod held post-market rows stamped at a trade time (SPY 5m
 #: 16:35:50 beside 16:35:00), each drawn as an extra candle — the yfinance fallback's
-#: separate live row, written add-only beside the Massive grid row. Every misaligned
-#: row is folded into its bucket's row in the same batch, or — when the batch has none
-#: — snapped to the bucket start and written INSERT OR IGNORE (fills an empty bucket,
+#: separate live row, written add-only beside the Massive grid row. A misaligned row
+#: whose bucket has a row in the batch is dropped (that row wins); otherwise it is
+#: snapped to the bucket start and written INSERT OR IGNORE (fills an empty bucket,
 #: never replaces a stored one). Rule + rationale: `intraday_grid` module doc.
 def _grid_rows(ticker: str, tf: str, bars: list[dict], date_tf: bool) -> tuple[list[dict], list[dict]]:
     if date_tf or not bars:

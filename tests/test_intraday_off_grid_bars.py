@@ -64,15 +64,20 @@ def test_alignment_rules_per_timeframe():
     assert intraday_grid.is_aligned("2", b + 50)
 
 
-def test_fold_merges_into_a_twin_and_snaps_a_lone_row():
+def test_fold_drops_beside_a_twin_and_snaps_a_lone_row():
     b = _et(2026, 11, 6, 16, 35)
     bars = [_bar(b - 300), _bar(b, o=10, h=11, l=9, c=10, v=100),
-            _bar(b + 50, o=10.5, h=12, l=8, c=11, v=7),            # twin exists → folded
+            _bar(b + 50, o=10.5, h=12, l=8, c=11, v=7),            # twin exists → dropped
             _bar(b + 300 + 41, o=10, h=10, l=10, c=10, v=3)]        # no twin → snapped
     out, snapped, n = intraday_grid.fold("5", bars)
     assert n == 2
     assert [x["t"] for x in out] == [b - 300, b]
-    assert out[1] == {"t": b, "o": 10, "h": 12, "l": 8, "c": 11, "v": 107}
+    # The twin (a full-bucket aggregate) is untouched: no double-counted volume,
+    # no other vendor's close or wick (review #1062 MED 1).
+    assert out[1] == {"t": b, "o": 10, "h": 11, "l": 9, "c": 10, "v": 100}
+    # Only the fetch door, inside ONE provider payload, merges (yfinance's own fold).
+    merged, _s, _n = intraday_grid.fold("5", bars, twin="merge")
+    assert merged[1] == {"t": b, "o": 10, "h": 12, "l": 8, "c": 11, "v": 107}
     assert snapped == [{"t": b + 300, "o": 10, "h": 10, "l": 10, "c": 10, "v": 3}]
     clean = [_bar(b), _bar(b + 300)]
     assert intraday_grid.fold("5", clean)[0] is clean          # fast path: no copy
@@ -127,11 +132,11 @@ def test_put_bars_snaps_a_lone_off_grid_row_into_its_empty_bucket(store):
     assert [r[0] for r in _stored("NVDA", "5")] == [b - 300, b]
 
 
-def test_put_bars_many_folds_too(store):
+def test_put_bars_many_drops_a_stray_beside_its_bucket_row(store):
     b = _et(2026, 11, 6, 16, 35)
     bars_sqlite.put_bars_many("5", {"IWM": [_bar(b, v=100), _bar(b + 51, c=10.5, v=1)]})
     rows = _stored("IWM", "5")
-    assert [r[0] for r in rows] == [b] and rows[0][4] == 10.5 and rows[0][5] == 101
+    assert [r[0] for r in rows] == [b] and rows[0][4] == 10.0 and rows[0][5] == 100
 
 
 def test_daily_writes_are_untouched(store):
@@ -151,7 +156,8 @@ def test_fmt_sqlite_bars_never_emits_a_misaligned_row(monkeypatch):
     rows = _raw([_bar(b - 300), _bar(b, v=100), _bar(b + 50, h=12, v=7), _bar(b + 300)])
     out = bars_fetch._fmt_sqlite_bars(rows, "5", "SPY")
     assert [x["t"] for x in out] == [b - 300, b, b + 300]
-    assert out[1]["h"] == 12 and out[1]["v"] == 107
+    # Serve agrees with repair: the stored twin is served as stored (it is final).
+    assert out[1]["h"] == 11.0 and out[1]["v"] == 100
 
 
 def test_since_read_never_resends_an_older_bucket(monkeypatch):
@@ -223,3 +229,24 @@ def test_a_read_that_meets_an_off_grid_row_queues_its_repair(store, monkeypatch)
     while time.monotonic() < deadline and len(_stored("AMD", "15")) != 1:
         time.sleep(0.05)
     assert [r[0] for r in _stored("AMD", "15")] == [b]
+
+
+def test_sweep_survives_a_db_replacement_mid_walk(store, monkeypatch):
+    """A snapshot install bumps the db epoch (closing the thread's cached connection)
+    while the sweep walks the universe; it must keep going, not fail every later pair."""
+    b = _et(2026, 11, 6, 16, 35)
+    c = bars_sqlite._conn()
+    c.executemany("INSERT INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)", [
+        ("AAA", "5", b, 10, 11, 9, 10, 100), ("AAA", "5", b + 50, 10, 11, 9, 10, 7),
+        ("ZZZ", "5", b, 10, 11, 9, 10, 100), ("ZZZ", "5", b + 50, 10, 11, 9, 10, 7)])
+    c.commit()
+    real = intraday_grid.repair_pair
+
+    def bump_after(tkr, tf, lo=0):
+        res = real(tkr, tf, lo)
+        bars_sqlite.bump_db_epoch()          # what a mid-walk install does
+        return res
+    monkeypatch.setattr(intraday_grid, "repair_pair", bump_after)
+    res = intraday_grid.sweep()
+    assert res["tickers"] == 2 and res["deleted"] == 2
+    assert [r[0] for r in _stored("ZZZ", "5")] == [b]

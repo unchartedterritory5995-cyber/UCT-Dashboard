@@ -3,21 +3,28 @@
 // ⛔ An intraday bar's `t` is its BUCKET START. Production served post-market rows
 // stamped at a trade time (SPY 5m 16:35:50 beside 16:35:00 — Yahoo's separate live
 // row, persisted by the yfinance fallback), and each drew as its own extra candle
-// between two real buckets. The server now folds them at every door; this keeps a
+// between two real buckets. The server now handles them at every door; this keeps a
 // chart clean against anything already cached in IDB / memory before that deploy.
 //
-// Rule (same as the server): an off-grid bar whose bucket also has an on-grid bar
-// is folded into it (open from the earlier, high/low extremes, close from the later,
-// volume summed); one with no twin is re-keyed to its bucket start. Bars must be
-// ascending (they always are on this path); a clean series is returned AS IS (same
-// array, no copy), so memo identities downstream are unchanged.
-import { bucketStartUnix, sixtyMinGridFor } from './barTime'
+// Rule (same as the server's serve door): an off-grid bar whose bucket also has an
+// on-grid bar is DROPPED — the on-grid bar is the full-bucket aggregate and already
+// contains those trades (merging would double-count volume and take another vendor's
+// close / wicks). One with no twin is re-keyed to its bucket start (several such fold
+// together). A clean series is returned AS IS (same array, no copy), so memo
+// identities downstream are unchanged.
+import { bucketStartUnix, sixtyMinGridFor, etMinuteOfDay, rthCloseMinuteOf } from './barTime'
 
 const STEP = { '1': 60, '5': 300, '15': 900, '30': 1800, '60': 3600 }
+const RTH_OPEN_MIN = 570
 
+// 60m mirrors the server: a start on the session grid (09:30, 10:30 … inside RTH)
+// or on the ET clock-hour grid. ET offsets are whole hours, so a UTC :00 is an ET :00.
 function offGrid(t, tf) {
-  if (tf === '60') return t % 60 !== 0   // grid policy is the session code's; seconds never are
-  return t % STEP[tf] !== 0
+  if (tf !== '60') return t % STEP[tf] !== 0
+  if (t % 1800 !== 0) return true
+  if (t % 3600 === 0) return false
+  const m = etMinuteOfDay(t)
+  return !(m >= RTH_OPEN_MIN && m < rthCloseMinuteOf(t))
 }
 
 export function foldOffGridBars(bars, tf, { showExtended = true } = {}) {
@@ -30,33 +37,29 @@ export function foldOffGridBars(bars, tf, { showExtended = true } = {}) {
   }
   if (!any) return bars
   const grid = key === '60' ? sixtyMinGridFor(showExtended ? 'extended' : 'rth') : undefined
+  const onGrid = new Set()
+  for (const b of bars) if (typeof b?.t === 'number' && !offGrid(b.t, key)) onGrid.add(b.t)
   const out = []
-  const at = new Map()   // bucket start → index in out
+  const lone = new Map()   // bucket start → index in out (snapped strays only)
   for (const b of bars) {
     const t = b?.t
-    if (typeof t !== 'number') { out.push(b); continue }
-    if (!offGrid(t, key)) {
-      const j = at.get(t)
-      if (j === undefined) { at.set(t, out.length); out.push(b) }
-      else out[j] = { ...b, ...foldPair(b, out[j]) }   // on-grid arrived after a snapped twin
-      continue
-    }
+    if (typeof t !== 'number' || !offGrid(t, key)) { out.push(b); continue }
     const start = bucketStartUnix(t, Number(key), { grid })
-    const j = at.get(start)
-    if (j === undefined) { at.set(start, out.length); out.push({ ...b, t: start }) }
-    else out[j] = { ...out[j], ...foldPair(out[j], b) }
+    if (onGrid.has(start)) continue                 // its bucket row wins untouched
+    const j = lone.get(start)
+    if (j === undefined) { lone.set(start, out.length); out.push({ ...b, t: start }) }
+    else out[j] = foldPair(out[j], b)
   }
   out.sort((a, b) => ((typeof a?.t === 'number' ? a.t : 0) - (typeof b?.t === 'number' ? b.t : 0)))
   return out
 }
 
-// `early` then `late` → the merged OHLCV (keeps early's t).
+// Two strays of ONE empty bucket, `early` then `late` → merged OHLCV (keeps early's t).
 function foldPair(early, late) {
   const hs = [early.h, late.h].filter(x => typeof x === 'number')
   const ls = [early.l, late.l].filter(x => typeof x === 'number')
   return {
-    t: early.t,
-    o: early.o,
+    ...early,
     h: hs.length ? Math.max(...hs) : early.h,
     l: ls.length ? Math.min(...ls) : early.l,
     c: late.c,
