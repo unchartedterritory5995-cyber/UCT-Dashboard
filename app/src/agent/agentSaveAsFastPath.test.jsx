@@ -50,7 +50,9 @@ const type = (text) => {
   fireEvent.keyDown(box, { key: 'Enter' })
 }
 
-const DEFAULT_ASKS = ['save it as the default on the tsla chart', 'save as default on TSLA']
+const DEFAULT_ASKS = ['save it as the default on the tsla chart', 'save as default on TSLA',
+  // the chart-target half of the guard on its own (a non-default name + a chart / symbol target)
+  'save it as Swing on the TSLA chart', 'save as Breakouts for $NVDA']
 
 for (const [label, [widgets, syms]] of Object.entries(BOARDS)) {
   for (const withLayouts of [true, false]) {

@@ -453,7 +453,7 @@ export function registerLayoutCapabilities() {
   // symbol target ("… on the tsla chart", "… on TSLA", "… for $NVDA"). Case-sensitive on purpose: a
   // bare ticker counts only as typed in capitals (or $-prefixed), as tickersIn reads tickers.
   const SAVE_AS_DEFAULT_NAME = /^(?:the |my |a )?default\b/i
-  const SAVE_AS_CHART_TARGET = /\s(?:on|for|in|to)\s+(?:the\s+|this\s+|that\s+|my\s+)?(?:\$[A-Za-z][\w.]{0,9}|[A-Z][A-Z0-9.]{0,9}|[\w$.-]+\s+[Cc]hart)\s*$/
+  const SAVE_AS_CHART_TARGET = /\s(?:on|for|in|to)\s+(?:the\s+|this\s+|that\s+|my\s+)?(?:\$[A-Za-z][\w.]{0,9}|[A-Z][A-Z0-9.]{0,9}|[\w$.-]+\s+[Cc]hart)[.!?]?\s*$/
 
   // ── layout.saveAs ──
   registerCapability({
@@ -471,7 +471,7 @@ export function registerLayoutCapabilities() {
       properties: { name: { type: 'string' } },
       required: ['name'], additionalProperties: false,
     },
-    fast: ({ raw, host }) => {
+    fast: ({ raw, host, typed }) => {
       const m = /^(?:please )?save (?:this|this setup|this layout|this workspace|this board|the current (?:setup|layout|workspace|board)|it|the board|my setup)? ?as (?:a )?(?:new )?(?:layout )?(?:called |named )?(.+?)[.!]?$/i.exec(String(raw).trim())
       if (!m) return null
       // ⛔ S6 F2: "save it as X" / "save this as X" / "save as X" name no layout. While an indicator
@@ -483,8 +483,11 @@ export function registerLayoutCapabilities() {
       // ⛔ "save it as the default on the tsla chart" / "save as default on TSLA": a chart's DEFAULT
       // (a drawing / style default for that chart), not a layout called "the default". Without explicit
       // layout/workspace/board/setup wording the fast path never claims a default-shaped name, nor a
-      // sentence that names a chart / symbol target — the model reads it.
-      if (!saysLayout && (SAVE_AS_DEFAULT_NAME.test(name) || SAVE_AS_CHART_TARGET.test(name))) return null
+      // sentence that names a chart / symbol target — the model reads it. The target is read from the
+      // sentence as TYPED too: fastPath lifts a live chart's qualifier ("on the TSLA chart") off the clause
+      // before this matcher runs, so `raw` alone would read "save it as Swing".
+      const chartTarget = SAVE_AS_CHART_TARGET.test(name) || SAVE_AS_CHART_TARGET.test(String(typed || '').trim())
+      if (!saysLayout && (SAVE_AS_DEFAULT_NAME.test(name) || chartTarget)) return null
       return name ? { name } : null
     },
     check(st, { name }) {

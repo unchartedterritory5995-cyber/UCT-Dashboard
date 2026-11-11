@@ -103,3 +103,27 @@ The new rail now has 20 tests. These run on both boards that have a layouts sour
   "the workspace / the layout" fast is a separate, small widening, if AUDIT wants it.
 - Mutant re-run (guard off): 9 failed | 11 passed (20), the same 9 regression cases as before. All 8 controls and both
   pins stay green. File + noRegexLookbehind: 26/26.
+
+## Chart-target half: own coverage, plus a real gap the new rows found
+
+AUDIT's mutant kept only the default-name half of the guard, and only ONE case killed it. So I added two regression rows:
+"save it as Swing on the TSLA chart" and "save as Breakouts for $NVDA". They run on the same 4 boards (1-chart TSLA and
+2-chart TSLA+NVDA, each with and without a layouts source). They assert no `layout.saveAs` in fastParse, no proposal,
+no "nothing on this workspace", and exactly 1 model turn.
+
+**A gap found and fixed.** On the previous head, "save it as Swing on the TSLA chart" was still claimed (4 of 4 boards
+red). The reason: fastPath's `extractTarget` lifts a LIVE chart's qualifier ("on the TSLA chart") off the clause before
+any `fast` matcher runs. So the saveAs matcher saw only "save it as Swing", and the chart-target regex never had a
+chance. (The earlier "the default on the tsla chart" rows passed only because the default-name half caught the
+remaining "the default".) The fix: the chart-target regex is also tested against `typed`, which fastPath passes to every
+matcher as the whole sentence the member typed. It now allows trailing `.`/`!`/`?`, and it still has no lookbehind.
+"save as Breakouts for $NVDA" is never lifted (a `$`-ticker is not a chart qualifier), so the name check caught it
+already.
+
+**AUDIT's mutant, re-run** (chart-target half commented out, default-name half kept): 9 failed | 19 passed (28). All 8
+new rows fail (both sentences x 4 boards), plus the matcher-table null case. Every default-name row and all controls
+stay green. Restored: agentSaveAsFastPath + noRegexLookbehind 34/34.
+- Re-verified after the `typed` change, 25 files: the layout rails and outcome tests, the 4 count pins,
+  agentNl1SelectionCoverage, agentExecReach, routeReachability, agentNoLookbehindEquivalence (no re-record),
+  noRegexLookbehind, nlm1Routing, capreg routing/routingV2/golden, agentContracts, agentFlagshipOperator and
+  agentStabilization. All 25 passed: 1794 passed | 17 todo, EXIT 0.
