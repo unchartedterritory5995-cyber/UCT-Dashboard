@@ -292,6 +292,9 @@ export const GROUPS = [
       /\bput (?:it|that|them|everything|things) back (?:the way|how|as) (?:it|they) (?:was|were)\b/,
       // W2 (CG-9): "put my layout back", "put the charts back"
       /\bput (?:my|the) (?:layout|board|charts?|workspace|widgets) back\b/,
+      // #1076: an undo is MATCHED by its own words whatever the pack size (v1's fallback fill can reach the budget and
+      // cut the 1-action undo group): "scratch that", "never mind", "go back to how it was (before)", "put it back"
+      /\bscratch (?:that|it|this)\b|\bnever ?mind\b|\bgo back to (?:how|the way|what) (?:it|they|things|everything) (?:was|were)\b|\bput (?:it|that|them) back\b/,
       /\btake (?:it|that|this|them|those|everything|all (?:of )?(?:that|it|this)) (?:all )?back\b|\btake back (?:that|what (?:you|u)|the last|my last|your last|those changes|that change|everything|whatever (?:you|u))\b/] },
   // ⭐ PHASE 2 Workstream B: EXPLAIN a term or feature, SHOW ME where a control is — both change nothing
   { id: 'guide', title: 'Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing', domains: ['guide'],
