@@ -3358,6 +3358,11 @@ export default function StockChart({
   // only as wide as its labels (hugging the right edge, no 76px floor; the
   // width ratchet still stops it oscillating), and small A/L/% chips.
   compactAxes = false,
+  // The price axis's minimum width in px at text size 11 (scaled with the text size like
+  // the default). null = the verified 76px floor. The /charts chart widget passes a tighter
+  // floor (owner 11-11: too much empty space right of the price labels); the width
+  // ratchet below still only ever widens the axis, so it cannot oscillate.
+  axisFloor = null,
   // Phone chart shell (wave 8): present the drawing tools as MobileDrawBar —
   // a labeled bottom strip sharing THIS chart's activeTool/undo/magnet state —
   // and hide the desktop ChartToolbar entirely (its dialogs still portal, its
@@ -12898,7 +12903,7 @@ export default function StockChart({
     try { _measuredAxis = chartRef.current?.priceScale('right')?.width() || 0 } catch { /* no chart yet */ }
     if (_measuredAxis > axisWidthRatchetRef.current) axisWidthRatchetRef.current = _measuredAxis
     const _axisMinWidth = Math.max(
-      compactAxes ? 0 : Math.ceil(76 * Math.max(1, (cs.textSize ?? 11) / 11)),
+      compactAxes ? 0 : Math.ceil((axisFloor ?? 76) * Math.max(1, (cs.textSize ?? 11) / 11)),
       axisWidthRatchetRef.current,
     )
     const chartOpts = {
