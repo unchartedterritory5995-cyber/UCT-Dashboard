@@ -542,4 +542,4 @@ Master moved from `70dd3a375c` to `7cd14dca6f`: #1080 (routing v2's tie rule, `r
 
 Together with run A, all 16 files of the capreg directory ran. **#1029's 8 rail files are byte-identical to master** (empty `git diff origin/master HEAD`), as are agentExcludedApproved, agentNoLookbehindEquivalence.test.js, noRegexLookbehind and routeReachability.test.js.
 
-**Server tests (real pytest, pl-grid venv, no lock):** the same 23 files as the post-#988 run (every reader of the golden, the parity fixture, the capreg lock / corpus and `section_b_requests.json`): **`980 passed, 1 warning`** (978 before; the 2 new ones come from master).
+**Server tests (real pytest, pl-grid venv, no lock):** the same 23 files as the post-#988 run (every reader of the golden, the parity fixture, the capreg lock / corpus and `section_b_requests.json`): **`980 passed, 1 warning`** (978 before). Master added no `tests/*.py` between `70dd3a375c` and `7cd14dca6f`; the +2 are most likely cases parametrized over the regenerated fixtures (e.g. the capreg lock now has 168 intents, from #1072). Not itemised.
