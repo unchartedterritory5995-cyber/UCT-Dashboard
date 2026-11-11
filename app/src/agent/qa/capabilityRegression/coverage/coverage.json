@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 176,
-  "withProductionKinds": 167,
+  "all": 178,
+  "withProductionKinds": 169,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 176,
-  "withAnyRegressionCase": 124,
+  "capabilities": 178,
+  "withAnyRegressionCase": 126,
   "perProtection": {
    "nl": {
-    "covered": 124,
-    "applicable": 176
+    "covered": 126,
+    "applicable": 178
    },
    "routing": {
-    "covered": 121,
-    "applicable": 176
+    "covered": 123,
+    "applicable": 178
    },
    "args": {
-    "covered": 124,
-    "applicable": 176
+    "covered": 126,
+    "applicable": 178
    },
    "execution": {
-    "covered": 124,
-    "applicable": 176
+    "covered": 126,
+    "applicable": 178
    },
    "receipt": {
-    "covered": 96,
-    "applicable": 176
+    "covered": 98,
+    "applicable": 178
    },
    "refusal": {
     "covered": 31,
-    "applicable": 176
+    "applicable": 178
    },
    "permission": {
-    "covered": 169,
-    "applicable": 176
+    "covered": 171,
+    "applicable": 178
    },
    "undo": {
-    "covered": 56,
-    "applicable": 111
+    "covered": 58,
+    "applicable": 113
    },
    "multiStep": {
-    "covered": 36,
-    "applicable": 176
+    "covered": 37,
+    "applicable": 178
    },
    "phrasings": {
-    "covered": 120,
-    "applicable": 176
+    "covered": 122,
+    "applicable": 178
    }
   }
  },
@@ -6356,6 +6356,120 @@
     "refusal": [],
     "permission": [],
     "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "periodSort.dock": {
+   "domain": "periodSort",
+   "group": "boardEdit",
+   "target": "periodSort",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": true,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "periodSort.dock: \"dock that period sort onto the board\"",
+     "periodSort.dock: \"dock the ranking as a widget\"",
+     "periodSort.dock: \"keep that period sort on my board\"",
+     "periodSort.dock: \"pin the custom period sort results to the board\""
+    ],
+    "routing": [
+     "periodSort.dock: \"dock that period sort onto the board\"",
+     "periodSort.dock: \"dock the ranking as a widget\"",
+     "periodSort.dock: \"keep that period sort on my board\"",
+     "periodSort.dock: \"pin the custom period sort results to the board\""
+    ],
+    "args": [
+     "corpus periodSort.dock"
+    ],
+    "execution": [
+     "periodSort.dock (c)"
+    ],
+    "receipt": [
+     "periodSort.dock (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "periodSort.dock: undo restores"
+    ],
+    "multiStep": [
+     "periodSort.dock: after an earlier turn"
+    ],
+    "phrasings": []
+   }
+  },
+  "periodSort.run": {
+   "domain": "periodSort",
+   "group": "boardEdit",
+   "target": "periodSort",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "periodSort.run: \"run a custom period sort of sectors from oct 1 to oct 30 with replay on and the start marked\"",
+     "periodSort.run: \"rank the sectors from Oct 1 to Oct 30 and replay the charts to the end date, mark the start with a line\"",
+     "periodSort.run: \"period sort by sector between 2026-10-01 and 2026-10-30, replay mode on, gold line at the start\"",
+     "periodSort.run: \"custom-period sort: sectors, Oct 1 to Oct 30, hide bars after the end and mark the start\""
+    ],
+    "routing": [
+     "periodSort.run: \"run a custom period sort of sectors from oct 1 to oct 30 with replay on and the start marked\"",
+     "periodSort.run: \"rank the sectors from Oct 1 to Oct 30 and replay the charts to the end date, mark the start with a line\"",
+     "periodSort.run: \"period sort by sector between 2026-10-01 and 2026-10-30, replay mode on, gold line at the start\"",
+     "periodSort.run: \"custom-period sort: sectors, Oct 1 to Oct 30, hide bars after the end and mark the start\""
+    ],
+    "args": [
+     "corpus periodSort.run"
+    ],
+    "execution": [
+     "periodSort.run (c)"
+    ],
+    "receipt": [
+     "periodSort.run (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "periodSort.run: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }

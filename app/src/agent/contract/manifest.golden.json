@@ -6770,6 +6770,129 @@
    "defaults": null,
    "defaultsWhen": null,
    "shape": null
+  },
+  {
+   "name": "periodSort.run",
+   "domain": "periodSort",
+   "target": "periodSort",
+   "summary": "Tools → Period Sort: rank US common stocks (or themes, sectors, industries) by their % change between a start and an end date, in a floating results panel — the popover's own Sort. Replay mode hides bars after the end date on every chart; Mark start draws the start date. A view: not saved; Undo closes it.",
+   "hints": "start / end = YYYY-MM-DD or the member's words (\"oct 1\"); end null = today. group = stocks | theme | sector | industry (\"rank sectors since …\" = sector). replay = true only when asked to hide bars after the end (\"as of the end date\"); false otherwise — exactly as the popover, Sort without Replay mode also turns an active replay off. markStart = off | line (gold line at the start) | candle (gold start candle). Never changes the charts' timeframe.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "start": {
+      "type": "string"
+     },
+     "end": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "group": {
+      "type": "string",
+      "enum": [
+       "stocks",
+       "theme",
+       "sector",
+       "industry"
+      ]
+     },
+     "replay": {
+      "type": "boolean"
+     },
+     "markStart": {
+      "type": "string",
+      "enum": [
+       "off",
+       "line",
+       "candle"
+      ]
+     }
+    },
+    "required": [
+     "start",
+     "end",
+     "group",
+     "replay",
+     "markStart"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": {
+    "start": [
+     "from",
+     "since",
+     "startDate",
+     "start_date"
+    ],
+    "end": [
+     "to",
+     "until",
+     "through",
+     "endDate",
+     "end_date"
+    ],
+    "group": [
+     "groupBy",
+     "by",
+     "sort"
+    ],
+    "markStart": [
+     "mark",
+     "marker",
+     "mark_start"
+    ]
+   },
+   "coerce": {
+    "group": {
+     "stock": "stocks",
+     "themes": "theme",
+     "sectors": "sector",
+     "industries": "industry",
+     "us common stocks": "stocks"
+    },
+    "markStart": {
+     "none": "off",
+     "false": "off",
+     "vertical line": "line",
+     "gold line": "line",
+     "start candle": "candle"
+    }
+   },
+   "defaults": {
+    "group": "stocks",
+    "replay": false,
+    "markStart": "off"
+   },
+   "defaultsWhen": null,
+   "shape": "{\"start\":\"2026-10-01\",\"end\":null,\"group\":\"stocks\",\"replay\":false,\"markStart\":\"off\"}"
+  },
+  {
+   "name": "periodSort.dock",
+   "domain": "periodSort",
+   "target": "periodSort",
+   "summary": "Dock the open Period Sort results panel onto the board as a Period Sort widget (the panel's own Dock button), so it is kept with the layout. Undo takes it off the board and brings the panel back.",
+   "hints": "Only when a Period Sort panel is open (the context says which range). \"Keep / pin / dock that ranking\" = this. Adding it as a tab of another widget is not offered.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   }
  ]
 }

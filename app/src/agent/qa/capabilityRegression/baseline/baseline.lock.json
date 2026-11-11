@@ -2857,6 +2857,56 @@
     }
    }
   },
+  "periodSort.run": {
+   "digest": "8aadd94b35628dbd",
+   "phrasings": {
+    "run a custom period sort of sectors from oct 1 to oct 30 with replay on and the start marked": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "rank the sectors from Oct 1 to Oct 30 and replay the charts to the end date, mark the start with a line": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "period sort by sector between 2026-10-01 and 2026-10-30, replay mode on, gold line at the start": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "custom-period sort: sectors, Oct 1 to Oct 30, hide bars after the end and mark the start": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "periodSort.dock": {
+   "digest": "7cdc88865497796f",
+   "phrasings": {
+    "dock that period sort onto the board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "dock the ranking as a widget": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "keep that period sort on my board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "pin the custom period sort results to the board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "chart.replay.exit": {
    "digest": "3858cdefd5b544c3",
    "phrasings": {

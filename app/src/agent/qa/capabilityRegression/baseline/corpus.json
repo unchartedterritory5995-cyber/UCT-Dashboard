@@ -6000,6 +6000,134 @@
       ]
     },
     {
+      "id": "periodSort.run",
+      "source": "C3-205/C3-206 (pl-exec6): Tools → Custom-Period Sort, the popover's own Sort (runPeriodSort)",
+      "capabilities": [
+        "periodSort.run"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "periodSort.run"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "periodSort.run",
+            "target": "$periodSort",
+            "args": {
+              "start": "2026-10-01",
+              "end": "2026-10-30",
+              "group": "sector",
+              "replay": true,
+              "markStart": "line"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "periodSortPanel": {
+          "start": 20261001,
+          "end": 20261030,
+          "group": "sector"
+        },
+        "replay": "2026-10-30",
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "periodSortPanel": null,
+          "replay": null
+        }
+      },
+      "phrasings": [
+        "run a custom period sort of sectors from oct 1 to oct 30 with replay on and the start marked",
+        "rank the sectors from Oct 1 to Oct 30 and replay the charts to the end date, mark the start with a line",
+        "period sort by sector between 2026-10-01 and 2026-10-30, replay mode on, gold line at the start",
+        "custom-period sort: sectors, Oct 1 to Oct 30, hide bars after the end and mark the start"
+      ]
+    },
+    {
+      "id": "periodSort.dock",
+      "source": "C3-207 (pl-exec6): the Custom-Period Sort panel's own Dock (handleDockPeriodSort)",
+      "capabilities": [
+        "periodSort.dock"
+      ],
+      "board": "TIMED",
+      "before": [
+        {
+          "say": "rank stocks from oct 1 to oct 30",
+          "model": {
+            "ops": [
+              {
+                "action": "periodSort.run",
+                "target": "$periodSort",
+                "args": {
+                  "start": "2026-10-01",
+                  "end": "2026-10-30",
+                  "group": "stocks",
+                  "replay": false,
+                  "markStart": "off"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "periodSortPanel": {
+              "start": 20261001,
+              "end": 20261030,
+              "group": null
+            }
+          }
+        }
+      ],
+      "recentActions": [
+        "periodSort.run"
+      ],
+      "needs": [
+        "periodSort.dock"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "periodSort.dock",
+            "target": "$periodSort",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "periodSortPanel": null,
+        "periodSortWidgets": [
+          {
+            "start": 20261001,
+            "end": 20261030,
+            "group": null
+          }
+        ],
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "periodSortPanel": {
+            "start": 20261001,
+            "end": 20261030,
+            "group": null
+          },
+          "periodSortWidgets": []
+        }
+      },
+      "phrasings": [
+        "dock that period sort onto the board",
+        "dock the ranking as a widget",
+        "keep that period sort on my board",
+        "pin the custom period sort results to the board"
+      ]
+    },
+    {
       "id": "chart.replay.exit",
       "source": "Batch F2 (11-04): promoted chart settings, Replay Mode, go-to-date, custom timeframe (live B-10a LT-3, B-13a/b LT-7) — live B-13b 'exit replay' (LT-3 family)",
       "capabilities": [

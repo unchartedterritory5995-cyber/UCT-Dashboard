@@ -92,7 +92,7 @@ export const GROUPS = [
       MULTI_CHARTS, EQUAL_SIZE, GRID_CELLS] },
   // ⭐ PHASE 3: two widgets trading places, a chart duplicated into half its cell — their OWN small group (as chartGrid), so
   // neither the NL-1 core nor the workspace group grows past the per-request budget
-  { id: 'boardEdit', title: 'Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; Custom-Period Sort (rank stocks, themes, sectors or industries between two dates; dock the ranking)', domains: ['board', 'periodSort'], fillLast: true,
+  { id: 'boardEdit', title: 'Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; Period Sort (rank stocks, themes, sectors or industries between two dates; dock the ranking)', domains: ['board', 'periodSort'], fillLast: true,
     // W1-B B-05: widget.setOption here by action name — the workspace group was exactly at the NL-1 reroute budget
     actions: ['widget.setOption', 'widget.readOptions', 'widget.sendToJournal'],
     // C3-205..207 (pl-exec6): Tools → Custom-Period Sort (periodSort.run / periodSort.dock) by DOMAIN, here — not a group of its

@@ -173,7 +173,7 @@ export function registerPeriodSortCapabilities() {
   registerCapability({
     ...common,
     name: 'periodSort.run',
-    summary: 'Tools → Custom-Period Sort: rank US common stocks (or themes, sectors, industries) by their % change between a start and an end date, in a floating results panel — the popover\'s own Sort. Replay mode hides bars after the end date on every chart; Mark start draws the start date. A view: not saved; Undo closes it.',
+    summary: 'Tools → Period Sort: rank US common stocks (or themes, sectors, industries) by their % change between a start and an end date, in a floating results panel — the popover\'s own Sort. Replay mode hides bars after the end date on every chart; Mark start draws the start date. A view: not saved; Undo closes it.',
     hints: 'start / end = YYYY-MM-DD or the member\'s words ("oct 1"); end null = today. group = stocks | theme | sector | industry ("rank sectors since …" = sector). '
       + 'replay = true only when asked to hide bars after the end ("as of the end date"); false otherwise — exactly as the popover, Sort without Replay mode also turns an active replay off. '
       + 'markStart = off | line (gold line at the start) | candle (gold start candle). Never changes the charts\' timeframe.',
@@ -227,8 +227,8 @@ export function registerPeriodSortCapabilities() {
   registerCapability({
     ...common,
     name: 'periodSort.dock',
-    summary: 'Dock the open Custom-Period Sort results panel onto the board as a Period Sort widget (the panel\'s own Dock button), so it is kept with the layout. Undo takes it off the board and brings the panel back.',
-    hints: 'Only when a Custom-Period Sort panel is open (the context says which range). "Keep / pin / dock that ranking" = this. Adding it as a tab of another widget is not offered.',
+    summary: 'Dock the open Period Sort results panel onto the board as a Period Sort widget (the panel\'s own Dock button), so it is kept with the layout. Undo takes it off the board and brings the panel back.',
+    hints: 'Only when a Period Sort panel is open (the context says which range). "Keep / pin / dock that ranking" = this. Adding it as a tab of another widget is not offered.',
     args: { type: 'object', properties: {}, required: [], additionalProperties: false },
     check(st) {
       if (!st || st.unreadable) return UNREADABLE
